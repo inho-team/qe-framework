@@ -88,3 +88,42 @@ Report in the following format upon task completion:
 - Do not directly modify CLAUDE.md
 - Do not work on tasks not in the checklist
 - Do not arbitrarily change the content of spec documents
+
+## Team Mode (Experimental)
+
+> Requires Agent Teams enabled. Falls back to sequential execution if not available.
+
+### When to Activate
+- Agent Teams feature is enabled AND
+- Checklist has 5+ items AND
+- At least 3 items are independent (no sequential dependency)
+
+### Independence Check
+Items are independent when:
+- They modify different files
+- No item's output is another item's input
+- They don't share state (database, config)
+
+### Team Structure
+- Lead partitions checklist into independent groups
+- One teammate per group (max 5 teammates)
+- Each teammate gets: group items + CLAUDE.md constraints + file ownership list
+
+### File Ownership
+Before spawning, Lead creates a partition:
+```
+Teammate A: src/auth/* (items 1, 3)
+Teammate B: src/api/* (items 2, 4)
+Teammate C: tests/* (items 5, 6)
+```
+No overlap allowed. Shared files (package.json, etc.) are handled by Lead after teammates finish.
+
+### Workflow
+1. Lead analyzes checklist for independence
+2. If 3+ independent groups --> create team
+3. Teammates claim tasks from shared task list
+4. Lead monitors, reassigns if teammate is stuck
+5. After all teammates finish, Lead handles shared files and runs integration checks
+
+### Fallback
+If fewer than 3 independent groups, use sequential Subagent mode (current behavior).

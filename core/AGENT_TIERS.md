@@ -66,3 +66,15 @@ Optimizes cost while maintaining quality.
 - 60% of all tasks handled at LOW / MEDIUM
 - HIGH used only for judgment and analysis phases
 - Never use HIGH for simple repetitive tasks
+
+## Agent Teams Model Selection
+
+When using Agent Teams, model selection applies per-teammate:
+
+| Team Pattern | Lead Model | Teammate Model |
+|-------------|------------|----------------|
+| Quality Review (Eqa-orchestrator) | opus (HIGH) | sonnet (MEDIUM) per teammate |
+| Parallel Implementation (Etask-executor) | sonnet (MEDIUM) | sonnet (MEDIUM) per teammate |
+| Research (Edeep-researcher) | opus (HIGH) | sonnet (MEDIUM) per researcher, opus for Devil's Advocate |
+
+Escalation rules apply per-teammate: if a teammate fails 2 consecutive times, escalate that teammate's model tier.

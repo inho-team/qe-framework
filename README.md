@@ -413,6 +413,35 @@ Agents are automatically assigned a model tier based on task complexity. See [AG
 | Ecommit-executor | Analyzes diffs, generates commit messages, and stages files with no AI traces. |
 | Eprofile-collector | Collects user command patterns, writing style, and correction history. |
 
+## Agent Teams (Experimental)
+
+QE Framework supports [Claude Agent Teams](https://code.claude.com/docs/en/agent-teams) for complex tasks that benefit from parallel collaboration. Agent Teams spawn multiple Claude instances that communicate directly and share a task list.
+
+### When Teams Are Used
+
+Teams are activated automatically when the feature is enabled and the task meets complexity thresholds:
+
+| Agent | Team Trigger | Team Structure |
+|-------|-------------|----------------|
+| Eqa-orchestrator | 3+ distinct test/source groups | Test Engineer + Code Reviewer in parallel |
+| Etask-executor | 5+ independent checklist items | One teammate per file group |
+| Edeep-researcher | 3+ research sources/perspectives | Researchers + Devil's Advocate |
+
+### Enable Agent Teams
+
+Add to `.claude/settings.json`:
+```json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+
+All agents fall back to their existing Subagent behavior when Agent Teams is not enabled.
+
+See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for detailed configuration and team patterns.
+
 ## Project Structure
 
 ```

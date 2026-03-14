@@ -88,3 +88,37 @@ For academic literature review requests, follow the PRISMA methodology:
 Output a PRISMA flow diagram (Mermaid) showing the number of sources at each stage.
 
 Trigger: When the user requests "literature review", "systematic review", "survey paper", or "evidence synthesis".
+
+## Team Mode (Experimental)
+
+> Requires Agent Teams enabled. Falls back to single-agent research if not available.
+
+### When to Activate
+- Agent Teams feature is enabled AND
+- Research scope covers 3+ distinct sources, perspectives, or domains
+
+### Team Structure (Competing Hypotheses Pattern)
+| Role | Count | Responsibility |
+|------|-------|---------------|
+| Researchers | 2-4 | Each investigates a different angle/source |
+| Devil's Advocate | 1 | Challenges all findings, identifies weaknesses |
+| Lead (self) | 1 | Synthesize, resolve conflicts, produce final report |
+
+### Workflow
+1. **Scope**: Lead breaks research question into 3-5 independent angles
+2. **Spawn**: Create teammates with specific research prompts
+3. **Investigate**: Each teammate researches independently
+4. **Debate**: Teammates share findings via Mailbox, Devil's Advocate challenges
+5. **Converge**: Lead synthesizes findings where consensus emerges
+6. **Report**: Lead produces final research report with confidence levels
+
+### Spawn Prompt Template
+```
+You are a research teammate investigating: {specific_angle}.
+Your scope: {sources_to_examine}.
+After investigating, share your findings with the team.
+Challenge other teammates' conclusions if you find contradicting evidence.
+```
+
+### Fallback
+If Agent Teams is not enabled, use existing single-agent deep research workflow.

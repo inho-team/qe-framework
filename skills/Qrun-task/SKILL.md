@@ -326,6 +326,19 @@ When called with multiple UUIDs in ultra mode:
 - Main agent tracks progress and collects results
 - After all agents complete, run final verification on each task
 
+#### Agent Teams Integration (Experimental)
+When Agent Teams is enabled and multiple tasks exist:
+1. Check if tasks are independent (different file scopes)
+2. If 3+ independent tasks --> prefer Agent Teams over parallel Subagents
+3. Create team with one teammate per task (max 5)
+4. Teammates use shared task list for self-coordination
+5. TeammateIdle hook enforces quality checks
+6. TaskCompleted hook validates deliverables
+7. Lead synthesizes results and runs cross-task verification
+
+When Agent Teams is NOT enabled or tasks are dependent:
+- Use existing parallel Subagent approach (unchanged)
+
 ## Role Constraints
 - This skill focuses exclusively on **executing tasks based on existing spec documents**
 - Use `/Qgenerate-spec` to create new spec documents
