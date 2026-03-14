@@ -42,7 +42,7 @@ if (isError) {
   }
 
   // Reset window if older than 60 seconds
-  if (Date.now() - errorState.window_start > 60000) {
+  if (Date.now() - errorState.window_start > 90000) {
     errorState = { errors: [], window_start: Date.now() };
   }
 
@@ -101,7 +101,7 @@ try {
         const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
         const hasRecentErrors = Array.isArray(errState.errors) &&
           errState.errors.length > 0 &&
-          (Date.now() - (errState.window_start || 0)) <= 60000;
+          (Date.now() - (errState.window_start || 0)) <= 90000;
         if (hasRecentErrors) safeToCollect = false;
       } catch {}
     }

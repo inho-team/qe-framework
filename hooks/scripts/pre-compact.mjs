@@ -71,7 +71,7 @@ if (activeTasks.length > 0) {
 const taskInfo = activeTasks.length > 0 ? ` ${activeTasks.length} active task(s) need preservation.` : '';
 
 // POST-COMPACT RULES: critical knowledge to survive compaction
-const intentRouting = 'Intent routing: init→Qinit, spec/plan→Qgenerate-spec, run/execute→Qrun-task, research→Edeep-researcher, bug/error→Ecode-debugger, review→Ecode-reviewer, test→Ecode-test-engineer, docs→Ecode-doc-writer, commit→Qcommit, refresh→Qrefresh, debug-method→Qsystematic-debugging, TDD→Qtest-driven-development, design-UI→Qfrontend-design, architecture→Qc4-architecture, DB-schema→Qdatabase-schema-designer';
+const intentRouting = 'Intent routing: init→Qinit, spec/plan/task→Qgenerate-spec, run/execute→Qrun-task, research/compare→Edeep-researcher, bug/error/not-working→Ecode-debugger, review/check→Ecode-reviewer, test/coverage→Ecode-test-engineer, docs/explain/README→Ecode-doc-writer, commit/push→Qcommit, refresh/sync→Qrefresh, debug-method→Qsystematic-debugging, TDD→Qtest-driven-development, design-UI/React→Qfrontend-design, architecture/C4→Qc4-architecture, DB-schema→Qdatabase-schema-designer, help→Qhelp, browser/scrape→Qagent-browser, PRD/roadmap→Epm-planner, resume/continue→Qresume';
 const agentTiers = 'Agent tiers: LOW(haiku)=Eprofile-collector/Earchive-executor/Ecommit-executor, MEDIUM(sonnet)=Etask-executor/Ecode-reviewer/Ecode-test-engineer/Erefresh-executor/Ecompact-executor, HIGH(opus)=Edeep-researcher/Eqa-orchestrator';
 
 // Check current routing state

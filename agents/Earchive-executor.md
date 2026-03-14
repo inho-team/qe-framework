@@ -40,6 +40,11 @@ Runs silently in the background.
 - On error, log to `.qe/changelog.md`.
 - Never archive incomplete tasks.
 
+## Version Note
+- Archive directory versions (e.g., `.qe/.archive/v0.1.0/`) are **independent** of `package.json` versions
+- Archive versions track task completion history, not software releases
+- Each archive increment represents a batch of completed tasks, not a code release
+
 ## Will
 - Archive completed files
 - Auto-determine version

@@ -118,3 +118,8 @@ After drafting, edit for style using this checklist:
 - "One limitation of the current approach is..."
 - "While promising, our method does not address..."
 - "We leave the extension to ... as future work."
+
+## Chapter Writing Delegation
+When writing individual chapters or long-form sections, delegate to the `Egrad-writer` agent via the Agent tool:
+- Pass: chapter outline, section requirements, citation style, target length
+- Egrad-writer handles: academic writing style, citation formatting, section structure

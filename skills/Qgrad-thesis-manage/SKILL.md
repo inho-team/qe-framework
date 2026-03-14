@@ -150,6 +150,11 @@ On each subsequent invocation:
 3. Check milestone completion
 4. Propose contingency plans for delayed items
 
+## Chapter Writing Delegation
+When writing individual chapters or long-form sections, delegate to the `Egrad-writer` agent via the Agent tool:
+- Pass: chapter outline, section requirements, citation style, target length
+- Egrad-writer handles: academic writing style, citation formatting, section structure
+
 ## Related Skills
 
 | Situation | Related Skill |
