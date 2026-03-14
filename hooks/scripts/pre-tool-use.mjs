@@ -23,6 +23,49 @@ const cwd = data.cwd || data.directory || process.cwd();
 const toolName = data.tool_name || data.toolName || '';
 const hints = [];
 
+// --- Intent Gate Routing (Items 1-5) ---
+const intentRouteFile = join(cwd, '.qe', 'state', 'intent-route.json');
+const statsFileForIntent = join(cwd, '.qe', 'state', 'session-stats.json');
+
+try {
+  // Item 1: Detect session first call (tool_calls <= 1)
+  let toolCalls = -1;
+  if (existsSync(statsFileForIntent)) {
+    const statsData = JSON.parse(readFileSync(statsFileForIntent, 'utf8'));
+    toolCalls = statsData.tool_calls || 0;
+  }
+
+  const isFirstCall = toolCalls <= 1;
+
+  if (isFirstCall) {
+    // Item 2: Inject INTENT_GATE core routing table on first call
+    hints.push(
+      '[INTENT GATE] Intent routing: ' +
+      'init→Qinit, spec/plan→Qgenerate-spec, run/execute→Qrun-task, ' +
+      'research→Edeep-researcher, bug/error→Ecode-debugger, ' +
+      'review→Ecode-reviewer, test→Ecode-test-engineer, ' +
+      'docs→Ecode-doc-writer, commit→Qcommit, refresh→Qrefresh, ' +
+      'debug-method→Qsystematic-debugging, TDD→Qtest-driven-development, ' +
+      'design-UI→Qfrontend-design, architecture→Qc4-architecture, ' +
+      'DB-schema→Qdatabase-schema-designer'
+    );
+  }
+
+  // Item 4 & 5: Check intent-route.json
+  if (existsSync(intentRouteFile)) {
+    // Item 5: Route exists — show routing info
+    const route = JSON.parse(readFileSync(intentRouteFile, 'utf8'));
+    if (route.routed_to && route.intent) {
+      hints.push(`Routed to: ${route.routed_to} (intent: ${route.intent})`);
+    }
+  } else if (!isFirstCall && toolCalls > 1) {
+    // Item 4: No route and not first call — critical warning
+    hints.push('[CRITICAL] Intent route not classified. Check INTENT_GATE and classify user intent before acting.');
+  }
+} catch {
+  // Fault-tolerant: ignore intent routing errors
+}
+
 // If .qe/analysis/ exists, remind to use it instead of scanning
 const analysisDir = join(cwd, '.qe', 'analysis');
 if (existsSync(analysisDir)) {

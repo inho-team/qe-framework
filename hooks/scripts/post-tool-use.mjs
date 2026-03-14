@@ -92,6 +92,25 @@ try {
   atomicWriteJson(statsFile, stats);
 } catch {}
 
+// Profile collection trigger every 50 tool calls
+try {
+  if (stats.tool_calls > 0 && stats.tool_calls % 50 === 0) {
+    let safeToCollect = true;
+    if (existsSync(errorFile)) {
+      try {
+        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
+        const hasRecentErrors = Array.isArray(errState.errors) &&
+          errState.errors.length > 0 &&
+          (Date.now() - (errState.window_start || 0)) <= 60000;
+        if (hasRecentErrors) safeToCollect = false;
+      } catch {}
+    }
+    if (safeToCollect) {
+      hints.push('Run Eprofile-collector in background to update command patterns.');
+    }
+  }
+} catch {}
+
 if (hints.length > 0) {
   console.log(JSON.stringify({
     continue: true,
