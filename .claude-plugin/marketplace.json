@@ -1,13 +1,13 @@
 {
-  "name": "inho-team-claude-skills",
+  "name": "inho-team-qe-framework",
   "description": "Personal Claude Code skills by inho-team",
   "plugins": [
     {
-      "name": "claude-skills",
+      "name": "qe-framework",
       "description": "Personal Claude Code skills package",
       "source": {
         "source": "github",
-        "repo": "inho-team/claude-skills",
+        "repo": "inho-team/qe-framework",
         "ref": "main"
       }
     }
