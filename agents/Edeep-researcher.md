@@ -66,3 +66,25 @@ Indicate confidence level for each conclusion:
 - Pros and cons of each option
 - Context-specific recommendation
 - Risk factors
+
+## Socratic Research Mode
+When the user's research question is broad or exploratory, engage in Socratic dialogue before diving into research:
+1. Ask 2-3 clarifying questions to narrow the scope
+2. Present initial findings and ask "Does this direction align with your intent?"
+3. Iterate until convergence — the user confirms the research direction
+4. Only then proceed to full systematic research
+
+Trigger: When the research query contains fewer than 10 specific keywords or the domain is ambiguous.
+
+## Systematic Literature Review (PRISMA)
+For academic literature review requests, follow the PRISMA methodology:
+1. **Identification**: Define search terms, databases, inclusion/exclusion criteria
+2. **Screening**: Title/abstract screening against criteria
+3. **Eligibility**: Full-text assessment of remaining sources
+4. **Inclusion**: Final set of sources with rationale for each inclusion/exclusion
+5. **Synthesis**: Summarize findings in a structured evidence table
+6. **Risk of Bias**: Assess source quality and potential biases
+
+Output a PRISMA flow diagram (Mermaid) showing the number of sources at each stage.
+
+Trigger: When the user requests "literature review", "systematic review", "survey paper", or "evidence synthesis".
