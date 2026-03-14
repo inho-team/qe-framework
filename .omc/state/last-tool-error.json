@@ -1,0 +1,7 @@
+{
+  "tool_name": "Bash",
+  "tool_input_preview": "{\"command\":\"cd \\\"/Users/jinsungkim/Documents/Obsidian Vault/inho/2026/claude-skills\\\" && echo \\\"//npm.pkg.github.com/:_authToken=***REMOVED***\\\" >> .npmrc && npm publish 2>&...",
+  "error": "Exit code 1\nnpm warn publish npm auto-corrected some errors in your package.json when publishing.  Please run \"npm pkg fix\" to address these errors.\nnpm warn publish errors corrected:\nnpm warn publish \"repository.url\" was normalized to \"git+https://github.com/inho-team/claude-skills.git\"\nnpm notice\nnpm notice 📦  @inho/claude-skills@1.0.0\nnpm notice Tarball Contents\nnpm notice 2.4kB commands/add-javadoc/SKILL.md\nnpm notice 2.5kB commands/notion/SKILL.md\nnpm notice 1.5kB commands/Q-agent-browser/...",
+  "timestamp": "2026-03-14T00:51:54.464Z",
+  "retry_count": 1
+}
