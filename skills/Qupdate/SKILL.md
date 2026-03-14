@@ -1,6 +1,6 @@
 ---
 name: Qupdate
-description: Updates the QE Framework plugin to the latest version. Use for "update plugin", "upgrade", "update qe", "최신 버전".
+description: Updates the QE Framework plugin to the latest version. Use for "update plugin", "upgrade", "update qe".
 allowed-tools: Bash(claude plugin:*)
 ---
 > Shared principles: see core/PRINCIPLES.md
@@ -14,7 +14,7 @@ Updates the QE Framework plugin to the latest version in a single command.
 
 ### Step 1: Update plugin
 ```bash
-claude plugin update qe-framework
+claude plugin update qe-framework@inho-team-qe-framework
 ```
 
 ### Step 2: Report result
