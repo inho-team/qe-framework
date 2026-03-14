@@ -3,5 +3,23 @@
   "version": "1.2.0",
   "description": "QE Framework - Personal Claude Code skills package",
   "skills": "./skills/",
+  "agents": [
+    "./agents/Earchive-executor.md",
+    "./agents/Ecode-debugger.md",
+    "./agents/Ecode-doc-writer.md",
+    "./agents/Ecode-reviewer.md",
+    "./agents/Ecode-test-engineer.md",
+    "./agents/Ecommit-executor.md",
+    "./agents/Ecompact-executor.md",
+    "./agents/Edeep-researcher.md",
+    "./agents/Edoc-generator.md",
+    "./agents/Egrad-writer.md",
+    "./agents/Ehandoff-executor.md",
+    "./agents/Epm-planner.md",
+    "./agents/Eprofile-collector.md",
+    "./agents/Eqa-orchestrator.md",
+    "./agents/Erefresh-executor.md",
+    "./agents/Etask-executor.md"
+  ],
   "hooks": "./hooks/hooks.json"
 }
