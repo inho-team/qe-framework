@@ -94,7 +94,7 @@ try {
 
 // Profile collection trigger every 50 tool calls
 try {
-  if (stats.tool_calls > 0 && stats.tool_calls % 50 === 0) {
+  if (stats.tool_calls > 0 && stats.tool_calls % 20 === 0) {
     let safeToCollect = true;
     if (existsSync(errorFile)) {
       try {

@@ -75,6 +75,8 @@ Empty settings file. Users can add hooks etc. as needed.
 │   ├── entry-points.md
 │   └── architecture.md
 ├── .archive/
+├── context/
+├── profile/
 ├── tasks/
 │   └── pending/
 └── checklists/
