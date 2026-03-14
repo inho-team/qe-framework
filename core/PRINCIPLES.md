@@ -32,7 +32,7 @@ All git commit/push operations MUST go through the `/Qcommit` skill, which deleg
 
 ## Communication Principles
 
-- **English first**: Write all responses in English.
+- **Internal English processing (Mandatory)**: All reasoning, analysis, and internal processing MUST be done in English for higher accuracy. Translate the final response to the user's language before outputting. See `/Qtranslate` for details and `.qe/profile/language.md` for user language settings.
 - **Clarify ambiguous requirements**: Always confirm unclear requirements before implementing.
 - **Concise responses**: Omit unnecessary explanation, preamble, and repeated summaries.
 - **Conclusion first**: Answer in the order — conclusion then reasoning.

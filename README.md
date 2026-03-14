@@ -12,6 +12,7 @@ QE Framework is built on proven engineering principles:
 - **YAGNI** -- Implement only what is needed now; no speculative design
 - **Evidence-based** -- Do not guess. When uncertain, read the file and verify.
 - **Minimal change** -- Modify only what was requested. Do not refactor adjacent code.
+- **Internal English processing** -- All reasoning and analysis is done in English internally for higher accuracy, then translated to the user's language before responding. This produces better results while keeping the conversation natural in any language.
 
 ## Architecture
 
