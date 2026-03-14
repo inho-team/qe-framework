@@ -61,6 +61,7 @@ Before starting, check project memory:
 - Follow existing code style and patterns
 - Do not introduce security vulnerabilities (OWASP Top 10)
 - If test code is in the checklist, always run it and confirm it passes
+- **Coding Expert Reference**: 프로젝트 기술 스택에 맞는 `skills/coding-experts/` 스킬을 참조하여 언어/프레임워크별 베스트 프랙티스를 따른다 (→ `skills/coding-experts/CATALOG.md`)
 
 ### 4. Update Memory
 After work is complete, record in project memory:
