@@ -2,6 +2,8 @@
 name: Qgrad-paper-review
 description: 학술 논문 리뷰어 코멘트를 분석하고 Response Letter를 작성합니다. 리뷰 대응 전략 수립, 수정 계획, 포인트별 응답 작성을 지원합니다. "리뷰 대응", "reviewer comment", "rebuttal", "response letter", "revision" 등의 요청 시 사용합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 논문 리뷰 대응 및 Response Letter 작성
 

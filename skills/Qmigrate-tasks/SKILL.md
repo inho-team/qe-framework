@@ -2,6 +2,8 @@
 name: Qmigrate-tasks
 description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude/tasks/, .claude/checklists/ 구조로 마이그레이션하고 CLAUDE.md를 최신 컨벤션으로 갱신합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 작업 파일 마이그레이션 스킬
 

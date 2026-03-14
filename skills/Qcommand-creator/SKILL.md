@@ -2,6 +2,8 @@
 name: Qcommand-creator
 description: Claude Code 슬래시 커맨드를 생성할 때 사용하는 스킬입니다. "커맨드 만들어줘", "슬래시 커맨드 추가해줘" 등의 요청이나 반복적인 워크플로우를 재사용 가능한 커맨드로 만들고 싶을 때 활용합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Command Creator
 

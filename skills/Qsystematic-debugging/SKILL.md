@@ -5,6 +5,8 @@ metadata:
   source: https://skills.sh/obra/superpowers/systematic-debugging
   author: obra
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Systematic Debugging
 

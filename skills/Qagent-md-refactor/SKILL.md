@@ -3,6 +3,8 @@ name: Qagent-md-refactor
 description: 비대해진 AGENTS.md, CLAUDE.md 또는 유사한 에이전트 지시 파일을 점진적 공개 원칙에 따라 리팩토링합니다. 단일 파일을 체계적으로 정리된 연결 문서로 분리합니다.
 license: MIT
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Agent MD Refactor
 

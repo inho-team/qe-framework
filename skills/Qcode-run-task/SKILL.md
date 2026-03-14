@@ -2,6 +2,8 @@
 name: Qcode-run-task
 description: 코드 작업 완료 후 테스트→리뷰→수정→재테스트 품질 검증 루프를 수행합니다. Qrun-task에서 type: code 작업 시 자동 연계됩니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 코드 품질 검증 루프 스킬
 

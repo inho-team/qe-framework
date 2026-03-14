@@ -7,6 +7,8 @@ metadata:
   source: https://skills.sh/vercel-labs/agent-skills/web-design-guidelines
   argument-hint: <file-or-pattern>
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Web Interface Guidelines
 

@@ -3,6 +3,8 @@ name: Qdatabase-schema-designer
 description: 견고하고 확장 가능한 SQL/NoSQL 데이터베이스 스키마를 설계합니다. 정규화 가이드라인, 인덱싱 전략, 마이그레이션 패턴, 제약조건 설계, 성능 최적화를 제공합니다.
 license: MIT
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 데이터베이스 스키마 설계
 

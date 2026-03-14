@@ -17,6 +17,8 @@ allowed-tools:
   - Glob
   - AskUserQuestion
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Humanizer: AI 문장 패턴 제거
 

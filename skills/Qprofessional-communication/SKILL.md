@@ -3,6 +3,8 @@ name: Qprofessional-communication
 description: 소프트웨어 개발자를 위한 기술적 커뮤니케이션 가이드. 이메일 구조, 팀 메시지 에티켓, 회의 안건, 기술/비기술 대상에 맞는 메시지 조율을 다룹니다. 전문적인 메시지 작성, 회의 커뮤니케이션 준비, 문서 작성 능력 향상이 필요할 때 사용하세요.
 allowed-tools: Read, Glob, Grep
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 전문적 커뮤니케이션
 

@@ -2,6 +2,8 @@
 name: Qwriting-clearly
 description: 사람이 읽는 글을 작성할 때 사용하세요. 문서, 커밋 메시지, 오류 메시지, 설명문, 보고서, UI 텍스트 등에 적용됩니다. Strunk의 원칙을 바탕으로 더 명확하고 강력하며 전문적인 글을 씁니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 명확하고 간결하게 쓰기
 

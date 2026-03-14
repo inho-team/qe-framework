@@ -2,6 +2,8 @@
 name: Qgrad-paper-write
 description: 학술 논문 초안을 체계적으로 작성합니다. Abstract, Introduction, Method, Result, Discussion 구조를 따르며, 각 섹션별 가이드와 학술 문체 교정을 제공합니다. "논문 쓰기", "paper draft", "논문 초안", "학술 글쓰기" 등의 요청 시 사용합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 학술 논문 초안 작성
 

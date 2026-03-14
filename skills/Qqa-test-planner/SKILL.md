@@ -3,6 +3,8 @@ name: Qqa-test-planner
 description: QA 엔지니어를 위한 종합 테스트 플랜, 수동 테스트 케이스, 회귀 테스트 스위트, 버그 리포트 생성 도구. Figma MCP 통합을 통한 디자인 검증 기능 포함.
 trigger: explicit
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # QA Test Planner
 
