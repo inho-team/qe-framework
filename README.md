@@ -36,8 +36,14 @@ Methodology & process      Execution & delegation     Shared principles
 
 ## Installation
 
+### From terminal
 ```bash
-claude plugin add github:inho-team/qe-framework
+claude plugin install github:inho-team/qe-framework
+```
+
+### From inside a Claude Code session
+```
+/plugin install github:inho-team/qe-framework
 ```
 
 ### Initialize a project
