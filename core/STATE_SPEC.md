@@ -46,11 +46,40 @@
 
 ## Available Modes
 
-| Mode | Description | Stop Blocking |
-|------|-------------|---------------|
-| qrun-task | Task execution in progress | Yes |
-| qrefresh | Analysis refresh in progress | Yes |
-| qarchive | Archiving in progress | Yes |
+| Mode | Description | Stop Blocking | Default max_reinforcements |
+|------|-------------|---------------|---------------------------|
+| ultrawork | Autonomous parallel task execution | Yes | 50 |
+| ultraqa | Autonomous quality verification | Yes | 80 |
+| qrun-task | Task execution in progress | Yes | 20 |
+| qrefresh | Analysis refresh in progress | Yes | 20 |
+| qarchive | Archiving in progress | Yes | 20 |
+
+## Ultra Mode State Extensions
+
+Ultra modes (`ultrawork`, `ultraqa`) extend the base state format with additional fields:
+
+```json
+{
+  "active": true,
+  "mode": "ultrawork | ultraqa",
+  "started_at": "ISO timestamp",
+  "updated_at": "ISO timestamp",
+  "session_id": "session UUID",
+  "reinforcement_count": 0,
+  "max_reinforcements": 50,
+  "original_prompt": "original user request",
+  "task_uuids": ["UUID1", "UUID2"],
+  "completed_uuids": [],
+  "failed_uuids": []
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| mode | string | `ultrawork` or `ultraqa` |
+| task_uuids | string[] | All task UUIDs to execute |
+| completed_uuids | string[] | UUIDs that finished successfully |
+| failed_uuids | string[] | UUIDs that failed |
 
 ## API
 
