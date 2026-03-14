@@ -1,7 +1,6 @@
 ---
 name: Ehandoff-executor
 description: 세션 핸드오프 문서를 생성하고 검증하는 서브에이전트입니다. Python 의존성 없이 Claude 도구만으로 동작합니다.
-model: sonnet
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조

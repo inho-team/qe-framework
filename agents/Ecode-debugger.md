@@ -2,7 +2,6 @@
 name: Ecode-debugger
 description: 디버깅 전문가. 버그 원인 분석, 에러 추적, 트러블슈팅을 수행합니다. "왜 안돼", "에러 나", "버그", "원인 찾아줘", "안 되는데" 등의 요청 시 사용합니다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
 memory: user
 ---
 

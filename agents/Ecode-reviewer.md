@@ -2,7 +2,6 @@
 name: Ecode-reviewer
 description: 코드 리뷰 전문가. 코드 변경 후 품질, 보안, 성능, 패턴 준수를 검토합니다. "리뷰해줘", "코드 봐줘", "이거 괜찮아?" 등의 요청 시 사용합니다.
 tools: Read, Grep, Glob, Bash
-model: sonnet
 memory: user
 ---
 

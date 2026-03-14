@@ -1,7 +1,6 @@
 ---
 name: Egrad-writer
 description: 학술 논문 챕터 작성을 위임받아 실행하는 서브에이전트입니다. 학술 문체와 인용 규칙을 준수합니다.
-model: sonnet
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조

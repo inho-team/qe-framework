@@ -2,7 +2,6 @@
 name: Epm-planner
 description: 기획자 및 문서 정리 전문 에이전트. PRD 작성, 유저스토리, 로드맵 기획, 회의록 정리, 이미지 분석, 문서 생성(Word/PDF/PPT/Excel)을 담당합니다. "기획서 만들어줘", "문서 정리해줘", "회의록 작성", "PRD", "로드맵", "유저스토리", "발표자료 만들어줘" 등의 요청 시 사용합니다.
 tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch
-model: sonnet
 color: purple
 maxTurns: 50
 permissionMode: acceptEdits

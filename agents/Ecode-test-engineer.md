@@ -2,7 +2,6 @@
 name: Ecode-test-engineer
 description: 테스트 엔지니어. 테스트 작성, 커버리지 분석, 테스트 전략 수립을 담당합니다. "테스트 만들어줘", "테스트 작성", "커버리지", "QA" 등의 요청 시 사용합니다.
 tools: Read, Grep, Glob, Bash, Edit, Write
-model: sonnet
 memory: user
 ---
 

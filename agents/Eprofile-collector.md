@@ -1,7 +1,6 @@
 ---
 name: Eprofile-collector
 description: 백그라운드에서 사용자 명령 패턴, 문체, 교정 이력을 수집하여 .qe/profile/에 기록하는 서브에이전트입니다.
-model: haiku
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조
