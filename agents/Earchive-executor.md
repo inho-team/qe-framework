@@ -1,7 +1,6 @@
 ---
 name: Earchive-executor
 description: 완료된 작업 파일을 .qe/.archive/에 버전별로 아카이브하는 백그라운드 서브에이전트입니다.
-model: haiku
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조

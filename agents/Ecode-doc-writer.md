@@ -2,7 +2,6 @@
 name: Ecode-doc-writer
 description: 기술 문서 작성 전문가. 코드 설명, API 문서, README, 아키텍처 문서를 작성합니다. "설명해줘", "문서 만들어줘", "이게 뭐하는 코드야", "README" 등의 요청 시 사용합니다.
 tools: Read, Grep, Glob
-model: haiku
 memory: user
 ---
 

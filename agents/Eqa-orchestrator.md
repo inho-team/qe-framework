@@ -1,7 +1,6 @@
 ---
 name: Eqa-orchestrator
 description: 테스트→리뷰→수정 품질 루프 전체를 위임받아 실행하는 서브에이전트입니다. 메인 컨텍스트를 보호합니다.
-model: sonnet
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조

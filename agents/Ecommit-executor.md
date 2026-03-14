@@ -1,7 +1,6 @@
 ---
 name: Ecommit-executor
 description: diff 분석, 커밋 메시지 생성, 스테이징을 백그라운드에서 수행하는 서브에이전트입니다. AI 흔적을 남기지 않습니다.
-model: haiku
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조

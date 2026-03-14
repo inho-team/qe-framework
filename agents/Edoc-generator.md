@@ -1,7 +1,6 @@
 ---
 name: Edoc-generator
 description: 배치 문서 생성(docx/pdf/pptx/xlsx)을 백그라운드에서 수행하는 서브에이전트입니다.
-model: sonnet
 ---
 
 > 공통 원칙: core/PRINCIPLES.md 참조

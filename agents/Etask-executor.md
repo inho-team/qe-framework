@@ -2,7 +2,6 @@
 name: Etask-executor
 description: PROACTIVELY use this agent when Qrun-task executes implementation with 5 or more checklist items. 체크리스트 항목을 순서대로 구현하고, 작업 패턴을 학습하여 반복 작업의 효율을 높입니다.
 tools: Read, Write, Edit, Grep, Glob, Bash
-model: sonnet
 color: cyan
 memory: project
 maxTurns: 50
