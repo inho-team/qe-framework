@@ -16,7 +16,9 @@ A sub-agent that receives delegation for and executes the full test→review→f
 Handles loop management internally (iteration count, result collection, pass/fail judgment) to reduce token consumption in the main context.
 
 ## Invocation Conditions
-- When the quality loop is delegated from Qcode-run-task
+- **Default**: Qcode-run-task delegates the quality loop to this agent by default (not opt-in)
+- When Qrun-task executes `type: code` tasks in autonomous mode (ultra)
+- When any skill needs test→review→fix verification with context protection
 
 ## Execution Steps
 
