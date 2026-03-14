@@ -75,6 +75,36 @@ if (existsSync(analysisDir)) {
   }
 }
 
+// --- Secret Scanner (Write/Edit only) ---
+if (['Write', 'Edit'].includes(toolName)) {
+  const toolInput = data.tool_input || data.toolInput || {};
+  const contentToScan = toolInput.new_string || toolInput.content || '';
+
+  if (contentToScan) {
+    const secretPatterns = [
+      { name: 'AWS Access Key', regex: /AKIA[0-9A-Z]{16}/ },
+      { name: 'AWS Secret Key', regex: /[0-9a-zA-Z/+]{40}/ },
+      { name: 'GitHub Token', regex: /gh[pousr]_[A-Za-z0-9_]{36,}/ },
+      { name: 'JWT', regex: /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+/ },
+      { name: 'Private Key', regex: /-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----/ },
+      { name: 'Generic API Key', regex: /(api[_\-]?key|apikey|secret[_\-]?key)\s*[:=]\s*['"][A-Za-z0-9]{20,}['"]/ },
+      { name: 'DB Connection String', regex: /(mongodb|postgres|mysql|redis):\/\/[^\s]+@[^\s]+/ },
+      { name: 'Generic Password', regex: /(password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]/ },
+    ];
+
+    for (const { name, regex } of secretPatterns) {
+      if (regex.test(contentToScan)) {
+        console.log(JSON.stringify({
+          continue: false,
+          decision: "block",
+          reason: `Blocked: potential secret detected (${name}). Remove the secret before proceeding.`
+        }));
+        process.exit(0);
+      }
+    }
+  }
+}
+
 // Remind about .qe/ auto-permission
 if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};

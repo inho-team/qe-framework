@@ -52,8 +52,26 @@ Scan project sources and save analysis results to `.qe/analysis/`.
 ### Step 3: Create Files
 Create the following files and directories:
 
+#### CLAUDE.md Template Selection
+
+Select a template from `templates/claude-md/` based on project analysis:
+
+| Project Type | Template | When to Use |
+|-------------|----------|-------------|
+| Script / small utility | `minimal.md` | Single-purpose project, few files, no build system |
+| Standard application | `standard.md` | Single app with build/test pipeline (default) |
+| Full-stack application | `fullstack.md` | Separate frontend + backend + database |
+| Monorepo | `monorepo.md` | Multiple packages/apps in one repository (detected by workspaces config) |
+
+Detection heuristics:
+- **monorepo**: `workspaces` in package.json, `pnpm-workspace.yaml`, `lerna.json`, or `nx.json` exists
+- **fullstack**: Separate `frontend/` + `backend/` directories, or both a UI framework and a server framework detected
+- **minimal**: Fewer than 10 source files, no package manager config
+- **standard**: Everything else (default)
+
 #### CLAUDE.md
-Generate referencing `Qgenerate-spec`'s `templates/CLAUDE_MD_TEMPLATE.md`.
+Generate using the selected template from `templates/claude-md/`.
+Also reference `Qgenerate-spec`'s `templates/CLAUDE_MD_TEMPLATE.md` for task list format.
 - Fill in project name and description
 - Reflect tech stack from Step 2 analysis results
 - Leave goals, constraints, and decisions empty

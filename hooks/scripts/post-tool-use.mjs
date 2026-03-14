@@ -111,6 +111,27 @@ try {
   }
 } catch {}
 
+// --- Quality Check Hints (Write/Edit only) ---
+if (['Write', 'Edit'].includes(toolName)) {
+  const toolInput = data.tool_input || data.toolInput || {};
+  const filePath = toolInput.file_path || toolInput.filePath || '';
+
+  if (filePath) {
+    // TypeScript files
+    if (/\.tsx?$/.test(filePath)) {
+      hints.push('Consider running type check after TypeScript changes.');
+    }
+    // Test files
+    if (/\.(test|spec)\./.test(filePath)) {
+      hints.push('Test file modified. Run tests to verify.');
+    }
+    // Style files
+    if (/\.(css|scss|sass|less)$/.test(filePath)) {
+      hints.push('Style file changed. Check for visual regression.');
+    }
+  }
+}
+
 if (hints.length > 0) {
   console.log(JSON.stringify({
     continue: true,

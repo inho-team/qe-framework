@@ -83,6 +83,31 @@ if (memoryContext) {
   messages.push(memoryContext);
 }
 
+// Check 6: Git branch and uncommitted changes
+try {
+  const { execSync } = await import('child_process');
+  const gitParts = [];
+
+  try {
+    const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+    if (branch) gitParts.push(`Branch: ${branch}`);
+  } catch {}
+
+  try {
+    const diffStat = execSync('git diff --stat', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+    if (diffStat) {
+      const changedFiles = diffStat.split('\n').length - 1; // last line is summary
+      if (changedFiles > 0) gitParts.push(`${changedFiles} uncommitted change${changedFiles > 1 ? 's' : ''}`);
+    }
+  } catch {}
+
+  if (gitParts.length > 0) {
+    messages.push(`[Git] ${gitParts.join(', ')}`);
+  }
+} catch {
+  // Fault tolerance — ignore git detection errors
+}
+
 // Cleanup: Remove stale intent-route.json for clean session start
 try {
   const intentRoutePath = join(cwd, '.qe', 'state', 'intent-route.json');

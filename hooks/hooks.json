@@ -57,6 +57,17 @@
         ]
       }
     ],
+    "UserPromptSubmit": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/prompt-check.mjs\"",
+            "timeout": 5000
+          }
+        ]
+      }
+    ],
     "Notification": [
       {
         "hooks": [

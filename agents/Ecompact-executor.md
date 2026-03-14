@@ -19,6 +19,14 @@ When context is lost after compaction, Claude must read a large number of files 
 - **Delegated**: When called by the Qcompact skill
 - **Restore**: When called by the Qresume skill
 
+## Token Budget Reference
+
+Follow the priority allocation defined in `core/CONTEXT_BUDGET.md` when deciding what to include in snapshots:
+- **Critical (40%)**: Active task, checklist state, files being modified, key decisions
+- **Important (30%)**: Related file paths, test files, configuration
+- **Reference (20%)**: One-line summaries pointing to `.qe/analysis/` files
+- **Reserve (10%)**: Leave unallocated for post-restore orientation
+
 ## Context Save Procedure
 
 ### Step 1: Collect Current State
