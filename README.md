@@ -1,6 +1,8 @@
-# QE Framework
+# QE Framework (Query Executor)
 
 A personal skills and agents package for Claude Code.
+
+QE (Query Executor) is a framework that transforms user queries into structured, executable tasks. It handles the full lifecycle — from spec generation to implementation, verification, and commit — through a coordinated system of skills and agents.
 
 ## Philosophy
 

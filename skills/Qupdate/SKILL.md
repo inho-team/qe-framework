@@ -12,21 +12,16 @@ Updates the QE Framework plugin to the latest version in a single command.
 
 ## Execution Procedure
 
-### Step 1: Remove current plugin
+### Step 1: Update plugin
 ```bash
-claude plugin remove qe-framework
+claude plugin update qe-framework
 ```
 
-### Step 2: Install latest version
-```bash
-claude plugin add github:inho-team/qe-framework
-```
-
-### Step 3: Report result
-Show the installed version and confirm success.
+### Step 2: Report result
+Show the updated version and inform the user that a restart is required to apply changes.
 
 ## Will
-- Remove and reinstall the QE Framework plugin
+- Update the QE Framework plugin to the latest version
 - Report the updated version
 
 ## Will Not
