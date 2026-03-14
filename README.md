@@ -116,7 +116,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (52)
+## Skills (54 + 72 Coding Experts)
 
 ### Development
 
@@ -204,6 +204,119 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qweb-design-guidelines | Reviews UI code against Web Interface Guidelines for accessibility and UX. |
 | Qlesson-learned | Analyzes recent code changes via git history and extracts engineering lessons. |
 | Qhelp | Shows QE Framework quick reference card in terminal. |
+
+### Analysis
+
+| Skill | Description |
+|-------|-------------|
+| Qdata-analysis | Data exploration, statistical analysis, and visualization for CSV/JSON/Excel datasets. |
+| Qfinance-analyst | Financial analysis, valuation modeling, DCF, Monte Carlo simulation, and portfolio optimization. |
+
+## Coding Expert Skills (72)
+
+Domain-specific coding experts organized by category. Each skill provides deep expertise in its technology stack, including best practices, common patterns, and production-ready code generation.
+
+### Languages (14)
+
+| Skill | Description |
+|-------|-------------|
+| Qcpp-pro | Modern C++20/23 with concepts, ranges, coroutines, SIMD, and template metaprogramming. |
+| Qcsharp-developer | C# with .NET 8+, ASP.NET Core, Blazor, Entity Framework, and CQRS patterns. |
+| Qembedded-systems | Firmware for STM32, ESP32, FreeRTOS, bare-metal, and real-time systems. |
+| Qgolang | Go development standards with strict test-driven development and quality gates. |
+| Qgolang-pro | Concurrent Go patterns, gRPC/REST microservices, and performance optimization. |
+| Qjava-architect | Spring Boot 3.x, WebFlux, JPA optimization, and OAuth2/JWT security. |
+| Qjavascript-pro | Modern ES2023+, async/await, ESM modules, and Node.js APIs. |
+| Qkotlin-specialist | Coroutines, Flow, KMP, Compose UI, Ktor, and type-safe DSLs. |
+| Qphp-pro | PHP 8.3+ with Laravel, Symfony, Swoole async, and PSR standards. |
+| Qpython-pro | Python 3.11+ with type safety, async programming, pytest, and mypy strict mode. |
+| Qrust-engineer | Ownership, lifetimes, traits, async with tokio, and zero-cost abstractions. |
+| Qsql-pro | Complex queries, window functions, CTEs, indexing, and cross-dialect migration. |
+| Qswift-expert | iOS/macOS with SwiftUI, async/await, actors, and protocol-oriented design. |
+| Qtypescript-pro | Advanced generics, conditional types, branded types, and tRPC integration. |
+
+### Frontend (12)
+
+| Skill | Description |
+|-------|-------------|
+| Qangular-architect | Angular 17+ standalone components, NgRx, RxJS patterns, and lazy loading. |
+| Qflutter-expert | Flutter 3+ with Riverpod/Bloc, GoRouter, and platform-specific implementations. |
+| Qgame-developer | Unity/Unreal Engine, ECS architecture, multiplayer networking, and shader programming. |
+| Qnextjs-developer | Next.js 14+ App Router, Server Components, Server Actions, and streaming SSR. |
+| Qreact-best-practices | React/Next.js performance optimization guidelines from Vercel Engineering. |
+| Qreact-expert | React 18+ with hooks, Server Components, Suspense, and React 19 features. |
+| Qreact-native-expert | Cross-platform mobile apps with React Native, Expo, and native module integration. |
+| Qvite | Vite build tool configuration, plugin API, SSR, and Rolldown migration. |
+| Qvue-best-practices | Vue 3 Composition API with TypeScript, SSR, and Volar. |
+| Qvue-expert | Vue 3 Composition API, Nuxt 3, Pinia, Quasar/Capacitor, and PWA features. |
+| Qvue-expert-js | Vue 3 with vanilla JavaScript and JSDoc-based typing (no TypeScript). |
+| Qweb-design-guidelines-vercel | UI code review for Web Interface Guidelines compliance. |
+
+### Backend (14)
+
+| Skill | Description |
+|-------|-------------|
+| Qapi-designer | REST/GraphQL API design, OpenAPI specs, versioning, and pagination patterns. |
+| Qarchitecture-designer | System architecture, ADRs, technology trade-offs, and scalability planning. |
+| Qdjango-expert | Django REST Framework, ORM optimization, and JWT authentication. |
+| Qdotnet-core-expert | .NET 8 minimal APIs, clean architecture, and cloud-native microservices. |
+| Qfastapi-expert | High-performance async Python APIs with Pydantic V2 and SQLAlchemy. |
+| Qgraphql-architect | GraphQL schemas, Apollo Federation, DataLoader, and real-time subscriptions. |
+| Qlaravel-specialist | Laravel 10+ with Eloquent, Sanctum, Horizon, Livewire, and Pest testing. |
+| Qlegacy-modernizer | Strangler fig pattern, branch by abstraction, and incremental migration. |
+| Qmcp-developer | MCP server/client development with TypeScript or Python SDKs. |
+| Qmicroservices-architect | DDD, saga patterns, event sourcing, CQRS, service mesh, and distributed tracing. |
+| Qnestjs-expert | NestJS modules, dependency injection, guards, interceptors, and Swagger docs. |
+| Qrails-expert | Rails 7+ with Hotwire, Turbo Frames/Streams, Action Cable, and Sidekiq. |
+| Qspring-boot-engineer | Spring Boot 3.x REST, Spring Security 6, Spring Data JPA, and WebFlux. |
+| Qwebsocket-engineer | Real-time WebSocket/Socket.IO systems with Redis scaling and presence tracking. |
+
+### Data & AI (6)
+
+| Skill | Description |
+|-------|-------------|
+| Qfine-tuning-expert | LoRA/QLoRA, PEFT, instruction tuning, RLHF, DPO, and model quantization. |
+| Qml-pipeline | MLflow, Kubeflow, Airflow, feature stores, and experiment tracking. |
+| Qpandas-pro | DataFrame operations, aggregation, merging, time series, and performance optimization. |
+| Qprompt-engineer | Prompt design, chain-of-thought, few-shot learning, and evaluation frameworks. |
+| Qrag-architect | RAG systems, vector databases, hybrid search, reranking, and embedding pipelines. |
+| Qspark-engineer | Spark DataFrame transformations, SQL optimization, and structured streaming. |
+
+### Infra & DevOps (14)
+
+| Skill | Description |
+|-------|-------------|
+| Qatlassian-mcp | Jira/Confluence integration via MCP for issue tracking and documentation. |
+| Qchaos-engineer | Chaos experiments, failure injection, game days, and resilience testing. |
+| Qcli-developer | CLI tools with argument parsing, completions, and interactive prompts. |
+| Qcloud-architect | Multi-cloud architecture, Well-Architected Framework, and cost optimization. |
+| Qdatabase-optimizer | Query optimization, EXPLAIN analysis, index design, and partitioning strategies. |
+| Qdevops-engineer | Docker, CI/CD, Kubernetes, Terraform, GitHub Actions, and GitOps. |
+| Qkubernetes-specialist | K8s manifests, Helm charts, RBAC, NetworkPolicies, and multi-cluster management. |
+| Qmonitoring-expert | Prometheus/Grafana, structured logging, alerting, distributed tracing, and load testing. |
+| Qpostgres-pro | PostgreSQL EXPLAIN, JSONB, extensions, VACUUM tuning, and replication. |
+| Qsalesforce-developer | Apex, Lightning Web Components, SOQL, triggers, and platform events. |
+| Qshopify-expert | Liquid themes, Hydrogen storefronts, Shopify apps, and checkout extensions. |
+| Qsre-engineer | SLI/SLO, error budgets, incident response, chaos engineering, and capacity planning. |
+| Qterraform-engineer | Terraform modules, state management, multi-environment workflows, and testing. |
+| Qwordpress-pro | WordPress themes, Gutenberg blocks, WooCommerce, REST API, and security hardening. |
+
+### Quality & Security (12)
+
+| Skill | Description |
+|-------|-------------|
+| Qcode-documenter | Docstrings, OpenAPI/Swagger specs, JSDoc, and documentation portals. |
+| Qcode-reviewer | Code quality audits: bugs, security, performance, naming, and architecture. |
+| Qdebugging-wizard | Error parsing, stack trace analysis, and hypothesis-driven root cause isolation. |
+| Qfeature-forge | Requirements workshops, user stories, EARS-format specs, and acceptance criteria. |
+| Qfullstack-guardian | Security-focused full-stack development with layered auth and validation. |
+| Qplaywright-expert | E2E testing with Playwright, page objects, fixtures, and visual regression. |
+| Qsecure-code-guardian | Authentication, input validation, OWASP Top 10 prevention, and encryption. |
+| Qsecurity-reviewer | Security audits, SAST, penetration testing, and compliance checks. |
+| Qspec-miner | Reverse-engineering specs from legacy/undocumented codebases. |
+| Qtest-master | Test strategies, coverage analysis, performance testing, and test architecture. |
+| Qthe-fool | Devil's advocate, pre-mortem, red teaming, and assumption auditing. |
+| Qvitest | Vitest unit testing with Jest-compatible API, mocking, and coverage. |
 
 ## Background Processing
 
@@ -448,7 +561,7 @@ See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for detailed configuration and team pa
 qe-framework/
 ├── .claude-plugin/    # Plugin configuration
 ├── agents/            # 16 agents (E-prefix)
-├── skills/            # 49 skills (Q-prefix)
+├── skills/            # 54 core + 72 coding expert skills (Q-prefix)
 ├── core/              # Shared principles & configuration
 ├── hooks/             # Lifecycle hooks
 ├── install.js         # Installation script
