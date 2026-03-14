@@ -10,6 +10,10 @@ metadata:
 
 # Test-Driven Development (TDD)
 
+## When to Use
+- **Use this skill** when: you need TDD methodology guidance — how to follow the red-green-refactor cycle, when to write tests first, and how to structure your development workflow around tests
+- **Use Ecode-test-engineer instead** when: you need to actually write test code, analyze coverage, or execute tests against existing code
+
 **NO PRODUCTION CODE WITHOUT A FAILING TEST FIRST**
 
 Write code before test? Delete it. Start over.

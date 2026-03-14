@@ -7,6 +7,10 @@ description: A sub-agent that receives delegation for and executes the full test
 
 # Eqa-orchestrator — Quality Loop Orchestrator
 
+## When to Use
+- **Use this agent** when: you need to actually execute the quality verification loop as a sub-agent (test -> review -> fix -> retest), saving main context tokens
+- **Use Qcode-run-task instead** when: you need to understand, configure, or invoke the quality loop process definition and procedure
+
 ## Role
 A sub-agent that receives delegation for and executes the full test→review→fix loop from Qcode-run-task.
 Handles loop management internally (iteration count, result collection, pass/fail judgment) to reduce token consumption in the main context.

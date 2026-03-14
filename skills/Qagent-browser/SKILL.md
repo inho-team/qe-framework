@@ -5,6 +5,7 @@ metadata:
   source: https://skills.sh/vercel-labs/agent-browser
   author: vercel
 allowed-tools: Bash(npx agent-browser:*), Bash(agent-browser:*)
+keywords: browser, automation, web test, form fill, screenshot, scrape, navigate
 ---
 > Shared principles: see core/PRINCIPLES.md
 
