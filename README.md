@@ -40,12 +40,12 @@ Methodology & process      Execution & delegation     Shared principles
 
 From terminal:
 ```bash
-claude plugin marketplace add https://github.com/inho-team/qe-framework.git
+claude plugin marketplace add inho-team/qe-framework
 ```
 
 Or from inside a Claude Code session:
 ```
-/plugin marketplace add https://github.com/inho-team/qe-framework.git
+/plugin marketplace add inho-team/qe-framework
 ```
 
 ### Step 2: Install plugin
