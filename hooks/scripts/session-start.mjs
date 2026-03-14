@@ -3,6 +3,7 @@
 
 import { readFileSync, existsSync, statSync } from 'fs';
 import { join } from 'path';
+import { formatMemoryForInjection } from './lib/memory.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 let input = '';
@@ -63,6 +64,12 @@ if (existsSync(snapshotPath)) {
   if (ageHours < 24) {
     messages.push('이전 세션의 맥락이 저장되어 있습니다. `/Qresume`으로 복원할 수 있습니다.');
   }
+}
+
+// Check 4: Project memory
+const memoryContext = formatMemoryForInjection(cwd);
+if (memoryContext) {
+  messages.push(memoryContext);
 }
 
 if (messages.length > 0) {

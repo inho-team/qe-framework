@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 
 let input = '';
@@ -45,11 +45,34 @@ try {
   // Silent failure
 }
 
+// Scan for active tasks and include in trigger
+const tasksDir = join(cwd, '.qe', 'tasks', 'pending');
+const activeTasks = [];
+
+if (existsSync(tasksDir)) {
+  try {
+    const files = readdirSync(tasksDir).filter(f => f.endsWith('.md'));
+    for (const file of files) {
+      activeTasks.push(file.replace('.md', ''));
+    }
+  } catch {}
+}
+
+// Update trigger with task info
+if (activeTasks.length > 0) {
+  try {
+    const trigger = JSON.parse(readFileSync(triggerPath, 'utf8'));
+    trigger.active_tasks = activeTasks;
+    writeFileSync(triggerPath, JSON.stringify(trigger, null, 2));
+  } catch {}
+}
+
 // Inject reminder to save context
+const taskInfo = activeTasks.length > 0 ? ` 활성 태스크 ${activeTasks.length}개 보존 필요.` : '';
 console.log(JSON.stringify({
   continue: true,
   hookSpecificOutput: {
     hookEventName: "PreCompact",
-    additionalContext: "[QE] Compaction 감지. Ecompact-executor를 호출하여 .qe/context/에 현재 맥락을 저장하세요."
+    additionalContext: `[QE] Compaction 감지. Ecompact-executor를 호출하여 .qe/context/에 현재 맥락을 저장하세요.${taskInfo}`
   }
 }));

@@ -48,6 +48,20 @@ if (['Write', 'Edit'].includes(toolName)) {
   }
 }
 
+// Preemptive compaction warning based on tool call count
+const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
+if (existsSync(statsFile)) {
+  try {
+    const stats = JSON.parse(readFileSync(statsFile, 'utf8'));
+    const callCount = stats.tool_calls || 0;
+    if (callCount > 200) {
+      hints.push('컨텍스트 압박 경고: tool call 200회 초과. /Qcompact 실행을 고려하세요.');
+    } else if (callCount > 150) {
+      hints.push('컨텍스트 사용량 높음: .qe/analysis/ 파일을 우선 참조하여 토큰을 절약하세요.');
+    }
+  } catch {}
+}
+
 if (hints.length > 0) {
   console.log(JSON.stringify({
     continue: true,
