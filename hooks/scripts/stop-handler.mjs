@@ -1,53 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { readState, readStdinJson, getCwd } from './lib/state.mjs';
 
-let input = '';
-try {
-  input = readFileSync('/dev/stdin', 'utf8');
-} catch {
-  process.exit(0);
-}
-
-let data;
-try {
-  data = JSON.parse(input);
-} catch {
+const data = readStdinJson();
+if (!data) {
   console.log(JSON.stringify({ continue: true }));
   process.exit(0);
 }
 
-const cwd = data.cwd || data.directory || process.cwd();
-const stateDir = join(cwd, '.qe', 'state');
-
-// Staleness threshold: 2 hours
-const STALE_MS = 2 * 60 * 60 * 1000;
-
-/**
- * Read a QE state file and check if it's active and not stale
- */
-function readState(mode) {
-  const filePath = join(stateDir, `${mode}-state.json`);
-  if (!existsSync(filePath)) return null;
-
-  try {
-    const raw = readFileSync(filePath, 'utf8');
-    const state = JSON.parse(raw);
-
-    // Check staleness
-    if (state.started_at) {
-      const age = Date.now() - new Date(state.started_at).getTime();
-      if (age > STALE_MS) return null; // Stale, ignore
-    }
-
-    if (state.active) return state;
-    return null;
-  } catch {
-    return null;
-  }
-}
+const cwd = getCwd(data);
+const sessionId = data.session_id || null;
 
 // Check QE modes in priority order
 const modes = [
@@ -58,7 +21,7 @@ const modes = [
 
 let activeMode = null;
 for (const mode of modes) {
-  const state = readState(mode.name);
+  const state = readState(cwd, mode.name, sessionId);
   if (state) {
     activeMode = mode;
 

@@ -50,6 +50,14 @@
 
 ---
 
+## IntentGate & Agent Tiers
+
+- **IntentGate 참조**: 사용자 의도가 불명확하면 `core/INTENT_GATE.md`를 참조하여 적절한 스킬/에이전트를 선택한다.
+- **Agent Tiers 참조**: 에이전트 호출 시 `core/AGENT_TIERS.md`를 참조하여 적절한 모델 티어를 선택한다.
+- **에스컬레이션**: MEDIUM에서 2회 실패 시 HIGH로 자동 전환한다.
+
+---
+
 ## 판단 프레임워크
 
 우선순위 (높음 → 낮음):
