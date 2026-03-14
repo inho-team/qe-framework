@@ -20,6 +20,5 @@
     "./agents/Eqa-orchestrator.md",
     "./agents/Erefresh-executor.md",
     "./agents/Etask-executor.md"
-  ],
-  "hooks": "./hooks/hooks.json"
+  ]
 }
