@@ -9,6 +9,14 @@ If no `CLAUDE.md` exists at the project root, the QE framework (Query Executor) 
 - **Halt the currently invoked skill** and instruct the user to run `/Qinit` first.
 - Qinit itself skips this check.
 
+## Git Operations (Absolute Rule)
+
+**Never run `git commit`, `git push`, or other git write commands directly.**
+All git commit/push operations MUST go through the `/Qcommit` skill, which delegates to the `Ecommit-executor` agent.
+- User says "commit", "push", "커밋", "푸시" → invoke `/Qcommit`
+- After task completion and user requests commit → invoke `/Qcommit`
+- No exceptions. Direct git commands for commit/push are prohibited.
+
 ---
 
 ## Code Quality Principles

@@ -46,24 +46,20 @@ fix: correct order amount calculation
 refactor: extract DB connection pool configuration
 ```
 
-## Execution Procedure
+## Execution Procedure (Mandatory Delegation)
 
-### Step 1: Check Changes
-- Use `git status` to check changed files
-- Use `git diff` to understand what changed
+**ABSOLUTE RULE: Do NOT run git commands directly. ALL git operations MUST be delegated to the `Ecommit-executor` agent via the Agent tool.**
 
-### Step 2: Write Commit Message
-- Analyze the changes and write a natural commit message
-- Check the project's existing commit style (`git log --oneline -10`)
-- Match the existing style
+### Step 1: Delegate to Ecommit-executor
+Call the `Ecommit-executor` agent via Agent tool with the following information:
+- Project path
+- Whether the user requested push
+- Any specific commit message hints from context
 
-### Step 3: Stage and Commit
-- Selectively `git add` only relevant files (avoid git add -A)
-- Verify that sensitive files like `.env` and credentials are excluded
-- Execute commit
+The `Ecommit-executor` agent handles everything: status check, diff analysis, commit message writing, staging, committing, and optionally pushing.
 
-### Step 4: Show Results
-- Briefly display commit hash and number of changed files
+### Step 2: Report Results
+After the agent completes, report the commit hash and changed files to the user.
 
 ## Will
 - Analyze changes and write a natural commit message
