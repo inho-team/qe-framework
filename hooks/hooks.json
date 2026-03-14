@@ -21,6 +21,13 @@
     },
     {
       "type": "command",
+      "event": "PostToolUse",
+      "matcher": "*",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use.mjs\"",
+      "timeout": 5000
+    },
+    {
+      "type": "command",
       "event": "Stop",
       "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-handler.mjs\"",
       "timeout": 5000
