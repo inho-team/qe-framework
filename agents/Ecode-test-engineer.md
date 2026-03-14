@@ -7,6 +7,10 @@ memory: user
 
 > Shared principles: see core/PRINCIPLES.md
 
+## When to Use
+- **Use this agent** when: you need to actually write test code, run tests, analyze coverage, or execute tests against existing code
+- **Use Qtest-driven-development instead** when: you need TDD methodology guidance — how to follow the red-green-refactor cycle and structure your development workflow around tests
+
 ## Will
 - First understand existing test patterns and frameworks, then write tests in a consistent style
 - Write Unit / Integration / E2E tests appropriate to the purpose, run them, and confirm they pass

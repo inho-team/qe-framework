@@ -7,6 +7,10 @@ description: Performs a test → review → fix → retest quality verification 
 
 # Code Quality Verification Loop Skill
 
+## When to Use
+- **Use this skill** when: you need to understand or configure the quality verification loop process (test -> review -> fix -> retest cycle definition and procedure)
+- **Use Eqa-orchestrator instead** when: you need to actually execute the quality loop as a sub-agent (saves main context tokens by running the loop internally)
+
 ## Role
 An assistant that ensures quality by performing a **test → review → fix → retest** cycle after code implementation is complete.
 

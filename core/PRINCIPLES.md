@@ -34,6 +34,7 @@ If no `CLAUDE.md` exists at the project root, the QE framework (Query Executor) 
 ## Safety Principles
 
 - **Confirm before destructive actions**: Deletion, overwriting, force push, etc. require user approval before execution.
+- **All git commits via Qcommit**: Never run raw `git commit` or `git push` commands directly. Always use the `/Qcommit` skill for all commit and push operations.
 - **Protect sensitive information**: Never expose PATs, passwords, or API keys in logs, responses, or files.
 - **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
 - **Confirm file modification permissions**: Ask the user for permission before creating, modifying, or deleting any file.

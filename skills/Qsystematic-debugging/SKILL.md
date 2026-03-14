@@ -10,6 +10,10 @@ metadata:
 
 # Systematic Debugging
 
+## When to Use
+- **Use this skill** when: you need a structured debugging methodology — how to approach root cause analysis, form hypotheses, and systematically narrow down the problem
+- **Use Ecode-debugger instead** when: you need to actually find and fix a specific bug in the codebase (read code, trace errors, propose concrete fixes)
+
 **NO FIXES WITHOUT ROOT CAUSE INVESTIGATION FIRST**
 
 ## Phase 1: Root Cause Investigation
