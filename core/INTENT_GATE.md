@@ -54,6 +54,8 @@ All skills and agents refer to this classification to determine whether a reques
 | **Translation** | "translate", "grammar correction", "multilingual", "convert to English" | Qtranslate |
 | **Web design review** | "UI review", "accessibility check", "design audit", "UX review", "web guidelines" | Qweb-design-guidelines |
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |
+| **Financial analysis** | "financial analysis", "valuation", "DCF", "Monte Carlo", "quant", "investment analysis", "portfolio", "ratio analysis", "sensitivity analysis" | Qfinance-analyst |
+| **Data analysis** | "analyze this data", "data exploration", "statistics", "correlation", "distribution", "visualize data", "CSV analysis", "hypothesis test", "regression", "outliers" | Qdata-analysis |
 
 ## Classification Rules
 

@@ -119,6 +119,19 @@ After drafting, edit for style using this checklist:
 - "While promising, our method does not address..."
 - "We leave the extension to ... as future work."
 
+## Integrity Verification Checkpoints
+At each major section transition, verify:
+1. **Citation integrity**: Every claim has a supporting reference; no fabricated citations
+2. **Data consistency**: Numbers in text match tables and figures
+3. **Logical flow**: Each section builds on the previous; no contradictions
+4. **Scope adherence**: Content stays within the defined research scope
+5. **Plagiarism check**: Flag any passages that closely mirror known phrasing patterns
+
+### Two-Stage Peer Review
+After completing a draft:
+- **Stage 1 — Self-review**: Re-read with a critical eye, checking methodology rigor and argument strength
+- **Stage 2 — Devil's Advocate**: Challenge every major claim — "What would a skeptical reviewer say?" Document potential weaknesses and preemptively address them in the paper.
+
 ## Chapter Writing Delegation
 When writing individual chapters or long-form sections, delegate to the `Egrad-writer` agent via the Agent tool:
 - Pass: chapter outline, section requirements, citation style, target length
