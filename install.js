@@ -5,8 +5,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const srcDir = path.join(__dirname, 'skills');
-const destDir = path.join(os.homedir(), '.claude', 'commands');
+const targets = [
+  { src: 'skills', dest: path.join(os.homedir(), '.claude', 'commands'), label: 'skill' },
+  { src: 'agents', dest: path.join(os.homedir(), '.claude', 'agents'), label: 'agent' },
+];
 
 function copyRecursive(src, dest) {
   const stat = fs.statSync(src);
@@ -22,25 +24,19 @@ function copyRecursive(src, dest) {
   }
 }
 
-function install() {
+for (const { src, dest, label } of targets) {
+  const srcDir = path.join(__dirname, src);
   if (!fs.existsSync(srcDir)) {
-    console.error('skills/ directory not found in package. Skipping install.');
-    process.exit(1);
+    console.log(`${src}/ not found. Skipping ${label}s.`);
+    continue;
   }
-
-  if (!fs.existsSync(destDir)) {
-    fs.mkdirSync(destDir, { recursive: true });
+  if (!fs.existsSync(dest)) {
+    fs.mkdirSync(dest, { recursive: true });
   }
-
   const entries = fs.readdirSync(srcDir);
   for (const entry of entries) {
-    const src = path.join(srcDir, entry);
-    const dest = path.join(destDir, entry);
-    copyRecursive(src, dest);
-    console.log(`Installed: ${entry} -> ${dest}`);
+    copyRecursive(path.join(srcDir, entry), path.join(dest, entry));
+    console.log(`Installed ${label}: ${entry} -> ${dest}`);
   }
-
-  console.log(`\nDone. ${entries.length} skill(s) installed to ${destDir}`);
+  console.log(`${entries.length} ${label}(s) installed.\n`);
 }
-
-install();

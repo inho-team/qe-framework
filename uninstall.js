@@ -5,8 +5,10 @@ const fs = require('fs');
 const path = require('path');
 const os = require('os');
 
-const srcDir = path.join(__dirname, 'skills');
-const destDir = path.join(os.homedir(), '.claude', 'commands');
+const targets = [
+  { src: 'skills', dest: path.join(os.homedir(), '.claude', 'commands'), label: 'skill' },
+  { src: 'agents', dest: path.join(os.homedir(), '.claude', 'agents'), label: 'agent' },
+];
 
 function removeRecursive(target) {
   if (!fs.existsSync(target)) return;
@@ -21,27 +23,21 @@ function removeRecursive(target) {
   }
 }
 
-function uninstall() {
+for (const { src, dest, label } of targets) {
+  const srcDir = path.join(__dirname, src);
   if (!fs.existsSync(srcDir)) {
-    console.error('skills/ directory not found in package. Cannot determine what to remove.');
-    process.exit(1);
+    console.log(`${src}/ not found. Skipping ${label}s.`);
+    continue;
   }
-
   const entries = fs.readdirSync(srcDir);
   let removed = 0;
-
   for (const entry of entries) {
-    const target = path.join(destDir, entry);
+    const target = path.join(dest, entry);
     if (fs.existsSync(target)) {
       removeRecursive(target);
-      console.log(`Removed: ${target}`);
+      console.log(`Removed ${label}: ${target}`);
       removed++;
-    } else {
-      console.log(`Skipped (not found): ${target}`);
     }
   }
-
-  console.log(`\nDone. ${removed} skill(s) removed from ${destDir}`);
+  console.log(`${removed} ${label}(s) removed.\n`);
 }
-
-uninstall();
