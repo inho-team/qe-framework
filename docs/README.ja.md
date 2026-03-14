@@ -36,9 +36,39 @@ Skills (Q-prefix)          Agents (E-prefix)          Core
 
 ## インストール
 
+以下のコマンドは**ターミナル**で実行してください（Claude Codeセッション内ではありません）：
+
+### ステップ1：マーケットプレイスの登録（初回のみ）
 ```bash
-claude plugin add github:inho-team/qe-framework
+claude plugin marketplace add inho-team/qe-framework
 ```
+
+### ステップ2：プラグインのインストール
+```bash
+claude plugin install qe-framework@inho-team-qe-framework
+```
+
+### 最新バージョンへの更新
+```bash
+claude plugin update qe-framework@inho-team-qe-framework
+```
+
+### インストールの確認
+```bash
+claude plugin list
+```
+
+### トラブルシューティング
+
+**インストール時のSSH権限拒否エラー**
+
+`git@github.com: Permission denied (publickey)` が表示された場合、以下のコマンドでHTTPSを強制してください：
+```bash
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+```
+その後、インストールコマンドを再実行してください。
+
+> **Note**: プラグインコマンドはターミナルでのみ実行できます。Claude Codeセッション内では実行できません。インストールまたは更新後、Claude Codeを再起動して変更を適用してください。
 
 ### プロジェクトの初期化
 
@@ -86,7 +116,7 @@ claude plugin add github:inho-team/qe-framework
 /Qrefresh                        -- プロジェクト分析データを更新
 ```
 
-## Skills (51)
+## Skills (52)
 
 ### 開発
 
@@ -173,6 +203,180 @@ claude plugin add github:inho-team/qe-framework
 | Qagent-md-refactor | 肥大化したエージェント指示ファイルをプログレッシブディスクロージャーに従いリファクタリング。 |
 | Qweb-design-guidelines | アクセシビリティとUXに関するWeb Interface Guidelinesに基づきUIコードをレビュー。 |
 | Qlesson-learned | git履歴から最近のコード変更を分析し、エンジニアリングの教訓を抽出。 |
+| Qhelp | QE Frameworkクイックリファレンスカードをターミナルに表示。 |
+
+## バックグラウンド処理
+
+QE Frameworkは、ライフサイクルの重要なタイミングで複数のエージェントをバックグラウンドで自動実行します。これらのエージェントは手動で呼び出す必要はなく、フックや他のエージェントによって自動的にトリガーされます。
+
+### 仕組み
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        QE Framework Lifecycle                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  Session Start                                                        │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ SessionStart │───▶│ Erefresh-executor   │  Update .qe/analysis/    │
+│  │    Hook      │    │ (if analysis stale) │  before any work begins  │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  User Interaction                                                     │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PreToolUse   │───▶│   Intent Gate       │  Route user intent to    │
+│  │    Hook      │    │   Classification    │  the correct skill/agent │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PostToolUse  │───▶│ Eprofile-collector  │  Learn user patterns     │
+│  │    Hook      │    │ (command, style)    │  and correction history  │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  Context Pressure (75%+)                                              │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PreCompact   │───▶│ Ecompact-executor   │  Save snapshot before    │
+│  │    Hook      │    │ (auto-save context) │  context is lost         │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  Task Completion                                                      │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │  Qrun-task   │───▶│ Earchive-executor   │  Archive completed tasks │
+│  │  completes   │    │ Ecommit-executor    │  Auto-commit changes     │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ Notification │───▶│  Chain follow-up    │  Trigger next actions    │
+│  │    Hook      │    │  actions            │  when agents complete    │
+│  └──────────────┘    └─────────────────────┘                          │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### ライフサイクルフック
+
+フレームワークは特定のイベントで発火する6つのライフサイクルフックを使用します：
+
+| フック | トリガー | 動作内容 |
+|--------|----------|----------|
+| `SessionStart` | 会話の開始時 | フレームワークルールを注入し、分析データが古い場合は `Erefresh-executor` をトリガー |
+| `PreToolUse` | すべてのツール呼び出しの前 | **Intent Gate** -- ユーザーのインテントを分類し、適切なスキル/エージェントにルーティング |
+| `PostToolUse` | すべてのツール呼び出しの後 | `Eprofile-collector` をトリガーしてユーザーパターンを記録 |
+| `PreCompact` | コンテキストコンパクションの前 | `Ecompact-executor` をトリガーしてコンテキストが失われる前に保存 |
+| `Stop` | 会話の終了時 | クリーンアップとファイナライズ |
+| `Notification` | バックグラウンドエージェントの完了時 | バックグラウンドエージェント完了後にフォローアップアクションをチェーン |
+
+### バックグラウンドエージェント
+
+以下のエージェントはユーザーの操作なしに自動実行されます。結果は `.qe/` ファイルに書き込まれ、ユーザーに直接応答することはありません。
+
+#### Erefresh-executor -- プロジェクト分析の同期
+
+> `.qe/analysis/` を最新の状態に保ち、他のエージェントがコストの高いプロジェクトスキャンをスキップできるようにします。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | セッション開始時（データが古い場合）、Qrun-taskの前、または `/Qrefresh` で手動実行 |
+| **書き込み先** | `.qe/analysis/*.md`、`.qe/changelog.md` |
+| **トークン節約** | 約50%削減 -- エージェントが数十ファイルをスキャンする代わりに4つの分析ファイルを読み取り |
+
+**ステップ：**
+1. `git diff` とファイルシステムスキャンで変更を検出
+2. 4つの分析ファイルを更新：`project-structure`、`tech-stack`、`entry-points`、`architecture`
+3. `.qe/changelog.md` に `[External Change]` または `[QE]` タグ付きで変更履歴を記録
+
+#### Ecompact-executor -- コンテキストの保存
+
+> コンテキストコンパクション前に軽量スナップショットを保存し、セッションを再開可能にします。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | コンテキストウィンドウが75%以上に達した時（Yellowゾーン）、または `/Qcompact` で手動実行 |
+| **書き込み先** | `.qe/context/snapshot.md`、`.qe/context/decisions.md` |
+| **トークン節約** | 約70%削減 -- プロジェクトを再探索する代わりに数ファイルからコンテキストを復元 |
+
+**ステップ：**
+1. 進行中のタスク、チェックリストの状態、最近のファイル変更、主要な決定事項を収集
+2. `.qe/context/snapshot.md` にスナップショットを保存（パスとサマリーのみ、コードなし）
+3. `.qe/context/decisions.md` に決定事項を逆時系列で蓄積
+
+#### Earchive-executor -- タスクのアーカイブ
+
+> 完了したタスクをバージョン別アーカイブに移動し、ワークスペースをクリーンに保ちます。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | Qrun-taskがタスクを完了とマークした時、または `/Qarchive` で手動実行 |
+| **書き込み先** | `.qe/.archive/vX.Y.Z/tasks/`、`.qe/.archive/vX.Y.Z/checklists/` |
+
+**ステップ：**
+1. `.qe/tasks/pending/` から完全に完了したタスクをスキャン
+2. 完了したTASK_REQUESTとVERIFY_CHECKLISTを `.qe/.archive/vX.Y.Z/` に移動
+3. アーカイブファイルとともにCLAUDE.mdのスナップショットを保存
+
+#### Ecommit-executor -- 自動コミット
+
+> AI痕跡ゼロの人間スタイルのコミットを作成します。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | `/Qcommit` からの委譲、またはQrun-task完了後の自動コミット |
+| **禁止事項** | `Co-Authored-By` 行、AI関連の文言、絵文字 |
+
+**ステップ：**
+1. `git diff` を分析し、プロジェクトの既存コミットメッセージスタイルに合わせる
+2. 関連ファイルを選択的にステージング（`.env`、認証情報は除外）
+3. 人間が書いたものと区別がつかないコミットを作成
+
+#### Eprofile-collector -- ユーザーパターンの学習
+
+> ユーザーの好みを時間をかけて学習し、インテント認識の精度を向上させます。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | スキルまたはエージェントの完了後 |
+| **書き込み先** | `.qe/profile/command-patterns.md`、`writing-style.md`、`corrections.md`、`preferences.md` |
+
+**収集内容：**
+
+| ファイル | 内容 |
+|----------|------|
+| `command-patterns.md` | スキル/エージェントの呼び出し頻度と直近の使用状況 |
+| `writing-style.md` | フォーマル/インフォーマルのパターン、略語辞書 |
+| `corrections.md` | 誤解の繰り返しを防ぐためのユーザー修正履歴 |
+| `preferences.md` | 応答の長さ、コードスタイル、言語の好み |
+
+#### Ehandoff-executor -- セッションハンドオフ
+
+> シームレスなクロスセッション継続のためのバリデーション済みハンドオフ文書を生成します。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | `/Qcompact`（ハンドオフモード）で手動実行 |
+| **書き込み先** | `.qe/handoffs/HANDOFF_{date}_{time}.md` |
+
+**ステップ：**
+1. タスクの状態、チェックリストの進捗、最近のgit変更、決定事項を収集
+2. 具体的な次のステップを含む構造化されたハンドオフ文書を生成
+3. 参照されているすべてのファイルとタスクUUIDが実際に存在することを検証
+
+#### Edoc-generator -- バッチドキュメント生成
+
+> 重いドキュメント生成をメインコンテキストウィンドウからオフロードします。
+
+| | 詳細 |
+|---|---|
+| **実行タイミング** | Epm-planner、Qrun-task（`type: docs`）、または複数ドキュメントリクエストからの委譲 |
+| **対応フォーマット** | `.docx`、`.pdf`、`.pptx`、`.xlsx` |
+
+テンプレートが利用可能な場合はそれを使用し、複数のドキュメントを並列処理します。
+
+---
 
 ## Agents (16)
 
@@ -215,7 +419,7 @@ claude plugin add github:inho-team/qe-framework
 qe-framework/
 ├── .claude-plugin/    # プラグイン設定
 ├── agents/            # 16 agents (E-prefix)
-├── skills/            # 51 skills (Q-prefix)
+├── skills/            # 49 skills (Q-prefix)
 ├── core/              # 共有原則と設定
 ├── hooks/             # ライフサイクルフック
 ├── install.js         # インストールスクリプト
