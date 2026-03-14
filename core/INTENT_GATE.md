@@ -56,6 +56,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |
 | **Financial analysis** | "financial analysis", "valuation", "DCF", "Monte Carlo", "quant", "investment analysis", "portfolio", "ratio analysis", "sensitivity analysis" | Qfinance-analyst |
 | **Data analysis** | "analyze this data", "data exploration", "statistics", "correlation", "distribution", "visualize data", "CSV analysis", "hypothesis test", "regression", "outliers" | Qdata-analysis |
+| **Agent team** | "create team", "spawn teammates", "parallel team", "team mode" | Refer to core/AGENT_TEAMS.md for team creation guidance |
 
 ## Classification Rules
 

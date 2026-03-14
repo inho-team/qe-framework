@@ -58,3 +58,31 @@ Running the quality loop in the main context consumes a large number of tokens o
 - Write code directly (delegate to sub-agents)
 - Report intermediate results to the user
 - Iterate more than 3 times
+
+## Team Mode (Experimental)
+
+> Requires Agent Teams enabled. Falls back to sequential Subagent mode if not available.
+
+### When to Activate
+- Agent Teams feature is enabled AND
+- The codebase has 3+ distinct test/source file groups
+
+### Team Structure
+| Role | Teammate | Responsibility |
+|------|----------|---------------|
+| Test Engineer | Teammate A | Write and run tests for changed code |
+| Code Reviewer | Teammate B | Review quality, security, performance |
+| Lead (self) | Orchestrator | Synthesize findings, coordinate fixes |
+
+### Workflow
+1. **Spawn team**: Create 2 teammates (test-engineer, reviewer)
+2. **Parallel phase**: Both teammates work simultaneously
+   - Test Engineer: writes/runs tests, reports results via Mailbox
+   - Reviewer: checks code quality, reports issues via Mailbox
+3. **Synthesis**: Lead collects all findings
+4. **Fix phase**: Lead executes fixes sequentially (no parallel file edits)
+5. **Re-verify**: If fixes were made, spawn new parallel verification round
+6. **Exit**: Same conditions as Subagent mode (pass or 3 iterations)
+
+### Fallback
+If Agent Teams is not enabled or team creation fails, automatically fall back to the existing sequential Subagent workflow.

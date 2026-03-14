@@ -102,6 +102,18 @@ Empty settings file. Users can add hooks etc. as needed.
 ```
 Created with `mkdir -p`.
 
+#### Agent Teams (Optional)
+If the user wants to enable Agent Teams for parallel work:
+```json
+// .claude/settings.json
+{
+  "env": {
+    "CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS": "1"
+  }
+}
+```
+Note: Agent Teams is experimental. It enables parallel teammate spawning for complex tasks in Eqa-orchestrator, Etask-executor, and Edeep-researcher.
+
 #### .gitignore Entries
 If `.gitignore` does not exist, create it; if it does, add only missing entries from below:
 ```gitignore
