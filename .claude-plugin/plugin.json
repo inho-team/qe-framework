@@ -1,5 +1,5 @@
 {
-  "name": "claude-skills",
+  "name": "qe-framework",
   "version": "1.2.0",
   "description": "QE Framework - Personal Claude Code skills package",
   "skills": ["./skills/"],
