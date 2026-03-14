@@ -72,9 +72,9 @@ disable-model-invocation: true
 사용자가 `AskUserQuestion`에서 "생성"을 선택하면 파일을 생성합니다.
 - 디렉토리가 없으면 자동 생성합니다 (`mkdir -p` 등).
 - 프로젝트 루트에 기존 `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` 파일이 있으면, `.qe/tasks/pending/`과 `.qe/checklists/pending/`으로 마이그레이션을 제안합니다.
-- **최초 프로젝트 설정 시** `.claude/settings.json`과 `.mcp.json`이 없으면, 템플릿 기반 생성을 제안합니다.
-  - `templates/settings_template.json` → `.claude/settings.json`
-  - `templates/mcp_template.json` → `.mcp.json` (사용자가 원할 경우)
+- **최초 프로젝트 설정 시** `.claude/settings.json`과 `.mcp.json`이 없으면, 기본 설정으로 생성을 제안합니다.
+  - `.claude/settings.json` → 빈 설정 파일 (`{}`)
+  - `.mcp.json` → 사용자가 원할 경우 기본 구조로 생성
 - **`.gitignore` 자동 관리:** `.gitignore`가 없거나 아래 항목이 누락된 경우, 추가를 제안합니다.
   - 이미 존재하는 항목은 건너뛰고, 누락된 항목만 `# Claude Code` 섹션으로 추가합니다.
   - `.gitignore`가 아예 없으면 새로 생성합니다.

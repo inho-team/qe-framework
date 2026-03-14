@@ -17,7 +17,7 @@ function removeRecursive(target) {
     for (const entry of fs.readdirSync(target)) {
       removeRecursive(path.join(target, entry));
     }
-    fs.rmdirSync(target);
+    fs.rmSync(target, { recursive: true });
   } else {
     fs.unlinkSync(target);
   }

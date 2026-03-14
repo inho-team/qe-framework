@@ -1,3 +1,7 @@
+---
+name: Qadd-javadoc
+description: 프로젝트의 표준 JavaDoc 스타일에 따라 주석을 추가합니다.
+---
 > 공통 원칙: core/PRINCIPLES.md 참조
 
 # Add JavaDoc Comments
