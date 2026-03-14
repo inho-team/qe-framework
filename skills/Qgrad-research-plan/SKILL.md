@@ -2,6 +2,8 @@
 name: Qgrad-research-plan
 description: 문헌 조사와 실험 설계를 체계적으로 수행합니다. 키워드 전략, 논문 요약표, 갭 분석, 연구 질문 도출, 실험 변수 정의, 재현성 문서화를 포괄합니다. "문헌 조사", "literature review", "실험 설계", "experiment design", "연구 계획" 등의 요청 시 사용합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 문헌 조사 + 실험 설계 통합
 

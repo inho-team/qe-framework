@@ -2,6 +2,8 @@
 name: Qsession-handoff
 description: "AI 에이전트 세션 간 원활한 인수인계를 위한 handoff 문서를 생성합니다. 사용자가 handoff/메모리/컨텍스트 저장을 요청하거나, 컨텍스트 윈도우가 한계에 근접하거나, 주요 마일스톤 완료 시, 세션 종료 시 실행됩니다. '상태 저장', 'handoff 만들기', '잠깐 멈춰야 해', '컨텍스트가 꽉 차가고 있어', 'handoff 불러오기', '이어서 작업', '이전 작업 계속' 등의 표현에 반응합니다."
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Handoff
 

@@ -2,6 +2,8 @@
 name: Qrun-task
 description: generate-spec으로 생성된 TASK_REQUEST와 VERIFY_CHECKLIST 문서를 기반으로 작업을 실행합니다. 문서를 읽고, 요약하고, 승인을 받은 뒤 구현하고, 검증 체크리스트로 완료를 확인합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 작업 실행 스킬
 

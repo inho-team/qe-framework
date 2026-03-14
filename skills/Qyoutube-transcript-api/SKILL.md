@@ -6,6 +6,8 @@ metadata:
   author: YouTubeTranscript.dev
   license: MIT
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # YouTube Transcript API Skill
 

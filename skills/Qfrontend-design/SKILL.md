@@ -7,6 +7,8 @@ metadata:
   source: https://skills.sh/anthropics/skills/frontend-design
   license: Complete terms in LICENSE.txt
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 이 스킬은 제네릭한 "AI slop" 미학을 피하는 독창적이고 프로덕션급 프론트엔드 인터페이스 생성을 안내합니다. 미적 디테일과 창의적 선택에 탁월한 주의를 기울여 실제 작동하는 코드를 구현합니다.
 

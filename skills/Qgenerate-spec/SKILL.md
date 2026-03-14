@@ -3,6 +3,8 @@ name: Qgenerate-spec
 description: 프로젝트 스펙 문서 3종(CLAUDE.md, TASK_REQUEST.md, VERIFY_CHECKLIST.md)을 생성합니다. 새 프로젝트를 시작하거나 작업 명세가 필요할 때 사용하세요.
 disable-model-invocation: true
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 프로젝트 스펙 문서 생성 스킬
 

@@ -6,6 +6,8 @@ metadata:
   author: browser-use
 allowed-tools: Bash(browser-use:*)
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Browser Automation with browser-use CLI
 

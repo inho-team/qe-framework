@@ -2,6 +2,8 @@
 name: Qlesson-learned
 description: "최근 코드 변경 사항을 git 히스토리로 분석하고 소프트웨어 엔지니어링 교훈을 추출합니다. '여기서 배울 점이 뭐야?', '엔지니어링 관점에서의 핵심은?', '이 코드를 되돌아보자' 등의 요청 시 사용합니다."
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # 배운 점 (Lesson Learned)
 

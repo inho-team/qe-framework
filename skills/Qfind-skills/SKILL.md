@@ -2,6 +2,8 @@
 name: Qfind-skills
 description: skills.sh에서 스킬을 검색하고, 내용을 분석한 뒤 SKILL.md 파일로 직접 생성하여 설치합니다. npx skills add 대신 WebFetch로 원본을 읽고 전역/로컬 스킬로 변환합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Qfind-skills: 스킬 검색 및 설치
 

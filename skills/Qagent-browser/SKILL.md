@@ -6,6 +6,8 @@ metadata:
   author: vercel
 allowed-tools: Bash(npx agent-browser:*), Bash(agent-browser:*)
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Browser Automation with agent-browser
 

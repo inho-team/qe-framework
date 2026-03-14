@@ -2,6 +2,8 @@
 name: Qmermaid-diagrams
 description: Mermaid 문법을 사용하여 소프트웨어 다이어그램을 생성하는 종합 가이드. 클래스 다이어그램, 시퀀스 다이어그램, 플로우차트, ERD, C4 아키텍처 다이어그램, 상태 다이어그램, Git 그래프, 간트 차트 등을 생성하거나 시각화할 때 사용합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Mermaid 다이어그램 작성 가이드
 

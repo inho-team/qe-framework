@@ -5,6 +5,8 @@ metadata:
   source: https://skills.sh/anthropics/skills/skill-creator
   author: anthropic
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Skill Creator
 

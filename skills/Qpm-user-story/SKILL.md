@@ -2,6 +2,8 @@
 name: Qpm-user-story
 description: Mike Cohn 형식과 Gherkin 수락 기준으로 유저스토리를 작성합니다. 사용자 니즈를 개발 준비된 작업으로 전환할 때 사용합니다. "유저스토리 작성해줘", "스토리 만들어줘", "수락 기준", "As a user" 등의 요청 시 사용합니다.
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 ## Purpose
 Mike Cohn의 유저스토리 형식과 Gherkin 수락 기준을 결합하여 명확하고 간결한 유저스토리를 생성합니다. 사용자 니즈를 결과 중심의 개발 작업으로 전환하고 테스트 가능한 성공 기준을 제공합니다.

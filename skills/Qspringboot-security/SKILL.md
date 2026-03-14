@@ -5,6 +5,8 @@ metadata:
   source: https://skills.sh/affaan-m/everything-claude-code/springboot-security
   author: affaan-m
 ---
+> 공통 원칙: core/PRINCIPLES.md 참조
+
 
 # Spring Boot Security Review
 
