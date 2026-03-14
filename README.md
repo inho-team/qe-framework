@@ -32,16 +32,8 @@ Methodology & process      Execution & delegation     Shared principles
 
 ## Installation
 
-### Claude Code Plugin (recommended)
-
 ```bash
 claude plugin add github:inho-team/qe-framework
-```
-
-### npm (legacy)
-
-```bash
-npm install @inho-team/qe-framework
 ```
 
 ### Initialize a project

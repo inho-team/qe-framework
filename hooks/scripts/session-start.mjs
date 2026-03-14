@@ -66,7 +66,18 @@ if (existsSync(snapshotPath)) {
   }
 }
 
-// Check 4: Project memory
+// Check 4: Qtranslate — Internal English processing
+const languagePath = join(cwd, '.qe', 'profile', 'language.md');
+if (existsSync(languagePath)) {
+  const langContent = readFileSync(languagePath, 'utf8');
+  const langMatch = langContent.match(/Primary language:\s*(\w+)/);
+  const userLang = langMatch ? langMatch[1] : 'auto-detect';
+  messages.push(`[Qtranslate] Active. User language: ${userLang}. Think and reason internally in English. Translate final responses to the user's language.`);
+} else {
+  messages.push('[Qtranslate] Active. Detect user language from first message, save to .qe/profile/language.md. Think and reason internally in English. Translate final responses to the user\'s language.');
+}
+
+// Check 5: Project memory
 const memoryContext = formatMemoryForInjection(cwd);
 if (memoryContext) {
   messages.push(memoryContext);
