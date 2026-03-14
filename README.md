@@ -36,29 +36,29 @@ Methodology & process      Execution & delegation     Shared principles
 
 ## Installation
 
-### Step 1: Register marketplace (first time only)
+Run these commands in your **terminal** (not inside a Claude Code session):
 
-From terminal:
+### Step 1: Register marketplace (first time only)
 ```bash
 claude plugin marketplace add inho-team/qe-framework
 ```
 
-Or from inside a Claude Code session:
-```
-/plugin marketplace add inho-team/qe-framework
-```
-
 ### Step 2: Install plugin
-
-From terminal:
 ```bash
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-Or from inside a Claude Code session:
+### Update to latest version
+```bash
+claude plugin update qe-framework@inho-team-qe-framework
 ```
-/plugin install qe-framework@inho-team-qe-framework
+
+### Verify installation
+```bash
+claude plugin list
 ```
+
+> **Note**: Plugin commands must be run from the terminal, not inside a Claude Code session. After install or update, restart Claude Code to apply changes.
 
 ### Initialize a project
 
