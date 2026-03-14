@@ -184,7 +184,9 @@ Result: N/M passed
 
 ### Step 5: Completion Processing
 
-If the task type is `code` and documentation is needed, call the `Ecode-doc-writer` agent to auto-generate documentation for changed code.
+**Documentation auto-generation:**
+- **`type: code` tasks**: Always call the `Ecode-doc-writer` agent to generate/update documentation for changed code (API docs, code comments, README updates as needed).
+- **`type: docs` tasks**: Delegate document generation to the `Edoc-generator` agent via Agent tool. Pass the document format (docx/pdf/pptx/xlsx), content outline, and output path. Edoc-generator handles batch parallel processing when multiple documents are requested.
 
 1. Update checklist items in `TASK_REQUEST_{UUID}.md` to `- [x]`
 2. Update verification items in `VERIFY_CHECKLIST_{UUID}.md` to `- [x]`

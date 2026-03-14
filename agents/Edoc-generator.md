@@ -13,7 +13,8 @@ Processes multiple documents in parallel during batch generation.
 
 ## Invocation Conditions
 - When Epm-planner requests document output
-- When a `type: docs` task is executed in Qrun-task
+- **When a `type: docs` task is executed in Qrun-task** — Qrun-task directly delegates document generation at Step 5 (completion processing)
+- When document generation skills (Qdocx, Qpdf, Qpptx, Qxlsx) need batch processing
 - When the user requests generation of multiple documents
 
 ## Supported Formats

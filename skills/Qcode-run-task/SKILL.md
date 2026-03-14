@@ -9,7 +9,7 @@ description: Performs a test → review → fix → retest quality verification 
 
 ## When to Use
 - **Use this skill** when: you need to understand or configure the quality verification loop process (test -> review -> fix -> retest cycle definition and procedure)
-- **Use Eqa-orchestrator instead** when: you need to actually execute the quality loop as a sub-agent (saves main context tokens by running the loop internally)
+- **Default execution**: The quality loop is delegated to `Eqa-orchestrator` by default to save main context tokens. The manual step-by-step mode below is for reference and opt-in use only.
 
 ## Role
 An assistant that ensures quality by performing a **test → review → fix → retest** cycle after code implementation is complete.
@@ -43,9 +43,24 @@ Step 5: Report results
 - Use `AskUserQuestion` to confirm continuation at each iteration
 - If 3 iterations are exceeded, delegate judgment to the user and report current state
 
-The entire quality loop can be delegated to the `Eqa-orchestrator` sub-agent to save main context tokens. Eqa-orchestrator internally coordinates Ecode-test-engineer and Ecode-reviewer.
+## Default Execution: Eqa-orchestrator Delegation
 
-## Execution Procedure
+**By default, delegate the entire quality loop to the `Eqa-orchestrator` sub-agent via Agent tool.** This is the recommended approach because:
+- Saves main context tokens (only final summary returns)
+- Eqa-orchestrator internally coordinates Ecode-test-engineer, Ecode-reviewer, and Ecode-debugger
+- Supports automatic escalation from MEDIUM to HIGH tier on repeated failures
+
+**Information to pass on delegation:**
+- List of changed files (from `git diff --name-only`)
+- TASK_REQUEST content (functional goals, constraints)
+- VERIFY_CHECKLIST content (validation criteria)
+- Project test structure and patterns
+
+**After Eqa-orchestrator returns**, proceed directly to Step 5 (Report Results) using the returned summary.
+
+**Opt-in manual mode:** If the user explicitly requests step-by-step control, or if Eqa-orchestrator fails, fall back to the manual execution procedure below.
+
+## Manual Execution Procedure (Opt-in)
 
 ### Step 1: Collect Context
 
