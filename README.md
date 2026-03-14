@@ -175,6 +175,179 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qlesson-learned | Analyzes recent code changes via git history and extracts engineering lessons. |
 | Qhelp | Shows QE Framework quick reference card in terminal. |
 
+## Background Processing
+
+QE Framework runs several agents silently in the background at key lifecycle moments. These agents require no manual invocation — they are triggered automatically by hooks and other agents.
+
+### How It Works
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        QE Framework Lifecycle                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  Session Start                                                        │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ SessionStart │───▶│ Erefresh-executor   │  Update .qe/analysis/    │
+│  │    Hook      │    │ (if analysis stale) │  before any work begins  │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  User Interaction                                                     │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PreToolUse   │───▶│   Intent Gate       │  Route user intent to    │
+│  │    Hook      │    │   Classification    │  the correct skill/agent │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PostToolUse  │───▶│ Eprofile-collector  │  Learn user patterns     │
+│  │    Hook      │    │ (command, style)    │  and correction history  │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  Context Pressure (75%+)                                              │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PreCompact   │───▶│ Ecompact-executor   │  Save snapshot before    │
+│  │    Hook      │    │ (auto-save context) │  context is lost         │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  Task Completion                                                      │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │  Qrun-task   │───▶│ Earchive-executor   │  Archive completed tasks │
+│  │  completes   │    │ Ecommit-executor    │  Auto-commit changes     │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ Notification │───▶│  Chain follow-up    │  Trigger next actions    │
+│  │    Hook      │    │  actions            │  when agents complete    │
+│  └──────────────┘    └─────────────────────┘                          │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### Lifecycle Hooks
+
+The framework uses 6 lifecycle hooks that fire at specific events:
+
+| Hook | Trigger | What Happens |
+|------|---------|--------------|
+| `SessionStart` | Conversation begins | Injects framework rules, triggers `Erefresh-executor` if analysis is stale |
+| `PreToolUse` | Before every tool call | **Intent Gate** — classifies user intent and routes to the correct skill/agent |
+| `PostToolUse` | After every tool call | Triggers `Eprofile-collector` to record user patterns |
+| `PreCompact` | Before context compaction | Triggers `Ecompact-executor` to save context before it is lost |
+| `Stop` | Conversation ends | Cleanup and finalization |
+| `Notification` | Background agent completes | Chains follow-up actions when background agents finish |
+
+### Background Agents
+
+These agents run automatically without user interaction. They write results to `.qe/` files and never respond directly to the user.
+
+#### Erefresh-executor — Project Analysis Sync
+
+> Keeps `.qe/analysis/` up to date so other agents skip expensive project scanning.
+
+| | Details |
+|---|---|
+| **When** | Session start (if stale), before Qrun-task, or manually via `/Qrefresh` |
+| **Writes to** | `.qe/analysis/*.md`, `.qe/changelog.md` |
+| **Token saving** | ~50% reduction — agents read 4 analysis files instead of scanning dozens |
+
+**Steps:**
+1. Detect changes via `git diff` and file system scan
+2. Update 4 analysis files: `project-structure`, `tech-stack`, `entry-points`, `architecture`
+3. Record change history in `.qe/changelog.md` tagged as `[External Change]` or `[QE]`
+
+#### Ecompact-executor — Context Preservation
+
+> Saves a lightweight snapshot before context compaction so sessions can be resumed.
+
+| | Details |
+|---|---|
+| **When** | Context window reaches 75%+ capacity (Yellow zone), or manually via `/Qcompact` |
+| **Writes to** | `.qe/context/snapshot.md`, `.qe/context/decisions.md` |
+| **Token saving** | ~70% reduction — restores context from a few files instead of re-exploring the project |
+
+**Steps:**
+1. Collect in-progress tasks, checklist state, recent file changes, and key decisions
+2. Save snapshot to `.qe/context/snapshot.md` (paths and summaries only, no code)
+3. Accumulate decisions in `.qe/context/decisions.md` in reverse chronological order
+
+#### Earchive-executor — Task Archival
+
+> Moves completed tasks to a versioned archive, keeping the workspace clean.
+
+| | Details |
+|---|---|
+| **When** | Qrun-task marks a task as completed, or manually via `/Qarchive` |
+| **Writes to** | `.qe/.archive/vX.Y.Z/tasks/`, `.qe/.archive/vX.Y.Z/checklists/` |
+
+**Steps:**
+1. Scan `.qe/tasks/pending/` for fully completed tasks
+2. Move completed TASK_REQUEST and VERIFY_CHECKLIST to `.qe/.archive/vX.Y.Z/`
+3. Save a CLAUDE.md snapshot alongside archived files
+
+#### Ecommit-executor — Auto-Commit
+
+> Creates human-style commits with zero AI traces.
+
+| | Details |
+|---|---|
+| **When** | Delegated by `/Qcommit`, or auto-commit after Qrun-task completion |
+| **Prohibited** | `Co-Authored-By` lines, AI-related wording, emojis |
+
+**Steps:**
+1. Analyze `git diff` and match the project's existing commit message style
+2. Selectively stage relevant files (excludes `.env`, credentials)
+3. Create a commit indistinguishable from a human-written one
+
+#### Eprofile-collector — User Pattern Learning
+
+> Learns user preferences over time to improve intent recognition accuracy.
+
+| | Details |
+|---|---|
+| **When** | After any skill or agent completes |
+| **Writes to** | `.qe/profile/command-patterns.md`, `writing-style.md`, `corrections.md`, `preferences.md` |
+
+**What it collects:**
+
+| File | Content |
+|------|---------|
+| `command-patterns.md` | Skill/agent invocation frequency and recency |
+| `writing-style.md` | Formal/informal patterns, abbreviation dictionary |
+| `corrections.md` | History of user corrections to prevent repeated misunderstandings |
+| `preferences.md` | Response length, code style, language preferences |
+
+#### Ehandoff-executor — Session Handoff
+
+> Generates a validated handoff document for seamless cross-session continuation.
+
+| | Details |
+|---|---|
+| **When** | Manually via `/Qcompact` (handoff mode) |
+| **Writes to** | `.qe/handoffs/HANDOFF_{date}_{time}.md` |
+
+**Steps:**
+1. Collect task state, checklist progress, recent git changes, and decisions
+2. Generate a structured handoff document with concrete next steps
+3. Validate that all referenced files and task UUIDs actually exist
+
+#### Edoc-generator — Batch Document Generation
+
+> Offloads heavy document generation from the main context window.
+
+| | Details |
+|---|---|
+| **When** | Delegated by Epm-planner, Qrun-task (`type: docs`), or multi-document requests |
+| **Formats** | `.docx`, `.pdf`, `.pptx`, `.xlsx` |
+
+Processes multiple documents in parallel, using templates when available.
+
+---
+
 ## Agents (16)
 
 Agents are automatically assigned a model tier based on task complexity. See [AGENT_TIERS.md](core/AGENT_TIERS.md) for details.
