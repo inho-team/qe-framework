@@ -84,7 +84,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (50)
+## Skills (51)
 
 ### Development
 
@@ -114,6 +114,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qarchive | Automatically archives completed task files. |
 | Qmigrate-tasks | Migrates scattered task files into the .qe/tasks/ and .qe/checklists/ directory structure. |
 | Qupdate | Updates the QE Framework plugin to the latest version. |
+| Qutopia | Utopia mode — fully autonomous execution without any confirmations. |
 
 ### Documentation
 
