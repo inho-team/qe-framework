@@ -69,10 +69,31 @@ if (activeTasks.length > 0) {
 
 // Inject reminder to save context
 const taskInfo = activeTasks.length > 0 ? ` ${activeTasks.length} active task(s) need preservation.` : '';
+
+// POST-COMPACT RULES: critical knowledge to survive compaction
+const intentRouting = 'Intent routing: init→Qinit, spec/plan→Qgenerate-spec, run/execute→Qrun-task, research→Edeep-researcher, bug/error→Ecode-debugger, review→Ecode-reviewer, test→Ecode-test-engineer, docs→Ecode-doc-writer, commit→Qcommit, refresh→Qrefresh, debug-method→Qsystematic-debugging, TDD→Qtest-driven-development, design-UI→Qfrontend-design, architecture→Qc4-architecture, DB-schema→Qdatabase-schema-designer';
+const agentTiers = 'Agent tiers: LOW(haiku)=Eprofile-collector/Earchive-executor/Ecommit-executor, MEDIUM(sonnet)=Etask-executor/Ecode-reviewer/Ecode-test-engineer/Erefresh-executor/Ecompact-executor, HIGH(opus)=Edeep-researcher/Eqa-orchestrator';
+
+// Check current routing state
+let currentRoute = '';
+try {
+  const intentRoutePath = join(cwd, '.qe', 'state', 'intent-route.json');
+  if (existsSync(intentRoutePath)) {
+    const routeData = JSON.parse(readFileSync(intentRoutePath, 'utf8'));
+    if (routeData.routed_to && routeData.intent) {
+      currentRoute = ` | Current route: ${routeData.routed_to} (intent: ${routeData.intent})`;
+    }
+  }
+} catch {
+  // Fault tolerance — ignore read errors
+}
+
+const postCompactRules = `[POST-COMPACT RULES] ${intentRouting} | ${agentTiers}${currentRoute}`;
+
 console.log(JSON.stringify({
   continue: true,
   hookSpecificOutput: {
     hookEventName: "PreCompact",
-    additionalContext: `[QE] Compaction detected. Call Ecompact-executor to save current context to .qe/context/.${taskInfo}`
+    additionalContext: `[QE] Compaction detected. Call Ecompact-executor to save current context to .qe/context/.${taskInfo} | ${postCompactRules}`
   }
 }));

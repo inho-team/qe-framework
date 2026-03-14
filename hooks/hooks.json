@@ -56,6 +56,17 @@
           }
         ]
       }
+    ],
+    "Notification": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/notification.mjs\"",
+            "timeout": 5000
+          }
+        ]
+      }
     ]
   }
 }

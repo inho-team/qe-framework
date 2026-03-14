@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync, statSync } from 'fs';
+import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { formatMemoryForInjection } from './lib/memory.mjs';
 
@@ -51,8 +51,8 @@ if (existsSync(analysisDir)) {
     }
   }
 
-  if (staleCount >= 2) {
-    messages.push('Project analysis data is stale. Erefresh-executor will update in the background.');
+  if (staleCount >= 1) {
+    messages.push('[ACTION REQUIRED] Project analysis is stale. Run Erefresh-executor in background NOW.');
   }
 }
 
@@ -81,6 +81,26 @@ if (existsSync(languagePath)) {
 const memoryContext = formatMemoryForInjection(cwd);
 if (memoryContext) {
   messages.push(memoryContext);
+}
+
+// Cleanup: Remove stale intent-route.json for clean session start
+try {
+  const intentRoutePath = join(cwd, '.qe', 'state', 'intent-route.json');
+  if (existsSync(intentRoutePath)) {
+    unlinkSync(intentRoutePath);
+  }
+} catch {
+  // Fault tolerance — ignore cleanup errors
+}
+
+// Reset session-stats.json for fresh session tracking
+try {
+  const stateDir = join(cwd, '.qe', 'state');
+  mkdirSync(stateDir, { recursive: true });
+  const sessionStatsPath = join(stateDir, 'session-stats.json');
+  writeFileSync(sessionStatsPath, JSON.stringify({ tool_calls: 0, session_start: Date.now() }));
+} catch {
+  // Fault tolerance — ignore reset errors
 }
 
 if (messages.length > 0) {
