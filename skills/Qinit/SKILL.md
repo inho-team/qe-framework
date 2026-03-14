@@ -23,7 +23,7 @@ description: Q-프레임워크 초기 세팅. 새 프로젝트에서 CLAUDE.md, 
 - **기술 스택**: 주요 언어/프레임워크 (선택)
 
 ### 2단계: 프로젝트 자동 분석
-프로젝트 소스를 스캔하여 `.claude/analysis/`에 분석 결과를 저장합니다.
+프로젝트 소스를 스캔하여 `.qe/analysis/`에 분석 결과를 저장합니다.
 
 #### 분석 대상 및 출력 파일
 
@@ -59,8 +59,7 @@ description: Q-프레임워크 초기 세팅. 새 프로젝트에서 CLAUDE.md, 
 
 #### 디렉토리 구조
 ```
-.claude/
-├── settings.json
+.qe/
 ├── analysis/
 │   ├── project-structure.md
 │   ├── tech-stack.md
@@ -79,9 +78,9 @@ description: Q-프레임워크 초기 세팅. 새 프로젝트에서 CLAUDE.md, 
 ```gitignore
 # Claude Code
 .claude/settings-local.json
-.claude/tasks/
-.claude/checklists/
-.claude/analysis/
+.qe/tasks/
+.qe/checklists/
+.qe/analysis/
 TASK_REQUEST_*.md
 VERIFY_CHECKLIST_*.md
 ANALYSIS_*.md
@@ -102,7 +101,7 @@ ANALYSIS_*.md
 
 ## 할 것 (Will)
 - CLAUDE.md 템플릿 생성
-- .claude/ 디렉토리 구조 생성 (analysis/ 포함)
+- .qe/ 디렉토리 구조 생성 (analysis/ 포함)
 - 프로젝트 자동 분석 및 결과 저장
 - .gitignore 설정
 - .claude/settings.json 생성

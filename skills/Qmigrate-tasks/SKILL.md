@@ -1,6 +1,6 @@
 ---
 name: Qmigrate-tasks
-description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude/tasks/, .claude/checklists/ 구조로 마이그레이션하고 CLAUDE.md를 최신 컨벤션으로 갱신합니다.
+description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .qe/tasks/, .qe/checklists/ 구조로 마이그레이션하고 CLAUDE.md를 최신 컨벤션으로 갱신합니다.
 ---
 > 공통 원칙: core/PRINCIPLES.md 참조
 
@@ -8,7 +8,7 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 # 작업 파일 마이그레이션 스킬
 
 ## 역할
-프로젝트 루트에 있는 기존 `TASK_REQUEST_*.md`, `VERIFY_CHECKLIST_*.md` 파일을 `.claude/tasks/`, `.claude/checklists/` 디렉토리 구조로 마이그레이션하고, `CLAUDE.md`를 최신 컨벤션에 맞게 갱신합니다.
+프로젝트 루트에 있는 기존 `TASK_REQUEST_*.md`, `VERIFY_CHECKLIST_*.md` 파일을 `.qe/tasks/`, `.qe/checklists/` 디렉토리 구조로 마이그레이션하고, `CLAUDE.md`를 최신 컨벤션에 맞게 갱신합니다.
 
 ## 역할 제한
 - 이 스킬은 **파일 마이그레이션과 CLAUDE.md 갱신**에만 집중합니다.
@@ -19,7 +19,7 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 ```
 프로젝트루트/
 ├── CLAUDE.md
-└── .claude/
+└── .qe/
     ├── tasks/
     │   ├── pending/          ← 🔲 진행 전
     │   ├── in-progress/      ← 🔶 진행 중
@@ -37,7 +37,7 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 ### 1단계: 스캔
 
 1. 프로젝트 루트에서 `TASK_REQUEST_*.md`, `VERIFY_CHECKLIST_*.md` 파일을 탐색
-2. 이미 `.claude/tasks/` 또는 `.claude/checklists/`에 있는 파일은 **스킵**
+2. 이미 `.qe/tasks/` 또는 `.qe/checklists/`에 있는 파일은 **스킵**
 3. `CLAUDE.md`를 읽어 각 UUID별 작업 상태를 파악
 
 **마이그레이션 대상이 없는 경우:**
@@ -73,10 +73,10 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 
 | 파일 | 현재 위치 | 이동 경로 | 상태 |
 |------|-----------|-----------|------|
-| TASK_REQUEST_a1b2c3d4.md | 루트 | .claude/tasks/pending/ | 🔲 |
-| VERIFY_CHECKLIST_a1b2c3d4.md | 루트 | .claude/checklists/pending/ | 🔲 |
-| TASK_REQUEST_e5f6g7h8.md | 루트 | .claude/tasks/completed/ | ✅ |
-| VERIFY_CHECKLIST_e5f6g7h8.md | 루트 | .claude/checklists/completed/ | ✅ |
+| TASK_REQUEST_a1b2c3d4.md | 루트 | .qe/tasks/pending/ | 🔲 |
+| VERIFY_CHECKLIST_a1b2c3d4.md | 루트 | .qe/checklists/pending/ | 🔲 |
+| TASK_REQUEST_e5f6g7h8.md | 루트 | .qe/tasks/completed/ | ✅ |
+| VERIFY_CHECKLIST_e5f6g7h8.md | 루트 | .qe/checklists/completed/ | ✅ |
 
 **CLAUDE.md 갱신:** 파일 규칙 섹션을 최신 컨벤션으로 업데이트합니다.
 
@@ -87,7 +87,7 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 
 ### 4단계: 파일 이동
 
-1. 필요한 디렉토리 생성 (`mkdir -p .claude/tasks/{pending,in-progress,completed,on-hold}` 등)
+1. 필요한 디렉토리 생성 (`mkdir -p .qe/tasks/{pending,in-progress,completed,on-hold}` 등)
 2. 각 파일을 대상 디렉토리로 이동 (`mv`)
 3. TASK_REQUEST와 VERIFY_CHECKLIST는 동일 UUID 기준으로 같은 상태 디렉토리에 배치
 
@@ -111,7 +111,7 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 \```
 프로젝트루트/
 ├── CLAUDE.md
-└── .claude/
+└── .qe/
     ├── tasks/
     │   ├── pending/          ← 생성 직후 (진행 전)
     │   ├── in-progress/      ← 작업 진행 중
@@ -125,8 +125,8 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 \```
 
 ### 파일명 규칙
-- 작업 요청서: `.claude/tasks/{상태}/TASK_REQUEST_{UUID}.md`
-- 검증 체크리스트: `.claude/checklists/{상태}/VERIFY_CHECKLIST_{UUID}.md`
+- 작업 요청서: `.qe/tasks/{상태}/TASK_REQUEST_{UUID}.md`
+- 검증 체크리스트: `.qe/checklists/{상태}/VERIFY_CHECKLIST_{UUID}.md`
 - 하나의 작업은 동일한 UUID를 공유합니다.
 - `{상태}`는 `pending`, `in-progress`, `completed`, `on-hold` 중 하나입니다.
 
@@ -159,7 +159,7 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .claude
 
 **CLAUDE.md 갱신:** 파일 규칙 섹션 업데이트 완료 (또는 "이미 최신")
 
-**참고:** 완료된 작업(✅)의 파일은 .claude/tasks/completed/에 보관되어 있으며, 더 이상 참조하지 않아도 됩니다.
+**참고:** 완료된 작업(✅)의 파일은 .qe/tasks/completed/에 보관되어 있으며, 더 이상 참조하지 않아도 됩니다.
 ```
 
 ## 특수 상황 처리

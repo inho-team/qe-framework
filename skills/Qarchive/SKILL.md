@@ -24,11 +24,11 @@ description: 완료된 작업 파일을 자동으로 아카이브합니다. Qrun
 ## 아카이브 절차
 
 ### 1단계: 완료된 작업 감지
-- `.claude/tasks/pending/`에서 완료된(모든 체크박스 체크됨) TASK_REQUEST 파일 탐색
-- 대응하는 VERIFY_CHECKLIST를 `.claude/checklists/pending/`에서 찾음
+- `.qe/tasks/pending/`에서 완료된(모든 체크박스 체크됨) TASK_REQUEST 파일 탐색
+- 대응하는 VERIFY_CHECKLIST를 `.qe/checklists/pending/`에서 찾음
 
 ### 2단계: 버전 결정
-`.claude/.archive/` 디렉토리에서 기존 최신 버전을 확인하고 다음 버전을 결정합니다.
+`.qe/.archive/` 디렉토리에서 기존 최신 버전을 확인하고 다음 버전을 결정합니다.
 - 버전 형식: `vX.Y.Z`
 - 첫 아카이브: `v0.1.0`
 - 이후: 마이너 버전 자동 증가 (v0.1.0 → v0.2.0 → v0.3.0)
@@ -36,7 +36,7 @@ description: 완료된 작업 파일을 자동으로 아카이브합니다. Qrun
 
 ### 3단계: 아카이브 실행
 ```
-.claude/.archive/vX.Y.Z/
+.qe/.archive/vX.Y.Z/
 ├── CLAUDE.md                          ← 현재 CLAUDE.md 스냅샷 복사
 ├── tasks/
 │   └── TASK_REQUEST_{UUID}.md         ← pending에서 이동

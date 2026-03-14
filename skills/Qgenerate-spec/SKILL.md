@@ -21,8 +21,8 @@ disable-model-invocation: true
 | # | 파일명 | 경로 | 설명 |
 |---|--------|------|------|
 | 1 | `CLAUDE.md` | 프로젝트 루트 | 프로젝트 맥락 — 목표, 제약사항, 결정사항, 작업 목록 |
-| 2 | `TASK_REQUEST_{UUID}.md` | `.claude/tasks/pending/` | 작업 요청서 — 무엇을, 어떻게, 체크리스트, 참고사항 |
-| 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.claude/checklists/pending/` | 검증 체크리스트 — 검증 기준, 추가 메모 |
+| 2 | `TASK_REQUEST_{UUID}.md` | `.qe/tasks/pending/` | 작업 요청서 — 무엇을, 어떻게, 체크리스트, 참고사항 |
+| 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.qe/checklists/pending/` | 검증 체크리스트 — 검증 기준, 추가 메모 |
 
 - 하나의 작업은 동일한 UUID를 공유합니다.
 - 작업이 여러 개면 각각 별도의 TASK_REQUEST / VERIFY_CHECKLIST 쌍을 생성합니다.
@@ -67,7 +67,7 @@ disable-model-invocation: true
 ### 4단계: 파일 생성
 사용자가 `AskUserQuestion`에서 "생성"을 선택하면 파일을 생성합니다.
 - 디렉토리가 없으면 자동 생성합니다 (`mkdir -p` 등).
-- 프로젝트 루트에 기존 `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` 파일이 있으면, `.claude/tasks/pending/`과 `.claude/checklists/pending/`으로 마이그레이션을 제안합니다.
+- 프로젝트 루트에 기존 `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` 파일이 있으면, `.qe/tasks/pending/`과 `.qe/checklists/pending/`으로 마이그레이션을 제안합니다.
 - **최초 프로젝트 설정 시** `.claude/settings.json`과 `.mcp.json`이 없으면, 템플릿 기반 생성을 제안합니다.
   - `templates/settings_template.json` → `.claude/settings.json`
   - `templates/mcp_template.json` → `.mcp.json` (사용자가 원할 경우)
@@ -78,8 +78,8 @@ disable-model-invocation: true
   ```gitignore
   # Claude Code
   .claude/settings-local.json
-  .claude/tasks/
-  .claude/checklists/
+  .qe/tasks/
+  .qe/checklists/
   TASK_REQUEST_*.md
   VERIFY_CHECKLIST_*.md
   ANALYSIS_*.md
@@ -92,8 +92,7 @@ disable-model-invocation: true
 프로젝트루트/
 ├── CLAUDE.md
 ├── .mcp.json                   ← MCP 서버 설정 (선택)
-└── .claude/
-    ├── settings.json            ← 팀 공유 설정
+└── .qe/
     ├── tasks/
     │   └── pending/
     │       ├── TASK_REQUEST_{UUID1}.md
