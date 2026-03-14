@@ -17,7 +17,8 @@ All skills and agents refer to this classification to determine whether a reques
 | **Testing** | "test", "coverage" | Ecode-test-engineer |
 | **Documentation** | "docs", "explain", "README", "document" | Ecode-doc-writer |
 | **Commit** | "commit", "save", "push", "푸시", "커밋" | Qcommit |
-| **Refresh** | "refresh", "update", "sync", "latest" | Qrefresh |
+| **Refresh** | "refresh", "sync", "latest" | Qrefresh |
+| **Plugin update** | "update plugin", "upgrade", "update qe", "최신 버전", "플러그인 업데이트" | Qupdate |
 | **Resume** | "continue", "resume", "restore" | Qresume |
 | **Handoff** | "handoff", "save state", "end session" | Qcompact (manual mode) |
 | **Planning** | "PRD", "product plan", "user story", "roadmap" | Epm-planner |
