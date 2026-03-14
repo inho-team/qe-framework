@@ -12,8 +12,10 @@ if (!data) {
 const cwd = getCwd(data);
 const sessionId = data.session_id || null;
 
-// Check QE modes in priority order
+// Check QE modes in priority order (ultra modes first)
 const modes = [
+  { name: 'ultrawork', label: 'Ultra Work — autonomous parallel execution in progress' },
+  { name: 'ultraqa', label: 'Ultra QA — autonomous quality verification in progress' },
   { name: 'qrun-task', label: 'Qrun-task 작업 실행 중' },
   { name: 'qrefresh', label: 'Erefresh-executor 분석 갱신 중' },
   { name: 'qarchive', label: 'Earchive-executor 아카이브 중' },

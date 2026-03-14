@@ -114,6 +114,63 @@ After file creation is complete, use the **`AskUserQuestion` tool** to ask wheth
 - For multiple tasks: guide with `/Qrun-task {UUID1} {UUID2}` format
 - If the user selects "Run", follow the `/Qrun-task` skill procedure.
 
+## Ultra Modes
+
+When invoked with `--ultrawork` or `--ultraqa` flag, the skill enters an AI-driven autonomous execution mode.
+
+### `--ultrawork`
+Spec generation → single user confirmation → autonomous parallel task execution.
+
+**Modified workflow:**
+1. Steps 1–2: Same as normal (collect info, draft documents)
+2. Step 3: Show drafts → **single confirmation** via `AskUserQuestion` ("Approve & Execute" / "Needs revision")
+3. Step 4: Create files (same as normal)
+4. **Step 5 (auto-execute):** Skip the execution prompt. Instead:
+   a. Write ultra state file via Bash: create `.qe/state/ultrawork-state.json` with:
+      ```json
+      {
+        "active": true,
+        "mode": "ultrawork",
+        "started_at": "<ISO timestamp>",
+        "session_id": "<session_id>",
+        "reinforcement_count": 0,
+        "max_reinforcements": 50,
+        "original_prompt": "<user's original prompt>",
+        "task_uuids": ["<UUID1>", "<UUID2>", ...]
+      }
+      ```
+   b. For **multiple tasks**: spawn separate `Etask-executor` agents **in parallel** via the Agent tool (one per task). Pass each agent:
+      - TASK_REQUEST content
+      - VERIFY_CHECKLIST content
+      - CLAUDE.md constraints
+   c. For **single task**: invoke `/Qrun-task {UUID}` in autonomous mode (skip approval step)
+   d. After all agents complete, perform final verification on each task
+   e. Clear the ultra state file
+   f. Output overall completion report
+
+### `--ultraqa`
+Same as `--ultrawork`, plus a full quality verification loop on every task.
+
+**Additional behavior on top of `--ultrawork`:**
+1. Write ultra state file with `"mode": "ultraqa"` and `"max_reinforcements": 80`
+2. After each task's implementation, automatically run the `/Qcode-run-task` quality loop (test → review → fix → retest, max 3 cycles) — no user confirmation needed
+3. After all tasks complete, perform a **cross-task audit**:
+   - Check all VERIFY_CHECKLIST items across all tasks
+   - Verify inter-task consistency (shared files, dependencies)
+   - Run project-wide validation (build, lint, test suite)
+4. Output comprehensive QA report including:
+   - Per-task verification results
+   - Cross-task consistency check results
+   - Overall quality score
+
+### Ultra Mode Common Rules
+- **State management**: Always create the state file before starting execution, clear it after completion
+- **Reinforcement**: The Stop hook checks the state file. While active, stop signals are blocked up to `max_reinforcements`
+- **Parallel execution**: When multiple tasks exist, use the Agent tool to spawn multiple `Etask-executor` agents concurrently
+- **Error handling**: If a task fails, log the failure, skip to the next task, and report all failures at the end
+- **No intermediate user prompts**: After the single initial confirmation, the AI operates fully autonomously
+- **Progress output**: Periodically report progress (e.g., "3/7 tasks complete") so the user can monitor
+
 ## Document Writing Rules
 
 ### CLAUDE.md
