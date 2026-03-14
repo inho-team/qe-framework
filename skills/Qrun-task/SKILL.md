@@ -277,6 +277,16 @@ When the user requests to resume a held task:
 3. Update task status in `CLAUDE.md` to 🔶
 4. Review the checklist and continue from the interruption point
 
+### Etask-executor Failure Recovery
+When `Etask-executor` fails or crashes mid-execution:
+1. Check `.qe/tasks/in-progress/` for orphaned TASK_REQUEST files
+2. Read the TASK_REQUEST checklist to identify which items are `- [x]` (completed) vs `- [ ]` (pending)
+3. Present recovery options to the user:
+   - **Resume**: Continue from the last unchecked item (re-delegate to Etask-executor)
+   - **Retry**: Re-run the entire task from scratch
+   - **Abort**: Move to `on-hold/` and proceed to the next task in queue
+4. If in autonomous mode (ultra), automatically choose "Resume" and retry up to 2 times before escalating to user
+
 ### No CLAUDE.md
 - Tasks can still be executed with just TASK_REQUEST and VERIFY_CHECKLIST
 - However, notify the user that the task proceeds without project context

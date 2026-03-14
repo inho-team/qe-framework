@@ -64,6 +64,14 @@ Distinguish changes that did not go through the QE framework (Query Executor) sk
 - If the change went through the QE framework → tag as `[QE framework (Query Executor)]`
 - This allows tracking of changes that occurred outside the framework.
 
+## External Change Detection
+Changes are tagged as `[External Change]` if the commit message does NOT contain any of these QE framework keywords:
+- `Qrun-task`, `Qgenerate-spec`, `Qcommit`, `Qrefresh`, `Qinit`
+- `Etask-executor`, `Ecommit-executor`
+- `[QE]`, `[ultrawork]`, `[ultraqa]`
+
+All other commits are considered external (manual user edits, CI/CD, other tools).
+
 ## Background Execution Rules
 - Do not notify the user of progress.
 - On error, only log to `.qe/changelog.md`.

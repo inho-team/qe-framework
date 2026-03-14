@@ -45,6 +45,13 @@ Running the quality loop in the main context consumes a large number of tokens o
 - Coordinate sub-agents (Ecode-test-engineer, Ecode-reviewer)
 - Return final summary
 
+## Escalation Rules
+- If the test→review→fix cycle fails **3 consecutive times** without passing all checks, escalate from MEDIUM (sonnet) to HIGH (opus) tier
+- Escalation is automatic — no user confirmation needed during autonomous mode
+- After escalation, retry the cycle once more at HIGH tier
+- If still failing after HIGH tier attempt, report failure to the user with a summary of all attempted fixes
+- Log escalation events in `.qe/changelog.md`
+
 ## Will Not
 - Write code directly (delegate to sub-agents)
 - Report intermediate results to the user
