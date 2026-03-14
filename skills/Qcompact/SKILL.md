@@ -1,146 +1,146 @@
 ---
 name: Qcompact
-description: 맥락 보존 및 세션 핸드오프. 백그라운드 자동 실행 시 맥락을 .qe/context/에 저장하고, 수동 호출 시 상세한 핸드오프 문서를 .qe/handoffs/에 생성합니다. "상태 저장", "handoff", "맥락 저장", "세션 종료", "이어서 작업" 요청 시 사용합니다.
+description: Context preservation and session handoff. When run automatically in the background, saves context to .qe/context/. When invoked manually, generates a detailed handoff document in .qe/handoffs/. Use for "save state", "handoff", "save context", "end session", or "continue later" requests.
 ---
 
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qcompact — 맥락 보존 & 핸드오프
+# Qcompact — Context Preservation & Handoff
 
-## 역할
-컨텍스트 윈도우 압박 시 자동으로 맥락을 보존하고, 사용자 요청 시 상세한 핸드오프 문서를 생성하는 스킬.
+## Role
+A skill that automatically preserves context under context window pressure, and generates detailed handoff documents on user request.
 
-## 동작 모드
+## Operating Modes
 
-### 자동 모드 (백그라운드 호출)
-Ecompact-executor가 컨텍스트 압박을 감지하면 백그라운드에서 자동 실행됩니다.
-- 사용자에게 알리지 않고 조용히 저장
-- MODE_TokenEfficiency의 Yellow 존(75%+) 진입 시 트리거
-- `.qe/context/snapshot.md`에 현재 상태 저장
-- `.qe/context/decisions.md`에 결정사항 누적
+### Automatic Mode (Background Call)
+Ecompact-executor detects context pressure and runs automatically in the background.
+- Saves quietly without notifying the user
+- Triggered when entering MODE_TokenEfficiency Yellow zone (75%+)
+- Saves current state to `.qe/context/snapshot.md`
+- Accumulates decisions in `.qe/context/decisions.md`
 
-### 수동 모드 (사용자 호출)
-`/Qcompact`로 직접 호출하면 상세한 핸드오프 문서를 생성합니다.
-- Ehandoff-executor 서브에이전트에게 위임
-- `.qe/handoffs/HANDOFF_{날짜}_{시각}.md` 생성
-- 저장된 맥락 + 핸드오프 요약을 사용자에게 표시
+### Manual Mode (User Invocation)
+Calling `/Qcompact` directly generates a detailed handoff document.
+- Delegates to Ehandoff-executor sub-agent
+- Creates `.qe/handoffs/HANDOFF_{date}_{time}.md`
+- Displays saved context + handoff summary to the user
 
 ---
 
-## 자동 모드 상세
+## Automatic Mode Details
 
-### 저장 위치
+### Save Location
 `.qe/context/`
 
-### 저장 내용
+### Saved Content
 
-#### `snapshot.md` — 맥락 스냅샷
-매 저장 시 덮어씁니다 (최신 상태만 유지):
+#### `snapshot.md` — Context Snapshot
+Overwritten on each save (only the latest state is retained):
 
 ```markdown
 # Context Snapshot
-> 저장 시각: 2026-03-14 10:30
+> Saved at: 2026-03-14 10:30
 
-## 현재 작업
-- 진행 중인 태스크 UUID 및 제목
-- 체크리스트 진행 상황 (완료/전체)
-- 현재 작업 중인 체크리스트 항목
+## Current Task
+- In-progress task UUID and title
+- Checklist progress (completed/total)
+- Checklist item currently being worked on
 
-## 핵심 결정사항
-- 이번 세션에서 내린 주요 결정들
-- 사용자가 명시적으로 지시한 방향
+## Key Decisions
+- Major decisions made this session
+- Directions explicitly instructed by the user
 
-## 변경된 파일
-- 이번 세션에서 생성/수정/삭제한 파일 목록
+## Changed Files
+- Files created/modified/deleted this session
 
-## 미완료 사항
-- 아직 끝나지 않은 작업
-- 다음에 해야 할 것
+## Pending Items
+- Work not yet finished
+- What to do next
 
-## 주의사항
-- 특별히 기억해야 할 제약조건이나 요구사항
+## Notes
+- Constraints or requirements to remember specifically
 ```
 
-#### `decisions.md` — 누적 결정 이력
-세션별로 누적됩니다 (역순, 최신이 위):
+#### `decisions.md` — Accumulated Decision History
+Accumulated per session (reverse order, newest first):
 
 ```markdown
-## [2026-03-14] 세션
-- .qe/ 폴더로 프레임워크 데이터 분리 결정
-- 에이전트 접두사 A → E 변경
-- QE 프레임워크(Query Executor)로 브랜딩
+## [2026-03-14] Session
+- Decided to separate framework data into .qe/ folder
+- Changed agent prefix from A → E
+- Branded as QE framework (Query Executor)
 ```
 
 ---
 
-## 수동 모드 상세
+## Manual Mode Details
 
-### CREATE 워크플로
+### CREATE Workflow
 
-#### 1단계: Ehandoff-executor에 위임
-Ehandoff-executor 서브에이전트를 호출하여 핸드오프 문서를 생성합니다.
-- `.qe/handoffs/` 디렉토리 생성 (없으면)
-- `HANDOFF_{날짜}_{시각}.md` 파일 생성
-- 현재 작업 상태, git 변경사항, 결정사항 자동 수집
+#### Step 1: Delegate to Ehandoff-executor
+Call the Ehandoff-executor sub-agent to generate the handoff document.
+- Create `.qe/handoffs/` directory (if not present)
+- Create `HANDOFF_{date}_{time}.md` file
+- Auto-collect current task state, git changes, and decisions
 
-#### 2단계: 핸드오프 문서 작성
-1. **현재 상태 요약** — 지금 어떤 상황인지
-2. **중요한 컨텍스트** — 다음 에이전트가 반드시 알아야 할 핵심 정보
-3. **즉각적인 다음 단계** — 명확하고 실행 가능한 첫 번째 단계
-4. **결정 사항** — 결과뿐만 아니라 이유가 포함된 선택들
+#### Step 2: Write Handoff Document
+1. **Current status summary** — what the situation is right now
+2. **Important context** — key information the next agent must know
+3. **Immediate next steps** — clear, actionable first step
+4. **Decisions** — choices that include not just the outcome but the reason
 
-#### 3단계: 검증
-- `[TODO: ...]` 자리 표시자가 남아 있지 않음
-- 필수 섹션이 존재하고 내용이 채워져 있음
-- 잠재적 기밀 정보 없음 (API 키, 비밀번호, 토큰)
-- 참조된 파일이 존재함
+#### Step 3: Verify
+- No `[TODO: ...]` placeholders remain
+- Required sections exist and are filled in
+- No potentially confidential information (API keys, passwords, tokens)
+- Referenced files exist
 
-#### 4단계: 사용자에게 보고
-- Handoff 파일 위치
-- 캡처된 컨텍스트 요약
-- 다음 세션의 첫 번째 실행 항목
+#### Step 4: Report to User
+- Handoff file location
+- Summary of captured context
+- First action item for the next session
 
-### RESUME 워크플로
+### RESUME Workflow
 
-#### 1단계: Handoff 조회
-`.qe/handoffs/` 디렉토리를 스캔하여 handoff 목록을 표시합니다.
+#### Step 1: Look Up Handoff
+Scan the `.qe/handoffs/` directory and display the list of handoffs.
 
-#### 2단계: 최신성 확인
-| 수준 | 의미 |
-|------|------|
-| FRESH | 재개 안전 — 변경 최소 |
-| SLIGHTLY_STALE | 변경 사항 검토 후 재개 |
-| STALE | 컨텍스트 신중 확인 |
-| VERY_STALE | 새 handoff 생성 고려 |
+#### Step 2: Check Freshness
+| Level | Meaning |
+|-------|---------|
+| FRESH | Safe to resume — minimal changes |
+| SLIGHTLY_STALE | Review changes before resuming |
+| STALE | Carefully verify context |
+| VERY_STALE | Consider creating a new handoff |
 
-#### 3단계: Handoff 로드 및 작업 시작
-- handoff 문서를 읽고 "즉각적인 다음 단계" 항목 #1부터 시작
-- 체인된 handoff가 있으면 이전 것도 참조
+#### Step 3: Load Handoff and Start Work
+- Read the handoff document and start from item #1 of "Immediate next steps"
+- If there are chained handoffs, also reference previous ones
 
-### Handoff 체이닝
-장기 프로젝트에서 handoff를 서로 연결하여 컨텍스트 계보를 유지합니다:
+### Handoff Chaining
+In long-running projects, link handoffs to each other to maintain context lineage:
 ```
 HANDOFF_1.md → HANDOFF_2.md → HANDOFF_3.md
 ```
 
 ---
 
-## 저장 위치 정리
+## Save Location Summary
 
-| 모드 | 위치 | 용도 |
-|------|------|------|
-| 자동 | `.qe/context/snapshot.md` | 최신 맥락 (덮어쓰기) |
-| 자동 | `.qe/context/decisions.md` | 결정사항 누적 |
-| 수동 | `.qe/handoffs/HANDOFF_*.md` | 상세 핸드오프 문서 |
+| Mode | Location | Purpose |
+|------|----------|---------|
+| Automatic | `.qe/context/snapshot.md` | Latest context (overwrite) |
+| Automatic | `.qe/context/decisions.md` | Accumulated decisions |
+| Manual | `.qe/handoffs/HANDOFF_*.md` | Detailed handoff document |
 
-## 할 것 (Will)
-- 자동: 맥락 스냅샷 저장, 결정사항 누적
-- 수동: 상세 핸드오프 문서 생성, 검증, 체이닝
-- Ecompact-executor 위임 (자동)
-- Ehandoff-executor 위임 (수동)
+## Will
+- Automatic: save context snapshot, accumulate decisions
+- Manual: generate detailed handoff document, verify, chain
+- Delegate to Ecompact-executor (automatic)
+- Delegate to Ehandoff-executor (manual)
 
-## 안 할 것 (Will Not)
-- 전체 대화 내용 저장 (핵심만 추출)
-- 코드 전체 복사 (파일 경로만 기록)
-- 사용자에게 알림 (자동 실행 시)
-- 기밀 정보 포함
+## Will Not
+- Save entire conversation (extract key points only)
+- Copy entire code (record file paths only)
+- Notify user (during automatic execution)
+- Include confidential information

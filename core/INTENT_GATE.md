@@ -1,48 +1,48 @@
-# IntentGate — 사용자 의도 분류
+# IntentGate — User Intent Classification
 
-## 개요
-사용자 명령을 분류하여 적절한 스킬/에이전트로 라우팅하는 규칙.
-모든 스킬과 에이전트는 이 분류를 참조하여 자신이 적합한 요청인지 판단합니다.
+## Overview
+Rules for classifying user commands and routing them to the appropriate skill or agent.
+All skills and agents refer to this classification to determine whether a request is appropriate for them.
 
-## 의도 분류
+## Intent Classification
 
-| 의도 | 키워드/패턴 | 라우팅 대상 |
-|------|------------|------------|
-| **초기화** | "init", "초기화", "세팅", "시작" | Qinit |
-| **스펙 생성** | "스펙", "기획", "작업 만들어", "태스크" | Qgenerate-spec |
-| **실행** | "실행", "run", "돌려", "시작해" | Qrun-task |
-| **조사/리서치** | "조사", "비교", "어떤 게 나아", "리서치" | Edeep-researcher |
-| **디버깅** | "버그", "에러", "안 돼", "왜 안 되지" | Ecode-debugger |
-| **리뷰** | "리뷰", "검토", "봐줘", "괜찮아?" | Ecode-reviewer |
-| **테스트** | "테스트", "test", "커버리지" | Ecode-test-engineer |
-| **문서** | "문서", "설명", "README", "docs" | Ecode-doc-writer |
-| **커밋** | "커밋", "commit", "저장" | Qcommit |
-| **갱신** | "새로고침", "refresh", "갱신", "최신화" | Qrefresh |
-| **복원** | "이어서", "계속", "resume", "복원" | Qresume |
-| **핸드오프** | "핸드오프", "상태 저장", "세션 종료" | Qcompact (수동 모드) |
-| **기획** | "PRD", "기획서", "유저스토리", "로드맵" | Epm-planner |
-| **학술** | "논문", "세미나", "학위", "리뷰 대응" | Qgrad-* (해당 스킬) |
-| **PDF/문서 생성** | "PDF", "Word", "PPT", "엑셀" | Qdocx/Qpdf/Qpptx/Qxlsx |
+| Intent | Keywords / Patterns | Routing Target |
+|--------|---------------------|----------------|
+| **Initialization** | "init", "initialize", "setup", "start" | Qinit |
+| **Spec generation** | "spec", "plan", "create task", "task" | Qgenerate-spec |
+| **Execution** | "run", "execute", "go", "start" | Qrun-task |
+| **Research** | "research", "compare", "which is better", "investigate" | Edeep-researcher |
+| **Debugging** | "bug", "error", "not working", "why doesn't this work" | Ecode-debugger |
+| **Review** | "review", "check", "look at this", "is this ok?" | Ecode-reviewer |
+| **Testing** | "test", "coverage" | Ecode-test-engineer |
+| **Documentation** | "docs", "explain", "README", "document" | Ecode-doc-writer |
+| **Commit** | "commit", "save" | Qcommit |
+| **Refresh** | "refresh", "update", "sync", "latest" | Qrefresh |
+| **Resume** | "continue", "resume", "restore" | Qresume |
+| **Handoff** | "handoff", "save state", "end session" | Qcompact (manual mode) |
+| **Planning** | "PRD", "product plan", "user story", "roadmap" | Epm-planner |
+| **Academic** | "paper", "seminar", "thesis", "review response" | Qgrad-* (matching skill) |
+| **PDF/Doc generation** | "PDF", "Word", "PPT", "Excel" | Qdocx/Qpdf/Qpptx/Qxlsx |
 
-## 분류 규칙
+## Classification Rules
 
-### 1. 명시적 스킬 호출 우선
-사용자가 `/Qgenerate-spec`처럼 명시적으로 스킬을 호출하면 IntentGate를 건너뜁니다.
+### 1. Explicit skill invocation takes priority
+If the user explicitly invokes a skill like `/Qgenerate-spec`, skip IntentGate.
 
-### 2. 키워드 매칭
-명시적 호출이 아니면 사용자 메시지에서 키워드를 감지합니다.
-- 여러 의도가 겹치면 → 사용자에게 확인
-- 하나만 매칭되면 → 해당 스킬/에이전트 실행
+### 2. Keyword matching
+When there is no explicit invocation, detect keywords in the user's message.
+- Multiple intents overlap → ask the user for clarification
+- Exactly one match → execute the corresponding skill or agent
 
-### 3. Qprofile 연동
-`.qe/profile/command-patterns.md`를 참조하여 사용자의 과거 패턴을 반영합니다.
-- "이거 좀 봐줘"가 과거에 주로 리뷰 요청이었으면 → Ecode-reviewer로 라우팅
+### 3. Qprofile integration
+Refer to `.qe/profile/command-patterns.md` to reflect the user's historical patterns.
+- If "take a look at this" has historically been a review request → route to Ecode-reviewer
 
-### 4. 모호한 경우
-의도를 파악할 수 없으면 사용자에게 질문합니다:
-- "어떤 작업을 원하시나요? (스펙 생성 / 코드 실행 / 조사 / 기타)"
+### 4. Ambiguous cases
+When intent cannot be determined, ask the user:
+- "What would you like to do? (Generate spec / Run code / Research / Other)"
 
-## .qe/analysis/ 활용
-라우팅 전에 `.qe/analysis/`를 참조하여 프로젝트 컨텍스트를 파악합니다.
-- Java 프로젝트에서 "보안" → Qspringboot-security로 라우팅
-- React 프로젝트에서 "디자인" → Qfrontend-design으로 라우팅
+## Using .qe/analysis/
+Before routing, refer to `.qe/analysis/` to understand the project context.
+- Java project + "security" → route to Qspringboot-security
+- React project + "design" → route to Qfrontend-design

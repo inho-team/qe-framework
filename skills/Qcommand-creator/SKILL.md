@@ -1,144 +1,144 @@
 ---
 name: Qcommand-creator
-description: Claude Code 슬래시 커맨드를 생성할 때 사용하는 스킬입니다. "커맨드 만들어줘", "슬래시 커맨드 추가해줘" 등의 요청이나 반복적인 워크플로우를 재사용 가능한 커맨드로 만들고 싶을 때 활용합니다.
+description: A skill for creating Claude Code slash commands. Use when the user requests "create a command", "add a slash command", or wants to turn a repetitive workflow into a reusable command.
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Command Creator
 
-이 스킬은 Claude Code 슬래시 커맨드 생성을 안내합니다. 슬래시 커맨드는 Claude Code 대화에서 `/커맨드명` 형태로 호출할 수 있는 재사용 가능한 워크플로우입니다.
+This skill guides the creation of Claude Code slash commands. Slash commands are reusable workflows callable as `/command-name` within a Claude Code conversation.
 
-## 슬래시 커맨드란
+## What Are Slash Commands
 
-슬래시 커맨드는 `.claude/commands/` (프로젝트 레벨) 또는 `~/.claude/commands/` (전역/사용자 레벨)에 저장된 마크다운 파일로, 호출 시 프롬프트로 확장됩니다. 다음과 같은 용도에 적합합니다:
+Slash commands are markdown files stored in `.claude/commands/` (project level) or `~/.claude/commands/` (global/user level) that expand into prompts when invoked. They are suitable for:
 
-- 반복적인 워크플로우 (코드 리뷰, PR 제출, CI 수정)
-- 일관성이 필요한 다단계 프로세스
-- 에이전트 위임 패턴
-- 프로젝트별 자동화
+- Repetitive workflows (code review, PR submission, CI fixes)
+- Multi-step processes requiring consistency
+- Agent delegation patterns
+- Project-specific automation
 
-## 이 스킬을 사용할 때
+## When to Use This Skill
 
-- "커맨드 만들어줘" 또는 "슬래시 커맨드 만들어줘"라고 할 때
-- 반복적인 워크플로우를 자동화하고 싶을 때
-- 일관된 프로세스를 재사용 가능하게 문서화하고 싶을 때
-- "X를 계속 하는데, 커맨드로 만들 수 있어?"라고 할 때
+- When the user says "create a command" or "make a slash command"
+- When the user wants to automate a repetitive workflow
+- When the user wants to document a consistent process as reusable
+- When the user says "I keep doing X, can we make it a command?"
 
-## 번들 리소스
+## Bundled Resources
 
-- **references/patterns.md** - 커맨드 패턴 (워크플로우 자동화, 반복 수정, 에이전트 위임, 단순 실행)
-- **references/examples.md** - 실제 커맨드 예시와 전체 소스
-- **references/best-practices.md** - 품질 체크리스트, 흔한 실수, 작성 가이드라인
+- **references/patterns.md** - Command patterns (workflow automation, iterative fixing, agent delegation, simple execution)
+- **references/examples.md** - Real command examples with full source
+- **references/best-practices.md** - Quality checklist, common mistakes, writing guidelines
 
-## 커맨드 구조 개요
+## Command Structure Overview
 
-모든 슬래시 커맨드는 다음 구조의 마크다운 파일입니다:
+Every slash command is a markdown file with the following structure:
 
 ```markdown
 ---
-description: /help에 표시되는 간단한 설명 (필수)
-argument-hint: <플레이스홀더> (선택, 커맨드가 인자를 받는 경우)
+description: Brief description shown in /help (required)
+argument-hint: <placeholder> (optional, if the command accepts arguments)
 ---
 
-# 커맨드 제목
+# Command Title
 
-[에이전트가 자율적으로 실행할 상세 지시사항]
+[Detailed instructions for the agent to execute autonomously]
 ```
 
-## 커맨드 생성 워크플로우
+## Command Creation Workflow
 
-### 1단계: 위치 결정
+### Step 1: Determine Location
 
-**적절한 위치를 자동으로 감지합니다:**
+**Automatically detect the appropriate location:**
 
-1. git 저장소 상태 확인: `git rev-parse --is-inside-work-tree 2>/dev/null`
-2. 기본 위치:
-   - git 저장소 내부 → 프로젝트 레벨: `.claude/commands/`
-   - git 저장소 외부 → 전역: `~/.claude/commands/`
-3. 사용자가 "전역"을 명시하면 → `~/.claude/commands/`
-4. 사용자가 "프로젝트"를 명시하면 → `.claude/commands/`
+1. Check git repository status: `git rev-parse --is-inside-work-tree 2>/dev/null`
+2. Default location:
+   - Inside a git repository → project level: `.claude/commands/`
+   - Outside a git repository → global: `~/.claude/commands/`
+3. If the user specifies "global" → `~/.claude/commands/`
+4. If the user specifies "project" → `.claude/commands/`
 
-진행 전에 선택한 위치를 사용자에게 알려주세요.
+Inform the user of the chosen location before proceeding.
 
-### 2단계: 커맨드 패턴 안내
+### Step 2: Guide Command Pattern
 
-**references/patterns.md**를 불러와 사용 가능한 패턴을 확인합니다:
+Load **references/patterns.md** to review available patterns:
 
-- **워크플로우 자동화** - 분석 → 실행 → 보고 (예: submit-stack)
-- **반복 수정** - 실행 → 파싱 → 수정 → 반복 (예: ensure-ci)
-- **에이전트 위임** - 컨텍스트 → 위임 → 반복 (예: create-implementation-plan)
-- **단순 실행** - 인자와 함께 커맨드 실행 (예: codex-review)
+- **Workflow Automation** - analyze → execute → report (e.g., submit-stack)
+- **Iterative Fixing** - run → parse → fix → repeat (e.g., ensure-ci)
+- **Agent Delegation** - context → delegate → iterate (e.g., create-implementation-plan)
+- **Simple Execution** - run a command with arguments (e.g., codex-review)
 
-사용자에게 질문하세요: "원하시는 것과 가장 유사한 패턴은 어느 것인가요?"
+Ask the user: "Which pattern is closest to what you have in mind?"
 
-### 3단계: 커맨드 정보 수집
+### Step 3: Gather Command Information
 
-#### A. 커맨드 이름과 목적
+#### A. Command Name and Purpose
 
-- "커맨드 이름은 무엇으로 할까요?" (파일명용)
-- "이 커맨드는 무엇을 하나요?" (description 필드용)
+- "What should the command be named?" (for the filename)
+- "What does this command do?" (for the description field)
 
-가이드라인:
-- 반드시 kebab-case (하이픈 사용, 언더스코어 금지)
-  - 올바른 예: `submit-stack`, `ensure-ci`
-  - 잘못된 예: `submit_stack`, `ensure_ci`
-- 파일명이 커맨드 이름: `my-command.md` → `/my-command`으로 호출
+Guidelines:
+- Must use kebab-case (hyphens only, no underscores)
+  - Correct: `submit-stack`, `ensure-ci`
+  - Incorrect: `submit_stack`, `ensure_ci`
+- The filename becomes the command name: `my-command.md` → invoked as `/my-command`
 
-#### B. 인자
+#### B. Arguments
 
-- "이 커맨드는 인자를 받나요?"
-- 필수 인자: `<꺾쇠 괄호>`, 선택 인자: `[대괄호]`
+- "Does this command take arguments?"
+- Required arguments: `<angle-brackets>`, optional arguments: `[square-brackets]`
 
-#### C. 워크플로우 단계
+#### C. Workflow Steps
 
-- "이 커맨드가 따라야 할 구체적인 단계는?"
-- "어떤 순서로 진행?"
-- "어떤 도구나 명령어를 사용?"
+- "What are the specific steps this command should follow?"
+- "In what order should they proceed?"
+- "What tools or commands will be used?"
 
-#### D. 도구 제한 및 안내
+#### D. Tool Restrictions and Guidance
 
-- "특정 에이전트나 도구를 사용해야 하나요?"
-- "사용하지 말아야 할 도구나 작업이 있나요?"
+- "Are there specific agents or tools that must be used?"
+- "Are there any tools or actions that should be avoided?"
 
-### 4단계: 최적화된 커맨드 생성
+### Step 4: Generate an Optimized Command
 
-**references/best-practices.md**를 참고하여 에이전트 최적화된 지시사항으로 커맨드 파일을 생성합니다.
+Reference **references/best-practices.md** to create the command file with agent-optimized instructions.
 
-핵심 원칙:
-- 명령형/동사 우선 형태 사용
-- 명확하고 구체적으로 작성
-- 예상 결과 포함
-- 구체적인 예시 제공
-- 명확한 오류 처리 정의
+Core principles:
+- Use imperative/verb-first form
+- Write clearly and specifically
+- Include expected outcomes
+- Provide concrete examples
+- Define clear error handling
 
-### 5단계: 커맨드 파일 생성
+### Step 5: Create the Command File
 
-1. 전체 파일 경로 결정
-2. 디렉터리 존재 확인: `mkdir -p [디렉터리 경로]`
-3. Write 도구를 사용하여 커맨드 파일 작성
-4. 사용자에게 확인: 파일 위치, 요약, 사용 방법
+1. Determine the full file path
+2. Verify the directory exists: `mkdir -p [directory path]`
+3. Write the command file using the Write tool
+4. Confirm with the user: file location, summary, and how to use it
 
-### 6단계: 테스트 및 반복 (선택)
+### Step 6: Test and Iterate (Optional)
 
-1. 테스트 제안: "이 커맨드를 `/커맨드명 [인자]`로 실행해서 테스트해 보세요"
-2. 피드백 기반으로 반복 개선
-3. 필요에 따라 파일 업데이트
+1. Suggest a test: "Try running this command with `/command-name [arguments]` to test it"
+2. Iterate based on feedback
+3. Update the file as needed
 
-## 빠른 팁
+## Quick Tips
 
-**기억해야 할 공통 패턴:**
-- `pytest`, `pyright`, `ruff`, `prettier`, `make` 등에는 Bash 도구 사용
-- 전문화된 작업에는 Task 도구로 서브에이전트 호출
-- 진행 전 특정 파일 존재 여부 먼저 확인
-- Todo는 완료 즉시 표시, 일괄 처리 금지
-- 명확한 오류 처리 지시사항과 성공 기준 포함
+**Common patterns to remember:**
+- Use the Bash tool for `pytest`, `pyright`, `ruff`, `prettier`, `make`, etc.
+- Use the Task tool to invoke sub-agents for specialized work
+- Check for the existence of specific files before proceeding
+- Mark todos complete immediately, do not batch
+- Include clear error handling instructions and success criteria
 
-## 요약
+## Summary
 
-1. **위치 감지** (프로젝트 vs 전역)
-2. **패턴 안내** - 대화 방향 잡기
-3. **정보 수집** (이름, 목적, 인자, 단계, 도구)
-4. **최적화된 커맨드 생성** - 에이전트 실행 가능한 지시사항
-5. **파일 생성** - 적절한 위치에
-6. **확인 및 반복** - 필요에 따라
+1. **Detect location** (project vs. global)
+2. **Guide pattern** - frame the conversation
+3. **Gather information** (name, purpose, arguments, steps, tools)
+4. **Generate optimized command** - agent-executable instructions
+5. **Create the file** - in the appropriate location
+6. **Confirm and iterate** - as needed

@@ -1,36 +1,36 @@
 ---
 name: Qc4-architecture
-description: C4 모델 Mermaid 다이어그램을 사용하여 아키텍처 문서를 생성합니다. "아키텍처 다이어그램", "C4 다이어그램", "시스템 컨텍스트", "컨테이너 다이어그램", "컴포넌트 다이어그램", "배포 다이어그램" 등의 요청 시 사용합니다.
+description: Generates architecture documentation using C4 model Mermaid diagrams. Use for requests like "architecture diagram", "C4 diagram", "system context", "container diagram", "component diagram", or "deployment diagram".
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# C4 아키텍처 문서화
+# C4 Architecture Documentation
 
-C4 모델 다이어그램과 Mermaid 문법을 사용하여 소프트웨어 아키텍처 문서를 생성합니다.
+Generates software architecture documentation using C4 model diagrams and Mermaid syntax.
 
-## 워크플로우
+## Workflow
 
-1. **범위 파악** - 대상 독자를 기반으로 필요한 C4 레벨 결정
-2. **코드베이스 분석** - 시스템 탐색하여 컴포넌트, 컨테이너, 관계 식별
-3. **다이어그램 생성** - 적절한 추상화 수준의 Mermaid C4 다이어그램 작성
-4. **문서화** - 설명 컨텍스트와 함께 마크다운 파일에 기록
+1. **Determine scope** — Decide which C4 levels are needed based on the target audience
+2. **Analyze the codebase** — Explore the system to identify components, containers, and relationships
+3. **Generate diagrams** — Write Mermaid C4 diagrams at the appropriate level of abstraction
+4. **Document** — Record in Markdown files with explanatory context
 
-## C4 다이어그램 레벨
+## C4 Diagram Levels
 
-| 레벨 | 다이어그램 유형 | 대상 | 표현 내용 | 생성 시점 |
-|------|----------------|------|-----------|-----------|
-| 1 | **C4Context** | 모든 사람 | 시스템 + 외부 액터 | 항상 (필수) |
-| 2 | **C4Container** | 기술 담당자 | 앱, DB, 서비스 | 항상 (필수) |
-| 3 | **C4Component** | 개발자 | 내부 컴포넌트 | 가치가 있을 때만 |
-| 4 | **C4Deployment** | DevOps | 인프라 노드 | 프로덕션 시스템용 |
-| - | **C4Dynamic** | 기술 담당자 | 요청 흐름 (순번) | 복잡한 워크플로우용 |
+| Level | Diagram Type | Audience | Shows | When to Create |
+|-------|-------------|----------|-------|----------------|
+| 1 | **C4Context** | Everyone | System + external actors | Always (required) |
+| 2 | **C4Container** | Technical stakeholders | Apps, DBs, services | Always (required) |
+| 3 | **C4Component** | Developers | Internal components | Only when it adds value |
+| 4 | **C4Deployment** | DevOps | Infrastructure nodes | For production systems |
+| - | **C4Dynamic** | Technical stakeholders | Request flows (numbered) | For complex workflows |
 
-**핵심:** "Context + Container 다이어그램으로 대부분의 개발팀에 충분합니다." Component/Code 다이어그램은 진정으로 가치를 더할 때만 생성하세요.
+**Key point:** "Context + Container diagrams are sufficient for most development teams." Only generate Component/Code diagrams when they truly add value.
 
-## 빠른 시작 예시
+## Quick Start Examples
 
-### 시스템 컨텍스트 (레벨 1)
+### System Context (Level 1)
 ```mermaid
 C4Context
   title System Context - Workout Tracker
@@ -43,7 +43,7 @@ C4Context
   Rel(app, browser, "Persists data to", "IndexedDB")
 ```
 
-### 컨테이너 다이어그램 (레벨 2)
+### Container Diagram (Level 2)
 ```mermaid
 C4Container
   title Container Diagram - Workout Tracker
@@ -61,7 +61,7 @@ C4Container
   Rel(pinia, indexeddb, "Persists", "Dexie ORM")
 ```
 
-### 동적 다이어그램 (요청 흐름)
+### Dynamic Diagram (Request Flow)
 ```mermaid
 C4Dynamic
   title Dynamic Diagram - User Sign In Flow
@@ -79,7 +79,7 @@ C4Dynamic
   Rel(security, db, "3. Query user", "SQL")
 ```
 
-### 배포 다이어그램
+### Deployment Diagram
 ```mermaid
 C4Deployment
   title Deployment Diagram - Production
@@ -101,19 +101,19 @@ C4Deployment
   Rel(api, db, "Reads/writes", "JDBC")
 ```
 
-## 요소 문법
+## Element Syntax
 
-### 사람과 시스템
+### People and Systems
 ```
 Person(alias, "Label", "Description")
-Person_Ext(alias, "Label", "Description")       # 외부 사람
+Person_Ext(alias, "Label", "Description")       # External person
 System(alias, "Label", "Description")
-System_Ext(alias, "Label", "Description")       # 외부 시스템
-SystemDb(alias, "Label", "Description")         # 데이터베이스
-SystemQueue(alias, "Label", "Description")      # 큐
+System_Ext(alias, "Label", "Description")       # External system
+SystemDb(alias, "Label", "Description")         # Database
+SystemQueue(alias, "Label", "Description")      # Queue
 ```
 
-### 컨테이너 / 컴포넌트
+### Containers / Components
 ```
 Container(alias, "Label", "Technology", "Description")
 ContainerDb(alias, "Label", "Technology", "Description")
@@ -121,7 +121,7 @@ ContainerQueue(alias, "Label", "Technology", "Description")
 Component(alias, "Label", "Technology", "Description")
 ```
 
-### 경계 / 관계
+### Boundaries / Relationships
 ```
 Enterprise_Boundary(alias, "Label") { ... }
 System_Boundary(alias, "Label") { ... }
@@ -129,28 +129,28 @@ Container_Boundary(alias, "Label") { ... }
 
 Rel(from, to, "Label")
 Rel(from, to, "Label", "Technology")
-BiRel(from, to, "Label")          # 양방향
-Rel_U/D/L/R(from, to, "Label")   # 방향 지정
+BiRel(from, to, "Label")          # Bidirectional
+Rel_U/D/L/R(from, to, "Label")   # Directional
 ```
 
-## 모범 사례
+## Best Practices
 
-1. **모든 요소에 포함:** 이름, 유형, 기술(해당 시), 설명
-2. **단방향 화살표만 사용** - 양방향은 모호성 유발
-3. **화살표에 동작 동사 레이블** - "이메일 발송", "~에서 읽기" (단순 "사용" 아님)
-4. **기술 레이블 포함** - "JSON/HTTPS", "JDBC", "gRPC"
-5. **다이어그램당 20개 이하 요소** - 복잡하면 분할
+1. **Include for all elements:** name, type, technology (when applicable), description
+2. **Use unidirectional arrows only** — bidirectional implies ambiguity
+3. **Label arrows with action verbs** — "sends email", "reads from" (not just "uses")
+4. **Include technology labels** — "JSON/HTTPS", "JDBC", "gRPC"
+5. **No more than 20 elements per diagram** — split if too complex
 
-## 마이크로서비스 가이드라인
+## Microservices Guidelines
 
-### 단일 팀 소유
-각 마이크로서비스를 **컨테이너**로 모델링
+### Single team ownership
+Model each microservice as a **Container**
 
-### 다중 팀 소유
-별도 팀 소유 시 **소프트웨어 시스템**으로 격상
+### Multiple team ownership
+Promote separately owned services to a **Software System**
 
-### 이벤트 기반 아키텍처
-개별 토픽/큐를 컨테이너로 표시 ("Kafka" 단일 박스 금지)
+### Event-driven architecture
+Show individual topics/queues as containers (never a single "Kafka" box)
 
 ```mermaid
 C4Container
@@ -167,27 +167,27 @@ C4Container
   Rel(orderService, stockTopic, "Subscribes to")
 ```
 
-## 출력 위치
+## Output Location
 
-`docs/architecture/`에 저장:
-- `c4-context.md` - 시스템 컨텍스트 다이어그램
-- `c4-containers.md` - 컨테이너 다이어그램
-- `c4-components-{feature}.md` - 기능별 컴포넌트
-- `c4-deployment.md` - 배포 다이어그램
-- `c4-dynamic-{flow}.md` - 특정 흐름 동적 다이어그램
+Save to `docs/architecture/`:
+- `c4-context.md` — System context diagram
+- `c4-containers.md` — Container diagram
+- `c4-components-{feature}.md` — Components per feature
+- `c4-deployment.md` — Deployment diagram
+- `c4-dynamic-{flow}.md` — Dynamic diagram for specific flows
 
-## 대상별 적정 상세 수준
+## Detail Level by Audience
 
-| 대상 | 권장 다이어그램 |
-|------|----------------|
-| 경영진 | 시스템 컨텍스트만 |
-| 프로덕트 매니저 | 컨텍스트 + 컨테이너 |
-| 아키텍트 | 컨텍스트 + 컨테이너 + 주요 컴포넌트 |
-| 개발자 | 필요에 따라 전체 레벨 |
-| DevOps | 컨테이너 + 배포 |
+| Audience | Recommended Diagrams |
+|----------|---------------------|
+| Executives | System context only |
+| Product managers | Context + containers |
+| Architects | Context + containers + key components |
+| Developers | All levels as needed |
+| DevOps | Containers + deployment |
 
-## 참고 자료
+## References
 
-- [references/c4-syntax.md](references/c4-syntax.md) - 완전한 Mermaid C4 문법
-- [references/common-mistakes.md](references/common-mistakes.md) - 피해야 할 안티패턴
-- [references/advanced-patterns.md](references/advanced-patterns.md) - 마이크로서비스, 이벤트 기반, 배포 패턴
+- [references/c4-syntax.md](references/c4-syntax.md) — Complete Mermaid C4 syntax
+- [references/common-mistakes.md](references/common-mistakes.md) — Anti-patterns to avoid
+- [references/advanced-patterns.md](references/advanced-patterns.md) — Microservices, event-driven, deployment patterns

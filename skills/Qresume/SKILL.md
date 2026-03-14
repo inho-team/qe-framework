@@ -1,57 +1,57 @@
 ---
 name: Qresume
-description: compaction 이후 저장된 맥락을 복원합니다. 스킬 호출 시 자동으로 맥락을 로드하여 이전 작업을 이어갑니다.
+description: Restores saved context after compaction. Automatically loads context when the skill is invoked to resume previous work.
 ---
 
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qresume — 맥락 복원
+# Qresume — Context Restoration
 
-## 역할
-compaction 이후 `.qe/context/`에 저장된 맥락을 복원하는 스킬.
-이전 세션의 작업 상태, 결정사항, 미완료 사항을 로드하여 끊김 없이 작업을 이어갑니다.
+## Role
+A skill that restores context saved in `.qe/context/` after compaction.
+Loads the previous session's task state, decisions, and pending items to resume work seamlessly.
 
-## 동작 방식
+## How It Works
 
-### 자동 로드
-PRINCIPLES.md의 사전 체크와 연동:
-- compaction 직후 스킬이 호출되면 Ecompact-executor가 `.qe/context/snapshot.md` 존재 여부 확인
-- 존재하면 자동으로 맥락을 로드하고 현재 세션에 반영
-- 사용자에게 "이전 맥락을 복원했습니다" 한 줄 안내
+### Auto Load
+Integrated with the pre-check in PRINCIPLES.md:
+- When the skill is called immediately after compaction, Ecompact-executor checks whether `.qe/context/snapshot.md` exists
+- If it exists, automatically loads the context and reflects it in the current session
+- Notifies the user with a single line: "Previous context has been restored"
 
-### 수동 실행
-- `/Qresume`으로 직접 호출
-- 저장된 맥락 전체를 표시하고, 이어서 할 작업을 제안
+### Manual Execution
+- Invoke directly with `/Qresume`
+- Displays the entire saved context and proposes what to do next
 
-## 복원 절차
+## Restoration Procedure
 
-### 1단계: 맥락 파일 읽기
-`.qe/context/` 디렉토리에서 파일 로드:
-- `snapshot.md` — 마지막 작업 상태
-- `decisions.md` — 누적 결정사항
+### Step 1: Read Context Files
+Load files from the `.qe/context/` directory:
+- `snapshot.md` — last task state
+- `decisions.md` — accumulated decisions
 
-### 2단계: 상태 복원
-- 진행 중이던 태스크 확인 (.qe/tasks/pending/ 대조)
-- 체크리스트 진행 상황 확인
-- 미완료 사항 목록 제시
+### Step 2: Restore State
+- Check in-progress tasks (cross-reference with .qe/tasks/pending/)
+- Check checklist progress
+- Present list of pending items
 
-### 3단계: 작업 제안
-복원된 맥락을 바탕으로 다음 행동을 제안:
-- 미완료 태스크가 있으면 → `/Qrun-task {UUID}` 안내
-- 새 작업이 필요하면 → `/Qgenerate-spec` 안내
-- 결정사항 확인이 필요하면 → 결정 목록 표시
+### Step 3: Suggest Next Actions
+Propose next actions based on restored context:
+- If there are incomplete tasks → guide with `/Qrun-task {UUID}`
+- If new work is needed → guide with `/Qgenerate-spec`
+- If decisions need review → display decision list
 
-## .qe/analysis/ 연동
-맥락 복원 시 `.qe/analysis/` 파일도 함께 읽어 프로젝트 최신 상태를 파악합니다.
-이를 통해 Glob/Grep으로 프로젝트를 다시 탐색할 필요 없이 바로 작업에 착수할 수 있어 토큰을 절감합니다.
+## .qe/analysis/ Integration
+When restoring context, also read `.qe/analysis/` files to understand the latest project state.
+This allows starting work immediately without re-scanning the project with Glob/Grep, saving tokens.
 
-## 할 것 (Will)
-- .qe/context/ 맥락 파일 로드
-- 이전 작업 상태 복원
-- 다음 행동 제안
-- .qe/analysis/와 연동하여 프로젝트 상태 파악
+## Will
+- Load .qe/context/ context files
+- Restore previous task state
+- Suggest next actions
+- Integrate with .qe/analysis/ to understand project state
 
-## 안 할 것 (Will Not)
-- 맥락 파일 없을 때 에러 발생 (없으면 무시)
-- 복원된 맥락을 무조건 따르기 (사용자가 방향 변경 가능)
-- 오래된 맥락 강제 적용 (24시간+ 경과 시 "오래된 맥락입니다" 안내)
+## Will Not
+- Error when context files are missing (silently ignore if not found)
+- Blindly follow restored context (user can change direction)
+- Force-apply stale context (notify "Context is stale" when 24+ hours have passed)

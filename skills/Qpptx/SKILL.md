@@ -1,11 +1,11 @@
 ---
 name: Qpptx
-description: "PPTX 파일 관련 모든 작업. 슬라이드 덱 생성, 읽기/파싱, 편집, 템플릿 작업. 'deck', 'slides', 'presentation', '.pptx' 언급 시 사용."
+description: "All tasks related to PPTX files: creating slide decks, reading/parsing, editing, and working with templates. Use when 'deck', 'slides', 'presentation', or '.pptx' is mentioned."
 metadata:
   source: https://skills.sh/anthropics/skills/pptx
   author: anthropic
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # PPTX Skill

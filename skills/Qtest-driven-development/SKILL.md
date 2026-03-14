@@ -1,11 +1,11 @@
 ---
 name: Qtest-driven-development
-description: "기능 구현/버그 수정 시 구현 코드 전에 사용. TDD: 테스트 먼저 -> 실패 확인 -> 최소 코드로 통과 -> 리팩토링."
+description: "Use before implementing features or fixing bugs — before writing implementation code. TDD: write the test first -> confirm it fails -> pass with minimal code -> refactor."
 metadata:
   source: https://skills.sh/obra/superpowers/test-driven-development
   author: obra
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Test-Driven Development (TDD)

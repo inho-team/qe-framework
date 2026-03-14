@@ -1,212 +1,212 @@
 ---
 name: Qrequirements-clarity
-description: 구현 전에 집중적인 대화를 통해 모호한 요구사항을 명확히 합니다. 요구사항이 불명확하거나, 기능이 복잡하거나(2일 이상), 또는 팀 간 협업이 필요한 경우에 사용합니다. 두 가지 핵심 질문 - 왜?(YAGNI 검토)와 더 단순하게?(KISS 검토) - 을 통해 코딩 전 명확성을 확보합니다.
+description: Clarifies ambiguous requirements through focused dialogue before implementation. Use when requirements are unclear, the feature is complex (2+ days), or cross-team collaboration is needed. Secures clarity before coding through two core questions — Why? (YAGNI check) and Simpler? (KISS check).
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# 요구사항 명확화 스킬
+# Requirements Clarity Skill
 
-## 설명
+## Description
 
-100점 척도의 체계적인 명확화 과정을 통해 모호한 요구사항을 실행 가능한 PRD로 자동 변환합니다.
+Automatically converts ambiguous requirements into actionable PRDs through a systematic clarification process scored on a 100-point scale.
 
-## 사용 지침
+## Usage Guidelines
 
-호출되면 다음과 같은 모호한 요구사항을 감지합니다:
+When invoked, detect the following types of ambiguous requirements:
 
-1. **불명확한 기능 요청**
-   - "로그인 기능 추가", "결제 구현", "대시보드 생성"
-   - 누락: 어떻게, 어떤 기술로, 어떤 제약 조건으로?
+1. **Unclear feature requests**
+   - "Add login", "implement payment", "create dashboard"
+   - Missing: how, with what technology, under what constraints?
 
-2. **기술적 컨텍스트 부재**
-   - 기술 스택 미언급, 통합 지점 미식별, 성능/보안 제약 없음
+2. **Absent technical context**
+   - Tech stack not mentioned, integration points not identified, no performance/security constraints
 
-3. **불완전한 명세**
-   - 인수 조건 없음, 성공 지표 없음, 엣지 케이스 미고려, 에러 처리 미언급
+3. **Incomplete specification**
+   - No acceptance criteria, no success metrics, edge cases not considered, error handling not mentioned
 
-4. **모호한 범위**
-   - 불명확한 경계, MVP와 향후 개선 구분 없음, "포함되지 않는 것" 누락
+4. **Ambiguous scope**
+   - Unclear boundaries, no distinction between MVP and future improvements, missing "what's not included"
 
-**활성화하지 않는 경우**: 구체적 파일 경로, 코드 스니펫, 기존 함수/클래스 참조, 명확한 재현 단계가 있는 버그 수정
+**Do not activate when**: there are specific file paths, code snippets, references to existing functions/classes, or bug fixes with clear reproduction steps.
 
-## 핵심 원칙
+## Core Principles
 
-1. **체계적인 질문** - 집중적이고 구체적, 한 번에 한 카테고리씩 (라운드당 2-3개), 이전 답변 기반으로 발전
-2. **품질 중심 반복** - 명확성 점수 지속 평가 (0-100), 90점 이상이 될 때까지 반복
-3. **실행 가능한 결과물** - 구체적 명세, 측정 가능한 인수 조건, 실행 가능한 단계
+1. **Systematic questioning** — focused and specific, one category at a time (2–3 per round), building on previous answers
+2. **Quality-driven iteration** — continuously evaluate clarity score (0–100), iterate until score reaches 90+
+3. **Actionable output** — concrete specifications, measurable acceptance criteria, executable steps
 
-## 명확화 프로세스
+## Clarification Process
 
-### 1단계: 초기 요구사항 분석
+### Step 1: Initial Requirements Analysis
 
-**평가 기준:**
+**Scoring Criteria:**
 ```
-기능적 명확성: /30점
-- 명확한 입력/출력: 10점
-- 사용자 인터랙션 정의: 10점
-- 성공 조건 명시: 10점
+Functional Clarity: /30
+- Clear inputs/outputs: 10
+- User interaction defined: 10
+- Success conditions stated: 10
 
-기술적 구체성: /25점
-- 기술 스택 언급: 8점
-- 통합 지점 식별: 8점
-- 제약 조건 명시: 9점
+Technical Specificity: /25
+- Tech stack mentioned: 8
+- Integration points identified: 8
+- Constraints specified: 9
 
-구현 완성도: /25점
-- 엣지 케이스 고려: 8점
-- 에러 처리 언급: 9점
-- 데이터 유효성 검사: 8점
+Implementation Completeness: /25
+- Edge cases considered: 8
+- Error handling mentioned: 9
+- Data validation addressed: 8
 
-비즈니스 컨텍스트: /20점
-- 문제 정의 명확: 7점
-- 대상 사용자 식별: 7점
-- 성공 지표 정의: 6점
+Business Context: /20
+- Problem clearly defined: 7
+- Target users identified: 7
+- Success metrics defined: 6
 ```
 
-**초기 응답:**
+**Initial Response:**
 ```markdown
-요구사항을 이해했습니다. 명세를 구체화하겠습니다.
+I understand the requirement. Let me help sharpen the specification.
 
-**현재 명확성 점수**: X/100
+**Current Clarity Score**: X/100
 
-**명확한 부분**: [나열]
-**명확화 필요**: [나열]
+**Clear so far**: [list]
+**Needs clarification**: [list]
 
-다음 사항들을 체계적으로 명확히 하겠습니다...
+I will systematically clarify the following...
 ```
 
-### 2단계: 부족한 부분 분석
+### Step 2: Identify Gaps
 
-네 가지 차원에서 누락 정보 파악:
+Identify missing information across four dimensions:
 
-1. **기능적 범위** - 핵심 기능, 경계, 범위 밖, 엣지 케이스
-2. **사용자 인터랙션** - 상호작용 방식, 입출력, 성공/실패 시나리오
-3. **기술적 제약** - 성능, 호환성, 보안, 확장성
-4. **비즈니스 가치** - 해결하는 문제, 대상 사용자, 성공 지표, 우선순위
+1. **Functional scope** — core features, boundaries, out-of-scope, edge cases
+2. **User interaction** — how users interact, inputs/outputs, success/failure scenarios
+3. **Technical constraints** — performance, compatibility, security, scalability
+4. **Business value** — problem being solved, target users, success metrics, priority
 
-### 3단계: 대화형 명확화
+### Step 3: Interactive Clarification
 
-**질문 전략:**
-1. 영향력 가장 큰 부족 부분부터
-2. 라운드당 2-3개 질문
-3. 컨텍스트 점진적 구축
-4. 사용자 언어 사용
-5. 필요 시 예시 제공
+**Questioning Strategy:**
+1. Start with the most impactful gap
+2. 2–3 questions per round
+3. Progressively build context
+4. Use the user's own language
+5. Provide examples when needed
 
-**사용자 응답 후:**
-1. 명확성 점수 업데이트
-2. PRD 개요에 새 정보 반영
-3. 남은 부족 부분 파악
-4. 점수 < 90: 다음 라운드 계속
-5. 점수 >= 90: PRD 생성으로 진행
+**After Each User Response:**
+1. Update the clarity score
+2. Reflect new information in the PRD outline
+3. Identify remaining gaps
+4. Score < 90: continue to the next round
+5. Score >= 90: proceed to PRD generation
 
-### 4단계: PRD 생성
+### Step 4: Generate PRD
 
-명확성 점수 90점 이상이면 종합 PRD 생성.
+When clarity score reaches 90+, generate a comprehensive PRD.
 
-**출력 파일:** `./docs/prds/{feature_name}-v{version}-prd.md`
+**Output File:** `./docs/prds/{feature_name}-v{version}-prd.md`
 
-## PRD 문서 구조
+## PRD Document Structure
 
 ```markdown
-# {기능명} - 제품 요구사항 문서 (PRD)
+# {Feature Name} - Product Requirements Document (PRD)
 
-## 요구사항 설명
+## Requirements Description
 
-### 배경
-- **비즈니스 문제**: [해결할 문제]
-- **대상 사용자**: [사용자 그룹]
-- **가치 제안**: [이 기능이 가져오는 가치]
+### Background
+- **Business problem**: [problem to solve]
+- **Target users**: [user group]
+- **Value proposition**: [value this feature delivers]
 
-### 기능 개요
-- **핵심 기능**: [주요 기능 목록]
-- **기능 경계**: [포함/비포함]
-- **사용자 시나리오**: [일반적 사용 시나리오]
+### Feature Overview
+- **Core features**: [list of main capabilities]
+- **Feature boundaries**: [included / excluded]
+- **User scenarios**: [common usage scenarios]
 
-### 상세 요구사항
-- **입력/출력**: [구체적 입출력 명세]
-- **사용자 인터랙션**: [조작 흐름]
-- **데이터 요구사항**: [데이터 구조, 유효성 검사]
-- **엣지 케이스**: [엣지 케이스 처리]
+### Detailed Requirements
+- **Inputs/Outputs**: [specific I/O specification]
+- **User interaction**: [interaction flow]
+- **Data requirements**: [data structure, validation]
+- **Edge cases**: [edge case handling]
 
-## 설계 결정
+## Design Decisions
 
-### 기술적 접근
-- **아키텍처**: [결정 및 근거]
-- **주요 컴포넌트**: [기술 컴포넌트]
-- **데이터 저장**: [모델 및 저장 솔루션]
-- **인터페이스**: [API/인터페이스 명세]
+### Technical Approach
+- **Architecture**: [decisions and rationale]
+- **Key components**: [technical components]
+- **Data storage**: [model and storage solution]
+- **Interfaces**: [API/interface specification]
 
-### 제약 조건
-- **성능**: [응답 시간, 처리량]
-- **호환성**: [시스템 호환]
-- **보안**: [보안 고려]
-- **확장성**: [향후 확장]
+### Constraints
+- **Performance**: [response time, throughput]
+- **Compatibility**: [system compatibility]
+- **Security**: [security considerations]
+- **Scalability**: [future expansion]
 
-### 리스크 평가
-- **기술적 리스크**: [리스크 및 완화]
-- **의존성 리스크**: [외부 의존성 및 대안]
-- **일정 리스크**: [타임라인 리스크]
+### Risk Assessment
+- **Technical risks**: [risks and mitigations]
+- **Dependency risks**: [external dependencies and alternatives]
+- **Schedule risks**: [timeline risks]
 
-## 인수 조건
+## Acceptance Criteria
 
-### 기능적 인수
-- [ ] 기능 1: [구체적 조건]
-- [ ] 기능 2: [구체적 조건]
+### Functional Acceptance
+- [ ] Feature 1: [specific condition]
+- [ ] Feature 2: [specific condition]
 
-### 품질 기준
-- [ ] 코드 품질: [기준 및 리뷰]
-- [ ] 테스트 커버리지: [요구사항]
-- [ ] 성능 지표: [통과 기준]
-- [ ] 보안 검토: [요구사항]
+### Quality Standards
+- [ ] Code quality: [standards and review]
+- [ ] Test coverage: [requirements]
+- [ ] Performance metrics: [pass criteria]
+- [ ] Security review: [requirements]
 
-## 실행 단계
+## Implementation Steps
 
-### 1단계: 준비
-- [ ] 작업: [구체적 설명]
-- **산출물**: [단계별 산출물]
+### Step 1: Preparation
+- [ ] Task: [specific description]
+- **Deliverables**: [step deliverables]
 
-### 2단계: 핵심 개발
-- [ ] 작업: [구체적 설명]
-- **산출물**: [단계별 산출물]
+### Step 2: Core Development
+- [ ] Task: [specific description]
+- **Deliverables**: [step deliverables]
 
-### 3단계: 통합 및 테스트
-- [ ] 작업: [구체적 설명]
-- **산출물**: [단계별 산출물]
+### Step 3: Integration and Testing
+- [ ] Task: [specific description]
+- **Deliverables**: [step deliverables]
 
-### 4단계: 배포
-- [ ] 작업: [구체적 설명]
-- **산출물**: [단계별 산출물]
+### Step 4: Deployment
+- [ ] Task: [specific description]
+- **Deliverables**: [step deliverables]
 
 ---
 
-**문서 버전**: 1.0
-**작성일**: {timestamp}
-**명확화 라운드 수**: {rounds}
-**품질 점수**: {score}/100
+**Document Version**: 1.0
+**Created**: {timestamp}
+**Clarification Rounds**: {rounds}
+**Quality Score**: {score}/100
 ```
 
-## 행동 지침
+## Behavioral Guidelines
 
-### 해야 할 것
-- 구체적이고 핵심을 찌르는 질문
-- 이전 답변 기반 발전
-- 예시로 사용자 안내
-- 대화하는 톤 유지
-- 90점 이상까지 명확화 모드 유지
+### Will
+- Ask specific, targeted questions
+- Build on previous answers
+- Guide the user with examples
+- Maintain a conversational tone
+- Stay in clarification mode until score reaches 90+
 
-### 하지 말아야 할 것
-- 한 번에 모든 질문 던지기
-- 확인 없이 가정하기
-- 90점 미만에서 PRD 생성
-- 필수 섹션 건너뛰기
-- 사용자 응답 없이 진행
+### Will Not
+- Ask all questions at once
+- Make assumptions without confirmation
+- Generate PRD below 90 points
+- Skip required sections
+- Proceed without user responses
 
-## 성공 기준
+## Success Criteria
 
-- 명확성 점수 >= 90/100
-- 모든 PRD 섹션이 실질적 내용으로 완성
-- 인수 조건이 체크리스트 형태
-- 실행 단계가 구체적 작업으로 실행 가능
-- 사용자가 최종 PRD 승인
-- 개발 인계 준비 완료
+- Clarity score >= 90/100
+- All PRD sections completed with substantive content
+- Acceptance criteria in checklist format
+- Implementation steps actionable with specific tasks
+- User has approved the final PRD
+- Ready for developer handoff

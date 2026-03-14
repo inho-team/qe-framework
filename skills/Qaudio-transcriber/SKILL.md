@@ -1,9 +1,9 @@
 ---
 name: Qaudio-transcriber
-description: 음성 녹음 파일(MP3, WAV, M4A, OGG, FLAC, WEBM)을 분석하여 회의록, 자막, 요약문 등 전문적인 Markdown 문서로 변환합니다. "음성 파일 분석해줘", "회의록 만들어줘", "녹음 파일 텍스트로 변환해줘" 등의 요청 시 사용합니다.
+description: Analyzes audio recording files (MP3, WAV, M4A, OGG, FLAC, WEBM) and converts them into professional Markdown documents such as meeting minutes, subtitles, and summaries. Use for requests like "analyze this audio file", "generate meeting minutes", or "convert recording to text".
 license: MIT
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 ## Purpose
@@ -230,9 +230,9 @@ echo "  3. Track action items to completion"
 ## Example Usage
 
 ```
-사용자: meeting-20260311.m4a 파일로 회의록 만들어줘
-사용자: recordings/*.mp3 전부 텍스트로 변환해줘
-사용자: 이 음성 파일 분석해서 한국어로 요약해줘
+User: Create meeting minutes from meeting-20260311.m4a
+User: Convert all recordings/*.mp3 to text
+User: Analyze this audio file and summarize it in English
 ```
 
 Credits: Original skill by @ericgandrade - https://github.com/ericgandrade/claude-superskills

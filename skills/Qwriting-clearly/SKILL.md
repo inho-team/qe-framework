@@ -1,93 +1,93 @@
 ---
 name: Qwriting-clearly
-description: 사람이 읽는 글을 작성할 때 사용하세요. 문서, 커밋 메시지, 오류 메시지, 설명문, 보고서, UI 텍스트 등에 적용됩니다. Strunk의 원칙을 바탕으로 더 명확하고 강력하며 전문적인 글을 씁니다.
+description: Use when writing text that humans will read. Applies to documentation, commit messages, error messages, explanations, reports, UI text, and more. Writes clearer, stronger, and more professional prose based on Strunk's principles.
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# 명확하고 간결하게 쓰기
+# Writing Clearly and Concisely
 
-## 개요
+## Overview
 
-명확하고 힘 있게 쓰세요. 이 스킬은 해야 할 것(Strunk)과 하지 말아야 할 것(AI 패턴)을 다룹니다.
+Write clearly and with force. This skill covers what to do (Strunk) and what to avoid (AI patterns).
 
-## 이 스킬을 사용하는 경우
+## When to Use This Skill
 
-사람을 위한 글을 쓸 때 언제든지 이 스킬을 사용하세요:
+Use this skill any time you are writing for a human:
 
-- 문서, README 파일, 기술 설명문
-- 커밋 메시지, pull request 설명
-- 오류 메시지, UI 문구, 도움말 텍스트, 주석
-- 보고서, 요약문, 또는 모든 형태의 설명
-- 명확성을 높이기 위한 교정
+- Documentation, README files, technical explanations
+- Commit messages, pull request descriptions
+- Error messages, UI copy, help text, comments
+- Reports, summaries, or any form of explanation
+- Proofreading to improve clarity
 
-**사람이 읽을 문장을 쓰고 있다면, 이 스킬을 사용하세요.**
+**If you are writing a sentence a human will read, use this skill.**
 
-## 컨텍스트가 부족할 때의 전략
+## Strategy When Context Is Tight
 
-컨텍스트가 빠듯할 때:
+When context is limited:
 
-1. 판단에 따라 초안을 작성합니다
-2. 초안과 관련 섹션 파일을 subagent에 넘깁니다
-3. Subagent가 교정 후 수정본을 반환하게 합니다
+1. Draft based on judgment
+2. Hand the draft and relevant section files to a subagent
+3. Have the subagent proofread and return a revised version
 
-전체 내용 대신 단일 섹션(~1,000~4,500 토큰)만 로드하면 컨텍스트를 크게 절약할 수 있습니다.
+Loading a single section (~1,000–4,500 tokens) instead of full content saves significant context.
 
 ## Elements of Style
 
-William Strunk Jr.의 *The Elements of Style*(1918)은 명확하게 쓰고 불필요한 것을 과감히 잘라내는 법을 가르쳐 줍니다.
+William Strunk Jr.'s *The Elements of Style* (1918) teaches how to write clearly and cut ruthlessly.
 
-### 규칙
+### Rules
 
-**기본 사용 규칙 (문법/구두점)**:
+**Elementary rules of usage (grammar/punctuation):**
 
-1. 단수 소유격은 's를 붙여서 형성합니다
-2. 열거할 때 마지막 항목 앞을 제외한 각 항목 뒤에 쉼표를 씁니다
-3. 삽입 표현은 쉼표로 감쌉니다
-4. 등위절을 이끄는 접속사 앞에 쉼표를 씁니다
-5. 독립절을 쉼표로 연결하지 않습니다
-6. 문장을 두 개로 억지로 나누지 않습니다
-7. 문장 앞에 오는 분사구문은 문법적 주어를 수식해야 합니다
+1. Form the possessive singular by adding 's
+2. Use a comma after each term in a series except the last
+3. Enclose parenthetic expressions between commas
+4. Place a comma before a conjunction introducing an independent clause
+5. Do not join independent clauses with a comma
+6. Do not break sentences in two
+7. A participial phrase at the beginning of a sentence must refer to the grammatical subject
 
-**기본 구성 원칙**:
+**Elementary principles of composition:**
 
-8. 단락당 하나의 주제
-9. 단락의 첫 문장은 주제문으로 시작합니다
-10. **능동태를 사용합니다**
-11. **긍정적인 형태로 서술합니다**
-12. **명확하고 구체적인 언어를 사용합니다**
-13. **불필요한 단어는 생략합니다**
-14. 느슨한 문장의 연속을 피합니다
-15. 등위 관계의 아이디어는 동일한 형식으로 표현합니다
-16. **관련 단어는 가까이 붙여 씁니다**
-17. 요약에서는 시제를 하나로 통일합니다
-18. **강조할 단어는 문장 끝에 배치합니다**
+8. Make the paragraph the unit of composition: one topic per paragraph
+9. Begin each paragraph with a topic sentence
+10. **Use the active voice**
+11. **Put statements in positive form**
+12. **Use definite, specific, concrete language**
+13. **Omit needless words**
+14. Avoid a succession of loose sentences
+15. Express coordinate ideas in similar form
+16. **Keep related words together**
+17. In summaries, keep to one tense
+18. **Place the emphatic words of a sentence at the end**
 
-### 참고 파일
+### Reference Files
 
-| 섹션 | 파일 | ~토큰 수 |
-|------|------|---------|
-| 문법, 구두점, 쉼표 규칙 | `02-elementary-rules-of-usage.md` | 2,500 |
-| 단락 구조, 능동태, 간결성 | `03-elementary-principles-of-composition.md` | 4,500 |
-| 제목, 인용, 서식 | `04-a-few-matters-of-form.md` | 1,000 |
-| 단어 선택, 흔한 오류 | `05-words-and-expressions-commonly-misused.md` | 4,000 |
+| Section | File | ~Tokens |
+|---------|------|---------|
+| Grammar, punctuation, comma rules | `02-elementary-rules-of-usage.md` | 2,500 |
+| Paragraph structure, active voice, concision | `03-elementary-principles-of-composition.md` | 4,500 |
+| Titles, quotations, formatting | `04-a-few-matters-of-form.md` | 1,000 |
+| Word choice, common errors | `05-words-and-expressions-commonly-misused.md` | 4,000 |
 
-**대부분의 작업에는 `03-elementary-principles-of-composition.md`만으로 충분합니다.** 능동태, 긍정형 서술, 구체적인 언어, 불필요한 단어 생략을 모두 다룹니다.
+**For most tasks, `03-elementary-principles-of-composition.md` is sufficient.** It covers active voice, positive statements, specific language, and cutting needless words.
 
-## AI 글쓰기 패턴: 피해야 할 것들
+## AI Writing Patterns: What to Avoid
 
-LLM은 통계적 평균으로 회귀하여 진부하고 군더더기 많은 문장을 생성하는 경향이 있습니다. 다음을 피하세요:
+LLMs tend to regress toward statistical averages, producing cliched and bloated prose. Avoid:
 
-- **과장 표현:** pivotal, crucial, vital, testament, enduring legacy
-- **빈 "-ing" 구문:** ensuring reliability, showcasing features, highlighting capabilities
-- **홍보성 형용사:** groundbreaking, seamless, robust, cutting-edge
-- **AI 상투어:** delve, leverage, multifaceted, foster, realm, tapestry
-- **서식 남용:** 과도한 불릿 포인트, 이모지 장식, 두 문장마다 bold 처리
+- **Inflated words:** pivotal, crucial, vital, testament, enduring legacy
+- **Empty "-ing" phrases:** ensuring reliability, showcasing features, highlighting capabilities
+- **Promotional adjectives:** groundbreaking, seamless, robust, cutting-edge
+- **AI clichés:** delve, leverage, multifaceted, foster, realm, tapestry
+- **Formatting abuse:** excessive bullet points, emoji decoration, bold on every other sentence
 
-거창하게 쓰지 말고, 실제로 하는 일을 구체적으로 서술하세요.
+Don't write grandly — describe concretely what is actually happening.
 
-이런 패턴이 발생하는 원인에 대한 심층 연구는 `signs-of-ai-writing.md`를 참고하세요. Wikipedia 편집자들이 AI 생성 제출물을 탐지하기 위해 개발한 가이드로, 잘 문서화되고 현장에서 검증된 내용입니다.
+For deeper research on why these patterns occur, see `signs-of-ai-writing.md` — a guide developed by Wikipedia editors to detect AI-generated submissions, well-documented and field-validated.
 
-## 핵심 정리
+## Summary
 
-사람을 위한 글을 쓸 때는 `elements-of-style/`에서 관련 섹션을 불러와 규칙을 적용하세요. 대부분의 작업에는 `03-elementary-principles-of-composition.md`가 가장 중요한 내용을 담고 있습니다.
+When writing for humans, load the relevant section from `elements-of-style/` and apply the rules. For most tasks, `03-elementary-principles-of-composition.md` contains the most important material.

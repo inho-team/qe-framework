@@ -1,70 +1,70 @@
 ---
 name: Qprofile
-description: 사용자의 명령 패턴, 문체, 자주 사용하는 표현을 분석하여 .qe/profile/에 저장합니다. 사용자 의도 파악 정확도를 높이고 오해를 줄입니다.
+description: Analyzes the user's command patterns, writing style, and frequently used expressions, then saves the results to .qe/profile/. Improves intent recognition accuracy and reduces misunderstandings.
 ---
 
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qprofile — 사용자 프로파일 분석
+# Qprofile — User Profile Analysis
 
-## 역할
-사용자의 명령 패턴과 문체를 분석하여 `.qe/profile/`에 저장하는 스킬.
-축적된 프로파일을 통해 사용자 의도를 더 정확히 파악하고, 오해를 줄입니다.
+## Role
+A skill that analyzes the user's command patterns and writing style, then saves the results to `.qe/profile/`.
+The accumulated profile allows more accurate understanding of user intent and reduces misunderstandings.
 
-## 저장 위치
-`.qe/profile/` 디렉토리에 아래 파일을 관리합니다:
+## Storage Location
+Manages the following files in the `.qe/profile/` directory:
 
-| 파일 | 내용 |
-|------|------|
-| `command-patterns.md` | 자주 사용하는 명령 패턴, 빈도, 최근 사용일 |
-| `writing-style.md` | 문체 특성 (축약어, 반말/존댓말, 자주 쓰는 단어) |
-| `language.md` | 사용자 언어 설정 (주 사용 언어, 응답 언어, 내부 처리 언어) |
-| `preferences.md` | 선호하는 응답 방식, 코드 스타일 |
-| `corrections.md` | 사용자가 수정/교정한 이력 (오해 패턴 학습) |
+| File | Contents |
+|------|----------|
+| `command-patterns.md` | Frequently used command patterns, frequency, and last-used date |
+| `writing-style.md` | Writing style characteristics (abbreviations, formal/informal tone, frequently used words) |
+| `language.md` | User language settings (primary language, response language, internal processing language) |
+| `preferences.md` | Preferred response style and code style |
+| `corrections.md` | History of user corrections (learning misunderstanding patterns) |
 
-## 분석 대상
+## Analysis Targets
 
-### 명령 패턴
-- 자주 호출하는 스킬/에이전트 순위
-- 명령 축약 패턴 (예: "커밋해" → `/Qcommit`, "스펙 만들어" → `/Qgenerate-spec`)
-- 시간대별 사용 패턴
+### Command Patterns
+- Rankings of frequently invoked skills/agents
+- Command abbreviation patterns (e.g., "commit this" → `/Qcommit`, "make a spec" → `/Qgenerate-spec`)
+- Usage patterns by time of day
 
-### 문체 분석
-- 반말/존댓말 여부
-- 축약어/줄임말 사전 (예: "걍" → "그냥", "ㄱㄱ" → "진행해")
-- 자주 쓰는 지시 표현 (예: "해줘", "하자", "ㄱ")
-- 부정 표현 패턴 (예: "아니", "그거 말고", "다시")
+### Writing Style Analysis
+- Formal vs. informal tone
+- Abbreviation/shorthand dictionary (e.g., slang → standard form)
+- Frequently used instruction expressions (e.g., "please do", "let's do", shorthand)
+- Negation patterns (e.g., "no", "not that", "again")
 
-### 교정 이력
-- 사용자가 "아니 그게 아니라"로 수정한 경우 기록
-- 어떤 명령이 오해를 유발했는지 패턴화
-- 동일 오해 반복 방지
+### Correction History
+- Records cases where the user corrects with "No, that's not what I meant"
+- Identifies which commands caused misunderstandings and turns them into patterns
+- Prevents repeated misunderstandings
 
-## 동작 방식
+## How It Works
 
-### 자동 수집 (백그라운드)
-- 모든 스킬/에이전트 실행 시 Eprofile-collector가 사용자 명령을 간략히 기록
-- 교정이 발생하면 `corrections.md`에 자동 추가
+### Automatic Collection (Background)
+- On every skill/agent execution, Eprofile-collector briefly records the user's command
+- When a correction occurs, it is automatically added to `corrections.md`
 
-### 수동 실행 (`/Qprofile`)
-- 현재까지 축적된 프로파일 요약 표시
-- 사용자가 직접 선호사항 추가/수정 가능
-- Eprofile-collector에 위임하여 최신 수집 데이터 반영
-- Qalias 연동: 자주 쓰는 표현에서 별칭 후보 자동 제안
+### Manual Execution (`/Qprofile`)
+- Displays a summary of the profile accumulated so far
+- Users can directly add or modify preferences
+- Delegates to Eprofile-collector to reflect the latest collected data
+- Qalias integration: automatically suggests alias candidates from frequently used expressions
 
-## Qalias 연동
-- 사용자가 특정 경로/명령을 반복적으로 비슷한 표현으로 지칭하면 감지
-- Qalias에 별칭 등록을 제안
-- 예: "분석폴더"를 3회 이상 사용 → `분석폴더 → .qe/analysis/` 별칭 제안
+## Qalias Integration
+- Detects when the user repeatedly refers to a specific path/command with similar expressions
+- Suggests registering an alias in Qalias
+- Example: "analysis-folder" used 3+ times → suggest alias `analysis-folder → .qe/analysis/`
 
-## 할 것 (Will)
-- 사용자 명령 패턴 분석 및 기록
-- 문체/축약어 학습
-- 교정 이력 축적
-- Qalias 별칭 후보 제안
-- .qe/profile/ 파일 관리
+## Will
+- Analyze and record user command patterns
+- Learn writing style and abbreviations
+- Accumulate correction history
+- Suggest alias candidates for Qalias
+- Manage files in .qe/profile/
 
-## 안 할 것 (Will Not)
-- 민감한 개인정보 저장
-- 사용자 동의 없이 프로파일 외부 전송
-- 프로파일 기반으로 임의 판단 (참고 자료로만 활용)
+## Will Not
+- Store sensitive personal information
+- Transmit the profile externally without user consent
+- Make arbitrary judgments based on the profile (use only as reference material)

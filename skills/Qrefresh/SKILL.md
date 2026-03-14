@@ -1,46 +1,46 @@
 ---
 name: Qrefresh
-description: 프로젝트 분석 데이터를 수동으로 최신화합니다. .qe/analysis/ 파일을 갱신하고 변경 이력을 확인합니다. "새로고침", "갱신", "refresh", "최신화" 요청 시 사용합니다.
+description: Manually refreshes project analysis data. Updates .qe/analysis/ files and shows change history. Use for "refresh", "update", or "sync" requests.
 ---
 
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qrefresh — 프로젝트 분석 갱신
+# Qrefresh — Project Analysis Refresh
 
-## 역할
-프로젝트 분석 데이터를 수동으로 최신화하고, 변경 이력을 사용자에게 보여주는 스킬.
-실제 갱신 작업은 `Erefresh-executor` 서브에이전트에게 위임합니다.
+## Role
+A skill that manually refreshes project analysis data and shows the user a summary of changes.
+Actual refresh work is delegated to the `Erefresh-executor` sub-agent.
 
-## 왜 사용해야 하는가
-- **토큰 최적화**: 최신 분석 데이터가 있으면 Claude가 프로젝트를 파악하기 위해 파일을 반복 탐색할 필요가 없습니다. `.qe/analysis/`를 읽는 것만으로 프로젝트 전체를 이해할 수 있어 토큰 소비를 대폭 절감합니다.
-- **컨텍스트 효율**: 에이전트/스킬이 매번 Glob, Grep으로 구조를 파악하는 대신 이미 정리된 분석 파일을 참조하면 됩니다.
-- **정확도 향상**: 항상 최신 상태의 프로젝트 정보를 기반으로 작업하므로, 오래된 정보로 인한 실수를 방지합니다.
+## Why Use This
+- **Token optimization**: With up-to-date analysis data, Claude does not need to repeatedly scan files to understand the project. Reading `.qe/analysis/` is sufficient to understand the entire project, greatly reducing token consumption.
+- **Context efficiency**: Instead of agents/skills using Glob and Grep to understand structure every time, they can reference the already-organized analysis files.
+- **Improved accuracy**: Working from always up-to-date project information prevents mistakes caused by stale data.
 
-## 실행 절차
+## Execution Procedure
 
-### 1단계: Erefresh-executor 호출
-`Erefresh-executor` 서브에이전트를 실행하여 분석 갱신을 수행합니다.
+### Step 1: Call Erefresh-executor
+Run the `Erefresh-executor` sub-agent to perform the analysis refresh.
 
-### 2단계: 변경 요약 표시
-갱신 완료 후 사용자에게 변경 사항을 요약합니다:
-- 새로 추가된 파일/디렉토리
-- 삭제된 파일/디렉토리
-- 의존성 변경
-- 기술 스택 변화
-- `.qe/changelog.md`에 기록된 최근 이력
+### Step 2: Display Change Summary
+After the refresh is complete, summarize changes for the user:
+- Newly added files/directories
+- Deleted files/directories
+- Dependency changes
+- Tech stack changes
+- Recent history recorded in `.qe/changelog.md`
 
-### 3단계: CLAUDE.md 갱신 제안
-분석 결과 CLAUDE.md의 내용이 현재 프로젝트 상태와 다르면 갱신을 제안합니다.
-- 기술 스택 변경 시
-- 프로젝트 구조가 크게 달라졌을 시
-- 사용자 승인 후 반영
+### Step 3: Suggest CLAUDE.md Update
+If the analysis results show that CLAUDE.md content differs from the current project state, suggest an update.
+- When the tech stack has changed
+- When the project structure has changed significantly
+- Apply after user approval
 
-## 할 것 (Will)
-- Erefresh-executor 호출
-- 변경 요약 표시
-- CLAUDE.md 갱신 제안
+## Will
+- Call Erefresh-executor
+- Display change summary
+- Suggest CLAUDE.md update
 
-## 안 할 것 (Will Not)
-- 직접 분석 수행 → Erefresh-executor에게 위임
-- 소스 코드 수정
-- 사용자 승인 없이 CLAUDE.md 수정
+## Will Not
+- Perform analysis directly → delegate to Erefresh-executor
+- Modify source code
+- Modify CLAUDE.md without user approval

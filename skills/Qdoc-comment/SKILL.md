@@ -1,103 +1,103 @@
 ---
 name: Qdoc-comment
-description: 프로젝트 언어에 맞는 문서화 주석을 자동으로 추가합니다. Java(JavaDoc), Python(docstring), TypeScript(TSDoc), Go(godoc), Kotlin(KDoc), Rust(rustdoc) 등을 지원합니다.
+description: Automatically adds documentation comments appropriate for the project's language. Supports Java (JavaDoc), Python (docstring), TypeScript (TSDoc), Go (godoc), Kotlin (KDoc), Rust (rustdoc), and more.
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qdoc-comment — 문서화 주석 추가
+# Qdoc-comment — Add Documentation Comments
 
-## 역할
-프로젝트의 언어와 기존 주석 스타일을 자동 감지하여, 주석이 없는 클래스/함수/메서드에 문서화 주석을 추가합니다.
+## Role
+Automatically detects the project's language and existing comment style, then adds documentation comments to classes, functions, and methods that lack them.
 
-## 실행 절차
+## Execution Steps
 
-### 1단계: 언어 감지
-- `.qe/analysis/tech-stack.md`를 먼저 참조하여 프로젝트 언어 파악
-- 없으면 파일 확장자로 판별 (.java, .py, .ts, .go, .kt 등)
+### Step 1: Language Detection
+- First check `.qe/analysis/tech-stack.md` to identify the project language
+- If unavailable, determine by file extension (.java, .py, .ts, .go, .kt, etc.)
 
-### 2단계: 기존 스타일 분석
-- 프로젝트 내 기존 주석을 샘플링하여 스타일 파악
-- 언어, 톤, 포맷(한글/영문, 태그 사용 여부 등) 일관성 유지
+### Step 2: Existing Style Analysis
+- Sample existing comments in the project to understand the style
+- Maintain consistency in language, tone, and format (English/Korean, use of tags, etc.)
 
-### 3단계: 주석 추가
-- 주석이 없는 공개(public/exported) 클래스/함수/메서드를 찾아 추가
-- 기존 주석이 있으면 수정하지 않음
+### Step 3: Add Comments
+- Find public/exported classes, functions, and methods without comments and add them
+- Do not modify existing comments
 
-## 언어별 주석 형식
+## Comment Format by Language
 
 ### Java (JavaDoc)
 ```java
 /**
- * [클래스/메서드 설명]
+ * [Class/method description]
  *
- * @param paramName [설명]
- * @return [반환값 설명]
+ * @param paramName [description]
+ * @return [return value description]
  */
 ```
 
 ### Python (docstring)
 ```python
 def example(param: str) -> bool:
-    """[함수 설명]
+    """[Function description]
 
     Args:
-        param: [설명]
+        param: [description]
 
     Returns:
-        [반환값 설명]
+        [return value description]
     """
 ```
 
 ### TypeScript / JavaScript (TSDoc/JSDoc)
 ```typescript
 /**
- * [함수 설명]
+ * [Function description]
  *
- * @param paramName - [설명]
- * @returns [반환값 설명]
+ * @param paramName - [description]
+ * @returns [return value description]
  */
 ```
 
 ### Go (godoc)
 ```go
-// FunctionName [함수 설명]
+// FunctionName [function description]
 //
-// [상세 설명이 필요한 경우]
+// [Additional detail if needed]
 ```
 
 ### Kotlin (KDoc)
 ```kotlin
 /**
- * [클래스/함수 설명]
+ * [Class/function description]
  *
- * @param paramName [설명]
- * @return [반환값 설명]
+ * @param paramName [description]
+ * @return [return value description]
  */
 ```
 
 ### Rust (rustdoc)
 ```rust
-/// [함수 설명]
+/// [Function description]
 ///
 /// # Arguments
-/// * `param` - [설명]
+/// * `param` - [description]
 ///
 /// # Returns
-/// [반환값 설명]
+/// [return value description]
 ```
 
-## 주석 작성 규칙
-- 프로젝트 기존 언어(한글/영문)를 따름
-- 기술 용어는 원문 그대로 사용
-- 간결하고 명확하게 — "~를 조회", "~를 저장", "~를 변환"
-- 자명한 함수(getter/setter, toString 등)는 생략
+## Comment Writing Rules
+- Follow the project's existing language (English or Korean)
+- Use technical terms in their original form
+- Keep it concise and clear — "retrieves ~", "saves ~", "converts ~"
+- Omit self-evident functions (getters/setters, toString, etc.)
 
-## 할 것 (Will)
-- 언어 자동 감지
-- 기존 스타일에 맞는 주석 추가
-- 공개 API 및 복잡한 private/internal 함수에 주석 작성
+## Will
+- Automatically detect language
+- Add comments matching the existing style
+- Write comments for public APIs and complex private/internal functions
 
-## 안 할 것 (Will Not)
-- 기존 주석 수정/덮어쓰기
-- 자명한 함수(getter/setter, 단순 위임)에 불필요한 주석 강제
-- 코드 로직 변경
+## Will Not
+- Modify or overwrite existing comments
+- Force unnecessary comments on self-evident functions (getters/setters, simple delegators)
+- Modify code logic

@@ -1,12 +1,12 @@
 ---
 name: Qbrowser-use
-description: "브라우저 자동화. 웹 테스트, 폼 작성, 스크린샷, 데이터 추출에 사용."
+description: "Browser automation. Use for web testing, form filling, screenshots, and data extraction."
 metadata:
   source: https://skills.sh/browser-use/browser-use
   author: browser-use
 allowed-tools: Bash(browser-use:*)
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Browser Automation with browser-use CLI

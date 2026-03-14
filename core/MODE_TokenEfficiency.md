@@ -1,37 +1,37 @@
-# MODE_TokenEfficiency — 토큰 효율 모드
+# MODE_TokenEfficiency — Token Efficiency Mode
 
-## 개요
-컨텍스트 윈도우 압박 수준에 따라 응답 방식을 자동 전환하는 모드.
+## Overview
+A mode that automatically switches response style based on context window pressure level.
 
-## 활성화 조건
-- 자동: 컨텍스트 사용률 75% 이상 감지 시
-- 수동: 사용자가 "압축 모드", "간결하게" 요청 시
+## Activation Conditions
+- Automatic: when context usage reaches 75% or above
+- Manual: when the user requests "compressed mode" or "be concise"
 
-## 3단계 존
+## 3-Zone System
 
-### 🟢 Green (0~75%) — 일반 모드
-- 자세한 설명, 예시 포함
-- 코드블록 전체 표시
-- 대안 비교 제공
+### Green (0–75%) — Normal Mode
+- Detailed explanations and examples included
+- Full code blocks shown
+- Alternatives compared
 
-### 🟡 Yellow (75~85%) — 압축 모드
-- 핵심만 전달
-- 코드블록은 변경 부분만
-- 설명은 1-2문장으로 제한
-- "참고" 섹션 생략
+### Yellow (75–85%) — Compressed Mode
+- Deliver only the essentials
+- Code blocks show only the changed portions
+- Explanations limited to 1–2 sentences
+- "Notes" sections omitted
 
-### 🔴 Red (85%+) — 생존 모드
-- 한 줄 답변
-- 코드는 diff만
-- 새 파일 읽기 최소화
-- 완료 불가능한 작업은 handoff 제안
+### Red (85%+) — Survival Mode
+- One-line answers
+- Code shown as diff only
+- Minimize reading new files
+- If task cannot complete, suggest handoff
 
-## 압축 기법
-- 반복 설명 제거
-- 이전 대화 내용 재언급 금지
-- 확인 질문 최소화 (명백한 경우 바로 실행)
-- 도구 호출 병렬화
+## Compression Techniques
+- Remove repeated explanations
+- Do not re-state previous conversation content
+- Minimize confirmation questions (execute immediately when obvious)
+- Parallelize tool calls
 
-## 비활성화
-- 사용자가 "자세히", "상세 모드" 요청 시
-- 새 세션 시작 시 자동 해제
+## Deactivation
+- When the user requests "detailed" or "verbose mode"
+- Auto-reset at the start of a new session

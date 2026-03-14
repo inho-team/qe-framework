@@ -1,11 +1,11 @@
 ---
 name: Qdocx
-description: "Word 문서(.docx) 생성, 읽기, 편집, 조작. 보고서, 메모, 편지, 템플릿, 목차, 추적 변경, 댓글 작업 포함."
+description: "Create, read, edit, and manipulate Word documents (.docx). Includes reports, memos, letters, templates, table of contents, tracked changes, and comments."
 metadata:
   source: https://skills.sh/anthropics/skills/docx
   author: anthropic
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # DOCX Creation, Editing, and Analysis

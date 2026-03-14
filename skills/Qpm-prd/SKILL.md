@@ -1,110 +1,110 @@
 ---
 name: Qpm-prd
-description: PRD(제품 요구사항 문서)를 체계적으로 작성합니다. 문제 정의, 사용자 페르소나, 솔루션 개요, 성공 지표, 유저스토리를 포함한 완전한 PRD를 생성합니다. "PRD 작성해줘", "기획서 만들어줘", "요구사항 문서", "제품 기획" 등의 요청 시 사용합니다.
+description: Systematically writes PRDs (Product Requirements Documents). Generates complete PRDs including problem definition, user personas, solution overview, success metrics, and user stories. Use for requests like "write a PRD", "create a product spec", "requirements document", or "product planning".
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 ## Purpose
-문제 정의부터 엔지니어링 핸드오프까지 체계적인 PRD를 작성합니다. 흩어진 노트와 Slack 스레드를 명확하고 종합적인 PRD로 전환하여 이해관계자 정렬, 엔지니어링 컨텍스트 제공, 진실의 원천으로 활용합니다.
+Write structured PRDs from problem definition through engineering handoff. Transforms scattered notes and Slack threads into clear, comprehensive PRDs for stakeholder alignment, engineering context, and as a source of truth.
 
-## PRD 표준 구조
+## PRD Standard Structure
 
 ```markdown
-# [기능/제품명] PRD
+# [Feature/Product Name] PRD
 
 ## 1. Executive Summary
-- 한 문단 개요 (문제 + 솔루션 + 임팩트)
+- One-paragraph overview (problem + solution + impact)
 
-## 2. 문제 정의 (Problem Statement)
-- 누가 이 문제를 가지고 있는가?
-- 문제는 무엇인가?
-- 왜 고통스러운가?
-- 근거 (고객 인터뷰, 데이터, 연구)
+## 2. Problem Statement
+- Who has this problem?
+- What is the problem?
+- Why is it painful?
+- Evidence (customer interviews, data, research)
 
-## 3. 타겟 사용자 & 페르소나
-- 주요 페르소나
-- 보조 페르소나
+## 3. Target Users & Personas
+- Primary persona
+- Secondary persona
 - Jobs-to-be-done
 
-## 4. 전략적 맥락
-- 비즈니스 목표 (OKRs)
-- 시장 기회
-- 경쟁 환경
-- 왜 지금인가?
+## 4. Strategic Context
+- Business objectives (OKRs)
+- Market opportunity
+- Competitive landscape
+- Why now?
 
-## 5. 솔루션 개요
-- 고수준 설명
-- 사용자 흐름 또는 와이어프레임
-- 핵심 기능
+## 5. Solution Overview
+- High-level description
+- User flows or wireframes
+- Key features
 
-## 6. 성공 지표
-- 주요 지표 (최적화 대상)
-- 보조 지표
-- 목표 (현재 → 목표)
+## 6. Success Metrics
+- Primary metric (what to optimize)
+- Secondary metrics
+- Targets (current → goal)
 
-## 7. 유저스토리 & 요구사항
-- 에픽 가설
-- 수락 기준이 있는 유저스토리
-- 엣지 케이스, 제약사항
+## 7. User Stories & Requirements
+- Epic hypothesis
+- User stories with acceptance criteria
+- Edge cases, constraints
 
-## 8. 범위 외 (Out of Scope)
-- 빌드하지 않는 것 (이유 포함)
+## 8. Out of Scope
+- What will not be built (with reasons)
 
-## 9. 의존성 & 리스크
-- 기술적 의존성
-- 외부 의존성
-- 리스크 및 완화 방안
+## 9. Dependencies & Risks
+- Technical dependencies
+- External dependencies
+- Risks and mitigation
 
-## 10. 미결 질문
-- 미해결 결정사항
-- 추가 발견이 필요한 영역
+## 10. Open Questions
+- Unresolved decisions
+- Areas needing further discovery
 ```
 
-## 워크플로우
+## Workflow
 
-### Phase 1: Executive Summary (30분)
-"우리는 [페르소나]를 위해 [문제]를 해결하는 [솔루션]을 만들고 있으며, 이는 [임팩트]를 가져올 것입니다."
+### Phase 1: Executive Summary (30 min)
+"We are building [solution] for [persona] to solve [problem], which will deliver [impact]."
 
-### Phase 2: 문제 정의 (60분)
-- 누가, 무엇을, 왜 고통스러운지 증거와 함께 작성
-- 고객 인터뷰 인용, 데이터, 지원 티켓 포함
+### Phase 2: Problem Definition (60 min)
+- Write who, what, and why it hurts — with evidence
+- Include customer interview quotes, data, and support tickets
 
-### Phase 3: 타겟 사용자 (30분)
-- 구체적인 페르소나 프로필 작성
-- 역할, 목표, 불편함, 현재 행동 포함
+### Phase 3: Target Users (30 min)
+- Write concrete persona profiles
+- Include role, goals, pain points, and current behavior
 
-### Phase 4: 전략적 맥락 (45분)
-- OKR 연결, 시장 기회, 경쟁사 분석, "왜 지금인가" 설명
+### Phase 4: Strategic Context (45 min)
+- Link to OKRs, market opportunity, competitive analysis, and "why now"
 
-### Phase 5: 솔루션 개요 (60분)
-- 고수준 설명 (UI 세부사항 X, 디자인 협업 영역)
-- 사용자 흐름, 핵심 기능 목록
+### Phase 5: Solution Overview (60 min)
+- High-level description (no UI details — that's for design collaboration)
+- User flows and key feature list
 
-### Phase 6: 성공 지표 (30분)
-- 주요 지표 1개 (최적화 대상)
-- 보조 지표, 가드레일 지표
+### Phase 6: Success Metrics (30 min)
+- One primary metric (what to optimize)
+- Secondary metrics and guardrail metrics
 
-### Phase 7: 유저스토리 & 요구사항 (90-120분)
-- 에픽 가설 작성
-- 수락 기준 포함 유저스토리 3-10개
+### Phase 7: User Stories & Requirements (90-120 min)
+- Write epic hypotheses
+- 3-10 user stories with acceptance criteria
 
-### Phase 8: 범위 외 & 의존성 (30분)
-- 명시적으로 제외되는 기능 목록
-- 기술/외부/팀 의존성, 미결 질문
+### Phase 8: Out of Scope & Dependencies (30 min)
+- Explicitly list excluded features
+- Technical/external/team dependencies and open questions
 
-## 안티패턴
-- ❌ 혼자 작성 후 팀에 발표 → 협업으로 작성
-- ❌ 근거 없는 문제 정의 → 데이터/인터뷰 포함
-- ❌ 지나치게 세부적인 스펙 → 고수준 유지
-- ❌ 성공 지표 없음 → 항상 주요 지표 정의
-- ❌ Out of Scope 없음 → 범위 크리프 방지
+## Anti-Patterns
+- Write alone then present to team → collaborate while writing
+- Problem definition without evidence → include data/interviews
+- Overly detailed specs → stay high-level
+- No success metrics → always define a primary metric
+- No out of scope → prevents scope creep
 
-## 사용 예시
+## Usage Examples
 ```
-사용자: 신규 알림 시스템에 대한 PRD 작성해줘
-사용자: 이 기능의 기획서를 만들어줘
-사용자: 요구사항 문서를 체계적으로 정리해줘
+User: Write a PRD for the new notification system
+User: Create a product spec for this feature
+User: Help me organize the requirements document
 ```
 
 Credits: Original skill by @deanpeters - https://github.com/deanpeters/Product-Manager-Skills

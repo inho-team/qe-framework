@@ -1,110 +1,110 @@
 ---
 name: Qagent-md-refactor
-description: 비대해진 AGENTS.md, CLAUDE.md 또는 유사한 에이전트 지시 파일을 점진적 공개 원칙에 따라 리팩토링합니다. 단일 파일을 체계적으로 정리된 연결 문서로 분리합니다.
+description: Refactors bloated AGENTS.md, CLAUDE.md, or similar agent instruction files following the progressive disclosure principle. Splits a single file into systematically organized, linked documents.
 license: MIT
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Agent MD Refactor
 
-에이전트 지시 파일(AGENTS.md, CLAUDE.md, COPILOT.md 등)이 비대해졌을 때 **점진적 공개 원칙**에 따라 리팩토링합니다. 핵심 내용은 루트에 유지하고, 나머지는 연결된 카테고리별 파일로 정리합니다.
+Refactors agent instruction files (AGENTS.md, CLAUDE.md, COPILOT.md, etc.) that have grown too large, following the **progressive disclosure principle**. Keeps core content at the root and organizes the rest into linked, categorized files.
 
 ---
 
-## 트리거
+## Triggers
 
-- "AGENTS.md 리팩토링해줘" / "CLAUDE.md 리팩토링해줘"
-- "에이전트 지시 파일 분리해줘"
-- "CLAUDE.md 파일 정리해줘"
-- "AGENTS.md가 너무 길어"
-
----
-
-## 빠른 참조
-
-| 단계 | 작업 | 결과물 |
-|------|------|--------|
-| 1. 분석 | 모순 찾기 | 해결할 충돌 목록 |
-| 2. 추출 | 핵심 내용 식별 | 루트 파일에 넣을 핵심 지시사항 |
-| 3. 분류 | 나머지 지시사항 그룹화 | 논리적 카테고리 |
-| 4. 구조화 | 파일 계층 생성 | 루트 + 연결 파일 |
-| 5. 정리 | 삭제 대상 표시 | 중복/모호한 지시사항 |
+- "Refactor AGENTS.md" / "Refactor CLAUDE.md"
+- "Split the agent instruction file"
+- "Clean up CLAUDE.md"
+- "AGENTS.md is too long"
 
 ---
 
-## 프로세스
+## Quick Reference
 
-### Phase 1: 모순 찾기
+| Phase | Task | Output |
+|-------|------|--------|
+| 1. Analyze | Find contradictions | List of conflicts to resolve |
+| 2. Extract | Identify core content | Core directives for root file |
+| 3. Categorize | Group remaining directives | Logical categories |
+| 4. Structure | Build file hierarchy | Root + linked files |
+| 5. Prune | Mark items for deletion | Duplicate / ambiguous directives |
 
-서로 충돌하는 지시사항을 찾아냅니다.
+---
 
-**확인 사항:**
-- 상충하는 스타일 가이드라인 (예: "세미콜론 사용" vs "세미콜론 금지")
-- 충돌하는 워크플로우 지시사항
-- 호환되지 않는 도구 선호도
-- 상호 배타적인 패턴
+## Process
 
-**모순 발견 시:**
+### Phase 1: Find Contradictions
+
+Identify directives that conflict with each other.
+
+**Check for:**
+- Conflicting style guidelines (e.g., "use semicolons" vs. "no semicolons")
+- Conflicting workflow directives
+- Incompatible tool preferences
+- Mutually exclusive patterns
+
+**When a contradiction is found:**
 ```markdown
-## 모순 발견
+## Contradiction Found
 
-**지시사항 A:** [인용]
-**지시사항 B:** [인용]
+**Directive A:** [quote]
+**Directive B:** [quote]
 
-**질문:** 어느 것을 우선시해야 하나요, 아니면 둘 다 조건부 적용?
+**Question:** Which should take priority, or should both apply conditionally?
 ```
 
-진행 전에 사용자에게 해결을 요청합니다.
+Ask the user to resolve it before proceeding.
 
 ---
 
-### Phase 2: 핵심 내용 식별
+### Phase 2: Identify Core Content
 
-루트 파일에 들어갈 내용만 추출합니다. **모든 작업에 공통으로 적용되는** 정보만 포함합니다.
+Extract only what belongs in the root file. Include only information that **applies universally to all tasks**.
 
-**핵심 내용 (루트에 유지):**
-| 카테고리 | 예시 |
-|----------|------|
-| 프로젝트 설명 | 한 문장: "분석용 React 대시보드" |
-| 패키지 매니저 | npm이 아닌 경우만 (예: "pnpm 사용") |
-| 비표준 명령어 | 커스텀 빌드/테스트/타입체크 명령어 |
-| 중요 오버라이드 | 기본값을 반드시 덮어써야 하는 항목 |
-| 전역 규칙 | 100% 모든 작업에 적용되는 규칙 |
+**Core content (keep at root):**
+| Category | Examples |
+|----------|---------|
+| Project description | One sentence: "A React dashboard for analytics" |
+| Package manager | Only if non-default (e.g., "use pnpm") |
+| Non-standard commands | Custom build/test/typecheck commands |
+| Critical overrides | Items that must override defaults |
+| Global rules | Rules that apply to 100% of all tasks |
 
-**핵심이 아닌 내용 (연결 파일로 이동):**
-- 언어별 컨벤션, 테스트 가이드라인, 코드 스타일, 프레임워크 패턴, Git 워크플로우
-
----
-
-### Phase 3: 나머지 내용 분류
-
-**일반적인 카테고리:**
-| 카테고리 | 내용 |
-|----------|------|
-| `typescript.md` | TS 컨벤션, 타입 패턴, strict 모드 |
-| `testing.md` | 테스트 프레임워크, 커버리지, 모킹 |
-| `code-style.md` | 포매팅, 네이밍, 주석, 구조 |
-| `git-workflow.md` | 커밋, 브랜치, PR, 리뷰 |
-| `architecture.md` | 패턴, 폴더 구조, 의존성 |
-| `api-design.md` | REST/GraphQL 컨벤션, 에러 처리 |
-| `security.md` | 인증, 입력 검증, 시크릿 |
-| `performance.md` | 최적화, 캐싱, 지연 로딩 |
-
-**분류 규칙:**
-1. 각 파일은 독립적으로 완결
-2. 3~8개 파일 목표
-3. 파일명 명확하게: `{topic}.md`
-4. 실행 가능한 지시사항만 포함
+**Non-core content (move to linked files):**
+- Language-specific conventions, testing guidelines, code style, framework patterns, Git workflow
 
 ---
 
-### Phase 4: 파일 구조 생성
+### Phase 3: Categorize Remaining Content
 
-**출력 구조:**
+**Common categories:**
+| Category | Content |
+|----------|---------|
+| `typescript.md` | TS conventions, type patterns, strict mode |
+| `testing.md` | Test framework, coverage, mocking |
+| `code-style.md` | Formatting, naming, comments, structure |
+| `git-workflow.md` | Commits, branches, PRs, reviews |
+| `architecture.md` | Patterns, folder structure, dependencies |
+| `api-design.md` | REST/GraphQL conventions, error handling |
+| `security.md` | Auth, input validation, secrets |
+| `performance.md` | Optimization, caching, lazy loading |
+
+**Categorization rules:**
+1. Each file must be self-contained
+2. Target 3–8 files total
+3. Use clear file names: `{topic}.md`
+4. Include only actionable directives
+
+---
+
+### Phase 4: Build File Structure
+
+**Output structure:**
 ```
 project-root/
-├── CLAUDE.md                     # 링크가 포함된 최소 루트
+├── CLAUDE.md                     # Minimal root with links
 └── .claude/
     ├── typescript.md
     ├── testing.md
@@ -113,77 +113,77 @@ project-root/
     └── architecture.md
 ```
 
-**루트 파일 템플릿:**
+**Root file template:**
 ```markdown
-# 프로젝트명
+# Project Name
 
-프로젝트 한 문장 설명.
+One-sentence project description.
 
-## 빠른 참조
+## Quick Reference
 
-- **패키지 매니저:** pnpm
-- **빌드:** `pnpm build`
-- **테스트:** `pnpm test`
-- **타입체크:** `pnpm typecheck`
+- **Package manager:** pnpm
+- **Build:** `pnpm build`
+- **Test:** `pnpm test`
+- **Typecheck:** `pnpm typecheck`
 
-## 상세 지침
+## Detailed Guidelines
 
-- [TypeScript 컨벤션](.claude/typescript.md)
-- [테스트 가이드라인](.claude/testing.md)
-- [코드 스타일](.claude/code-style.md)
-- [Git 워크플로우](.claude/git-workflow.md)
-- [아키텍처 패턴](.claude/architecture.md)
+- [TypeScript Conventions](.claude/typescript.md)
+- [Testing Guidelines](.claude/testing.md)
+- [Code Style](.claude/code-style.md)
+- [Git Workflow](.claude/git-workflow.md)
+- [Architecture Patterns](.claude/architecture.md)
 ```
 
 ---
 
-### Phase 5: 삭제 대상 표시
+### Phase 5: Mark Items for Deletion
 
-**삭제 기준:**
-| 기준 | 예시 | 삭제 이유 |
-|------|------|-----------|
-| 중복 | "TypeScript 사용" (.ts 프로젝트) | 에이전트가 이미 인지 |
-| 너무 모호 | "깔끔한 코드 작성" | 실행 불가능 |
-| 당연한 내용 | "버그를 도입하지 마라" | 컨텍스트 낭비 |
-| 기본 동작 | "의미 있는 변수명 사용" | 표준 관행 |
-| 구식 내용 | 더 이상 사용되지 않는 API 참조 | 적용 불가 |
+**Deletion criteria:**
+| Criterion | Example | Reason |
+|-----------|---------|--------|
+| Redundant | "Use TypeScript" (in a .ts project) | Agent already knows this |
+| Too vague | "Write clean code" | Not actionable |
+| Obvious | "Don't introduce bugs" | Wastes context |
+| Default behavior | "Use meaningful variable names" | Standard practice |
+| Outdated | References to deprecated APIs | Not applicable |
 
 ---
 
-## 실행 체크리스트
+## Execution Checklist
 
 ```
-[ ] Phase 1: 모든 모순 식별 및 해결 완료
-[ ] Phase 2: 루트 파일에 핵심 내용만 포함
-[ ] Phase 3: 나머지 지시사항 모두 분류 완료
-[ ] Phase 4: 올바른 링크로 파일 구조 생성
-[ ] Phase 5: 중복/모호한 지시사항 제거
-[ ] 검증: 각 연결 파일이 독립적으로 완결
-[ ] 검증: 루트 파일이 50줄 미만
-[ ] 검증: 모든 링크가 정상 작동
+[ ] Phase 1: All contradictions identified and resolved
+[ ] Phase 2: Root file contains only core content
+[ ] Phase 3: All remaining directives categorized
+[ ] Phase 4: File structure created with correct links
+[ ] Phase 5: Duplicate / ambiguous directives removed
+[ ] Verify: Each linked file is self-contained
+[ ] Verify: Root file is under 50 lines
+[ ] Verify: All links work correctly
 ```
 
 ---
 
-## 안티패턴
+## Anti-Patterns
 
-| 피해야 할 것 | 이유 | 대안 |
-|-------------|------|------|
-| 루트에 모두 유지 | 비대해지고 유지보수 어려움 | 연결 파일로 분리 |
-| 너무 많은 카테고리 | 파편화 | 관련 주제 통합 |
-| 모호한 지시사항 | 토큰 낭비 | 구체적으로 작성하거나 삭제 |
-| 기본값 중복 | 에이전트가 이미 인지 | 오버라이드 필요 시만 명시 |
-| 깊은 중첩 구조 | 탐색 어려움 | 링크 활용한 평탄한 구조 |
+| Avoid | Reason | Instead |
+|-------|--------|---------|
+| Keep everything in root | Becomes bloated and hard to maintain | Split into linked files |
+| Too many categories | Creates fragmentation | Merge related topics |
+| Vague directives | Wastes tokens | Be specific or delete |
+| Duplicating defaults | Agent already knows them | Only specify overrides |
+| Deep nesting | Hard to navigate | Use a flat structure with links |
 
 ---
 
-## 검증
+## Validation
 
-리팩토링 후:
+After refactoring:
 
-1. **루트 파일 최소화** - 50줄 미만, 전역 정보만
-2. **링크 작동** - 참조된 모든 파일 존재
-3. **모순 없음** - 지시사항 일관성
-4. **실행 가능한 내용** - 모든 지시사항이 구체적
-5. **완전한 커버리지** - 삭제 대상 외 누락 없음
-6. **독립적 파일** - 각 연결 파일이 단독으로 완결
+1. **Root file is minimal** — under 50 lines, only global information
+2. **Links work** — all referenced files exist
+3. **No contradictions** — directives are consistent
+4. **Actionable content** — all directives are concrete
+5. **Full coverage** — nothing missing except items marked for deletion
+6. **Self-contained files** — each linked file stands alone

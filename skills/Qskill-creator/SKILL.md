@@ -1,39 +1,39 @@
 ---
 name: Qskill-creator
-description: "새로운 스킬 생성, 기존 스킬 수정/개선, 스킬 성능 측정. 스킬을 처음부터 만들거나 편집/최적화/평가/벤치마크할 때 사용."
+description: "Create new skills, modify/improve existing skills, and measure skill performance. Use when creating a skill from scratch or when editing, optimizing, evaluating, or benchmarking one."
 metadata:
   source: https://skills.sh/anthropics/skills/skill-creator
   author: anthropic
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Skill Creator
 
-## 스킬 생성 프로세스
-1. 목적과 방법 결정
-2. 초안 작성
-3. 테스트 프롬프트로 실행
-4. 정성적/정량적 평가
-5. 피드백 기반 재작성
-6. 반복
-7. 테스트셋 확장
+## Skill Creation Process
+1. Determine purpose and approach
+2. Write a draft
+3. Run with test prompts
+4. Qualitative and quantitative evaluation
+5. Rewrite based on feedback
+6. Iterate
+7. Expand the test set
 
-## SKILL.md 형식
+## SKILL.md Format
 ```markdown
 ---
 name: skill-name
-description: 트리거 조건 포함 설명
+description: Description including trigger conditions
 ---
-# 스킬 제목
-내용...
+# Skill Title
+Content...
 ```
 
-## Description 가이드
-- 언제 트리거할지 명확히
-- 구체적 예시 ("사용자가 X를 요청할 때")
-- 부정적 트리거 ("Y일 때는 사용 안 함")
+## Description Guide
+- Clearly state when to trigger
+- Include specific examples ("when the user requests X")
+- Include negative triggers ("do not use when Y")
 
-## 설치 위치
-- 전역: `~/.claude/skills/<name>/SKILL.md`
-- 로컬: `.claude/skills/<name>/SKILL.md`
+## Installation Location
+- Global: `~/.claude/skills/<name>/SKILL.md`
+- Local: `.claude/skills/<name>/SKILL.md`

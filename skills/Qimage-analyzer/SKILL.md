@@ -1,133 +1,133 @@
 ---
 name: Qimage-analyzer
-description: 이미지를 분석하고 인사이트를 추출합니다. 스크린샷, 다이어그램, 차트, 와이어프레임, UI 화면, 문서 이미지 등을 분석하여 설명, OCR 텍스트 추출, 구조 파악, 개선 제안을 제공합니다. "이미지 분석해줘", "스크린샷 설명해줘", "이 그림이 뭐야", "텍스트 추출해줘", "와이어프레임 분석" 등의 요청 시 사용합니다.
+description: Analyzes images and extracts insights. Analyzes screenshots, diagrams, charts, wireframes, UI screens, and document images to provide descriptions, OCR text extraction, structure identification, and improvement suggestions. Use for requests like "analyze this image", "describe this screenshot", "what is in this picture", "extract text", or "analyze wireframe".
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 ## Purpose
-Claude의 내장 비전 기능을 활용하여 이미지를 분석합니다. 스크린샷 설명, 텍스트 추출(OCR), 다이어그램 해석, 차트 분석, UI/UX 피드백, 문서 파싱 등 다양한 시각적 분석을 수행합니다.
+Uses Claude's built-in vision capabilities to analyze images. Performs a wide range of visual analysis including screenshot description, text extraction (OCR), diagram interpretation, chart analysis, UI/UX feedback, and document parsing.
 
-## 지원 분석 유형
+## Supported Analysis Types
 
-| 유형 | 설명 | 활용 예시 |
-|------|------|---------|
-| **OCR** | 이미지 내 텍스트 추출 | 문서 스캔, 스크린샷 텍스트 |
-| **UI 분석** | 화면 구조 및 UX 평가 | 앱 스크린샷, 웹 페이지 |
-| **다이어그램 해석** | 플로우차트, ERD, 아키텍처 | 설계 문서, 화이트보드 사진 |
-| **차트/그래프 분석** | 데이터 시각화 해석 | 리포트, 대시보드 |
-| **와이어프레임 분석** | UI 설계 구조 파악 | 기획 문서, Figma 스크린샷 |
-| **문서 분석** | 표, 양식, 보고서 파싱 | PDF 스크린샷, 엑셀 캡처 |
-| **비교 분석** | 두 이미지 차이점 비교 | 디자인 변경 전후, AB 테스트 |
+| Type | Description | Example Use Cases |
+|------|-------------|-------------------|
+| **OCR** | Extract text from images | Document scans, screenshot text |
+| **UI Analysis** | Evaluate screen structure and UX | App screenshots, web pages |
+| **Diagram Interpretation** | Flowcharts, ERDs, architecture | Design documents, whiteboard photos |
+| **Chart/Graph Analysis** | Interpret data visualizations | Reports, dashboards |
+| **Wireframe Analysis** | Understand UI design structure | Planning documents, Figma screenshots |
+| **Document Analysis** | Parse tables, forms, reports | PDF screenshots, spreadsheet captures |
+| **Comparison Analysis** | Compare differences between two images | Before/after design changes, A/B tests |
 
-## 워크플로우
+## Workflow
 
-### Step 1: 이미지 수신
-사용자로부터 이미지를 받는 방법:
-- **Vault 내 이미지:** `![[이미지명.png]]` 형식으로 공유
-- **직접 첨부:** 채팅에 이미지 드래그 앤 드롭
-- **경로 제공:** 절대 경로 또는 상대 경로
+### Step 1: Receive Image
+Ways to receive an image from the user:
+- **Image in Vault:** Share as `![[image-name.png]]` format
+- **Direct attachment:** Drag and drop image into chat
+- **Provide path:** Absolute or relative file path
 
-### Step 2: 분석 목적 파악
-사용자 요청에서 분석 목적을 파악:
-- 단순 설명 → 전체 구조와 내용 설명
-- 텍스트 추출 → OCR 모드로 텍스트만 추출
-- UI/UX 피드백 → 개선 포인트 제안
-- 데이터 분석 → 차트/표 수치 해석
-- 구조 파악 → 다이어그램/플로우 설명
+### Step 2: Identify Analysis Purpose
+Determine the analysis purpose from the user's request:
+- Simple description → Describe overall structure and content
+- Text extraction → Extract text only in OCR mode
+- UI/UX feedback → Suggest improvement points
+- Data analysis → Interpret chart/table figures
+- Structure identification → Describe diagram/flow
 
-### Step 3: 이미지 읽기
+### Step 3: Read Image
 ```
-Read tool로 이미지 파일 읽기:
-- PNG, JPG, JPEG, GIF, WebP 지원
-- 파일 경로: Vault 내 상대 경로 사용
+Read image file using the Read tool:
+- Supports PNG, JPG, JPEG, GIF, WebP
+- File path: use relative path within the Vault
 ```
 
-### Step 4: 분석 수행 및 결과 제공
+### Step 4: Perform Analysis and Provide Results
 
-**설명 분석 출력 형식:**
+**Description analysis output format:**
 ```markdown
-## 이미지 분석 결과
+## Image Analysis Results
 
-### 개요
-[이미지 전체 설명]
+### Overview
+[Overall description of the image]
 
-### 주요 구성 요소
-1. [구성요소 1]
-2. [구성요소 2]
+### Key Components
+1. [Component 1]
+2. [Component 2]
 
-### 세부 내용
-[상세 분석]
+### Details
+[Detailed analysis]
 
-### 인사이트 / 제안
-[개선점 또는 주목할 점]
+### Insights / Suggestions
+[Improvement points or notable observations]
 ```
 
-**OCR 출력 형식:**
+**OCR output format:**
 ```markdown
-## 추출된 텍스트
+## Extracted Text
 
-[원문 텍스트 그대로 추출]
+[Raw extracted text as-is]
 
 ---
-*추출 신뢰도: [높음/보통/낮음]*
-*불확실한 문자: [표시]*
+*Extraction confidence: [High/Medium/Low]*
+*Uncertain characters: [noted]*
 ```
 
-**UI/UX 분석 출력 형식:**
+**UI/UX analysis output format:**
 ```markdown
-## UI/UX 분석
+## UI/UX Analysis
 
-### 화면 구조
-- 레이아웃: [설명]
-- 주요 컴포넌트: [목록]
+### Screen Structure
+- Layout: [description]
+- Key components: [list]
 
-### 강점
-- [강점 1]
-- [강점 2]
+### Strengths
+- [Strength 1]
+- [Strength 2]
 
-### 개선 제안
-- [제안 1]
-- [제안 2]
+### Improvement Suggestions
+- [Suggestion 1]
+- [Suggestion 2]
 
-### 접근성 이슈
-- [이슈 1]
+### Accessibility Issues
+- [Issue 1]
 ```
 
-## 사용 예시
+## Usage Examples
 
 ```
-# 기본 분석
-사용자: 이 스크린샷 설명해줘
-사용자: 이 이미지에 뭐가 있어?
+# Basic analysis
+User: Describe this screenshot
+User: What is in this image?
 
 # OCR
-사용자: 이 문서에서 텍스트 추출해줘
-사용자: 이 영수증 내용 읽어줘
+User: Extract text from this document
+User: Read the contents of this receipt
 
-# 다이어그램
-사용자: 이 아키텍처 다이어그램 설명해줘
-사용자: 이 플로우차트 어떻게 동작해?
+# Diagram
+User: Explain this architecture diagram
+User: How does this flowchart work?
 
-# UI 분석
-사용자: 이 앱 화면 UX 피드백 줘
-사용자: 이 와이어프레임 구조 파악해줘
+# UI analysis
+User: Give me UX feedback on this app screen
+User: Identify the structure of this wireframe
 
-# 차트 분석
-사용자: 이 그래프에서 트렌드 설명해줘
-사용자: 이 표 데이터 요약해줘
+# Chart analysis
+User: Explain the trend in this graph
+User: Summarize the data in this table
 
-# 비교
-사용자: 이 두 이미지 차이점 찾아줘
+# Comparison
+User: Find the differences between these two images
 ```
 
-## 제한사항
-- 매우 작은 텍스트나 흐린 이미지는 OCR 정확도가 낮을 수 있음
-- 손글씨는 인식률이 다를 수 있음
-- 복잡한 수식이나 특수 기호는 부정확할 수 있음
-- 이미지 크기가 클수록 처리 시간이 증가
+## Limitations
+- OCR accuracy may be low for very small text or blurry images
+- Handwriting recognition accuracy may vary
+- Complex formulas or special symbols may be inaccurate
+- Processing time increases with larger image sizes
 
-## Vault 이미지 경로
-Obsidian Vault 내 이미지는 보통 다음 경로에 있습니다:
+## Vault Image Paths
+Images in the Obsidian Vault are typically found at:
 - `triphos/*/images/`
-- 각 프로젝트 폴더 내 `images/` 또는 `attachments/`
+- `images/` or `attachments/` inside each project folder

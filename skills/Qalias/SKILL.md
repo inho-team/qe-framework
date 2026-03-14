@@ -1,81 +1,81 @@
 ---
 name: Qalias
-description: 폴더, 경로, 명령어에 별칭을 정의합니다. 짧은 이름으로 긴 경로나 복잡한 명령을 빠르게 참조할 수 있습니다. "별칭", "alias", "바로가기" 요청 시 사용합니다.
+description: Defines aliases for folders, paths, and commands. Allows quick reference to long paths or complex commands using short names. Use when the user requests "alias", "shortcut", or similar.
 ---
 
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qalias — 별칭 관리
+# Qalias — Alias Management
 
-## 역할
-폴더, 경로, 명령어에 별칭(alias)을 등록하고 관리하는 스킬.
-`.qe/aliases.md`에 저장하며, 모든 스킬과 에이전트가 참조합니다.
+## Role
+A skill for registering and managing aliases for folders, paths, and commands.
+Saved to `.qe/aliases.md` and referenced by all skills and agents.
 
-## 저장 위치
+## Storage Location
 `.qe/aliases.md`
 
-## 별칭 형식
+## Alias Format
 
 ```markdown
 # QE Aliases
 
-## 폴더 별칭
-| 별칭 | 실제 경로 | 설명 |
-|------|-----------|------|
-| 분석폴더 | .qe/analysis/ | 프로젝트 분석 결과 |
-| 태스크 | .qe/tasks/pending/ | 대기 중인 작업 |
-| 아카이브 | .qe/.archive/ | 완료된 작업 보관 |
-| 소스 | src/ | 소스코드 루트 |
+## Folder Aliases
+| Alias | Actual Path | Description |
+|-------|-------------|-------------|
+| analysis-folder | .qe/analysis/ | Project analysis results |
+| tasks | .qe/tasks/pending/ | Pending work items |
+| archive | .qe/.archive/ | Completed work storage |
+| source | src/ | Source code root |
 
-## 명령 별칭
-| 별칭 | 실제 명령 | 설명 |
-|------|-----------|------|
-| 스펙 | /Qgenerate-spec | 작업 스펙 생성 |
-| 실행 | /Qrun-task | 작업 실행 |
-| 새로고침 | /Qrefresh | 분석 갱신 |
+## Command Aliases
+| Alias | Actual Command | Description |
+|-------|----------------|-------------|
+| spec | /Qgenerate-spec | Generate task spec |
+| run | /Qrun-task | Execute task |
+| refresh | /Qrefresh | Refresh analysis |
 ```
 
-## 사용 방식
+## Usage
 
-### 등록
-사용자가 자연어로 요청하면 등록합니다:
-- "src 폴더를 '소스'라고 부를게"
-- "documents/analysis를 '분석폴더'로 등록해"
-- "/Qgenerate-spec을 '스펙'으로 줄여줘"
+### Registration
+Register when the user makes a natural language request:
+- "I'll call the src folder 'source'"
+- "Register documents/analysis as 'analysis-folder'"
+- "Shorten /Qgenerate-spec to 'spec'"
 
-형식에 얽매이지 않고, 사용자가 말하는 대로 유연하게 등록합니다.
+Register flexibly as the user describes, without strict formatting requirements.
 
-### 조회
-- `/Qalias` — 전체 별칭 목록 표시
-- `/Qalias 검색어` — 특정 별칭 검색
+### Lookup
+- `/Qalias` — Display the full alias list
+- `/Qalias <search-term>` — Search for a specific alias
 
-### 삭제
-- "소스 별칭 삭제해"
-- "/Qalias remove 소스"
+### Deletion
+- "Delete the source alias"
+- "/Qalias remove source"
 
-### 자동 해석
-모든 스킬과 에이전트는 사용자 명령에서 등록된 별칭을 만나면 실제 경로/명령으로 해석합니다.
-- 사용자: "분석폴더 열어줘" → `.qe/analysis/` 열기
-- 사용자: "스펙 만들어" → `/Qgenerate-spec` 실행
+### Automatic Resolution
+All skills and agents resolve registered aliases to their actual paths/commands when encountered in user commands.
+- User: "Open analysis-folder" → open `.qe/analysis/`
+- User: "Make a spec" → run `/Qgenerate-spec`
 
-## 별칭 규칙
-- 중복 별칭 등록 시 덮어쓰기 전 확인
-- 별칭은 대소문자 구분 없음
-- 한글, 영어 모두 가능
-- 별칭에 공백 포함 가능 (예: "회의 문서" → documents/meetings/)
-- 별칭이 없는 경로도 사용 가능 (별칭은 편의 기능)
+## Alias Rules
+- Confirm before overwriting on duplicate alias registration
+- Aliases are case-insensitive
+- Both Korean and English are supported
+- Aliases may contain spaces (e.g., "meeting docs" → documents/meetings/)
+- Paths without aliases are still usable (aliases are a convenience feature)
 
-## Qprofile 연동
-- Qprofile이 반복 사용 패턴을 감지하면 별칭 등록 제안
-- 사용자가 승인하면 자동으로 `.qe/aliases.md`에 추가
+## Qprofile Integration
+- When Qprofile detects a repeated usage pattern, it suggests registering an alias
+- If the user approves, it is automatically added to `.qe/aliases.md`
 
-## 할 것 (Will)
-- 별칭 등록/조회/삭제
-- 자연어 기반 유연한 등록
-- .qe/aliases.md 관리
-- Qprofile과 연동하여 별칭 후보 제안
+## Will
+- Register, look up, and delete aliases
+- Flexible registration based on natural language
+- Manage .qe/aliases.md
+- Suggest alias candidates in coordination with Qprofile
 
-## 안 할 것 (Will Not)
-- 별칭 없이는 동작 불가하게 만들기 (별칭은 선택적 편의 기능)
-- 시스템 경로(/, /usr 등) 별칭 등록
-- 사용자 동의 없이 별칭 자동 등록
+## Will Not
+- Make operation impossible without aliases (aliases are an optional convenience feature)
+- Register system paths (/, /usr, etc.) as aliases
+- Automatically register aliases without user consent

@@ -1,127 +1,127 @@
 ---
 name: Qpm-roadmap
-description: 전략적 제품 로드맵을 기획합니다. 우선순위화, 에픽 정의, 이해관계자 정렬, 릴리즈 시퀀싱을 포함합니다. "로드맵 만들어줘", "분기별 계획", "제품 전략 로드맵", "우선순위 정리" 등의 요청 시 사용합니다.
+description: Plans strategic product roadmaps. Includes prioritization, epic definition, stakeholder alignment, and release sequencing. Use for requests like "create a roadmap", "quarterly plan", "product strategy roadmap", or "priority sorting".
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 ## Purpose
-전략적 로드맵 기획을 통해 흩어진 기능 요청을 응집력 있는 결과 중심 로드맵으로 전환합니다. 이해관계자를 정렬하고 작업을 논리적으로 시퀀싱하며 전략적 의도를 전달합니다.
+Transform scattered feature requests into a cohesive, outcome-driven roadmap through strategic roadmap planning. Aligns stakeholders, sequences work logically, and communicates strategic intent.
 
-## 로드맵 유형
+## Roadmap Types
 
-| 유형 | 설명 | 적합한 상황 |
-|------|------|-----------|
-| **Now/Next/Later** | 현재/다음/나중 3단계 | 애자일 팀, 불확실성 높음 |
-| **테마 기반** | 전략 테마별 구성 | 임원 발표, 전략적 의도 전달 |
-| **타임라인 (분기별)** | Q1, Q2, Q3 구성 | 리소스 계획, 이해관계자 커뮤니케이션 |
+| Type | Description | Best For |
+|------|-------------|----------|
+| **Now/Next/Later** | Three-stage: current/next/future | Agile teams, high uncertainty |
+| **Theme-based** | Organized by strategic themes | Executive presentations, communicating intent |
+| **Timeline (Quarterly)** | Q1, Q2, Q3 structure | Resource planning, stakeholder communication |
 
-## 워크플로우 (5단계, 1-2주)
+## Workflow (5 Phases, 1-2 Weeks)
 
-### Phase 1: 입력 수집 (Day 1-2)
+### Phase 1: Gather Inputs (Day 1-2)
 
-**비즈니스 목표 검토:**
-- 회사 OKR, 전략 메모
-- 움직여야 할 핵심 지표 (매출, 리텐션, 획득, 효율성)
+**Review business objectives:**
+- Company OKRs, strategy memos
+- Key metrics to move (revenue, retention, acquisition, efficiency)
 
-**고객 문제 검토:**
-- 발견 인터뷰, 지원 티켓, NPS 피드백
-- 상위 3-5개 검증된 고객 문제
+**Review customer problems:**
+- Discovery interviews, support tickets, NPS feedback
+- Top 3-5 validated customer problems
 
-**기술 제약사항 검토:**
-- 기술 부채, 스케일링 이슈
-- 필요한 플랫폼 업그레이드
+**Review technical constraints:**
+- Tech debt, scaling issues
+- Required platform upgrades
 
-**이해관계자 요청 수집:**
-- 영업, 마케팅, CS, 임원 요청
+**Collect stakeholder requests:**
+- Sales, marketing, CS, executive requests
 
-### Phase 2: 이니셔티브(에픽) 정의 (Day 3-4)
+### Phase 2: Define Initiatives (Epics) (Day 3-4)
 
-각 에픽에 대해 가설 작성:
+Write a hypothesis for each epic:
 ```
-"우리는 [X 빌드]가 [페르소나]에게 [결과]를 달성할 것으로 믿는다.
-왜냐하면 [가정] 때문이다."
+"We believe that [building X] will achieve [outcome] for [persona].
+Because [assumption]."
 ```
 
-**T-셔츠 사이징:**
-- S: 1-2주 (엔지니어 1-2명)
-- M: 3-4주 (엔지니어 2-3명)
-- L: 2-3개월 (엔지니어 3-5명)
-- XL: 3개월+ (엔지니어 5명+)
+**T-shirt sizing:**
+- S: 1-2 weeks (1-2 engineers)
+- M: 3-4 weeks (2-3 engineers)
+- L: 2-3 months (3-5 engineers)
+- XL: 3+ months (5+ engineers)
 
-### Phase 3: 우선순위화 (Day 5)
+### Phase 3: Prioritization (Day 5)
 
-**RICE 스코어링:**
+**RICE Scoring:**
 ```
 RICE = (Reach × Impact × Confidence) / Effort
 ```
 
-| 에픽 | Reach | Impact | Confidence | Effort | RICE |
+| Epic | Reach | Impact | Confidence | Effort | RICE |
 |------|-------|--------|------------|--------|------|
-| 에픽A | 10,000 | 3 | 80% | 1개월 | 24,000 |
-| 에픽B | 500 | 3 | 90% | 2개월 | 675 |
+| Epic A | 10,000 | 3 | 80% | 1 month | 24,000 |
+| Epic B | 500 | 3 | 90% | 2 months | 675 |
 
-### Phase 4: 시퀀싱 (Day 6-7)
+### Phase 4: Sequencing (Day 6-7)
 
-**의존성 매핑 후 분기별 배치:**
+**Map dependencies then assign to quarters:**
 ```
-Q1 (Now - 확정):
-├─ 가이드 온보딩 (리텐션)
-├─ Enterprise SSO (획득)
-└─ 모바일 워크플로우 (인게이지먼트)
+Q1 (Now - Committed):
+├─ Guided Onboarding (retention)
+├─ Enterprise SSO (acquisition)
+└─ Mobile Workflow (engagement)
 
-Q2 (Next - 높은 확신):
-├─ 고급 리포팅 (Q1 데이터 파이프라인 의존)
-└─ Slack 통합
+Q2 (Next - High Confidence):
+├─ Advanced Reporting (depends on Q1 data pipeline)
+└─ Slack Integration
 
-Q3 (Later - 낮은 확신):
-├─ 모바일 앱
-└─ AI 추천 기능
+Q3 (Later - Low Confidence):
+├─ Mobile App
+└─ AI Recommendations
 ```
 
-### Phase 5: 이해관계자 커뮤니케이션 (Week 2)
+### Phase 5: Stakeholder Communication (Week 2)
 
-**발표 구성 (30-45분):**
-1. 전략적 맥락 (비즈니스 목표, 고객 문제)
-2. 로드맵 개요 (Q1, Q2, Q3)
-3. 분기별 딥다이브 (에픽, 가설, 성공 지표)
-4. 범위 외 항목 및 이유
-5. 의존성 및 리스크
+**Presentation structure (30-45 min):**
+1. Strategic context (business objectives, customer problems)
+2. Roadmap overview (Q1, Q2, Q3)
+3. Per-quarter deep dive (epics, hypotheses, success metrics)
+4. Out of scope items and reasons
+5. Dependencies and risks
 
-## 로드맵 템플릿
+## Roadmap Template
 
 ```markdown
-# [제품명] 로드맵 - [연도] [분기]
+# [Product Name] Roadmap - [Year] [Quarter]
 
-## 전략 목표
-- OKR 1: [목표]
-- OKR 2: [목표]
+## Strategic Objectives
+- OKR 1: [objective]
+- OKR 2: [objective]
 
-## Now (Q1 - 확정)
-| 에픽 | 가설 | 성공 지표 | 규모 |
-|------|------|---------|------|
-| [에픽명] | [가설] | [지표] | M |
+## Now (Q1 - Committed)
+| Epic | Hypothesis | Success Metric | Size |
+|------|-----------|----------------|------|
+| [Epic name] | [hypothesis] | [metric] | M |
 
-## Next (Q2 - 높은 확신)
-| 에픽 | 가설 | 성공 지표 | 규모 |
-|------|------|---------|------|
+## Next (Q2 - High Confidence)
+| Epic | Hypothesis | Success Metric | Size |
+|------|-----------|----------------|------|
 
-## Later (Q3+ - 탐색)
-| 에픽 | 가설 | 성공 지표 | 규모 |
-|------|------|---------|------|
+## Later (Q3+ - Exploring)
+| Epic | Hypothesis | Success Metric | Size |
+|------|-----------|----------------|------|
 
-## 범위 외
-- [기능]: [제외 이유]
+## Out of Scope
+- [Feature]: [reason for exclusion]
 
-## 리스크
-- [리스크]: [완화 방안]
+## Risks
+- [Risk]: [mitigation]
 ```
 
-## 안티패턴
-- ❌ 기능 목록 로드맵 (맥락 없음) → 가설+성공 지표 포함
-- ❌ HiPPO 우선순위화 → RICE 등 프레임워크 사용
-- ❌ 로드맵을 약속으로 취급 → "학습에 따라 변경 가능한 계획"으로 커뮤니케이션
-- ❌ 의존성 미매핑 → Phase 4에서 명시적 매핑
-- ❌ 혼자 작성 → 이해관계자 입력 수집
+## Anti-Patterns
+- Feature list roadmap (no context) → include hypothesis + success metrics
+- HiPPO prioritization → use frameworks like RICE
+- Treating roadmap as a promise → communicate as "a plan subject to change as we learn"
+- Not mapping dependencies → explicitly map in Phase 4
+- Building alone → collect stakeholder input
 
 Credits: Original skill by @deanpeters - https://github.com/deanpeters/Product-Manager-Skills

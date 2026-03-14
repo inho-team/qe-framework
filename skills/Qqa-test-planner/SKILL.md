@@ -1,280 +1,280 @@
 ---
 name: Qqa-test-planner
-description: QA 엔지니어를 위한 종합 테스트 플랜, 수동 테스트 케이스, 회귀 테스트 스위트, 버그 리포트 생성 도구. Figma MCP 통합을 통한 디자인 검증 기능 포함.
+description: Comprehensive tool for QA engineers to generate test plans, manual test cases, regression test suites, and bug reports. Includes design verification via Figma MCP integration.
 trigger: explicit
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # QA Test Planner
 
-QA 엔지니어가 테스트 플랜 작성, 수동 테스트 케이스 생성, 회귀 테스트 스위트 구성, Figma 디자인 검증, 버그 문서화를 효율적으로 수행할 수 있는 종합 스킬입니다.
+A comprehensive skill for QA engineers to efficiently write test plans, generate manual test cases, build regression test suites, verify Figma designs, and document bugs.
 
-> **활성화:** 이 스킬은 명시적으로 호출해야만 실행됩니다 (예: `/qa-test-planner`, `qa-test-planner`, 또는 `qa-test-planner 스킬 사용`).
-
----
-
-## 빠른 시작
-
-```
-"사용자 인증 기능에 대한 테스트 플랜 만들어줘"
-"결제 흐름에 대한 수동 테스트 케이스 생성해줘"
-"결제 모듈의 회귀 테스트 스위트 만들어줘"
-"[URL]의 Figma 디자인과 로그인 페이지 비교해줘"
-"폼 유효성 검증 이슈에 대한 버그 리포트 작성해줘"
-```
+> **Activation:** This skill runs only when explicitly invoked (e.g., `/qa-test-planner`, `qa-test-planner`, or `use qa-test-planner skill`).
 
 ---
 
-## 빠른 참조
-
-| 작업 | 결과물 | 소요 시간 |
-|------|--------|-----------|
-| 테스트 플랜 | 전략, 범위, 일정, 리스크 | 10-15분 |
-| 테스트 케이스 | 단계별 지시, 예상 결과 | 각 5-10분 |
-| 회귀 스위트 | 스모크 테스트, 핵심 경로, 실행 순서 | 15-20분 |
-| Figma 검증 | 디자인-구현 비교, 불일치 목록 | 10-15분 |
-| 버그 리포트 | 재현 단계, 환경, 증거 | 5분 |
-
----
-
-## 작동 방식
+## Quick Start
 
 ```
-요청 입력
-    |
-    v
-+----------------------------------------------+
-| 1. 분석                                       |
-|    * 기능/요구사항 파싱                          |
-|    * 필요한 테스트 유형 파악                      |
-|    * 범위 및 우선순위 결정                        |
-+----------------------------------------------+
-    |
-    v
-+----------------------------------------------+
-| 2. 생성                                       |
-|    * 구조화된 결과물 작성                         |
-|    * 템플릿 및 모범 사례 적용                     |
-|    * 엣지 케이스 및 변형 포함                     |
-+----------------------------------------------+
-    |
-    v
-+----------------------------------------------+
-| 3. 검증                                       |
-|    * 완전성 확인                                |
-|    * 추적 가능성 검증                            |
-|    * 실행 가능한 단계 보장                        |
-+----------------------------------------------+
-    |
-    v
-QA 결과물 준비 완료
+"Create a test plan for the user authentication feature"
+"Generate manual test cases for the checkout flow"
+"Build a regression test suite for the payment module"
+"Compare the login page against the Figma design at [URL]"
+"Write a bug report for the form validation issue"
 ```
 
 ---
 
-## 핵심 결과물
+## Quick Reference
 
-### 1. 테스트 플랜
-- 테스트 범위 및 목표
-- 테스트 접근법 및 전략
-- 환경 요구사항
-- 시작/종료 기준
-- 리스크 평가
-- 타임라인 및 마일스톤
-
-### 2. 수동 테스트 케이스
-- 단계별 지시사항
-- 예상 vs 실제 결과
-- 사전 조건 및 설정
-- 테스트 데이터 요구사항
-- 우선순위 및 심각도
-
-### 3. 회귀 테스트 스위트
-- 스모크 테스트 (15-30분)
-- 전체 회귀 (2-4시간)
-- 대상 회귀 (30-60분)
-- 실행 순서 및 의존성
-
-### 4. Figma 디자인 검증
-- 컴포넌트별 비교
-- 여백 및 타이포그래피 확인
-- 색상 및 시각적 일관성
-- 인터랙티브 상태 검증
-
-### 5. 버그 리포트
-- 명확한 재현 단계
-- 환경 세부 정보
-- 증거 (스크린샷, 로그)
-- 심각도 및 우선순위
+| Task | Output | Time |
+|------|--------|------|
+| Test plan | Strategy, scope, schedule, risks | 10-15 min |
+| Test cases | Step-by-step instructions, expected results | 5-10 min each |
+| Regression suite | Smoke tests, critical paths, execution order | 15-20 min |
+| Figma verification | Design-implementation comparison, discrepancy list | 10-15 min |
+| Bug report | Repro steps, environment, evidence | 5 min |
 
 ---
 
-## 안티패턴
+## How It Works
 
-| 피할 것 | 이유 | 대안 |
-|---------|------|------|
-| 모호한 테스트 단계 | 재현 불가 | 구체적 액션 + 예상 결과 |
-| 사전 조건 누락 | 예상치 못한 테스트 실패 | 모든 설정 요구사항 문서화 |
-| 테스트 데이터 없음 | 테스터 블로킹 | 샘플 데이터 또는 생성 방법 제공 |
-| 일반적인 버그 제목 | 추적 어려움 | 구체적: "[기능] [동작] 시 발생하는 이슈" |
-| 엣지 케이스 건너뛰기 | 심각한 버그 놓침 | 경계값, null 포함 |
+```
+Request Input
+    |
+    v
++----------------------------------------------+
+| 1. Analyze                                    |
+|    * Parse feature/requirements               |
+|    * Identify required test types             |
+|    * Determine scope and priorities           |
++----------------------------------------------+
+    |
+    v
++----------------------------------------------+
+| 2. Generate                                   |
+|    * Write structured outputs                 |
+|    * Apply templates and best practices       |
+|    * Include edge cases and variations        |
++----------------------------------------------+
+    |
+    v
++----------------------------------------------+
+| 3. Validate                                   |
+|    * Check completeness                       |
+|    * Verify traceability                      |
+|    * Ensure actionable steps                  |
++----------------------------------------------+
+    |
+    v
+QA Output Ready
+```
 
 ---
 
-## 검증 체크리스트
+## Core Outputs
 
-**테스트 플랜:**
-- [ ] 범위 명확히 정의 (포함/제외)
-- [ ] 시작/종료 기준 명시
-- [ ] 리스크와 완화 방안 식별
-- [ ] 타임라인이 현실적
+### 1. Test Plan
+- Test scope and objectives
+- Test approach and strategy
+- Environment requirements
+- Entry/exit criteria
+- Risk assessment
+- Timeline and milestones
 
-**테스트 케이스:**
-- [ ] 각 단계에 예상 결과 포함
-- [ ] 사전 조건 문서화
-- [ ] 테스트 데이터 준비됨
-- [ ] 우선순위 지정됨
+### 2. Manual Test Cases
+- Step-by-step instructions
+- Expected vs. actual results
+- Preconditions and setup
+- Test data requirements
+- Priority and severity
 
-**버그 리포트:**
-- [ ] 재현 가능한 단계
-- [ ] 환경 문서화
-- [ ] 스크린샷/증거 첨부
-- [ ] 심각도/우선순위 설정
+### 3. Regression Test Suite
+- Smoke tests (15-30 min)
+- Full regression (2-4 hours)
+- Targeted regression (30-60 min)
+- Execution order and dependencies
+
+### 4. Figma Design Verification
+- Component-by-component comparison
+- Spacing and typography checks
+- Color and visual consistency
+- Interactive state validation
+
+### 5. Bug Report
+- Clear reproduction steps
+- Environment details
+- Evidence (screenshots, logs)
+- Severity and priority
+
+---
+
+## Anti-Patterns
+
+| Avoid | Why | Instead |
+|-------|-----|---------|
+| Vague test steps | Cannot be reproduced | Specific actions + expected results |
+| Missing preconditions | Unexpected test failures | Document all setup requirements |
+| No test data | Blocks testers | Provide sample data or generation method |
+| Generic bug titles | Hard to track | Specific: "[Feature] issue when [action]" |
+| Skipping edge cases | Misses critical bugs | Include boundary values, nulls |
+
+---
+
+## Validation Checklist
+
+**Test Plan:**
+- [ ] Scope clearly defined (in/out)
+- [ ] Entry/exit criteria stated
+- [ ] Risks and mitigations identified
+- [ ] Timeline is realistic
+
+**Test Cases:**
+- [ ] Each step includes expected result
+- [ ] Preconditions documented
+- [ ] Test data prepared
+- [ ] Priority assigned
+
+**Bug Report:**
+- [ ] Steps are reproducible
+- [ ] Environment documented
+- [ ] Screenshots/evidence attached
+- [ ] Severity/priority set
 
 ---
 
 <details>
-<summary><strong>심화: 테스트 케이스 구조</strong></summary>
+<summary><strong>Deep Dive: Test Case Structure</strong></summary>
 
-### 표준 테스트 케이스 형식
+### Standard Test Case Format
 
 ```markdown
-## TC-001: [테스트 케이스 제목]
+## TC-001: [Test Case Title]
 
-**우선순위:** High | Medium | Low
-**유형:** Functional | UI | Integration | Regression
-**상태:** Not Run | Pass | Fail | Blocked
+**Priority:** High | Medium | Low
+**Type:** Functional | UI | Integration | Regression
+**Status:** Not Run | Pass | Fail | Blocked
 
-### 목적
-[무엇을 왜 테스트하는지]
+### Purpose
+[What is being tested and why]
 
-### 사전 조건
-- [설정 요구사항 1]
-- [설정 요구사항 2]
-- [필요한 테스트 데이터]
+### Preconditions
+- [Setup requirement 1]
+- [Setup requirement 2]
+- [Required test data]
 
-### 테스트 단계
-1. [수행할 액션]
-   **예상:** [어떤 결과가 나와야 하는지]
+### Test Steps
+1. [Action to perform]
+   **Expected:** [What should happen]
 
-2. [수행할 액션]
-   **예상:** [어떤 결과가 나와야 하는지]
+2. [Action to perform]
+   **Expected:** [What should happen]
 
-### 테스트 데이터
-- 입력: [테스트 데이터 값]
-- 사용자: [테스트 계정 정보]
-- 설정: [환경 설정]
+### Test Data
+- Input: [test data values]
+- User: [test account info]
+- Config: [environment settings]
 
-### 사후 조건
-- [테스트 후 시스템 상태]
-- [필요한 정리 작업]
+### Postconditions
+- [System state after test]
+- [Cleanup tasks required]
 ```
 
-### 테스트 유형
+### Test Types
 
-| 유형 | 초점 | 예시 |
-|------|------|------|
-| 기능 | 비즈니스 로직 | 유효한 자격 증명으로 로그인 |
-| UI/시각 | 외관, 레이아웃 | 버튼이 Figma 디자인과 일치 |
-| 통합 | 컴포넌트 상호작용 | API가 프론트엔드에 데이터 반환 |
-| 회귀 | 기존 기능 | 이전 기능이 여전히 작동 |
-| 성능 | 속도, 부하 처리 | 페이지 3초 이내 로드 |
-| 보안 | 취약점 | SQL 인젝션 방지 확인 |
+| Type | Focus | Example |
+|------|-------|---------|
+| Functional | Business logic | Login with valid credentials |
+| UI/Visual | Appearance, layout | Button matches Figma design |
+| Integration | Component interaction | API returns data to frontend |
+| Regression | Existing functionality | Previous features still work |
+| Performance | Speed, load handling | Page loads within 3 seconds |
+| Security | Vulnerabilities | SQL injection prevention |
 
 </details>
 
 <details>
-<summary><strong>심화: 버그 리포트 템플릿</strong></summary>
+<summary><strong>Deep Dive: Bug Report Template</strong></summary>
 
 ```markdown
-# BUG-[ID]: [명확하고 구체적인 제목]
+# BUG-[ID]: [Clear, specific title]
 
-**심각도:** Critical | High | Medium | Low
-**우선순위:** P0 | P1 | P2 | P3
-**유형:** Functional | UI | Performance | Security
-**상태:** Open | In Progress | Fixed | Closed
+**Severity:** Critical | High | Medium | Low
+**Priority:** P0 | P1 | P2 | P3
+**Type:** Functional | UI | Performance | Security
+**Status:** Open | In Progress | Fixed | Closed
 
-## 환경
-- **OS:** [Windows 11, macOS 14 등]
-- **브라우저:** [Chrome 120, Firefox 121 등]
-- **디바이스:** [Desktop, iPhone 15 등]
-- **빌드:** [버전/커밋]
-- **URL:** [버그 발생 페이지]
+## Environment
+- **OS:** [Windows 11, macOS 14, etc.]
+- **Browser:** [Chrome 120, Firefox 121, etc.]
+- **Device:** [Desktop, iPhone 15, etc.]
+- **Build:** [version/commit]
+- **URL:** [page where bug occurs]
 
-## 설명
-[이슈에 대한 명확하고 간결한 설명]
+## Description
+[Clear, concise description of the issue]
 
-## 재현 단계
-1. [구체적인 단계]
-2. [구체적인 단계]
-3. [구체적인 단계]
+## Steps to Reproduce
+1. [Specific step]
+2. [Specific step]
+3. [Specific step]
 
-## 예상 동작
-[어떻게 되어야 하는지]
+## Expected Behavior
+[What should happen]
 
-## 실제 동작
-[실제로 어떻게 되는지]
+## Actual Behavior
+[What actually happens]
 
-## 시각적 증거
-- 스크린샷: [첨부]
-- 비디오: [해당 시 링크]
-- 콘솔 오류: [오류 붙여넣기]
+## Visual Evidence
+- Screenshot: [attached]
+- Video: [link if applicable]
+- Console error: [paste error]
 
-## 영향
-- **사용자 영향:** [얼마나 많은 사용자에게 영향]
-- **빈도:** [항상, 가끔, 드물게]
-- **우회 방법:** [있다면]
+## Impact
+- **User impact:** [how many users affected]
+- **Frequency:** [always, sometimes, rarely]
+- **Workaround:** [if one exists]
 ```
 
-### 심각도 정의
+### Severity Definitions
 
-| 수준 | 기준 | 예시 |
-|------|------|------|
-| **Critical (P0)** | 시스템 장애, 데이터 손실, 보안 | 결제 실패, 로그인 불가 |
-| **High (P1)** | 주요 기능 장애, 우회 불가 | 검색 작동 안 함 |
-| **Medium (P2)** | 기능 일부 장애, 우회 가능 | 필터 옵션 하나 누락 |
-| **Low (P3)** | 외관, 드문 엣지 케이스 | 오타, 미세한 정렬 문제 |
+| Level | Criteria | Example |
+|-------|----------|---------|
+| **Critical (P0)** | System failure, data loss, security | Payment fails, cannot log in |
+| **High (P1)** | Major feature broken, no workaround | Search does not work |
+| **Medium (P2)** | Partial feature failure, workaround exists | One filter option missing |
+| **Low (P3)** | Cosmetic, rare edge case | Typo, minor alignment issue |
 
 </details>
 
 <details>
-<summary><strong>심화: 회귀 테스트</strong></summary>
+<summary><strong>Deep Dive: Regression Testing</strong></summary>
 
-### 스위트 구조
+### Suite Structure
 
-| 스위트 유형 | 소요 시간 | 빈도 | 커버리지 |
-|------------|-----------|------|----------|
-| 스모크 | 15-30분 | 매일 | 핵심 경로만 |
-| 대상 | 30-60분 | 변경마다 | 영향 받는 영역 |
-| 전체 | 2-4시간 | 주간/릴리스 | 종합적 |
-| 정상성 | 10-15분 | 핫픽스 후 | 빠른 검증 |
+| Suite Type | Time | Frequency | Coverage |
+|------------|------|-----------|----------|
+| Smoke | 15-30 min | Daily | Critical paths only |
+| Targeted | 30-60 min | Per change | Affected areas |
+| Full | 2-4 hours | Weekly/release | Comprehensive |
+| Sanity | 10-15 min | After hotfix | Quick validation |
 
-### 통과/실패 기준
+### Pass/Fail Criteria
 
-**통과:**
-- 모든 P0 테스트 통과
-- P1 테스트 90% 이상 통과
-- 심각한 버그 없음
+**Pass:**
+- All P0 tests pass
+- 90%+ of P1 tests pass
+- No critical bugs
 
-**실패 (릴리스 차단):**
-- P0 테스트 하나라도 실패
-- 심각한 버그 발견
-- 보안 취약점
-- 데이터 손실 시나리오
+**Fail (blocks release):**
+- Any P0 test fails
+- Critical bug found
+- Security vulnerability
+- Data loss scenario
 
 </details>
 
 ---
 
-**"테스트는 버그의 존재를 보여주지, 부재를 보여주지 않는다." - Edsger Dijkstra**
+**"Testing shows the presence of bugs, not their absence." — Edsger Dijkstra**

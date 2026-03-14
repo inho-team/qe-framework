@@ -1,32 +1,32 @@
 ---
 name: Qspringboot-security
-description: "Spring Security 모범 사례 가이드. 인증/인가, 입력 검증, CSRF, 시크릿 관리, 보안 헤더, Rate Limiting, 의존성 보안 등 Java Spring Boot 서비스의 보안 관련 작업에 사용합니다."
+description: "Spring Security best practices guide. Use for security-related tasks in Java Spring Boot services: authentication/authorization, input validation, CSRF, secrets management, security headers, rate limiting, and dependency security."
 metadata:
   source: https://skills.sh/affaan-m/everything-claude-code/springboot-security
   author: affaan-m
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Spring Boot Security Review
 
-인증, 입력 처리, 엔드포인트 생성, 시크릿 관리 시 사용합니다.
+Use when adding authentication, handling input, creating endpoints, or managing secrets.
 
 ## When to Activate
 
-- 인증 추가 (JWT, OAuth2, 세션 기반)
-- 인가 구현 (@PreAuthorize, 역할 기반 접근)
-- 사용자 입력 검증 (Bean Validation, 커스텀 검증기)
-- CORS, CSRF, 보안 헤더 설정
-- 시크릿 관리 (Vault, 환경 변수)
-- Rate Limiting, 브루트포스 방지
-- 의존성 CVE 스캔
+- Adding authentication (JWT, OAuth2, session-based)
+- Implementing authorization (@PreAuthorize, role-based access)
+- Validating user input (Bean Validation, custom validators)
+- Configuring CORS, CSRF, security headers
+- Managing secrets (Vault, environment variables)
+- Rate limiting, brute-force protection
+- Scanning dependencies for CVEs
 
 ## Authentication
 
-- 상태 비저장 JWT 또는 취소 목록이 있는 불투명 토큰 선호
-- 세션에는 `httpOnly`, `Secure`, `SameSite=Strict` 쿠키 사용
-- `OncePerRequestFilter`로 토큰 검증
+- Prefer stateless JWT or opaque tokens with a revocation list
+- Use `httpOnly`, `Secure`, `SameSite=Strict` cookies for sessions
+- Validate tokens with `OncePerRequestFilter`
 
 ```java
 @Component
@@ -53,9 +53,9 @@ public class JwtAuthFilter extends OncePerRequestFilter {
 
 ## Authorization
 
-- `@EnableMethodSecurity` 활성화
-- `@PreAuthorize("hasRole('ADMIN')")` 또는 `@PreAuthorize("@authz.canEdit(#id)")`
-- 기본 거부; 필요한 범위만 노출
+- Enable `@EnableMethodSecurity`
+- Use `@PreAuthorize("hasRole('ADMIN')")` or `@PreAuthorize("@authz.canEdit(#id)")`
+- Default deny; expose only required scope
 
 ```java
 @PreAuthorize("hasRole('ADMIN')")
@@ -72,8 +72,8 @@ public ResponseEntity<Void> deleteUser(@PathVariable Long id) {
 
 ## Input Validation
 
-- Bean Validation + `@Valid` 사용
-- DTO에 제약조건: `@NotBlank`, `@Email`, `@Size`
+- Use Bean Validation + `@Valid`
+- Apply constraints on DTOs: `@NotBlank`, `@Email`, `@Size`
 
 ```java
 public record CreateUserDto(
@@ -91,14 +91,14 @@ public ResponseEntity<UserDto> createUser(@Valid @RequestBody CreateUserDto dto)
 ## SQL Injection Prevention
 
 ```java
-// BAD: 문자열 연결
+// BAD: string concatenation
 @Query(value = "SELECT * FROM users WHERE name = '" + name + "'", nativeQuery = true)
 
-// GOOD: 파라미터 바인딩
+// GOOD: parameter binding
 @Query(value = "SELECT * FROM users WHERE name = :name", nativeQuery = true)
 List<User> findByName(@Param("name") String name);
 
-// GOOD: Spring Data 파생 쿼리
+// GOOD: Spring Data derived query
 List<User> findByEmailAndActiveTrue(String email);
 ```
 
@@ -113,8 +113,8 @@ public PasswordEncoder passwordEncoder() {
 
 ## CSRF Protection
 
-- 브라우저 세션 앱: CSRF 활성화
-- 순수 API (Bearer 토큰): CSRF 비활성화
+- Browser session apps: enable CSRF
+- Pure API (Bearer token): disable CSRF
 
 ```java
 http.csrf(csrf -> csrf.disable())
@@ -124,12 +124,12 @@ http.csrf(csrf -> csrf.disable())
 ## Secrets Management
 
 ```yaml
-# BAD: 하드코딩
+# BAD: hardcoded
 spring:
   datasource:
     password: mySecretPassword123
 
-# GOOD: 환경 변수
+# GOOD: environment variable
 spring:
   datasource:
     password: ${DB_PASSWORD}
@@ -146,8 +146,8 @@ http.headers(headers -> headers
 
 ## CORS Configuration
 
-- 보안 필터 수준에서 CORS 구성
-- 프로덕션에서 `*` 절대 사용 금지
+- Configure CORS at the security filter level
+- Never use `*` in production
 
 ```java
 @Bean
@@ -164,20 +164,20 @@ public CorsConfigurationSource corsConfigurationSource() {
 
 ## Rate Limiting
 
-- Bucket4j 또는 게이트웨이 수준 제한
-- 429 반환 + retry 힌트
+- Use Bucket4j or gateway-level limiting
+- Return 429 + retry hint
 
 ## Checklist Before Release
 
-- [ ] 인증 토큰 검증 및 만료 확인
-- [ ] 모든 민감한 경로에 인가 가드
-- [ ] 모든 입력 검증 및 새니타이즈
-- [ ] 문자열 연결 SQL 없음
-- [ ] CSRF 설정 앱 유형에 맞음
-- [ ] 시크릿 외부화; 커밋된 것 없음
-- [ ] 보안 헤더 구성
-- [ ] API Rate Limiting
-- [ ] 의존성 스캔 및 최신 상태
-- [ ] 로그에 민감한 데이터 없음
+- [ ] Auth token validation and expiry checked
+- [ ] Authorization guards on all sensitive endpoints
+- [ ] All inputs validated and sanitized
+- [ ] No string-concatenated SQL
+- [ ] CSRF config matches app type
+- [ ] Secrets externalized; none committed
+- [ ] Security headers configured
+- [ ] API rate limiting in place
+- [ ] Dependencies scanned and up to date
+- [ ] No sensitive data in logs
 
-**기본 원칙**: 기본 거부, 입력 검증, 최소 권한, 설정 기반 보안 우선.
+**Core principle**: default deny, validate inputs, least privilege, prefer config-driven security.

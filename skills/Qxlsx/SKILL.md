@@ -1,11 +1,11 @@
 ---
 name: Qxlsx
-description: "스프레드시트 파일(.xlsx, .xlsm, .csv, .tsv) 관련 모든 작업. 열기, 읽기, 편집, 생성, 수식, 서식, 차트, 데이터 정리."
+description: "All tasks related to spreadsheet files (.xlsx, .xlsm, .csv, .tsv): opening, reading, editing, creating, formulas, formatting, charts, and data cleanup."
 metadata:
   source: https://skills.sh/anthropics/skills/xlsx
   author: anthropic
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # XLSX Creation, Editing, and Analysis

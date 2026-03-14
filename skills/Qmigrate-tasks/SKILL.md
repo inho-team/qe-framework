@@ -1,30 +1,30 @@
 ---
 name: Qmigrate-tasks
-description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .qe/tasks/, .qe/checklists/ 구조로 마이그레이션하고 CLAUDE.md를 최신 컨벤션으로 갱신합니다.
+description: Migrates scattered TASK_REQUEST/VERIFY_CHECKLIST files from the project root into the .qe/tasks/ and .qe/checklists/ directory structure, and updates CLAUDE.md to the latest convention.
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# 작업 파일 마이그레이션 스킬
+# Task File Migration Skill
 
-## 역할
-프로젝트 루트에 있는 기존 `TASK_REQUEST_*.md`, `VERIFY_CHECKLIST_*.md` 파일을 `.qe/tasks/`, `.qe/checklists/` 디렉토리 구조로 마이그레이션하고, `CLAUDE.md`를 최신 컨벤션에 맞게 갱신합니다.
+## Role
+Migrates existing `TASK_REQUEST_*.md` and `VERIFY_CHECKLIST_*.md` files in the project root into the `.qe/tasks/` and `.qe/checklists/` directory structure, and updates `CLAUDE.md` to match the latest conventions.
 
-## 역할 제한
-- 이 스킬은 **파일 마이그레이션과 CLAUDE.md 갱신**에만 집중합니다.
-- 작업 내용을 변경하거나, 새 작업을 생성하지 않습니다.
+## Role Boundaries
+- This skill focuses **only on file migration and CLAUDE.md updates**.
+- It does not modify task content or create new tasks.
 
-## 목표 디렉토리 구조
+## Target Directory Structure
 
 ```
-프로젝트루트/
+project-root/
 ├── CLAUDE.md
 └── .qe/
     ├── tasks/
-    │   ├── pending/          ← 🔲 진행 전
-    │   ├── in-progress/      ← 🔶 진행 중
-    │   ├── completed/        ← ✅ 완료
-    │   └── on-hold/          ← ⏸️ 보류
+    │   ├── pending/          ← 🔲 Not yet started
+    │   ├── in-progress/      ← 🔶 In progress
+    │   ├── completed/        ← ✅ Done
+    │   └── on-hold/          ← ⏸️ On hold
     └── checklists/
         ├── pending/
         ├── in-progress/
@@ -32,91 +32,91 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .qe/tas
         └── on-hold/
 ```
 
-## 실행 절차
+## Execution Steps
 
-### 1단계: 스캔
+### Step 1: Scan
 
-1. 프로젝트 루트에서 `TASK_REQUEST_*.md`, `VERIFY_CHECKLIST_*.md` 파일을 탐색
-2. 이미 `.qe/tasks/` 또는 `.qe/checklists/`에 있는 파일은 **스킵**
-3. `CLAUDE.md`를 읽어 각 UUID별 작업 상태를 파악
+1. Search the project root for `TASK_REQUEST_*.md` and `VERIFY_CHECKLIST_*.md` files
+2. **Skip** files already located inside `.qe/tasks/` or `.qe/checklists/`
+3. Read `CLAUDE.md` to determine task status for each UUID
 
-**마이그레이션 대상이 없는 경우:**
+**If no files need migration:**
 ```
-프로젝트 루트에 마이그레이션 대상 파일이 없습니다.
-모든 파일이 이미 .claude/ 디렉토리 구조에 있거나, TASK_REQUEST/VERIFY_CHECKLIST 파일이 존재하지 않습니다.
+No files to migrate in the project root.
+All files are already in the .claude/ directory structure, or no TASK_REQUEST/VERIFY_CHECKLIST files exist.
 ```
-→ 2단계(CLAUDE.md 갱신 점검)로 바로 이동
+→ Proceed directly to Step 2 (CLAUDE.md update check)
 
-### 2단계: 상태 판별
+### Step 2: Determine Status
 
-`CLAUDE.md`의 작업 목록 테이블에서 각 UUID의 상태를 읽어 대상 디렉토리를 결정합니다.
+Read the status of each UUID from the task list table in `CLAUDE.md` to determine the target directory.
 
-| CLAUDE.md 상태 | 대상 디렉토리 |
-|----------------|--------------|
-| 🔲 (또는 상태 없음) | `pending/` |
+| CLAUDE.md Status | Target Directory |
+|------------------|-----------------|
+| 🔲 (or no status) | `pending/` |
 | 🔶 | `in-progress/` |
 | ✅ | `completed/` |
 | ⏸️ | `on-hold/` |
 
-- `CLAUDE.md`가 없거나 해당 UUID의 상태를 찾을 수 없으면 `pending/`으로 기본 배치
-- `VERIFY_CHECKLIST`의 모든 항목이 `- [x]`로 체크되어 있으면 상태와 무관하게 `completed/`로 판별
+- If `CLAUDE.md` is missing or the UUID's status cannot be found, default to `pending/`
+- If all items in a `VERIFY_CHECKLIST` are checked (`- [x]`), classify as `completed/` regardless of status
 
-### 3단계: 미리보기 및 승인
+### Step 3: Preview and Approval
 
-마이그레이션 계획을 사용자에게 보여주고 승인을 받습니다.
+Show the migration plan to the user and obtain approval.
 
-**미리보기 형식:**
+**Preview Format:**
 ```markdown
-## 마이그레이션 계획
+## Migration Plan
 
-**대상 파일: N개**
+**Target Files: N**
 
-| 파일 | 현재 위치 | 이동 경로 | 상태 |
-|------|-----------|-----------|------|
-| TASK_REQUEST_a1b2c3d4.md | 루트 | .qe/tasks/pending/ | 🔲 |
-| VERIFY_CHECKLIST_a1b2c3d4.md | 루트 | .qe/checklists/pending/ | 🔲 |
-| TASK_REQUEST_e5f6g7h8.md | 루트 | .qe/tasks/completed/ | ✅ |
-| VERIFY_CHECKLIST_e5f6g7h8.md | 루트 | .qe/checklists/completed/ | ✅ |
+| File | Current Location | Destination | Status |
+|------|-----------------|-------------|--------|
+| TASK_REQUEST_a1b2c3d4.md | root | .qe/tasks/pending/ | 🔲 |
+| VERIFY_CHECKLIST_a1b2c3d4.md | root | .qe/checklists/pending/ | 🔲 |
+| TASK_REQUEST_e5f6g7h8.md | root | .qe/tasks/completed/ | ✅ |
+| VERIFY_CHECKLIST_e5f6g7h8.md | root | .qe/checklists/completed/ | ✅ |
 
-**CLAUDE.md 갱신:** 파일 규칙 섹션을 최신 컨벤션으로 업데이트합니다.
+**CLAUDE.md Update:** Updates the file rules section to the latest convention.
 
-진행할까요?
+Proceed?
 ```
 
-**사용자 승인을 반드시 받은 뒤** 다음 단계로 진행합니다.
+**Do not continue until user approval is received.**
 
-### 4단계: 파일 이동
+### Step 4: Move Files
 
-1. 필요한 디렉토리 생성 (`mkdir -p .qe/tasks/{pending,in-progress,completed,on-hold}` 등)
-2. 각 파일을 대상 디렉토리로 이동 (`mv`)
-3. TASK_REQUEST와 VERIFY_CHECKLIST는 동일 UUID 기준으로 같은 상태 디렉토리에 배치
+1. Create the necessary directories (`mkdir -p .qe/tasks/{pending,in-progress,completed,on-hold}`, etc.)
+2. Move each file to its target directory (`mv`)
+3. Place TASK_REQUEST and VERIFY_CHECKLIST with the same UUID in the same status directory
 
-### 5단계: CLAUDE.md 갱신
+### Step 5: Update CLAUDE.md
 
-`CLAUDE.md`의 "파일 규칙" 섹션이 구 형식인지 확인하고, 최신 컨벤션으로 교체합니다.
+Check whether the "File Rules" section in `CLAUDE.md` is in the old format, and replace it with the latest convention.
 
-**구 형식 판별 기준:**
-- `### 파일명 규칙` 섹션에 `TASK_REQUEST_{UUID}.md` (경로 없이 파일명만) 표기
-- 디렉토리 구조 트리가 없음
-- 상태 테이블에 `디렉토리` 컬럼이 없음
-- ⏸️ 보류 상태가 없음
+**Old Format Indicators:**
+- The `### File Name Rules` section lists `TASK_REQUEST_{UUID}.md` without a directory path
+- No directory structure tree is present
+- The status table has no `Directory` column
+- The ⏸️ on-hold status is absent
 
-**교체 대상:** `## 파일 규칙` ~ 다음 `##` 섹션 시작 전까지
+**Replacement Target:** From `## File Rules` up to (but not including) the next `##` section
 
-**새 형식:**
+**New Format:**
 ```markdown
-## 파일 규칙
+## File Rules
 
-### 디렉토리 구조
+### Directory Structure
 \```
-프로젝트루트/
+project-root/
 ├── CLAUDE.md
 └── .qe/
     ├── tasks/
-    │   ├── pending/          ← 생성 직후 (진행 전)
-    │   ├── in-progress/      ← 작업 진행 중
-    │   ├── completed/        ← 작업 완료
-    │   └── on-hold/          ← 작업 보류
+    │   ├── pending/          ← Immediately after creation (not yet started)
+    │   ├── in-progress/      ← Work in progress
+    │   ├── completed/        ← Work complete
+    │   └── on-hold/          ← Work on hold
     └── checklists/
         ├── pending/
         ├── in-progress/
@@ -124,55 +124,55 @@ description: 루트에 흩어진 TASK_REQUEST/VERIFY_CHECKLIST 파일을 .qe/tas
         └── on-hold/
 \```
 
-### 파일명 규칙
-- 작업 요청서: `.qe/tasks/{상태}/TASK_REQUEST_{UUID}.md`
-- 검증 체크리스트: `.qe/checklists/{상태}/VERIFY_CHECKLIST_{UUID}.md`
-- 하나의 작업은 동일한 UUID를 공유합니다.
-- `{상태}`는 `pending`, `in-progress`, `completed`, `on-hold` 중 하나입니다.
+### File Name Rules
+- Task request: `.qe/tasks/{status}/TASK_REQUEST_{UUID}.md`
+- Verification checklist: `.qe/checklists/{status}/VERIFY_CHECKLIST_{UUID}.md`
+- One task shares the same UUID across both files.
+- `{status}` is one of: `pending`, `in-progress`, `completed`, `on-hold`.
 
-### 작업 상태
-| 상태 | 디렉토리 | 의미 |
-|------|----------|------|
-| 🔲 진행 전 | `pending/` | 아직 시작하지 않은 작업 |
-| 🔶 진행 중 | `in-progress/` | 현재 작업 중 |
-| ⏸️ 보류 | `on-hold/` | 일시적으로 중단된 작업 |
-| ✅ 완료 | `completed/` | VERIFY_CHECKLIST의 모든 항목 체크됨. **더 이상 참조 불필요.** |
+### Task Status
+| Status | Directory | Meaning |
+|--------|-----------|---------|
+| 🔲 Not started | `pending/` | Work not yet begun |
+| 🔶 In progress | `in-progress/` | Currently being worked on |
+| ⏸️ On hold | `on-hold/` | Temporarily paused |
+| ✅ Complete | `completed/` | All VERIFY_CHECKLIST items checked. **No further reference needed.** |
 
-### 완료 기준
-- VERIFY_CHECKLIST의 **모든 체크박스가 체크**되면 ✅ 완료
-- 완료된 파일은 `completed/` 디렉토리로 이동
-- 완료된 작업 파일은 **참조하지 않아도 됩니다.**
+### Completion Criteria
+- ✅ Complete when **all checkboxes in VERIFY_CHECKLIST are checked**
+- Completed files are moved to the `completed/` directory
+- Completed task files **do not need to be referenced again.**
 ```
 
-**주의:**
-- `## 작업 목록` 테이블과 그 외 섹션은 변경하지 않음 (데이터 손실 방지)
-- 이미 최신 형식이면 갱신을 스킵하고 사용자에게 알림
+**Note:**
+- Do not modify the `## Task List` table or other sections (to prevent data loss)
+- If already in the latest format, skip the update and notify the user
 
-### 6단계: 결과 보고
+### Step 6: Report Results
 
 ```markdown
-## ✅ 마이그레이션 완료
+## ✅ Migration Complete
 
-**이동된 파일:** N개
-- tasks: A개 (pending: X, in-progress: Y, completed: Z, on-hold: W)
-- checklists: B개
+**Files Moved:** N
+- tasks: A (pending: X, in-progress: Y, completed: Z, on-hold: W)
+- checklists: B
 
-**CLAUDE.md 갱신:** 파일 규칙 섹션 업데이트 완료 (또는 "이미 최신")
+**CLAUDE.md Updated:** File rules section updated (or "Already up to date")
 
-**참고:** 완료된 작업(✅)의 파일은 .qe/tasks/completed/에 보관되어 있으며, 더 이상 참조하지 않아도 됩니다.
+**Note:** Completed (✅) task files are stored in .qe/tasks/completed/ and do not need to be referenced again.
 ```
 
-## 특수 상황 처리
+## Special Cases
 
-### CLAUDE.md가 없는 경우
-- 모든 파일을 `pending/`으로 이동
-- CLAUDE.md 갱신은 스킵
-- 사용자에게 `/Qgenerate-spec`으로 CLAUDE.md 생성을 권장
+### When CLAUDE.md Does Not Exist
+- Move all files to `pending/`
+- Skip CLAUDE.md update
+- Recommend the user create CLAUDE.md with `/Qgenerate-spec`
 
-### TASK_REQUEST만 있고 VERIFY_CHECKLIST가 없는 경우 (또는 반대)
-- 존재하는 파일만 이동
-- 누락된 짝 파일을 사용자에게 알림
+### When Only TASK_REQUEST Exists Without VERIFY_CHECKLIST (or Vice Versa)
+- Move only the existing files
+- Notify the user of the missing paired file
 
-### 이미 .claude/ 구조와 루트에 동일 UUID 파일이 공존하는 경우
-- .claude/ 내 파일을 우선, 루트 파일은 이동하지 않음
-- 사용자에게 충돌 상황을 알리고 수동 처리를 권장
+### When the Same UUID File Exists Both in .claude/ Structure and the Root
+- Prioritize the file in .claude/, do not move the root file
+- Notify the user of the conflict and recommend manual resolution

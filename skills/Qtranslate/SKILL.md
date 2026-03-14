@@ -1,99 +1,99 @@
 ---
 name: Qtranslate
-description: 사용자 입력을 내부적으로 영어로 변환하여 처리하고, 결과를 사용자 언어로 번역하여 응답합니다. 다국어 입출력을 지원하며, 영어 입력 시 문법 교정도 수행합니다.
+description: Internally converts user input to English for processing, then translates results back to the user's language. Supports multilingual input/output and also performs grammar correction for English input.
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
-# Qtranslate — 다국어 내부 영어 처리
+# Qtranslate — Multilingual Internal English Processing
 
-## 역할
-사용자가 어떤 언어로 질의하든 내부적으로는 영어로 처리하여 품질을 높이고, 결과를 사용자 언어로 번역하여 응답하는 스킬.
+## Role
+A skill that processes user queries internally in English regardless of the input language, improving quality, and then translates the results back to the user's language.
 
-## 왜 필요한가
-- LLM은 영어로 처리할 때 정확도와 논리 추론 품질이 높음
-- 사용자는 모국어로 편하게 소통하고 싶음
-- 이 스킬이 두 요구를 동시에 충족
+## Why It Is Needed
+- LLMs produce higher accuracy and reasoning quality when processing in English
+- Users prefer communicating in their native language
+- This skill satisfies both requirements simultaneously
 
-## 처리 흐름
+## Processing Flow
 
 ```
-사용자 입력 (어떤 언어든)
+User input (any language)
     ↓
-1. 언어 감지 → .qe/profile/language.md 참조/갱신
+1. Language detection → reference/update .qe/profile/language.md
     ↓
-2. 영어로 재작성 (Rewrite to English)
+2. Rewrite to English
     ↓
-3. 내부 처리 (영어)
-   - 중간 진행 상황은 사용자 언어로 표시
-   - 예: "프로젝트 분석 진행중...", "코드 리뷰 완료"
+3. Internal processing (English)
+   - Intermediate progress displayed in the user's language
+   - e.g., "Analyzing project...", "Code review complete"
     ↓
-4. 결과를 사용자 언어로 번역하여 응답
+4. Translate results to the user's language and respond
 ```
 
-## 언어 감지 규칙
+## Language Detection Rules
 
-### 자동 감지
-- 사용자의 첫 메시지에서 언어를 감지
-- `.qe/profile/language.md`에 기록
-- 이후 세션에서는 저장된 언어 설정을 우선 사용
+### Automatic Detection
+- Detects the language from the user's first message
+- Records it in `.qe/profile/language.md`
+- In subsequent sessions, the saved language setting takes priority
 
-### language.md 형식
+### language.md Format
 ```markdown
 # Language Profile
 
-## 설정
-- 주 사용 언어: ko (한국어)
-- 응답 언어: ko (사용자 언어와 동일)
-- 내부 처리 언어: en (항상 영어)
+## Settings
+- Primary language: ko (Korean)
+- Response language: ko (same as user's language)
+- Internal processing language: en (always English)
 
-## 감지 이력
-- 2026-03-14: 한국어 감지
+## Detection History
+- 2026-03-14: Korean detected
 ```
 
-## 영어 재작성 규칙
+## English Rewriting Rules
 
-### 비영어 입력 시
-- 사용자 메시지를 자연스러운 영어로 재작성
-- 기술 용어, 고유명사는 원문 유지
-- 재작성 결과를 사용자에게 보여주지 않음 (내부 처리)
+### For Non-English Input
+- Rewrites the user's message in natural English
+- Technical terms and proper nouns are kept in their original form
+- The rewritten English is not shown to the user (internal processing only)
 
-### 영어 입력 시
-- 문법 오류를 지적하고 개선 제안
-- 더 자연스러운 표현으로 수정
-- 수정된 영어로 내부 처리 진행
+### For English Input
+- Points out grammar errors and suggests improvements
+- Rewrites in more natural expressions
+- Proceeds with internal processing using the corrected English
 
-### 중간 상태 표시
-내부 처리 중 사용자에게 보이는 진행 상황은 사용자 언어로:
+### Intermediate Status Display
+Progress shown to the user during internal processing is in the user's language:
 ```
-[Qtranslate] 코드 분석 진행중...
-[Qtranslate] 리뷰 완료, 결과 번역중...
+[Qtranslate] Analyzing code...
+[Qtranslate] Review complete, translating results...
 ```
 
-## 다른 스킬과의 연동
-- Qtranslate가 활성화되면 모든 스킬의 입출력에 적용
-- 스킬 내부 로직은 영어로 처리
-- 최종 사용자 응답만 번역
+## Integration with Other Skills
+- When Qtranslate is active, it applies to all skill input/output
+- Skill internal logic is processed in English
+- Only the final user-facing response is translated
 
-## 지원 언어
-- 특정 언어에 한정하지 않음
-- 사용자가 사용하는 언어를 자동 감지하여 대응
-- 한국어, 영어, 일본어, 중국어, 스페인어, 프랑스어, 독일어 등 모든 언어
+## Supported Languages
+- Not limited to specific languages
+- Automatically detects and handles the language the user writes in
+- Supports all languages including Korean, English, Japanese, Chinese, Spanish, French, German, etc.
 
-## Qprofile 연동
-- `.qe/profile/language.md`에 사용자 언어 기록
-- Eprofile-collector가 언어 변경을 자동 감지
-- 사용자가 언어를 바꾸면 자동으로 업데이트
+## Qprofile Integration
+- Records the user's language in `.qe/profile/language.md`
+- Eprofile-collector automatically detects language changes
+- Automatically updates when the user switches languages
 
-## 할 것 (Will)
-- 사용자 언어 자동 감지
-- 비영어 입력 → 영어 재작성 (내부)
-- 영어 입력 → 문법 교정 + 개선 제안
-- 결과를 사용자 언어로 번역
-- 중간 진행 상황을 사용자 언어로 표시
-- .qe/profile/language.md 관리
+## Will
+- Automatically detect user language
+- Non-English input → rewrite to English (internally)
+- English input → grammar correction + improvement suggestions
+- Translate results to the user's language
+- Display intermediate progress in the user's language
+- Manage .qe/profile/language.md
 
-## 안 할 것 (Will Not)
-- 재작성된 영어 원문을 사용자에게 강제 노출 (요청 시에만)
-- 특정 언어만 지원 (모든 언어 대응)
-- 기술 용어/고유명사 번역 (원문 유지)
-- 코드 내 변수명/주석 번역 (코드는 원문 그대로)
+## Will Not
+- Force-expose the rewritten English to the user (only on request)
+- Support only specific languages (handles all languages)
+- Translate technical terms or proper nouns (keep original form)
+- Translate variable names or comments inside code (keep code as-is)

@@ -1,12 +1,12 @@
 ---
 name: Qagent-browser
-description: "브라우저 자동화 CLI. 웹사이트 탐색, 폼 작성, 클릭, 스크린샷, 데이터 추출, 웹앱 테스트에 사용."
+description: "Browser automation CLI. Use for website navigation, form filling, clicking, screenshots, data extraction, and web app testing."
 metadata:
   source: https://skills.sh/vercel-labs/agent-browser
   author: vercel
 allowed-tools: Bash(npx agent-browser:*), Bash(agent-browser:*)
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Browser Automation with agent-browser

@@ -1,155 +1,155 @@
 ---
 name: Qgrad-research-plan
-description: 문헌 조사와 실험 설계를 체계적으로 수행합니다. 키워드 전략, 논문 요약표, 갭 분석, 연구 질문 도출, 실험 변수 정의, 재현성 문서화를 포괄합니다. "문헌 조사", "literature review", "실험 설계", "experiment design", "연구 계획" 등의 요청 시 사용합니다.
+description: Systematically conducts literature reviews and experiment design. Covers keyword strategy, paper summary tables, gap analysis, research question derivation, experimental variable definition, and reproducibility documentation. Use for requests like "literature review", "experiment design", or "research plan".
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# 문헌 조사 + 실험 설계 통합
+# Literature Review + Experiment Design Integration
 
-## 역할
-당신은 공학/CS 분야의 문헌 조사를 체계화하고 실험을 설계하는 어시스턴트입니다.
-기존 연구를 정리하여 연구 갭을 찾고, 이를 검증할 실험을 설계합니다.
+## Role
+You are an assistant that systematizes literature reviews and designs experiments in engineering and computer science.
+You organize existing research to identify gaps and design experiments to validate them.
 
-## 역할 제한
-- 문헌 조사 체계화와 실험 설계에만 집중합니다.
-- 논문 작성은 `Qgrad-paper-write`를 사용하세요.
+## Role Limitations
+- Focus exclusively on systematizing literature reviews and experiment design.
+- Use `Qgrad-paper-write` for paper writing.
 
-## 워크플로우
+## Workflow
 
-### Part A: 문헌 조사
+### Part A: Literature Review
 
-#### A-1: 검색 전략 수립
-`AskUserQuestion`으로 연구 주제를 확인한 후, 검색 전략을 설계합니다.
+#### A-1: Build Search Strategy
+Confirm the research topic with the user, then design a search strategy.
 
 ```markdown
-## 검색 전략
+## Search Strategy
 
-**연구 주제:** [주제]
-**핵심 키워드:** [keyword1] AND [keyword2] OR [keyword3]
-**검색 DB:** Google Scholar, IEEE Xplore, ACM DL, arXiv
-**검색 범위:** 최근 5년 (20XX~20XX)
-**포함 기준:** [기준]
-**제외 기준:** [기준]
+**Research Topic:** [topic]
+**Core Keywords:** [keyword1] AND [keyword2] OR [keyword3]
+**Search Databases:** Google Scholar, IEEE Xplore, ACM DL, arXiv
+**Search Scope:** Last 5 years (20XX–20XX)
+**Inclusion Criteria:** [criteria]
+**Exclusion Criteria:** [criteria]
 ```
 
-#### A-2: 논문 요약표 작성
-수집한 논문을 체계적으로 정리합니다.
+#### A-2: Build Paper Summary Table
+Systematically organize collected papers.
 
 ```markdown
-| # | 저자 (연도) | 제목 | 학회/저널 | 방법 | 데이터셋 | 핵심 결과 | 한계 |
-|---|-----------|------|----------|------|---------|----------|------|
+| # | Author (Year) | Title | Venue | Method | Dataset | Key Results | Limitations |
+|---|--------------|-------|-------|--------|---------|-------------|------------|
 | 1 | Kim (2024) | ... | NeurIPS | ... | ... | ... | ... |
 ```
 
-#### A-3: 갭 분석 및 연구 질문 도출
+#### A-3: Gap Analysis and Research Question Derivation
 
-논문 요약표를 기반으로:
-1. **공통 접근법**: 대부분의 논문이 사용하는 방법
-2. **미해결 문제**: 아직 해결되지 않은 한계점
-3. **연구 갭**: 기존 연구에서 다루지 않은 영역
-4. **연구 질문(RQ)**: 갭을 기반으로 구체적 질문 도출
+Based on the paper summary table:
+1. **Common approaches**: Methods used by most papers
+2. **Unresolved problems**: Limitations not yet addressed
+3. **Research gaps**: Areas not covered by existing work
+4. **Research Questions (RQs)**: Concrete questions derived from the gaps
 
 ```markdown
-## 연구 갭 분석
+## Research Gap Analysis
 
-### 공통 접근법
+### Common Approaches
 - ...
 
-### 미해결 문제
+### Unresolved Problems
 - ...
 
-### 연구 갭
-- **Gap 1:** [설명]
-- **Gap 2:** [설명]
+### Research Gaps
+- **Gap 1:** [description]
+- **Gap 2:** [description]
 
-### 연구 질문
-- **RQ1:** [질문]?
-- **RQ2:** [질문]?
+### Research Questions
+- **RQ1:** [question]?
+- **RQ2:** [question]?
 ```
 
-`AskUserQuestion`으로 연구 질문을 확정합니다.
+Confirm research questions with the user before proceeding.
 
-### Part B: 실험 설계
+### Part B: Experiment Design
 
-#### B-1: 변수 정의
+#### B-1: Define Variables
 
-| 변수 유형 | 변수명 | 설명 | 값/범위 |
-|----------|--------|------|--------|
-| 독립 변수 | | 실험에서 조작하는 변수 | |
-| 종속 변수 | | 측정하는 결과 변수 | |
-| 통제 변수 | | 고정하는 변수 | |
+| Variable Type | Variable Name | Description | Values / Range |
+|--------------|---------------|-------------|---------------|
+| Independent variable | | Variable manipulated in the experiment | |
+| Dependent variable | | Outcome variable being measured | |
+| Controlled variable | | Variable held constant | |
 
-#### B-2: 실험 설정 명세
+#### B-2: Experiment Setup Specification
 
 ```markdown
-## 실험 설정
+## Experiment Setup
 
-### 데이터셋
-- **이름:** [데이터셋명]
-- **크기:** [샘플 수, 차원]
-- **분할:** Train/Valid/Test = X/Y/Z
-- **전처리:** [전처리 방법]
+### Dataset
+- **Name:** [dataset name]
+- **Size:** [number of samples, dimensions]
+- **Split:** Train/Valid/Test = X/Y/Z
+- **Preprocessing:** [preprocessing method]
 
-### 베이스라인
-| # | 모델명 | 출처 | 선택 이유 |
-|---|--------|------|----------|
+### Baselines
+| # | Model Name | Source | Reason for Selection |
+|---|-----------|--------|---------------------|
 | 1 | ... | (Author, 20XX) | SOTA |
-| 2 | ... | (Author, 20XX) | 비교 기준 |
+| 2 | ... | (Author, 20XX) | Comparison baseline |
 
-### 평가 지표
-| 지표 | 수식 | 선택 이유 |
-|------|------|----------|
-| Accuracy | ... | 기본 분류 성능 |
-| F1-Score | ... | 불균형 데이터 대응 |
+### Evaluation Metrics
+| Metric | Formula | Reason for Selection |
+|--------|---------|---------------------|
+| Accuracy | ... | Basic classification performance |
+| F1-Score | ... | Handles class imbalance |
 
-### 하이퍼파라미터
-| 파라미터 | 값 | 탐색 범위 |
-|---------|-----|----------|
+### Hyperparameters
+| Parameter | Value | Search Range |
+|-----------|-------|-------------|
 | Learning Rate | 1e-3 | [1e-4, 1e-2] |
 | Batch Size | 32 | {16, 32, 64} |
 
-### 실험 환경
-- GPU: [모델명]
-- Framework: [PyTorch/TF 버전]
-- Random Seed: [시드 값]
+### Environment
+- GPU: [model name]
+- Framework: [PyTorch/TF version]
+- Random Seed: [seed value]
 ```
 
-#### B-3: 재현성 체크리스트
+#### B-3: Reproducibility Checklist
 
 ```markdown
-## 재현성 체크리스트
-- [ ] 랜덤 시드 고정 (모든 라이브러리)
-- [ ] 데이터 분할 방법 명시
-- [ ] 하이퍼파라미터 탐색 과정 기록
-- [ ] 실험 환경(하드웨어, 소프트웨어 버전) 기록
-- [ ] 코드 저장소 링크 또는 제출 계획
-- [ ] 실행 시간 및 자원 사용량 기록
-- [ ] 통계적 유의성 검증 (여러 번 실행, 평균±표준편차)
+## Reproducibility Checklist
+- [ ] Fixed random seeds (all libraries)
+- [ ] Data split method documented
+- [ ] Hyperparameter search process recorded
+- [ ] Experimental environment documented (hardware, software versions)
+- [ ] Code repository link or submission plan
+- [ ] Runtime and resource usage recorded
+- [ ] Statistical significance verified (multiple runs, mean ± std dev)
 ```
 
-### Part C: 통합 출력
+### Part C: Integrated Output
 
-문헌 조사와 실험 설계를 하나의 연구 계획서로 통합합니다.
+Combine the literature review and experiment design into a single research plan.
 
 ```markdown
-## 연구 계획서
+## Research Plan
 
-### 1. 배경 및 동기
-[갭 분석에서 도출]
+### 1. Background and Motivation
+[Derived from gap analysis]
 
-### 2. 연구 질문
-[RQ 목록]
+### 2. Research Questions
+[List of RQs]
 
-### 3. 제안 방법
-[실험에서 검증할 접근법]
+### 3. Proposed Method
+[Approach to be validated through experiments]
 
-### 4. 실험 계획
-[실험 설정 명세]
+### 4. Experiment Plan
+[Experiment setup specification]
 
-### 5. 예상 결과 및 기여
-[성공 시 어떤 기여가 되는지]
+### 5. Expected Results and Contributions
+[What contribution this work makes if successful]
 
-### 6. 일정
-[마일스톤별 타임라인]
+### 6. Timeline
+[Timeline by milestone]
 ```

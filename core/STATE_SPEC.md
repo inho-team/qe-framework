@@ -1,71 +1,71 @@
-# QE State Management 명세
+# QE State Management Specification
 
-## 상태 저장 구조
+## State Storage Structure
 
 ```
 .qe/state/
-├── {mode}-state.json              ← 레거시 (세션 미지정 시)
+├── {mode}-state.json              ← Legacy (when no session is specified)
 └── sessions/
     └── {sessionId}/
-        └── {mode}-state.json      ← 세션 격리
+        └── {mode}-state.json      ← Session-isolated
 ```
 
-## 상태 파일 형식
+## State File Format
 
 ```json
 {
   "active": true,
-  "started_at": "ISO 타임스탬프",
-  "updated_at": "ISO 타임스탬프",
-  "session_id": "세션 UUID",
+  "started_at": "ISO timestamp",
+  "updated_at": "ISO timestamp",
+  "session_id": "session UUID",
   "reinforcement_count": 0,
   "max_reinforcements": 20,
-  "original_prompt": "사용자 원본 요청"
+  "original_prompt": "original user request"
 }
 ```
 
-## 핵심 규칙
+## Core Rules
 
 ### Atomic Write
-- 임시 파일에 먼저 쓰고, rename으로 교체
-- 부분 쓰기로 인한 파일 손상 방지
+- Write to a temp file first, then replace via rename
+- Prevents file corruption from partial writes
 
-### Session 격리
-- sessionId가 있으면 `sessions/{sessionId}/` 하위에 저장
-- sessionId가 없으면 레거시 경로 사용
-- 읽기 시 세션 경로 → 레거시 경로 순으로 폴백
+### Session Isolation
+- If sessionId is present, store under `sessions/{sessionId}/`
+- If no sessionId, use the legacy path
+- On read, fall back in order: session path → legacy path
 
 ### Staleness Guard
-- 2시간(7,200,000ms) 이상 경과한 상태는 비활성으로 간주
-- 좀비 상태가 새 세션을 블로킹하는 것을 방지
+- State older than 2 hours (7,200,000 ms) is treated as inactive
+- Prevents zombie states from blocking new sessions
 
-### Reinforcement 제한
-- 각 모드에 max_reinforcements 설정 (기본 20)
-- Stop 훅에서 reinforcement_count가 max에 도달하면 블로킹 해제
-- 무한 루프 방지
+### Reinforcement Limit
+- Each mode has a max_reinforcements setting (default 20)
+- When reinforcement_count reaches max in the Stop hook, blocking is released
+- Prevents infinite loops
 
-## 사용 가능한 모드
+## Available Modes
 
-| 모드 | 설명 | Stop 블로킹 |
-|------|------|------------|
-| qrun-task | 작업 실행 중 | 예 |
-| qrefresh | 분석 갱신 중 | 예 |
-| qarchive | 아카이브 중 | 예 |
+| Mode | Description | Stop Blocking |
+|------|-------------|---------------|
+| qrun-task | Task execution in progress | Yes |
+| qrefresh | Analysis refresh in progress | Yes |
+| qarchive | Archiving in progress | Yes |
 
 ## API
 
 ```javascript
 import { readState, writeState, clearState, listActiveModes } from './lib/state.mjs';
 
-// 읽기
+// Read
 const state = readState(cwd, 'qrun-task', sessionId);
 
-// 쓰기
+// Write
 writeState(cwd, 'qrun-task', { original_prompt: '...' }, sessionId);
 
-// 삭제
+// Delete
 clearState(cwd, 'qrun-task', sessionId);
 
-// 활성 모드 목록
+// List active modes
 const modes = listActiveModes(cwd, sessionId);
 ```

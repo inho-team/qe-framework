@@ -1,194 +1,194 @@
 ---
 name: Qcode-run-task
-description: 코드 작업 완료 후 테스트→리뷰→수정→재테스트 품질 검증 루프를 수행합니다. Qrun-task에서 type: code 작업 시 자동 연계됩니다.
+description: Performs a test → review → fix → retest quality verification loop after code task completion. Automatically triggered from Qrun-task for type: code tasks.
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# 코드 품질 검증 루프 스킬
+# Code Quality Verification Loop Skill
 
-## 역할
-코드 구현이 완료된 후 **테스트 → 리뷰 → 수정 → 재테스트** 사이클을 수행하여 품질을 보장하는 어시스턴트입니다.
+## Role
+An assistant that ensures quality by performing a **test → review → fix → retest** cycle after code implementation is complete.
 
-## 전제 조건
-- `/Qrun-task`의 3단계(구현 실행)가 완료된 상태
-- TASK_REQUEST에 `type: code`가 명시된 작업
-- TASK_REQUEST와 VERIFY_CHECKLIST 문서가 존재
+## Prerequisites
+- Step 3 (implementation execution) of `/Qrun-task` is complete
+- Task has `type: code` specified in TASK_REQUEST
+- TASK_REQUEST and VERIFY_CHECKLIST documents exist
 
-## 워크플로우 개요
+## Workflow Overview
 
 ```
-Qrun-task 3단계 완료 (구현 완료)
+Qrun-task Step 3 complete (implementation done)
     ↓
-[Qcode-run-task 시작]
+[Qcode-run-task starts]
     ↓
-1단계: 컨텍스트 수집
+Step 1: Collect context
     ↓
-2단계: 테스트 (Ecode-test-engineer)
+Step 2: Test (Ecode-test-engineer)
     ↓
-3단계: 리뷰 (Ecode-reviewer)
+Step 3: Review (Ecode-reviewer)
     ↓
-4단계: 문제 있으면 → 수정 (Ecode-debugger) → 2단계로 복귀
-         문제 없으면 → 5단계
+Step 4: Issues found → Fix (Ecode-debugger) → Return to Step 2
+         No issues → Step 5
     ↓
-5단계: 결과 보고
+Step 5: Report results
 ```
 
-## 루프 제한
-- **최대 반복 횟수: 3회**
-- 매 반복마다 `AskUserQuestion`으로 계속 여부를 확인
-- 3회 초과 시 사용자에게 판단을 위임하고 현재 상태를 보고
+## Loop Limit
+- **Maximum iterations: 3**
+- Use `AskUserQuestion` to confirm continuation at each iteration
+- If 3 iterations are exceeded, delegate judgment to the user and report current state
 
-품질 루프 전체를 `Eqa-orchestrator` 서브에이전트에 위임하여 메인 컨텍스트 토큰을 절감할 수 있습니다. Eqa-orchestrator는 Ecode-test-engineer, Ecode-reviewer를 내부적으로 조율합니다.
+The entire quality loop can be delegated to the `Eqa-orchestrator` sub-agent to save main context tokens. Eqa-orchestrator internally coordinates Ecode-test-engineer and Ecode-reviewer.
 
-## 실행 절차
+## Execution Procedure
 
-### 1단계: 컨텍스트 수집
+### Step 1: Collect Context
 
-변경된 코드와 관련 문서를 파악합니다.
+Identify changed code and related documents.
 
-1. TASK_REQUEST_{UUID}.md를 읽어 작업 목표와 체크리스트 확인
-2. VERIFY_CHECKLIST_{UUID}.md를 읽어 검증 기준 확인
-3. 구현 단계에서 변경/생성된 파일 목록 수집
-   - `git diff --name-only`로 변경 파일 확인
-   - 변경 파일이 없으면 사용자에게 대상 파일을 질문
+1. Read TASK_REQUEST_{UUID}.md to confirm task goals and checklist
+2. Read VERIFY_CHECKLIST_{UUID}.md to confirm validation criteria
+3. Collect the list of files changed/created during the implementation step
+   - Use `git diff --name-only` to check changed files
+   - If no changed files, ask the user for target files
 
-**컨텍스트 요약 출력:**
+**Context summary output:**
 ```
-## 품질 검증 대상
+## Quality Verification Targets
 
-**작업:** [작업명] (UUID)
-**변경 파일:** N개
-- [파일 목록]
-**검증 기준:** M개 (VERIFY_CHECKLIST 참조)
-```
-
-### 2단계: 테스트
-
-Agent 도구로 `Ecode-test-engineer` 서브에이전트에 테스트를 위임합니다.
-
-**위임 시 전달 정보:**
-- 변경된 파일 목록과 경로
-- TASK_REQUEST의 "무엇을 원하는가" 섹션 (기능 목표)
-- VERIFY_CHECKLIST의 검증 기준
-- 프로젝트의 기존 테스트 구조와 패턴
-
-**테스트 범위:**
-- 변경된 코드에 대한 단위 테스트 작성/실행
-- VERIFY_CHECKLIST의 검증 기준에 해당하는 테스트
-- 기존 테스트가 있으면 회귀 테스트 실행
-
-**테스트 결과 수집:**
-```
-## 테스트 결과 (반복 N/3)
-
-- 통과: X개
-- 실패: Y개
-- 실패 항목:
-  - [테스트명] - [실패 사유]
+**Task:** [Task name] (UUID)
+**Changed files:** N files
+- [file list]
+**Validation criteria:** M items (see VERIFY_CHECKLIST)
 ```
 
-### 3단계: 리뷰
+### Step 2: Test
 
-Agent 도구로 `Ecode-reviewer` 서브에이전트에 코드 리뷰를 위임합니다.
+Delegate tests to the `Ecode-test-engineer` sub-agent via the Agent tool.
 
-**위임 시 전달 정보:**
-- 변경된 파일 목록과 경로
-- TASK_REQUEST의 참고사항 (제약조건)
-- 2단계 테스트 결과 (실패 항목 포함)
+**Information to pass on delegation:**
+- List of changed files and paths
+- "What is wanted" section from TASK_REQUEST (functional goals)
+- Validation criteria from VERIFY_CHECKLIST
+- Existing test structure and patterns in the project
 
-**리뷰 결과 수집:**
+**Test scope:**
+- Write/run unit tests for changed code
+- Tests corresponding to VERIFY_CHECKLIST validation criteria
+- Run regression tests if existing tests are present
+
+**Collect test results:**
 ```
-## 리뷰 결과 (반복 N/3)
+## Test Results (Iteration N/3)
 
-### Critical (반드시 수정)
-- [파일:라인] 설명
-
-### Warning (수정 권장)
-- [파일:라인] 설명
-
-### Suggestion (개선 제안)
-- [파일:라인] 설명
+- Passed: X
+- Failed: Y
+- Failed items:
+  - [test name] - [failure reason]
 ```
 
-### 4단계: 판정 및 수정
+### Step 3: Review
 
-테스트 결과와 리뷰 결과를 종합하여 판정합니다.
+Delegate code review to the `Ecode-reviewer` sub-agent via the Agent tool.
 
-**통과 조건:**
-- 테스트 실패 0개
-- 리뷰 Critical 0개
+**Information to pass on delegation:**
+- List of changed files and paths
+- Notes from TASK_REQUEST (constraints)
+- Step 2 test results (including failed items)
 
-**통과 시:** → 5단계로 진행
+**Collect review results:**
+```
+## Review Results (Iteration N/3)
 
-**미통과 시:**
+### Critical (must fix)
+- [file:line] description
 
-1. 발견된 문제를 사용자에게 보고
-2. `AskUserQuestion`으로 확인:
-   - "수정 후 재검증" → 수정 진행
-   - "이대로 완료" → 5단계로 진행 (Warning/Suggestion은 무시 가능)
-   - "중단" → 현재 상태 보고 후 종료
+### Warning (recommended fix)
+- [file:line] description
 
-3. 수정이 필요한 경우:
-   - Agent 도구로 `Ecode-debugger` 서브에이전트에 수정을 위임
-   - 위임 시 전달: 테스트 실패 내역 + 리뷰 Critical 항목 + 관련 코드
-   - 수정 완료 후 **2단계(테스트)로 복귀** → 루프 카운터 +1
+### Suggestion (improvement proposal)
+- [file:line] description
+```
 
-4. **루프 카운터가 3에 도달하면:**
+### Step 4: Judgment and Fix
+
+Assess based on combined test and review results.
+
+**Pass criteria:**
+- 0 test failures
+- 0 review Critical items
+
+**On pass:** → Proceed to Step 5
+
+**On failure:**
+
+1. Report discovered issues to the user
+2. Confirm with `AskUserQuestion`:
+   - "Fix and re-verify" → proceed with fix
+   - "Complete as-is" → proceed to Step 5 (Warning/Suggestion can be ignored)
+   - "Stop" → report current state and exit
+
+3. If a fix is needed:
+   - Delegate the fix to the `Ecode-debugger` sub-agent via Agent tool
+   - Pass on delegation: test failure details + review Critical items + related code
+   - After fix is complete, **return to Step 2 (test)** → loop counter +1
+
+4. **When loop counter reaches 3:**
    ```
-   ## 루프 제한 도달 (3/3회)
+   ## Loop Limit Reached (3/3)
 
-   아직 해결되지 않은 문제:
-   - [남은 문제 목록]
+   Issues not yet resolved:
+   - [remaining issue list]
 
-   사용자의 판단이 필요합니다.
+   User judgment is required.
    ```
-   - `AskUserQuestion`으로 확인: "추가 시도" / "이대로 완료" / "수동 수정"
+   - Confirm with `AskUserQuestion`: "Additional attempt" / "Complete as-is" / "Manual fix"
 
-### 5단계: 결과 보고
+### Step 5: Report Results
 
-최종 결과를 정리하여 보고합니다.
+Summarize and report final results.
 
 ```markdown
-## 품질 검증 완료: [작업명]
+## Quality Verification Complete: [Task Name]
 
 **UUID:** {UUID}
-**반복 횟수:** N/3회
-**최종 상태:** 통과 / 부분 통과 (사용자 승인)
+**Iterations:** N/3
+**Final status:** Pass / Partial pass (user approved)
 
-### 테스트 결과
-- 통과: X개 / 실패: Y개
+### Test Results
+- Passed: X / Failed: Y
 
-### 리뷰 결과
-- Critical: 0개 / Warning: N개 / Suggestion: M개
+### Review Results
+- Critical: 0 / Warning: N / Suggestion: M
 
-### 수정 이력
-| 반복 | 발견 문제 | 수정 내용 |
-|------|----------|----------|
-| 1회  | [문제]    | [수정]    |
-| 2회  | [문제]    | [수정]    |
+### Fix History
+| Iteration | Issue Found | Fix Applied |
+|-----------|-------------|-------------|
+| 1         | [issue]     | [fix]       |
+| 2         | [issue]     | [fix]       |
 
-### 변경된 파일 (최종)
-- [파일 목록]
+### Changed Files (final)
+- [file list]
 ```
 
-## Qrun-task 연계
+## Qrun-task Integration
 
-이 스킬은 독립적으로 `/Qcode-run-task`로 호출할 수도 있고, Qrun-task에서 자동 연계될 수도 있습니다.
+This skill can be called independently as `/Qcode-run-task`, or it can be automatically triggered from Qrun-task.
 
-### 독립 호출 시
+### Independent Call
 ```
 /Qcode-run-task {UUID}
 ```
-- 해당 UUID의 TASK_REQUEST와 VERIFY_CHECKLIST를 참조
-- 변경 파일은 git diff로 자동 감지
+- References TASK_REQUEST and VERIFY_CHECKLIST for the given UUID
+- Changed files are auto-detected via git diff
 
-### Qrun-task 연계 시
-- Qrun-task 3단계 완료 후 `type: code`이면 자동 진입
-- Qrun-task가 수집한 변경 파일 목록을 그대로 활용
-- 품질 검증 완료 후 Qrun-task의 4단계(최종 검증)로 복귀
+### Triggered from Qrun-task
+- Automatically entered after Qrun-task Step 3 is complete when `type: code`
+- Uses the changed file list already collected by Qrun-task
+- Returns to Qrun-task Step 4 (final verification) after quality verification is complete
 
-## 역할 제한
-- 이 스킬은 **테스트, 리뷰, 수정 루프**에만 집중합니다
-- 새로운 기능 추가나 요구사항 변경은 하지 않습니다
-- 수정 범위는 발견된 문제 해결에 한정합니다
+## Role Constraints
+- This skill focuses exclusively on the **test, review, and fix loop**
+- Does not add new features or change requirements
+- Fix scope is limited to resolving discovered issues

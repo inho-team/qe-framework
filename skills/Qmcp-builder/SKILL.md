@@ -1,11 +1,11 @@
 ---
 name: Qmcp-builder
-description: "MCP(Model Context Protocol) 서버 생성 가이드. Python(FastMCP) 또는 TypeScript(MCP SDK)로 LLM이 외부 서비스와 상호작용하는 MCP 서버를 빌드할 때 사용."
+description: "MCP (Model Context Protocol) server creation guide. Use when building MCP servers that allow LLMs to interact with external services using Python (FastMCP) or TypeScript (MCP SDK)."
 metadata:
   source: https://skills.sh/anthropics/skills/mcp-builder
   author: anthropic
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # MCP Server Development Guide

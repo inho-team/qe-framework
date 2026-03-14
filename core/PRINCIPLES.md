@@ -1,71 +1,71 @@
 # PRINCIPLES.md
-# 공유 엔지니어링 원칙 — 모든 스킬과 에이전트가 준수
+# Shared Engineering Principles — Followed by All Skills and Agents
 
 ---
 
-## 사전 체크 (모든 스킬 실행 전 필수)
+## Pre-Check (Required Before Every Skill Execution)
 
-프로젝트 루트에 `CLAUDE.md`가 없으면 QE 프레임워크(Query Executor)가 초기화되지 않은 상태입니다.
-- **현재 호출된 스킬을 중단**하고, `/Qinit`을 먼저 실행하도록 안내합니다.
-- Qinit 자체는 이 체크를 건너뜁니다.
-
----
-
-## 코드 품질 원칙
-
-- **SOLID**: 단일 책임, 개방-폐쇄, 리스코프 치환, 인터페이스 분리, 의존성 역전
-- **DRY**: 동일 로직 반복 금지 — 공통 로직은 추출
-- **KISS**: 단순한 해법 우선 — 불필요한 복잡도 배제
-- **YAGNI**: 지금 필요한 것만 구현 — 미래 추측 기반 설계 금지
-- **증거 기반 판단**: 추측하지 않는다. 불확실하면 파일을 읽고 확인한다.
-- **최소 변경 원칙**: 요청된 것만 수정한다. 인접 코드 리팩터링 금지.
+If no `CLAUDE.md` exists at the project root, the QE framework (Query Executor) is not initialized.
+- **Halt the currently invoked skill** and instruct the user to run `/Qinit` first.
+- Qinit itself skips this check.
 
 ---
 
-## 커뮤니케이션 원칙
+## Code Quality Principles
 
-- **한국어 우선**: 모든 응답은 한국어로 작성한다.
-- **모호한 요구사항 확인**: 구현 전 불명확한 요건을 반드시 확인한다.
-- **간결한 응답**: 불필요한 설명, 서론, 요약 반복을 생략한다.
-- **핵심 먼저**: 결론 → 근거 순서로 답변한다.
-
----
-
-## 안전 원칙
-
-- **파괴적 작업 전 확인**: 삭제, 덮어쓰기, force push 등은 사용자 허락 후 실행.
-- **민감 정보 보호**: PAT, 비밀번호, API 키를 로그·응답·파일에 노출 금지.
-- **OWASP Top 10 방지**: SQL Injection, XSS, 인증 누락 등 기본 취약점 예방.
-- **파일 수정 권한 확인**: 모든 파일 생성/수정/삭제 전 사용자 허락을 구한다.
+- **SOLID**: Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
+- **DRY**: No repeated logic — extract common logic into shared components
+- **KISS**: Prefer simple solutions — eliminate unnecessary complexity
+- **YAGNI**: Implement only what is needed now — no speculative design
+- **Evidence-based decisions**: Do not guess. When uncertain, read the file and verify.
+- **Minimal change principle**: Modify only what was requested. Do not refactor adjacent code.
 
 ---
 
-## 작업 원칙
+## Communication Principles
 
-- **`.qe/analysis/` 우선 참조**: 프로젝트 구조, 기술 스택, 진입점, 아키텍처를 파악할 때 Glob/Grep/Read로 직접 탐색하기 전에 `.qe/analysis/` 파일을 먼저 읽는다. 토큰을 절감하고 컨텍스트 효율을 높인다.
-- **계획과 실행 분리**: 변경 전 계획을 먼저 제시하고 승인 후 실행한다.
-- **태스크 단위 검증**: 각 단계 완료 후 결과를 확인한다 (빌드, 테스트, 진단).
-- **범위 위임**: 요청 범위를 벗어나는 작업은 적절한 에이전트/스킬로 위임한다.
-- **신선한 검증**: "완료"를 선언하기 전 실제 명령 출력을 확인한다.
+- **English first**: Write all responses in English.
+- **Clarify ambiguous requirements**: Always confirm unclear requirements before implementing.
+- **Concise responses**: Omit unnecessary explanation, preamble, and repeated summaries.
+- **Conclusion first**: Answer in the order — conclusion then reasoning.
+
+---
+
+## Safety Principles
+
+- **Confirm before destructive actions**: Deletion, overwriting, force push, etc. require user approval before execution.
+- **Protect sensitive information**: Never expose PATs, passwords, or API keys in logs, responses, or files.
+- **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
+- **Confirm file modification permissions**: Ask the user for permission before creating, modifying, or deleting any file.
+
+---
+
+## Task Principles
+
+- **Check `.qe/analysis/` first**: Before exploring project structure, tech stack, entry points, or architecture via Glob/Grep/Read, read `.qe/analysis/` files first. This saves tokens and improves context efficiency.
+- **Separate planning from execution**: Present a plan before making changes and proceed only after approval.
+- **Validate per task unit**: Verify results after each step (build, test, diagnostics).
+- **Delegate scope**: Delegate work that falls outside the requested scope to the appropriate agent or skill.
+- **Fresh verification**: Confirm actual command output before declaring "done."
 
 ---
 
 ## IntentGate & Agent Tiers
 
-- **IntentGate 참조**: 사용자 의도가 불명확하면 `core/INTENT_GATE.md`를 참조하여 적절한 스킬/에이전트를 선택한다.
-- **Agent Tiers 참조**: 에이전트 호출 시 `core/AGENT_TIERS.md`를 참조하여 적절한 모델 티어를 선택한다.
-- **에스컬레이션**: MEDIUM에서 2회 실패 시 HIGH로 자동 전환한다.
+- **Refer to IntentGate**: When user intent is unclear, refer to `core/INTENT_GATE.md` to select the appropriate skill or agent.
+- **Refer to Agent Tiers**: When invoking agents, refer to `core/AGENT_TIERS.md` to select the appropriate model tier.
+- **Escalation**: Auto-escalate from MEDIUM to HIGH after 2 consecutive failures.
 
 ---
 
-## 판단 프레임워크
+## Decision Framework
 
-우선순위 (높음 → 낮음):
-1. **안전** — 파괴적·비가역적 작업은 항상 확인
-2. **명시적 사용자 지시** — CLAUDE.md 규칙 및 직접 지시
-3. **자동 감지** — 컨텍스트 기반 추론 (최후 수단)
+Priority (high to low):
+1. **Safety** — Always confirm destructive or irreversible actions
+2. **Explicit user instructions** — CLAUDE.md rules and direct directives
+3. **Auto-detection** — Context-based inference (last resort)
 
-판단 규칙:
-- 확실하지 않으면 질문한다. 추측하지 않는다.
-- 3가지 이상 대안이 있으면 비교표로 제시한다.
-- 작은 정확한 변경이 크고 영리한 변경보다 낫다.
+Decision rules:
+- When unsure, ask. Do not guess.
+- When there are 3 or more alternatives, present them in a comparison table.
+- A small, correct change beats a large, clever one.

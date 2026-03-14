@@ -1,11 +1,11 @@
 ---
 name: Qpdf
-description: "PDF 파일 관련 모든 작업에 사용합니다. PDF 읽기/텍스트 추출, 병합, 분할, 회전, 워터마크, 생성, 양식 작성, 암호화/복호화, 이미지 추출, OCR 등."
+description: "Use for all PDF-related tasks: reading/text extraction, merging, splitting, rotating, watermarking, creating, form filling, encryption/decryption, image extraction, OCR, and more."
 metadata:
   source: https://skills.sh/anthropics/skills/pdf
   author: anthropic
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # PDF Processing Guide

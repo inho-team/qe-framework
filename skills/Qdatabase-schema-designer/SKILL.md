@@ -1,26 +1,26 @@
 ---
 name: Qdatabase-schema-designer
-description: 견고하고 확장 가능한 SQL/NoSQL 데이터베이스 스키마를 설계합니다. 정규화 가이드라인, 인덱싱 전략, 마이그레이션 패턴, 제약조건 설계, 성능 최적화를 제공합니다.
+description: Designs robust, scalable SQL/NoSQL database schemas. Provides normalization guidelines, indexing strategies, migration patterns, constraint design, and performance optimization.
 license: MIT
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
-# 데이터베이스 스키마 설계
+# Database Schema Design
 
-프로덕션 수준의 데이터베이스 스키마를 모범 사례를 반영하여 설계합니다.
+Designs production-grade database schemas following best practices.
 
 ---
 
-## 빠른 시작
+## Quick Start
 
-데이터 모델을 설명하면 됩니다:
+Just describe your data model:
 
 ```
-이커머스 플랫폼용 스키마를 설계해줘 - 사용자, 상품, 주문이 필요해
+Design a schema for an e-commerce platform — I need users, products, and orders
 ```
 
-다음과 같은 완전한 SQL 스키마를 받게 됩니다:
+You'll receive a complete SQL schema like this:
 
 ```sql
 CREATE TABLE users (
@@ -37,178 +37,178 @@ CREATE TABLE orders (
 );
 ```
 
-**요청에 포함하면 좋은 것들:**
-- 엔티티 (사용자, 상품, 주문)
-- 주요 관계 (사용자가 주문을 가지고, 주문에 항목이 있음)
-- 규모 힌트 (고트래픽, 수백만 레코드)
-- DB 선호도 (SQL/NoSQL) - 미지정 시 SQL 기본
+**Helpful to include in your request:**
+- Entities (users, products, orders)
+- Key relationships (users have orders, orders have items)
+- Scale hints (high traffic, millions of records)
+- DB preference (SQL/NoSQL) — defaults to SQL if unspecified
 
 ---
 
-## 트리거
+## Triggers
 
-| 트리거 | 예시 |
-|--------|------|
-| `스키마 설계` | "사용자 인증용 스키마 설계해줘" |
-| `데이터베이스 설계` | "멀티테넌트 SaaS용 DB 설계" |
-| `테이블 생성` | "블로그 시스템 테이블 만들어줘" |
-| `schema for` | "재고 관리용 스키마" |
-| `데이터 모델링` | "실시간 분석용 데이터 모델링" |
-| `DB가 필요해` | "주문 추적용 DB가 필요해" |
-| `NoSQL 설계` | "상품 카탈로그용 NoSQL 스키마 설계" |
-
----
-
-## 핵심 용어
-
-| 용어 | 정의 |
-|------|------|
-| **정규화** | 중복을 줄이기 위한 데이터 구성 (1NF -> 2NF -> 3NF) |
-| **3NF** | 제3정규형 - 컬럼 간 이행 종속성 없음 |
-| **OLTP** | 온라인 트랜잭션 처리 - 쓰기 중심, 정규화 필요 |
-| **OLAP** | 온라인 분석 처리 - 읽기 중심, 비정규화가 유리 |
-| **외래 키(FK)** | 다른 테이블의 기본 키를 참조하는 컬럼 |
-| **인덱스** | 쿼리 속도를 높이는 자료구조 (쓰기 속도 저하 비용) |
-| **접근 패턴** | 앱이 데이터를 읽고 쓰는 방식 (쿼리, 조인, 필터) |
-| **비정규화** | 읽기 속도를 높이기 위해 의도적으로 데이터를 중복 저장 |
+| Trigger | Example |
+|---------|---------|
+| `design schema` | "Design a schema for user authentication" |
+| `database design` | "Design a DB for a multi-tenant SaaS" |
+| `create tables` | "Create tables for a blog system" |
+| `schema for` | "Schema for inventory management" |
+| `data modeling` | "Data modeling for real-time analytics" |
+| `need a DB` | "I need a DB for order tracking" |
+| `NoSQL design` | "Design a NoSQL schema for a product catalog" |
 
 ---
 
-## 빠른 참조
+## Key Terms
 
-| 작업 | 접근법 | 핵심 고려사항 |
-|------|--------|--------------|
-| 새 스키마 | 먼저 3NF로 정규화 | UI보다 도메인 모델링 우선 |
-| SQL vs NoSQL | 접근 패턴으로 결정 | 읽기/쓰기 비율이 중요 |
-| 기본 키 | INT 또는 UUID | 분산 시스템이면 UUID |
-| 외래 키 | 항상 제약조건 설정 | ON DELETE 전략이 핵심 |
-| 인덱스 | FK + WHERE 컬럼 | 컬럼 순서가 중요 |
-| 마이그레이션 | 항상 되돌릴 수 있게 | 하위 호환성 우선 |
+| Term | Definition |
+|------|------------|
+| **Normalization** | Organizing data to reduce redundancy (1NF → 2NF → 3NF) |
+| **3NF** | Third Normal Form — no transitive dependencies between columns |
+| **OLTP** | Online Transaction Processing — write-heavy, requires normalization |
+| **OLAP** | Online Analytical Processing — read-heavy, denormalization can help |
+| **Foreign Key (FK)** | A column referencing the primary key of another table |
+| **Index** | A data structure that speeds up queries (at the cost of write speed) |
+| **Access Pattern** | How the app reads and writes data (queries, joins, filters) |
+| **Denormalization** | Intentionally storing redundant data to improve read performance |
 
 ---
 
-## 프로세스 개요
+## Quick Reference
+
+| Task | Approach | Key Consideration |
+|------|----------|-------------------|
+| New schema | Normalize to 3NF first | Model the domain, not the UI |
+| SQL vs NoSQL | Decide based on access patterns | Read/write ratio matters |
+| Primary key | INT or UUID | Use UUID for distributed systems |
+| Foreign key | Always add constraints | ON DELETE strategy is critical |
+| Index | FK + WHERE columns | Column order matters |
+| Migration | Always make it reversible | Backward compatibility first |
+
+---
+
+## Process Overview
 
 ```
-데이터 요구사항
+Data Requirements
     |
     v
 +-----------------------------------------------------+
-| 1단계: 분석                                          |
-| * 엔티티와 관계 식별                                  |
-| * 접근 패턴 파악 (읽기 vs 쓰기 비중)                   |
-| * 요구사항에 따라 SQL 또는 NoSQL 선택                   |
-+-----------------------------------------------------+
-    |
-    v
-+-----------------------------------------------------+
-| 2단계: 설계                                          |
-| * 3NF로 정규화(SQL) 또는 임베드/참조(NoSQL)             |
-| * 기본 키, 외래 키 정의                                |
-| * 적절한 데이터 타입 선택                               |
-| * 제약조건 추가 (UNIQUE, CHECK, NOT NULL)              |
+| Step 1: Analysis                                     |
+| * Identify entities and relationships                |
+| * Understand access patterns (read vs. write ratio)  |
+| * Choose SQL or NoSQL based on requirements          |
 +-----------------------------------------------------+
     |
     v
 +-----------------------------------------------------+
-| 3단계: 최적화                                        |
-| * 인덱싱 전략 수립                                    |
-| * 읽기 중심 쿼리에 비정규화 고려                        |
-| * 타임스탬프 추가 (created_at, updated_at)             |
+| Step 2: Design                                       |
+| * Normalize to 3NF (SQL) or embed/reference (NoSQL) |
+| * Define primary keys and foreign keys               |
+| * Choose appropriate data types                      |
+| * Add constraints (UNIQUE, CHECK, NOT NULL)          |
 +-----------------------------------------------------+
     |
     v
 +-----------------------------------------------------+
-| 4단계: 마이그레이션                                   |
-| * 마이그레이션 스크립트 생성 (up + down)                 |
-| * 하위 호환성 보장                                     |
-| * 무중단 배포 계획                                     |
+| Step 3: Optimization                                 |
+| * Define indexing strategy                           |
+| * Consider denormalization for read-heavy queries    |
+| * Add timestamps (created_at, updated_at)            |
 +-----------------------------------------------------+
     |
     v
-프로덕션 준비 완료 스키마
++-----------------------------------------------------+
+| Step 4: Migration                                    |
+| * Generate migration scripts (up + down)             |
+| * Ensure backward compatibility                      |
+| * Plan for zero-downtime deployment                  |
++-----------------------------------------------------+
+    |
+    v
+Production-Ready Schema
 ```
 
 ---
 
-## 명령어
+## Commands
 
-| 명령어 | 사용 시점 | 동작 |
-|--------|----------|------|
-| `{도메인}용 스키마 설계` | 새로 시작할 때 | 전체 스키마 생성 |
-| `{테이블} 정규화` | 기존 테이블 수정 | 정규화 규칙 적용 |
-| `{테이블}에 인덱스 추가` | 성능 문제 시 | 인덱스 전략 생성 |
-| `{변경}에 대한 마이그레이션` | 스키마 진화 | 되돌릴 수 있는 마이그레이션 생성 |
-| `스키마 리뷰` | 코드 리뷰 | 기존 스키마 감사 |
-
----
-
-## 핵심 원칙
-
-| 원칙 | 이유 | 구현 |
-|------|------|------|
-| 도메인을 모델링하라 | UI는 변하지만 도메인은 안 변함 | 엔티티명이 비즈니스 개념을 반영 |
-| 데이터 무결성 우선 | 손상은 복구 비용이 큼 | DB 수준에서 제약조건 |
-| 접근 패턴에 최적화 | 둘 다 최적화는 불가 | OLTP: 정규화, OLAP: 비정규화 |
-| 확장을 계획하라 | 사후 대응은 고통스러움 | 인덱스 전략 + 파티셔닝 계획 |
+| Command | When to Use | Action |
+|---------|-------------|--------|
+| `Design schema for {domain}` | Starting fresh | Generate full schema |
+| `Normalize {table}` | Fixing existing tables | Apply normalization rules |
+| `Add index to {table}` | Performance issues | Generate indexing strategy |
+| `Migration for {change}` | Schema evolution | Create reversible migration |
+| `Review schema` | Code review | Audit existing schema |
 
 ---
 
-## 안티패턴
+## Core Principles
 
-| 피할 것 | 이유 | 대신 |
-|---------|------|------|
-| 모든 곳에 VARCHAR(255) | 저장소 낭비, 의도 숨김 | 필드별 적절한 크기 지정 |
-| 금액에 FLOAT | 반올림 오류 | DECIMAL(10,2) |
-| FK 제약조건 누락 | 고아 데이터 발생 | 항상 외래 키 정의 |
-| FK에 인덱스 없음 | 느린 JOIN | 모든 FK에 인덱스 |
-| 날짜를 문자열로 저장 | 비교/정렬 불가 | DATE, TIMESTAMP 타입 |
-| 쿼리에 SELECT * | 불필요한 데이터 가져옴 | 명시적 컬럼 목록 |
-| 되돌릴 수 없는 마이그레이션 | 롤백 불가 | 항상 DOWN 마이그레이션 작성 |
-| 기본값 없이 NOT NULL 추가 | 기존 행 깨짐 | nullable로 추가, 백필, 그 후 제약 |
+| Principle | Why | How |
+|-----------|-----|-----|
+| Model the domain | UIs change; domains don't | Entity names reflect business concepts |
+| Data integrity first | Corruption is expensive to fix | Enforce constraints at the DB level |
+| Optimize for access patterns | Can't optimize for both | OLTP: normalize; OLAP: denormalize |
+| Plan for scale | Retrofitting is painful | Define index strategy + partitioning plan |
 
 ---
 
-## 검증 체크리스트
+## Anti-Patterns
 
-스키마 설계 후:
+| Avoid | Why | Instead |
+|-------|-----|---------|
+| VARCHAR(255) everywhere | Wastes storage, hides intent | Use appropriate size per field |
+| FLOAT for money | Rounding errors | DECIMAL(10,2) |
+| Missing FK constraints | Creates orphaned data | Always define foreign keys |
+| No index on FK | Slow JOINs | Index every FK |
+| Dates stored as strings | Can't compare or sort | Use DATE, TIMESTAMP types |
+| SELECT * in queries | Fetches unnecessary data | Use explicit column lists |
+| Irreversible migrations | Can't roll back | Always write DOWN migrations |
+| Adding NOT NULL without default | Breaks existing rows | Add as nullable, backfill, then constrain |
 
-- [ ] 모든 테이블에 기본 키가 있는가
-- [ ] 모든 관계에 외래 키 제약조건이 있는가
-- [ ] 각 FK에 ON DELETE 전략이 정의되었는가
-- [ ] 모든 외래 키에 인덱스가 있는가
-- [ ] 자주 조회하는 컬럼에 인덱스가 있는가
-- [ ] 적절한 데이터 타입인가 (금액에 DECIMAL 등)
-- [ ] 필수 필드에 NOT NULL이 있는가
-- [ ] 필요한 곳에 UNIQUE 제약조건이 있는가
-- [ ] 유효성 검증을 위한 CHECK 제약조건이 있는가
-- [ ] created_at과 updated_at 타임스탬프가 있는가
-- [ ] 마이그레이션 스크립트가 되돌릴 수 있는가
-- [ ] 스테이징에서 프로덕션 데이터로 테스트했는가
+---
+
+## Validation Checklist
+
+After designing a schema:
+
+- [ ] Every table has a primary key
+- [ ] Every relationship has a foreign key constraint
+- [ ] ON DELETE strategy defined for each FK
+- [ ] Index on every foreign key
+- [ ] Index on frequently queried columns
+- [ ] Appropriate data types (DECIMAL for money, etc.)
+- [ ] NOT NULL on required fields
+- [ ] UNIQUE constraints where needed
+- [ ] CHECK constraints for validation
+- [ ] created_at and updated_at timestamps present
+- [ ] Migration scripts are reversible
+- [ ] Tested with production-representative data on staging
 
 ---
 
 <details>
-<summary><strong>심화: 정규화 (SQL)</strong></summary>
+<summary><strong>Deep Dive: Normalization (SQL)</strong></summary>
 
-### 정규형
+### Normal Forms
 
-| 정규형 | 규칙 | 위반 예시 |
-|--------|------|----------|
-| **1NF** | 원자 값, 반복 그룹 없음 | `product_ids = '1,2,3'` |
-| **2NF** | 1NF + 부분 종속성 없음 | order_items에 customer_name |
-| **3NF** | 2NF + 이행 종속성 없음 | postal_code에서 파생된 country |
+| Form | Rule | Violation Example |
+|------|------|------------------|
+| **1NF** | Atomic values, no repeating groups | `product_ids = '1,2,3'` |
+| **2NF** | 1NF + no partial dependencies | customer_name in order_items |
+| **3NF** | 2NF + no transitive dependencies | country derived from postal_code |
 
-### 제1정규형 (1NF)
+### First Normal Form (1NF)
 
 ```sql
--- 나쁨: 컬럼에 다중 값
+-- Bad: multiple values in a column
 CREATE TABLE orders (
   id INT PRIMARY KEY,
   product_ids VARCHAR(255)  -- '101,102,103'
 );
 
--- 좋음: 항목용 별도 테이블
+-- Good: separate table for items
 CREATE TABLE orders (
   id INT PRIMARY KEY,
   customer_id INT
@@ -221,90 +221,90 @@ CREATE TABLE order_items (
 );
 ```
 
-### 제2정규형 (2NF)
+### Second Normal Form (2NF)
 
 ```sql
--- 나쁨: customer_name이 customer_id에만 종속
+-- Bad: customer_name depends only on customer_id, not the composite key
 CREATE TABLE order_items (
   order_id INT,
   product_id INT,
-  customer_name VARCHAR(100),  -- 부분 종속!
+  customer_name VARCHAR(100),  -- partial dependency!
   PRIMARY KEY (order_id, product_id)
 );
 
--- 좋음: 고객 데이터를 별도 테이블에
+-- Good: customer data in its own table
 CREATE TABLE customers (
   id INT PRIMARY KEY,
   name VARCHAR(100)
 );
 ```
 
-### 제3정규형 (3NF)
+### Third Normal Form (3NF)
 
 ```sql
--- 나쁨: country가 postal_code에 종속
+-- Bad: country depends on postal_code (transitive dependency)
 CREATE TABLE customers (
   id INT PRIMARY KEY,
   postal_code VARCHAR(10),
-  country VARCHAR(50)  -- 이행 종속!
+  country VARCHAR(50)  -- transitive dependency!
 );
 
--- 좋음: postal_codes 테이블 분리
+-- Good: separate postal_codes table
 CREATE TABLE postal_codes (
   code VARCHAR(10) PRIMARY KEY,
   country VARCHAR(50)
 );
 ```
 
-### 비정규화가 필요한 경우
+### When to Denormalize
 
-| 시나리오 | 비정규화 전략 |
-|----------|-------------|
-| 읽기 중심 리포팅 | 미리 계산된 집계 |
-| 비용 높은 JOIN | 캐시된 파생 컬럼 |
-| 분석 대시보드 | 구체화된 뷰 |
+| Scenario | Denormalization Strategy |
+|----------|------------------------|
+| Read-heavy reporting | Pre-computed aggregates |
+| Expensive JOINs | Cached derived columns |
+| Analytics dashboards | Materialized views |
 
 </details>
 
 <details>
-<summary><strong>심화: 데이터 타입</strong></summary>
+<summary><strong>Deep Dive: Data Types</strong></summary>
 
-### 문자열 타입
+### String Types
 
-| 타입 | 용도 | 예시 |
-|------|------|------|
-| CHAR(n) | 고정 길이 | 국가 코드, ISO 날짜 |
-| VARCHAR(n) | 가변 길이 | 이름, 이메일 |
-| TEXT | 긴 콘텐츠 | 기사, 설명 |
+| Type | Use Case | Example |
+|------|----------|---------|
+| CHAR(n) | Fixed length | Country codes, ISO dates |
+| VARCHAR(n) | Variable length | Names, emails |
+| TEXT | Long content | Articles, descriptions |
 
-### 숫자 타입
+### Numeric Types
 
-| 타입 | 범위 | 용도 |
-|------|------|------|
-| TINYINT | -128 ~ 127 | 나이, 상태 코드 |
-| SMALLINT | -32K ~ 32K | 수량 |
-| INT | -21억 ~ 21억 | ID, 카운트 |
-| BIGINT | 매우 큰 범위 | 대규모 ID, 타임스탬프 |
-| DECIMAL(p,s) | 정확한 정밀도 | 금액 |
-| FLOAT/DOUBLE | 근사값 | 과학 데이터 |
+| Type | Range | Use Case |
+|------|-------|----------|
+| TINYINT | -128 to 127 | Age, status codes |
+| SMALLINT | -32K to 32K | Quantities |
+| INT | -2.1B to 2.1B | IDs, counts |
+| BIGINT | Very large | Large-scale IDs, timestamps |
+| DECIMAL(p,s) | Exact precision | Money |
+| FLOAT/DOUBLE | Approximate | Scientific data |
 
 ```sql
--- 금액에는 반드시 DECIMAL
+-- Always use DECIMAL for money
 price DECIMAL(10, 2)  -- $99,999,999.99
 
--- 금액에 절대 FLOAT 사용 금지
-price FLOAT  -- 반올림 오류!
+-- Never use FLOAT for money
+price FLOAT  -- rounding errors!
 ```
 
-### 날짜/시간 타입
+### Date/Time Types
 
 ```sql
 DATE        -- 2025-10-31
 TIME        -- 14:30:00
 DATETIME    -- 2025-10-31 14:30:00
-TIMESTAMP   -- 자동 시간대 변환
+TIMESTAMP   -- auto timezone conversion
 
--- 항상 UTC로 저장
+-- Always store in UTC
 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 ```
@@ -312,81 +312,81 @@ updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
 </details>
 
 <details>
-<summary><strong>심화: 인덱싱 전략</strong></summary>
+<summary><strong>Deep Dive: Indexing Strategy</strong></summary>
 
-### 인덱스를 만들어야 할 때
+### When to Create an Index
 
-| 항상 인덱스 | 이유 |
-|------------|------|
-| 외래 키 | JOIN 속도 향상 |
-| WHERE 절 컬럼 | 필터링 속도 향상 |
-| ORDER BY 컬럼 | 정렬 속도 향상 |
-| 유니크 제약조건 | 고유성 보장 |
+| Always Index | Why |
+|-------------|-----|
+| Foreign keys | Speeds up JOINs |
+| WHERE clause columns | Speeds up filtering |
+| ORDER BY columns | Speeds up sorting |
+| UNIQUE constraints | Enforces uniqueness |
 
-### 인덱스 타입
+### Index Types
 
-| 타입 | 적합한 경우 | 예시 |
-|------|------------|------|
-| B-Tree | 범위, 동등 비교 | `price > 100` |
-| Hash | 정확한 일치만 | `email = 'x@y.com'` |
-| Full-text | 텍스트 검색 | `MATCH AGAINST` |
-| Partial | 행의 부분집합 | `WHERE is_active = true` |
+| Type | Best For | Example |
+|------|----------|---------|
+| B-Tree | Range and equality | `price > 100` |
+| Hash | Exact match only | `email = 'x@y.com'` |
+| Full-text | Text search | `MATCH AGAINST` |
+| Partial | Subset of rows | `WHERE is_active = true` |
 
-### 복합 인덱스 순서
+### Composite Index Column Order
 
 ```sql
 CREATE INDEX idx_customer_status ON orders(customer_id, status);
 
--- 인덱스 사용 (customer_id가 첫 번째)
+-- Uses index (customer_id is first)
 SELECT * FROM orders WHERE customer_id = 123;
 SELECT * FROM orders WHERE customer_id = 123 AND status = 'pending';
 
--- 인덱스 사용 안 됨 (status만 단독)
+-- Does NOT use index (status alone)
 SELECT * FROM orders WHERE status = 'pending';
 ```
 
-**규칙:** 선택도가 가장 높은 컬럼을 먼저, 또는 단독으로 가장 많이 조회되는 컬럼을 먼저.
+**Rule:** Put the most selective column first, or the column most often queried alone.
 
 </details>
 
 <details>
-<summary><strong>심화: 제약조건</strong></summary>
+<summary><strong>Deep Dive: Constraints</strong></summary>
 
-### 기본 키
+### Primary Keys
 
 ```sql
--- 자동 증가 (단순)
+-- Auto-increment (simple)
 id INT AUTO_INCREMENT PRIMARY KEY
 
--- UUID (분산 시스템)
+-- UUID (distributed systems)
 id CHAR(36) PRIMARY KEY DEFAULT (UUID())
 
--- 복합 (연결 테이블)
+-- Composite (junction tables)
 PRIMARY KEY (student_id, course_id)
 ```
 
-### 외래 키
+### Foreign Keys
 
 ```sql
 FOREIGN KEY (customer_id) REFERENCES customers(id)
-  ON DELETE CASCADE     -- 부모 삭제 시 자식도 삭제
-  ON DELETE RESTRICT    -- 참조되면 삭제 방지
-  ON DELETE SET NULL    -- 부모 삭제 시 NULL로 설정
-  ON UPDATE CASCADE     -- 부모 변경 시 자식도 업데이트
+  ON DELETE CASCADE     -- delete child when parent deleted
+  ON DELETE RESTRICT    -- prevent deletion if referenced
+  ON DELETE SET NULL    -- set to NULL when parent deleted
+  ON UPDATE CASCADE     -- update child when parent changes
 ```
 
-| 전략 | 사용 시점 |
-|------|----------|
-| CASCADE | 종속 데이터 (order_items) |
-| RESTRICT | 중요한 참조 (실수 방지) |
-| SET NULL | 선택적 관계 |
+| Strategy | Use When |
+|----------|----------|
+| CASCADE | Dependent data (order_items) |
+| RESTRICT | Critical references (prevent accidents) |
+| SET NULL | Optional relationships |
 
 </details>
 
 <details>
-<summary><strong>심화: 관계 패턴</strong></summary>
+<summary><strong>Deep Dive: Relationship Patterns</strong></summary>
 
-### 일대다 (1:N)
+### One-to-Many (1:N)
 
 ```sql
 CREATE TABLE orders (
@@ -402,10 +402,10 @@ CREATE TABLE order_items (
 );
 ```
 
-### 다대다 (N:M)
+### Many-to-Many (N:M)
 
 ```sql
--- 연결 테이블
+-- Junction table
 CREATE TABLE enrollments (
   student_id INT REFERENCES students(id) ON DELETE CASCADE,
   course_id INT REFERENCES courses(id) ON DELETE CASCADE,
@@ -414,7 +414,7 @@ CREATE TABLE enrollments (
 );
 ```
 
-### 자기 참조
+### Self-Referential
 
 ```sql
 CREATE TABLE employees (
@@ -424,10 +424,10 @@ CREATE TABLE employees (
 );
 ```
 
-### 다형성
+### Polymorphic
 
 ```sql
--- 방법 1: 별도 FK (무결성 강함)
+-- Option 1: Separate FKs (strong integrity)
 CREATE TABLE comments (
   id INT PRIMARY KEY,
   content TEXT NOT NULL,
@@ -439,7 +439,7 @@ CREATE TABLE comments (
   )
 );
 
--- 방법 2: 타입 + ID (유연하지만 무결성 약함)
+-- Option 2: Type + ID (flexible but weaker integrity)
 CREATE TABLE comments (
   id INT PRIMARY KEY,
   content TEXT NOT NULL,
@@ -451,26 +451,26 @@ CREATE TABLE comments (
 </details>
 
 <details>
-<summary><strong>심화: NoSQL 설계 (MongoDB)</strong></summary>
+<summary><strong>Deep Dive: NoSQL Design (MongoDB)</strong></summary>
 
-### 임베딩 vs 참조
+### Embed vs. Reference
 
-| 요소 | 임베드 | 참조 |
-|------|--------|------|
-| 접근 패턴 | 함께 읽음 | 따로 읽음 |
-| 관계 | 1:소수 | 1:다수 |
-| 문서 크기 | 작음 | 16MB에 근접 |
-| 업데이트 빈도 | 드물게 | 자주 |
+| Factor | Embed | Reference |
+|--------|-------|-----------|
+| Access pattern | Read together | Read separately |
+| Relationship | 1:few | 1:many |
+| Document size | Small | Near 16MB |
+| Update frequency | Infrequent | Frequent |
 
-### 임베디드 문서
+### Embedded Document
 
 ```json
 {
   "_id": "order_123",
   "customer": {
     "id": "cust_456",
-    "name": "홍길동",
-    "email": "hong@example.com"
+    "name": "Jane Doe",
+    "email": "jane@example.com"
   },
   "items": [
     { "product_id": "prod_789", "quantity": 2, "price": 29.99 }
@@ -479,7 +479,7 @@ CREATE TABLE comments (
 }
 ```
 
-### 참조 문서
+### Referenced Document
 
 ```json
 {
@@ -493,32 +493,32 @@ CREATE TABLE comments (
 </details>
 
 <details>
-<summary><strong>심화: 마이그레이션</strong></summary>
+<summary><strong>Deep Dive: Migrations</strong></summary>
 
-### 마이그레이션 모범 사례
+### Migration Best Practices
 
-| 사례 | 이유 |
-|------|------|
-| 항상 되돌릴 수 있게 | 롤백이 필요함 |
-| 하위 호환 | 무중단 배포 |
-| 스키마 먼저, 데이터 나중 | 관심사 분리 |
-| 스테이징에서 테스트 | 문제를 조기에 발견 |
+| Practice | Why |
+|----------|-----|
+| Always make reversible | Rollbacks happen |
+| Backward compatible | Zero-downtime deployment |
+| Schema first, data second | Separation of concerns |
+| Test on staging | Catch problems early |
 
-### 컬럼 추가 (무중단)
+### Adding a Column (Zero-Downtime)
 
 ```sql
--- 1단계: nullable 컬럼 추가
+-- Step 1: Add nullable column
 ALTER TABLE users ADD COLUMN phone VARCHAR(20);
 
--- 2단계: 새 컬럼에 쓰는 코드 배포
--- 3단계: 기존 행 백필
+-- Step 2: Deploy code that writes to new column
+-- Step 3: Backfill existing rows
 UPDATE users SET phone = '' WHERE phone IS NULL;
 
--- 4단계: 필수로 변경 (필요 시)
+-- Step 4: Add NOT NULL constraint (if needed)
 ALTER TABLE users MODIFY phone VARCHAR(20) NOT NULL;
 ```
 
-### 마이그레이션 템플릿
+### Migration Template
 
 ```sql
 -- Migration: YYYYMMDDHHMMSS_description.sql
@@ -539,31 +539,31 @@ COMMIT;
 </details>
 
 <details>
-<summary><strong>심화: 성능 최적화</strong></summary>
+<summary><strong>Deep Dive: Performance Optimization</strong></summary>
 
-### 쿼리 분석
+### Query Analysis
 
 ```sql
 EXPLAIN SELECT * FROM orders
 WHERE customer_id = 123 AND status = 'pending';
 ```
 
-| 확인 항목 | 의미 |
-|----------|------|
-| type: ALL | 풀 테이블 스캔 (나쁨) |
-| type: ref | 인덱스 사용 (좋음) |
-| key: NULL | 인덱스 미사용 |
-| rows: 높음 | 많은 행 스캔 |
+| Check | Meaning |
+|-------|---------|
+| type: ALL | Full table scan (bad) |
+| type: ref | Using index (good) |
+| key: NULL | No index used |
+| rows: high | Scanning many rows |
 
-### N+1 쿼리 문제
+### N+1 Query Problem
 
 ```python
-# 나쁨: N+1 쿼리
+# Bad: N+1 queries
 orders = db.query("SELECT * FROM orders")
 for order in orders:
     customer = db.query(f"SELECT * FROM customers WHERE id = {order.customer_id}")
 
-# 좋음: 단일 JOIN
+# Good: single JOIN
 results = db.query("""
     SELECT orders.*, customers.name
     FROM orders
@@ -571,15 +571,15 @@ results = db.query("""
 """)
 ```
 
-### 최적화 기법
+### Optimization Techniques
 
-| 기법 | 사용 시점 |
-|------|----------|
-| 인덱스 추가 | 느린 WHERE/ORDER BY |
-| 비정규화 | 비용 높은 JOIN |
-| 페이지네이션 | 대규모 결과 집합 |
-| 캐싱 | 반복 쿼리 |
-| 읽기 복제본 | 읽기 중심 부하 |
-| 파티셔닝 | 매우 큰 테이블 |
+| Technique | When to Use |
+|-----------|-------------|
+| Add index | Slow WHERE/ORDER BY |
+| Denormalize | Expensive JOINs |
+| Pagination | Large result sets |
+| Caching | Repeated queries |
+| Read replica | Read-heavy load |
+| Partitioning | Very large tables |
 
 </details>

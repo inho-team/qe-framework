@@ -1,11 +1,11 @@
 ---
 name: Qsystematic-debugging
-description: "버그, 테스트 실패, 예상치 못한 동작 시 수정 전에 사용. 체계적 디버깅으로 근본 원인을 먼저 찾고, 가설 테스트 후 수정."
+description: "Use before applying fixes when encountering bugs, test failures, or unexpected behavior. Find the root cause first through systematic debugging, test hypotheses, then fix."
 metadata:
   source: https://skills.sh/obra/superpowers/systematic-debugging
   author: obra
 ---
-> 공통 원칙: core/PRINCIPLES.md 참조
+> Shared principles: see core/PRINCIPLES.md
 
 
 # Systematic Debugging
