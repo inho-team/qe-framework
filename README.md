@@ -1,3 +1,5 @@
+**English** | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md) | [日本語](docs/README.ja.md)
+
 # QE Framework (Query Executor)
 
 A personal skills and agents package for Claude Code.
@@ -84,7 +86,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (51)
+## Skills (52)
 
 ### Development
 
@@ -171,6 +173,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qagent-md-refactor | Refactors bloated agent instruction files following progressive disclosure. |
 | Qweb-design-guidelines | Reviews UI code against Web Interface Guidelines for accessibility and UX. |
 | Qlesson-learned | Analyzes recent code changes via git history and extracts engineering lessons. |
+| Qhelp | Shows QE Framework quick reference card in terminal. |
 
 ## Agents (16)
 

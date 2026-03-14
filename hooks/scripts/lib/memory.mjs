@@ -76,7 +76,7 @@ export function formatMemoryForInjection(cwd) {
   const parts = [];
 
   if (memory.directives.length > 0) {
-    parts.push('프로젝트 지시사항: ' + memory.directives.map(d => d.directive).join('; '));
+    parts.push('Project directives: ' + memory.directives.map(d => d.directive).join('; '));
   }
 
   if (memory.notes.length > 0) {
@@ -88,7 +88,7 @@ export function formatMemoryForInjection(cwd) {
     const summary = Object.entries(grouped)
       .map(([cat, notes]) => `[${cat}] ${notes.join(', ')}`)
       .join(' | ');
-    parts.push('프로젝트 메모: ' + summary);
+    parts.push('Project notes: ' + summary);
   }
 
   return parts.join(' | ');

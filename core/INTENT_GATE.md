@@ -16,10 +16,11 @@ All skills and agents refer to this classification to determine whether a reques
 | **Review** | "review", "check", "look at this", "is this ok?" | Ecode-reviewer |
 | **Testing** | "test", "coverage" | Ecode-test-engineer |
 | **Documentation** | "docs", "explain", "README", "document" | Ecode-doc-writer |
-| **Commit** | "commit", "save", "push", "푸시", "커밋" | Qcommit |
+| **Commit** | "commit", "save", "push" | Qcommit |
 | **Refresh** | "refresh", "sync", "latest" | Qrefresh |
-| **Plugin update** | "update plugin", "upgrade", "update qe", "최신 버전", "플러그인 업데이트" | Qupdate |
-| **Utopia mode** | "utopia", "autonomous", "no questions", "자동 실행", "물어보지 마" | Qutopia |
+| **Plugin update** | "update plugin", "upgrade", "update qe" | Qupdate |
+| **Utopia mode** | "utopia", "autonomous", "no questions", "auto execute" | Qutopia |
+| **Help** | "help", "how to use", "show commands", "what can you do" | Qhelp |
 | **Resume** | "continue", "resume", "restore" | Qresume |
 | **Handoff** | "handoff", "save state", "end session" | Qcompact (manual mode) |
 | **Planning** | "PRD", "product plan", "user story", "roadmap" | Epm-planner |

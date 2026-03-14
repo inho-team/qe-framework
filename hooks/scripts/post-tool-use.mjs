@@ -59,9 +59,9 @@ if (isError) {
   const consecutiveCount = errorState.errors.filter(e => e.tool === toolName).length;
 
   if (consecutiveCount >= 5) {
-    hints.push(`${toolName} 도구가 5회 이상 실패했습니다. 다른 접근 방식을 시도하거나 사용자에게 문의하세요.`);
+    hints.push(`${toolName} tool failed 5+ times. Try a different approach or ask the user.`);
   } else if (consecutiveCount >= 3) {
-    hints.push(`${toolName} 도구가 ${consecutiveCount}회 연속 실패 중입니다. 근본 원인을 분석하세요.`);
+    hints.push(`${toolName} tool failed ${consecutiveCount} times consecutively. Analyze the root cause.`);
   }
 } else {
   // Success - clear error tracking for this tool

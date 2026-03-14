@@ -34,7 +34,7 @@ if (existsSync(analysisDir)) {
 
     // Only hint when doing broad exploration, not specific file reads
     if (toolName === 'Glob' && (pattern.includes('**') || pattern.includes('*/'))) {
-      hints.push('.qe/analysis/ 파일을 먼저 참조하면 토큰을 절약할 수 있습니다.');
+      hints.push('Check .qe/analysis/ files first to save tokens.');
     }
   }
 }
@@ -44,7 +44,7 @@ if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};
   const filePath = toolInput.file_path || toolInput.filePath || '';
   if (filePath.includes('.qe/') || filePath.includes('.qe\\')) {
-    hints.push('.qe/ 내 파일은 사용자 확인 없이 자동 수행 가능합니다.');
+    hints.push('Files in .qe/ can be auto-executed without user confirmation.');
   }
 }
 
@@ -55,9 +55,9 @@ if (existsSync(statsFile)) {
     const stats = JSON.parse(readFileSync(statsFile, 'utf8'));
     const callCount = stats.tool_calls || 0;
     if (callCount > 200) {
-      hints.push('컨텍스트 압박 경고: tool call 200회 초과. /Qcompact 실행을 고려하세요.');
+      hints.push('Context pressure warning: 200+ tool calls. Consider running /Qcompact.');
     } else if (callCount > 150) {
-      hints.push('컨텍스트 사용량 높음: .qe/analysis/ 파일을 우선 참조하여 토큰을 절약하세요.');
+      hints.push('High context usage: prioritize .qe/analysis/ files to save tokens.');
     }
   } catch {}
 }

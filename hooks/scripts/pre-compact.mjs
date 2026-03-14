@@ -68,11 +68,11 @@ if (activeTasks.length > 0) {
 }
 
 // Inject reminder to save context
-const taskInfo = activeTasks.length > 0 ? ` 활성 태스크 ${activeTasks.length}개 보존 필요.` : '';
+const taskInfo = activeTasks.length > 0 ? ` ${activeTasks.length} active task(s) need preservation.` : '';
 console.log(JSON.stringify({
   continue: true,
   hookSpecificOutput: {
     hookEventName: "PreCompact",
-    additionalContext: `[QE] Compaction 감지. Ecompact-executor를 호출하여 .qe/context/에 현재 맥락을 저장하세요.${taskInfo}`
+    additionalContext: `[QE] Compaction detected. Call Ecompact-executor to save current context to .qe/context/.${taskInfo}`
   }
 }));

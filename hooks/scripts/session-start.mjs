@@ -28,7 +28,7 @@ const messages = [];
 // Check 1: CLAUDE.md existence (Qinit check)
 const claudeMdPath = join(cwd, 'CLAUDE.md');
 if (!existsSync(claudeMdPath)) {
-  messages.push('QE 프레임워크가 초기화되지 않았습니다. `/Qinit`을 실행하세요.');
+  messages.push('QE framework not initialized. Run `/Qinit` first.');
 }
 
 // Check 2: .qe/analysis/ freshness
@@ -52,7 +52,7 @@ if (existsSync(analysisDir)) {
   }
 
   if (staleCount >= 2) {
-    messages.push('프로젝트 분석 데이터가 오래되었습니다. Erefresh-executor가 백그라운드에서 갱신합니다.');
+    messages.push('Project analysis data is stale. Erefresh-executor will update in the background.');
   }
 }
 
@@ -62,7 +62,7 @@ if (existsSync(snapshotPath)) {
   const stat = statSync(snapshotPath);
   const ageHours = (Date.now() - stat.mtimeMs) / (1000 * 60 * 60);
   if (ageHours < 24) {
-    messages.push('이전 세션의 맥락이 저장되어 있습니다. `/Qresume`으로 복원할 수 있습니다.');
+    messages.push('Previous session context saved. Restore with `/Qresume`.');
   }
 }
 

@@ -16,9 +16,9 @@ const sessionId = data.session_id || null;
 const modes = [
   { name: 'ultrawork', label: 'Ultra Work — autonomous parallel execution in progress' },
   { name: 'ultraqa', label: 'Ultra QA — autonomous quality verification in progress' },
-  { name: 'qrun-task', label: 'Qrun-task 작업 실행 중' },
-  { name: 'qrefresh', label: 'Erefresh-executor 분석 갱신 중' },
-  { name: 'qarchive', label: 'Earchive-executor 아카이브 중' },
+  { name: 'qrun-task', label: 'Qrun-task executing' },
+  { name: 'qrefresh', label: 'Erefresh-executor updating analysis' },
+  { name: 'qarchive', label: 'Earchive-executor archiving' },
 ];
 
 let activeMode = null;
@@ -44,7 +44,7 @@ if (activeMode) {
   console.log(JSON.stringify({
     continue: false,
     decision: "block",
-    reason: `[QE Framework] ${activeMode.label}. 작업을 계속합니다.`
+    reason: `[QE Framework] ${activeMode.label}. Continuing work.`
   }));
 } else {
   // No active mode, allow stop
