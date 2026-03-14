@@ -39,6 +39,8 @@ Qrun-task 3단계 완료 (구현 완료)
 - 매 반복마다 `AskUserQuestion`으로 계속 여부를 확인
 - 3회 초과 시 사용자에게 판단을 위임하고 현재 상태를 보고
 
+품질 루프 전체를 `Eqa-orchestrator` 서브에이전트에 위임하여 메인 컨텍스트 토큰을 절감할 수 있습니다. Eqa-orchestrator는 Ecode-test-engineer, Ecode-reviewer를 내부적으로 조율합니다.
+
 ## 실행 절차
 
 ### 1단계: 컨텍스트 수집

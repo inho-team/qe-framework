@@ -4,10 +4,14 @@ description: "AI 에이전트 세션 간 원활한 인수인계를 위한 handof
 ---
 > 공통 원칙: core/PRINCIPLES.md 참조
 
+> 참고: Qcompact/Qresume은 compaction 시 자동 맥락 보존용이며, Qsession-handoff는 사용자가 명시적으로 세션을 종료할 때 사용하는 수동 핸드오프입니다.
+
 
 # Handoff
 
 새로운 AI 에이전트가 모호함 없이 작업을 원활하게 이어받을 수 있도록 포괄적인 handoff 문서를 생성합니다. 장시간 에이전트 실행 시 컨텍스트 소진 문제를 해결합니다.
+
+실제 핸드오프 문서 생성은 Ehandoff-executor 서브에이전트에게 위임합니다.
 
 ## 모드 선택
 
@@ -24,27 +28,16 @@ description: "AI 에이전트 세션 간 원활한 인수인계를 위한 handof
 
 ## CREATE 워크플로
 
-### 1단계: 스캐폴드 생성
+### 1단계: Ehandoff-executor에 위임
 
-스마트 스캐폴드 스크립트를 실행하여 미리 채워진 handoff 문서를 생성합니다:
+Ehandoff-executor 서브에이전트를 호출하여 핸드오프 문서를 생성합니다.
 
-```bash
-python scripts/create_handoff.py [task-slug]
-```
-
-예시: `python scripts/create_handoff.py implementing-user-auth`
-
-**연속 handoff의 경우** (이전 작업과 연결):
-```bash
-python scripts/create_handoff.py "auth-part-2" --continues-from 2024-01-15-auth.md
-```
-
-스크립트가 수행하는 작업:
-- 필요 시 `.claude/handoffs/` 디렉토리 생성
-- 타임스탬프가 포함된 파일명 생성
-- 타임스탬프, 프로젝트 경로, git 브랜치, 최근 커밋, 수정된 파일 자동 입력
+에이전트가 수행하는 작업:
+- 필요 시 `.qe/handoffs/` 디렉토리 생성
+- 타임스탬프가 포함된 파일명 생성 (`HANDOFF_{날짜}_{시각}.md`)
+- 현재 작업 상태, git 변경사항, 결정사항 자동 수집
 - 이전 handoff에서 이어지는 경우 연결 링크 추가
-- 편집을 위한 파일 경로 출력
+- 생성된 파일 경로 출력
 
 ### 2단계: Handoff 문서 작성
 
@@ -59,26 +52,22 @@ python scripts/create_handoff.py "auth-part-2" --continues-from 2024-01-15-auth.
 
 ### 3단계: Handoff 검증
 
-검증 스크립트를 실행하여 완성도와 보안을 확인합니다:
-
-```bash
-python scripts/validate_handoff.py <handoff-file>
-```
+Ehandoff-executor가 검증을 수행합니다:
 
 검증 항목:
 - [ ] `[TODO: ...]` 자리 표시자가 남아 있지 않음
 - [ ] 필수 섹션이 존재하고 내용이 채워져 있음
 - [ ] 잠재적 기밀 정보 없음 (API 키, 비밀번호, 토큰)
 - [ ] 참조된 파일이 존재함
-- [ ] 품질 점수 (0-100)
+- [ ] 오래된 핸드오프(24h+) 경고 표시
 
-**기밀 정보가 감지되거나 점수가 70 미만이면 handoff를 확정하지 마십시오.**
+**기밀 정보가 감지되면 handoff를 확정하지 마십시오.**
 
 ### 4단계: Handoff 확인
 
 사용자에게 다음을 보고합니다:
 - Handoff 파일 위치
-- 검증 점수 및 경고 사항
+- 검증 결과 및 경고 사항
 - 캡처된 컨텍스트 요약
 - 다음 세션의 첫 번째 실행 항목
 
@@ -86,21 +75,13 @@ python scripts/validate_handoff.py <handoff-file>
 
 ### 1단계: 사용 가능한 Handoff 조회
 
-현재 프로젝트의 handoff 목록을 조회합니다:
-
-```bash
-python scripts/list_handoffs.py
-```
+`.qe/handoffs/` 디렉토리를 스캔하여 현재 프로젝트의 handoff 목록을 조회합니다.
 
 날짜, 제목, 완료 상태와 함께 모든 handoff를 표시합니다.
 
 ### 2단계: 최신성 확인
 
-불러오기 전에 handoff가 얼마나 최신인지 확인합니다:
-
-```bash
-python scripts/check_staleness.py <handoff-file>
-```
+불러오기 전에 handoff가 얼마나 최신인지 확인합니다.
 
 최신성 수준:
 - **FRESH**: 재개 안전 - handoff 이후 변경 사항 최소
@@ -108,7 +89,7 @@ python scripts/check_staleness.py <handoff-file>
 - **STALE**: 재개 전 컨텍스트를 신중하게 확인
 - **VERY_STALE**: 새로운 handoff 생성 고려
 
-스크립트 확인 항목:
+확인 항목:
 - Handoff 생성 이후 경과 시간
 - Handoff 이후 git 커밋 수
 - Handoff 이후 변경된 파일
@@ -145,7 +126,7 @@ Handoff 문서의 "즉각적인 다음 단계" 항목 #1부터 시작합니다.
 작업하면서:
 - "대기 중인 작업"에서 완료된 항목 표시
 - 새로운 발견 사항을 관련 섹션에 추가
-- 긴 세션의 경우: `--continues-from`으로 새 handoff를 생성하여 체인 연결
+- 긴 세션의 경우: 새 handoff를 생성하여 체인 연결
 
 ## Handoff 체이닝
 
@@ -168,22 +149,13 @@ handoff-3.md --continues-from handoff-2.md
 
 ## 저장 위치
 
-Handoff는 `.claude/handoffs/`에 저장됩니다.
+Handoff는 `.qe/handoffs/`에 저장됩니다.
 
-명명 규칙: `YYYY-MM-DD-HHMMSS-[slug].md`
+명명 규칙: `HANDOFF_{YYYY-MM-DD}_{HHMMSS}.md`
 
-예시: `2024-01-15-143022-implementing-auth.md`
+예시: `HANDOFF_2026-03-14_143022.md`
 
 ## 리소스
-
-### scripts/
-
-| 스크립트 | 용도 |
-|---------|------|
-| `create_handoff.py [slug] [--continues-from <file>]` | 스마트 스캐폴딩으로 새 handoff 생성 |
-| `list_handoffs.py [path]` | 프로젝트의 사용 가능한 handoff 목록 조회 |
-| `validate_handoff.py <file>` | 완성도, 품질, 보안 확인 |
-| `check_staleness.py <file>` | Handoff 컨텍스트의 최신성 평가 |
 
 ### references/
 

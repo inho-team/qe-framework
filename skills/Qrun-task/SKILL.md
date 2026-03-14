@@ -184,6 +184,8 @@ TASK_REQUEST의 체크리스트를 **순서대로** 실행합니다.
 
 ### 5단계: 완료 처리
 
+작업 유형이 `code`이고 문서화가 필요한 경우, `Ecode-doc-writer` 에이전트를 호출하여 변경된 코드의 문서를 자동 생성할 수 있습니다.
+
 1. `TASK_REQUEST_{UUID}.md`의 체크리스트 항목을 `- [x]`로 업데이트
 2. `VERIFY_CHECKLIST_{UUID}.md`의 검증 항목을 `- [x]`로 업데이트
 3. `TASK_REQUEST_{UUID}.md`를 `in-progress/` → `completed/`로 이동
