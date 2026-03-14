@@ -95,9 +95,9 @@ def example(param: str) -> bool:
 ## 할 것 (Will)
 - 언어 자동 감지
 - 기존 스타일에 맞는 주석 추가
-- 공개 API 위주로 주석 작성
+- 공개 API 및 복잡한 private/internal 함수에 주석 작성
 
 ## 안 할 것 (Will Not)
 - 기존 주석 수정/덮어쓰기
-- private/internal 함수에 강제 주석
+- 자명한 함수(getter/setter, 단순 위임)에 불필요한 주석 강제
 - 코드 로직 변경
