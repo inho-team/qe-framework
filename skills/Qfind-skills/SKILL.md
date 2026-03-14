@@ -56,18 +56,18 @@ AskUserQuestion 도구로 사용자에게 물어봅니다:
 
 **변환 규칙:**
 1. frontmatter(`---`)의 name, description 유지
-2. 스킬 이름 앞에 `Q-` 접두사 추가 (사용자 커스텀 스킬 구분)
+2. 스킬 이름 앞에 `Q` 접두사 추가 (사용자 커스텀 스킬 구분)
 3. `npx skills add` 명령어 → 직접 파일 생성 방식으로 대체
 4. 원본의 핵심 지침과 워크플로우는 그대로 보존
 5. 불필요한 CLI 설치 안내 제거
 
 ```bash
 # 전역 설치
-mkdir -p ~/.claude/skills/Q-<skill-name>
+mkdir -p ~/.claude/skills/Q<skill-name>
 # Write 도구로 SKILL.md 생성
 
 # 로컬 설치
-mkdir -p .claude/skills/Q-<skill-name>
+mkdir -p .claude/skills/Q<skill-name>
 # Write 도구로 SKILL.md 생성
 ```
 
@@ -75,14 +75,14 @@ mkdir -p .claude/skills/Q-<skill-name>
 
 ```bash
 # 파일 존재 확인
-ls -la ~/.claude/skills/Q-<skill-name>/SKILL.md   # 전역
-ls -la .claude/skills/Q-<skill-name>/SKILL.md      # 로컬
+ls -la ~/.claude/skills/Q<skill-name>/SKILL.md   # 전역
+ls -la .claude/skills/Q<skill-name>/SKILL.md      # 로컬
 ```
 
 설치 완료 후 사용자에게 안내:
 - 스킬 이름과 용도
 - 설치 경로
-- 다음 세션부터 `/Q-<skill-name>` 으로 사용 가능
+- 다음 세션부터 `/Q<skill-name>` 으로 사용 가능
 
 ## 스킬 카테고리 참고
 
