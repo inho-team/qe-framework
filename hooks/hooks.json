@@ -2,39 +2,59 @@
   "hooks": {
     "SessionStart": [
       {
-        "type": "command",
-        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.mjs\"",
-        "timeout": 10000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.mjs\"",
+            "timeout": 10000
+          }
+        ]
       }
     ],
     "PreToolUse": [
       {
         "matcher": "*",
-        "type": "command",
-        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use.mjs\"",
-        "timeout": 5000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use.mjs\"",
+            "timeout": 5000
+          }
+        ]
       }
     ],
     "PreCompact": [
       {
-        "type": "command",
-        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact.mjs\"",
-        "timeout": 10000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact.mjs\"",
+            "timeout": 10000
+          }
+        ]
       }
     ],
     "PostToolUse": [
       {
         "matcher": "*",
-        "type": "command",
-        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use.mjs\"",
-        "timeout": 5000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use.mjs\"",
+            "timeout": 5000
+          }
+        ]
       }
     ],
     "Stop": [
       {
-        "type": "command",
-        "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-handler.mjs\"",
-        "timeout": 5000
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-handler.mjs\"",
+            "timeout": 5000
+          }
+        ]
       }
     ]
   }
