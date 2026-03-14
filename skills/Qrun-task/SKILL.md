@@ -291,6 +291,29 @@ When the user requests to resume a held task:
 | On hold | User request | `.qe/tasks/on-hold/` | `.qe/checklists/on-hold/` | ⏸️ |
 | Resumed | User request | `.qe/tasks/in-progress/` | `.qe/checklists/in-progress/` | 🔶 |
 
+## Autonomous Mode (Ultra)
+
+When invoked from an ultra mode (`--ultrawork` or `--ultraqa`), the following rules override normal behavior:
+
+### Detecting Ultra Mode
+- Check for `.qe/state/ultrawork-state.json` or `.qe/state/ultraqa-state.json` (or session-scoped path)
+- If `active: true` and not stale, operate in autonomous mode
+
+### Behavior Changes in Autonomous Mode
+1. **Skip Step 2 approval**: Do not use `AskUserQuestion` for task approval. Proceed directly to execution.
+2. **Skip intermediate user prompts**: Do not ask the user about implementation judgments. Make reasonable decisions autonomously based on CLAUDE.md constraints and TASK_REQUEST notes.
+3. **Auto-proceed on code tasks**: For `type: code` tasks, automatically run `/Qcode-run-task` quality loop without asking (only in `--ultraqa` mode).
+4. **Reinforcement on Stop**: If the stop hook fires during execution, increment `reinforcement_count` in the state file. Continue working until `max_reinforcements` is reached.
+5. **State updates**: After each task completes, update the state file's `updated_at` timestamp.
+6. **Error resilience**: On non-fatal errors, log the issue, attempt a fix once, and continue. Only halt on critical failures (e.g., project won't build at all).
+
+### Parallel Execution
+When called with multiple UUIDs in ultra mode:
+- Instead of sequential execution, spawn separate `Etask-executor` agents **in parallel** via the Agent tool
+- Each agent receives: TASK_REQUEST content, VERIFY_CHECKLIST content, CLAUDE.md constraints
+- Main agent tracks progress and collects results
+- After all agents complete, run final verification on each task
+
 ## Role Constraints
 - This skill focuses exclusively on **executing tasks based on existing spec documents**
 - Use `/Qgenerate-spec` to create new spec documents
