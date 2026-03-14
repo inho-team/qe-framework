@@ -1,6 +1,10 @@
 {
   "name": "inho-team-qe-framework",
   "description": "Personal Claude Code skills by inho-team",
+  "owner": {
+    "name": "inho-team",
+    "url": "https://github.com/inho-team"
+  },
   "plugins": [
     {
       "name": "qe-framework",
