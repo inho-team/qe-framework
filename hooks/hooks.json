@@ -1,0 +1,29 @@
+{
+  "hooks": [
+    {
+      "type": "command",
+      "event": "SessionStart",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.mjs\"",
+      "timeout": 10000
+    },
+    {
+      "type": "command",
+      "event": "PreToolUse",
+      "matcher": "*",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use.mjs\"",
+      "timeout": 5000
+    },
+    {
+      "type": "command",
+      "event": "PreCompact",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-compact.mjs\"",
+      "timeout": 10000
+    },
+    {
+      "type": "command",
+      "event": "Stop",
+      "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-handler.mjs\"",
+      "timeout": 5000
+    }
+  ]
+}

@@ -1,7 +1,8 @@
 {
   "name": "claude-skills",
-  "version": "1.1.0",
-  "description": "Personal Claude Code skills package",
+  "version": "1.2.0",
+  "description": "QE Framework - Personal Claude Code skills package",
   "skills": ["./skills/"],
-  "agents": ["./agents/"]
+  "agents": ["./agents/"],
+  "hooks": "./hooks/hooks.json"
 }
