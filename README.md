@@ -58,6 +58,16 @@ claude plugin update qe-framework@inho-team-qe-framework
 claude plugin list
 ```
 
+### Troubleshooting
+
+**SSH permission denied error during install**
+
+If you see `git@github.com: Permission denied (publickey)`, run this to force HTTPS:
+```bash
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+```
+Then retry the install command.
+
 > **Note**: Plugin commands must be run from the terminal, not inside a Claude Code session. After install or update, restart Claude Code to apply changes.
 
 ### Initialize a project
