@@ -36,9 +36,39 @@ Skills (Q-prefix)          Agents (E-prefix)          Core
 
 ## 安装
 
+在**终端**中运行以下命令（不是在 Claude Code 会话内）：
+
+### 步骤 1：注册 marketplace（仅首次需要）
 ```bash
-claude plugin add github:inho-team/qe-framework
+claude plugin marketplace add inho-team/qe-framework
 ```
+
+### 步骤 2：安装插件
+```bash
+claude plugin install qe-framework@inho-team-qe-framework
+```
+
+### 更新到最新版本
+```bash
+claude plugin update qe-framework@inho-team-qe-framework
+```
+
+### 验证安装
+```bash
+claude plugin list
+```
+
+### 故障排除
+
+**安装时出现 SSH permission denied 错误**
+
+如果出现 `git@github.com: Permission denied (publickey)` 错误，运行以下命令强制使用 HTTPS：
+```bash
+git config --global url."https://github.com/".insteadOf "git@github.com:"
+```
+然后重新执行安装命令。
+
+> **注意**：插件命令必须在终端中运行，不能在 Claude Code 会话内运行。安装或更新后，请重启 Claude Code 以应用更改。
 
 ### 初始化项目
 
@@ -86,7 +116,7 @@ claude plugin add github:inho-team/qe-framework
 /Qrefresh                        -- 更新项目分析数据
 ```
 
-## Skills (51)
+## Skills (52)
 
 ### 开发
 
@@ -173,6 +203,180 @@ claude plugin add github:inho-team/qe-framework
 | Qagent-md-refactor | 按照渐进式披露原则重构臃肿的代理指令文件。 |
 | Qweb-design-guidelines | 根据 Web Interface Guidelines 审查 UI 代码的可访问性和用户体验。 |
 | Qlesson-learned | 通过 git 历史分析最近的代码变更并提取工程经验教训。 |
+| Qhelp | 在终端中显示 QE Framework 快速参考卡。 |
+
+## 后台处理
+
+QE Framework 在关键生命周期节点静默运行多个代理。这些代理无需手动调用 -- 它们由钩子和其他代理自动触发。
+
+### 工作原理
+
+```
+┌─────────────────────────────────────────────────────────────────────────┐
+│                        QE Framework Lifecycle                         │
+├─────────────────────────────────────────────────────────────────────────┤
+│                                                                       │
+│  Session Start                                                        │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ SessionStart │───▶│ Erefresh-executor   │  Update .qe/analysis/    │
+│  │    Hook      │    │ (if analysis stale) │  before any work begins  │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  User Interaction                                                     │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PreToolUse   │───▶│   Intent Gate       │  Route user intent to    │
+│  │    Hook      │    │   Classification    │  the correct skill/agent │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PostToolUse  │───▶│ Eprofile-collector  │  Learn user patterns     │
+│  │    Hook      │    │ (command, style)    │  and correction history  │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  Context Pressure (75%+)                                              │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ PreCompact   │───▶│ Ecompact-executor   │  Save snapshot before    │
+│  │    Hook      │    │ (auto-save context) │  context is lost         │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  Task Completion                                                      │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │  Qrun-task   │───▶│ Earchive-executor   │  Archive completed tasks │
+│  │  completes   │    │ Ecommit-executor    │  Auto-commit changes     │
+│  └──────────────┘    └─────────────────────┘                          │
+│         │                                                             │
+│         ▼                                                             │
+│  ┌──────────────┐    ┌─────────────────────┐                          │
+│  │ Notification │───▶│  Chain follow-up    │  Trigger next actions    │
+│  │    Hook      │    │  actions            │  when agents complete    │
+│  └──────────────┘    └─────────────────────┘                          │
+│                                                                       │
+└─────────────────────────────────────────────────────────────────────────┘
+```
+
+### 生命周期钩子
+
+框架使用 6 个在特定事件触发的生命周期钩子：
+
+| Hook | 触发时机 | 执行内容 |
+|------|----------|----------|
+| `SessionStart` | 会话开始时 | 注入框架规则，如果分析数据过时则触发 `Erefresh-executor` |
+| `PreToolUse` | 每次工具调用前 | **Intent Gate** -- 分类用户意图并路由到正确的 skill/agent |
+| `PostToolUse` | 每次工具调用后 | 触发 `Eprofile-collector` 记录用户模式 |
+| `PreCompact` | 上下文压缩前 | 触发 `Ecompact-executor` 在上下文丢失前保存 |
+| `Stop` | 会话结束时 | 清理和收尾 |
+| `Notification` | 后台代理完成时 | 在后台代理完成后链式触发后续操作 |
+
+### 后台代理
+
+这些代理自动运行，无需用户交互。它们将结果写入 `.qe/` 文件，从不直接回复用户。
+
+#### Erefresh-executor -- 项目分析同步
+
+> 保持 `.qe/analysis/` 最新，使其他代理可以跳过昂贵的项目扫描。
+
+| | 详情 |
+|---|---|
+| **触发时机** | 会话开始时（如果过时）、Qrun-task 之前，或通过 `/Qrefresh` 手动触发 |
+| **写入位置** | `.qe/analysis/*.md`, `.qe/changelog.md` |
+| **Token 节省** | 约 50% -- 代理读取 4 个分析文件而非扫描数十个文件 |
+
+**步骤：**
+1. 通过 `git diff` 和文件系统扫描检测变更
+2. 更新 4 个分析文件：`project-structure`、`tech-stack`、`entry-points`、`architecture`
+3. 在 `.qe/changelog.md` 中记录变更历史，标记为 `[External Change]` 或 `[QE]`
+
+#### Ecompact-executor -- 上下文保存
+
+> 在上下文压缩前保存轻量快照，以便会话可以恢复。
+
+| | 详情 |
+|---|---|
+| **触发时机** | 上下文窗口达到 75%+ 容量（黄色区域），或通过 `/Qcompact` 手动触发 |
+| **写入位置** | `.qe/context/snapshot.md`, `.qe/context/decisions.md` |
+| **Token 节省** | 约 70% -- 从少量文件恢复上下文而非重新探索项目 |
+
+**步骤：**
+1. 收集进行中的任务、检查清单状态、最近的文件变更和关键决策
+2. 将快照保存到 `.qe/context/snapshot.md`（仅路径和摘要，不含代码）
+3. 以倒序时间顺序在 `.qe/context/decisions.md` 中积累决策
+
+#### Earchive-executor -- 任务归档
+
+> 将已完成的任务移动到版本化存档中，保持工作区整洁。
+
+| | 详情 |
+|---|---|
+| **触发时机** | Qrun-task 标记任务为已完成时，或通过 `/Qarchive` 手动触发 |
+| **写入位置** | `.qe/.archive/vX.Y.Z/tasks/`, `.qe/.archive/vX.Y.Z/checklists/` |
+
+**步骤：**
+1. 扫描 `.qe/tasks/pending/` 中完全完成的任务
+2. 将已完成的 TASK_REQUEST 和 VERIFY_CHECKLIST 移动到 `.qe/.archive/vX.Y.Z/`
+3. 在归档文件旁保存 CLAUDE.md 快照
+
+#### Ecommit-executor -- 自动提交
+
+> 创建人类风格的提交，零 AI 痕迹。
+
+| | 详情 |
+|---|---|
+| **触发时机** | 由 `/Qcommit` 委派，或在 Qrun-task 完成后自动提交 |
+| **禁止内容** | `Co-Authored-By` 行、AI 相关措辞、表情符号 |
+
+**步骤：**
+1. 分析 `git diff` 并匹配项目现有的提交消息风格
+2. 选择性地暂存相关文件（排除 `.env`、凭据文件）
+3. 创建与人类编写无法区分的提交
+
+#### Eprofile-collector -- 用户模式学习
+
+> 随时间学习用户偏好，提高意图识别准确性。
+
+| | 详情 |
+|---|---|
+| **触发时机** | 任何 skill 或 agent 完成后 |
+| **写入位置** | `.qe/profile/command-patterns.md`, `writing-style.md`, `corrections.md`, `preferences.md` |
+
+**收集内容：**
+
+| 文件 | 内容 |
+|------|------|
+| `command-patterns.md` | Skill/agent 调用频率和最近使用时间 |
+| `writing-style.md` | 正式/非正式模式、缩写词典 |
+| `corrections.md` | 用户纠正历史，防止重复误解 |
+| `preferences.md` | 回复长度、代码风格、语言偏好 |
+
+#### Ehandoff-executor -- 会话交接
+
+> 生成经过验证的交接文档，实现无缝跨会话延续。
+
+| | 详情 |
+|---|---|
+| **触发时机** | 通过 `/Qcompact`（交接模式）手动触发 |
+| **写入位置** | `.qe/handoffs/HANDOFF_{date}_{time}.md` |
+
+**步骤：**
+1. 收集任务状态、检查清单进度、最近的 git 变更和决策
+2. 生成包含具体后续步骤的结构化交接文档
+3. 验证所有引用的文件和任务 UUID 确实存在
+
+#### Edoc-generator -- 批量文档生成
+
+> 从主上下文窗口卸载繁重的文档生成工作。
+
+| | 详情 |
+|---|---|
+| **触发时机** | 由 Epm-planner、Qrun-task (`type: docs`) 或多文档请求委派 |
+| **支持格式** | `.docx`, `.pdf`, `.pptx`, `.xlsx` |
+
+可用时使用模板，并行处理多个文档。
+
+---
 
 ## Agents (16)
 
@@ -215,7 +419,7 @@ claude plugin add github:inho-team/qe-framework
 qe-framework/
 ├── .claude-plugin/    # 插件配置
 ├── agents/            # 16 个代理 (E-prefix)
-├── skills/            # 51 个技能 (Q-prefix)
+├── skills/            # 49 个技能 (Q-prefix)
 ├── core/              # 共享原则与配置
 ├── hooks/             # 生命周期钩子
 ├── install.js         # 安装脚本
