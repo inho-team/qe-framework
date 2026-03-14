@@ -339,6 +339,18 @@ When Agent Teams is enabled and multiple tasks exist:
 When Agent Teams is NOT enabled or tasks are dependent:
 - Use existing parallel Subagent approach (unchanged)
 
+## Coding Expert References
+
+구현 시 프로젝트 기술 스택에 맞는 전문가 스킬을 참조한다:
+- `coding-experts/languages/` — 언어별 코딩 표준 (JS, TS, Python, Java, Go 등)
+- `coding-experts/frontend/` — 프론트엔드 프레임워크 베스트 프랙티스 (React, Vue, Next.js 등)
+- `coding-experts/backend/` — 백엔드 프레임워크 가이드라인 (Spring Boot, Django, FastAPI 등)
+- `coding-experts/infra/` — 인프라/DevOps (K8s, Terraform, Cloud 등)
+- `coding-experts/data/` — 데이터/ML (Pandas, Spark, RAG 등)
+- `coding-experts/quality/` — 테스트/보안/리뷰 (Playwright, Vitest 등)
+
+전체 목록: `skills/coding-experts/CATALOG.md`
+
 ## Role Constraints
 - This skill focuses exclusively on **executing tasks based on existing spec documents**
 - Use `/Qgenerate-spec` to create new spec documents

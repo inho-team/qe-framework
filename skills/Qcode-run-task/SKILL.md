@@ -207,6 +207,13 @@ This skill can be called independently as `/Qcode-run-task`, or it can be automa
 - Uses the changed file list already collected by Qrun-task
 - Returns to Qrun-task Step 4 (final verification) after quality verification is complete
 
+## Coding Expert References
+
+품질 검증 시 프로젝트 기술 스택에 맞는 전문가 스킬을 참조한다:
+- `coding-experts/languages/` — 언어별 코딩 표준
+- `coding-experts/quality/` — 테스트/보안/리뷰 가이드라인
+- 전체 목록: `skills/coding-experts/CATALOG.md`
+
 ## Role Constraints
 - This skill focuses exclusively on the **test, review, and fix loop**
 - Does not add new features or change requirements
