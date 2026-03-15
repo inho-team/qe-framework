@@ -1,5 +1,5 @@
 ---
-name: postgres-pro
+name: Qpostgres-pro
 description: Use when optimizing PostgreSQL queries, configuring replication, or implementing advanced database features. Invoke for EXPLAIN analysis, JSONB operations, extension usage, VACUUM tuning, performance monitoring.
 license: MIT
 metadata:
