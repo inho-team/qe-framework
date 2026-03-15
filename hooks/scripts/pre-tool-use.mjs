@@ -43,14 +43,10 @@ try {
   const isFirstCall = toolCalls <= 1;
 
   if (isFirstCall) {
-    // Item 2: Inject INTENT_GATE from centralized config
-    try {
-      const routesConfig = JSON.parse(readFileSync(join(__dirname, 'lib', 'intent-routes.json'), 'utf8'));
-      const routeEntries = Object.entries(routesConfig.routes).map(([k, v]) => `${k}→${v}`).join(', ');
-      hints.push(`[INTENT GATE] Classify user intent. Routes: ${routeEntries}`);
-    } catch {
-      hints.push('[INTENT GATE] Classify user intent. (Warning: intent-routes.json not found)');
-    }
+    // Intent classification is handled by prompt-check.mjs (UserPromptSubmit hook).
+    // No need to inject the full route table here — it wastes tokens.
+    // Only inject a minimal reminder.
+    hints.push('[INTENT GATE] User intent will be auto-classified by UserPromptSubmit hook.');
   }
 
   // Item 4 & 5: Check intent-route.json
