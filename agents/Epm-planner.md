@@ -1,6 +1,6 @@
 ---
 name: Epm-planner
-description: Planning and document specialist agent. Handles PRD writing, user stories, roadmap planning, meeting notes, image analysis, and document generation (Word/PDF/PPT/Excel). Use for requests like "create a plan", "organize this document", "write meeting notes", "PRD", "roadmap", "user story", "create presentation slides".
+description: "Planning and document specialist agent. Use when the user needs to create PRDs, write user stories, plan roadmaps, draft meeting notes, analyze images, or generate documents (Word/PDF/PPT/Excel). Trigger phrases: 'create a plan', 'write PRD', 'user story', 'roadmap', 'meeting notes', 'create presentation'."
 tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch
 color: purple
 maxTurns: 50

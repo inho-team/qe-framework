@@ -1,6 +1,6 @@
 ---
 name: Qfact-checker
-description: "Structured fact-checking workflow for verifying claims in documents, articles, and reports. Use when checking factual accuracy, rating claim truthfulness, building pre-publication verification, or auditing existing content for unsupported claims."
+description: "Extracts factual claims from documents and verifies them through evidence-based research. Use when asked to 'fact-check this', 'verify these claims', 'is this true', 'check accuracy', or when reviewing reports, articles, or proposals for factual correctness. Produces a structured report with claim-by-claim ratings (true/false/unverifiable) and supporting evidence."
 metadata:
   source: https://github.com/jamditis/claude-skills-journalism
   author: jamditis
