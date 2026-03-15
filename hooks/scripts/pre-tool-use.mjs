@@ -2,7 +2,10 @@
 'use strict';
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let input = '';
 try {
@@ -38,10 +41,14 @@ try {
   const isFirstCall = toolCalls <= 1;
 
   if (isFirstCall) {
-    // Item 2: Inject INTENT_GATE core routing table on first call
-    hints.push(
-      '[INTENT GATE] Classify user intent. Routes: init→Qinit, spec/plan/task→Qgenerate-spec, run/execute→Qrun-task, research/compare→Edeep-researcher, bug/error/not-working→Ecode-debugger, review/check→Ecode-reviewer, test/coverage→Ecode-test-engineer, docs/explain/README→Ecode-doc-writer, commit/push→Qcommit, refresh/sync→Qrefresh, debug-method→Qsystematic-debugging, TDD→Qtest-driven-development, design-UI/React→Qfrontend-design, architecture/C4→Qc4-architecture, DB-schema→Qdatabase-schema-designer, help→Qhelp, browser/scrape→Qagent-browser, PRD/roadmap→Epm-planner, resume/continue→Qresume'
-    );
+    // Item 2: Inject INTENT_GATE from centralized config
+    try {
+      const routesConfig = JSON.parse(readFileSync(join(__dirname, 'lib', 'intent-routes.json'), 'utf8'));
+      const routeEntries = Object.entries(routesConfig.routes).map(([k, v]) => `${k}→${v}`).join(', ');
+      hints.push(`[INTENT GATE] Classify user intent. Routes: ${routeEntries}`);
+    } catch {
+      hints.push('[INTENT GATE] Classify user intent. (Warning: intent-routes.json not found)');
+    }
   }
 
   // Item 4 & 5: Check intent-route.json
