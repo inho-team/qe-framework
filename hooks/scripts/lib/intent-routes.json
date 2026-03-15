@@ -63,7 +63,11 @@
     "format-convert/md-to-docx/문서 변환/포맷 변환/변환해": "Qdoc-converter",
     "content-research/article-draft/콘텐츠 리서치/기사 초안": "Qcontent-research-writer",
     "routing-test/verify-skill-routing/라우팅 테스트/라우팅 검증/라우팅 정확도": "Qskill-tester",
-    "autoresearch/experiment-loop/자율 실험": "Qautoresearch"
+    "autoresearch/experiment-loop/자율 실험": "Qautoresearch",
+    "archive-task/completed-archive/아카이브/작업 보관": "Qarchive",
+    "quality-loop/code-run-task/코드 품질 루프": "Qcode-run-task",
+    "mcp-setup/connect-service/MCP 설정/서비스 연결": "Qmcp-setup",
+    "translate/grammar/번역/문법 교정/언어 변환": "Qtranslate"
   },
   "agent_tiers": {
     "LOW_haiku": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],
