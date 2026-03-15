@@ -1,6 +1,6 @@
 ---
 name: Qtest-driven-development
-description: "Use before implementing features or fixing bugs — before writing implementation code. TDD: write the test first -> confirm it fails -> pass with minimal code -> refactor."
+description: "Coaches through TDD methodology: write a failing test first, implement minimal code to pass, then refactor. Use BEFORE implementing new features or fixing bugs — before writing any implementation code. Distinct from Qcode-run-task (which runs test/review loops after implementation) — this skill enforces test-first development."
 metadata:
   source: https://skills.sh/obra/superpowers/test-driven-development
   author: obra

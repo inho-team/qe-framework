@@ -2,13 +2,11 @@
 name: Qhumanizer
 version: 2.1.1
 description: |
-  Removes traces of AI-generated writing from text. Use when editing or reviewing
-  writing to make it sound more natural and human. Based on Wikipedia's
-  "Signs of AI Writing" guide. Detects and corrects: inflated significance,
-  promotional language, superficial -ing analysis, vague attribution, em-dash
-  overuse, rule of three, AI clichés, negative parallelism, and conjunction overuse.
-
-  Credits: Original skill by @blader - https://github.com/blader/humanizer
+  Detects and removes AI-generated writing patterns to make text sound natural and human.
+  Use when editing or reviewing writing that sounds robotic, overly formal, or contains
+  AI cliches. Fixes inflated significance, promotional language, em-dash overuse, rule of
+  three, vague attribution, and conjunction overuse. Based on Wikipedia's 'Signs of AI
+  Writing' guide.
 allowed-tools:
   - Read
   - Write

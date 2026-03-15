@@ -1,6 +1,6 @@
 ---
 name: Qfrontend-design
-description: Creates original, production-grade frontend interfaces with high design quality. Use when creating web components, pages, dashboards, React components, HTML/CSS layouts, or styling/decorating UI. Avoids generic AI aesthetics and produces creative, refined code and UI design.
+description: "Creates original, production-grade frontend interfaces from scratch. Use when building new web components, pages, dashboards, React components, HTML/CSS layouts, or decorating UI. Distinct from Qweb-design-guidelines which reviews existing UI — this skill creates new UI with high design quality."
 metadata:
   author: anthropic
   version: "1.0.0"

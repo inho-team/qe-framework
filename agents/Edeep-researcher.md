@@ -1,6 +1,6 @@
 ---
 name: Edeep-researcher
-description: Systematic multi-step research agent. Performs in-depth investigations for technology research, comparative analysis, and decision support. Use for requests like "research this", "compare these", "which is better?", "technology selection", "research".
+description: "Multi-step research agent that performs in-depth investigations across multiple sources. Use when the user asks to 'research this', 'compare these options', 'which technology is better', or needs technology selection, comparative analysis, market research, or decision support with structured findings."
 ---
 
 > Shared principles: see core/PRINCIPLES.md

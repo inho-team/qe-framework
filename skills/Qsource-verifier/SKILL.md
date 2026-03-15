@@ -1,6 +1,6 @@
 ---
 name: Qsource-verifier
-description: "Verifies source credibility and digital content authenticity. Use when checking source reliability, investigating social media accounts, verifying images/videos/documents, or building verification trails for claims and evidence."
+description: "Verifies source credibility and digital content authenticity using the SIFT method (Stop, Investigate, Find, Trace). Use when asked to 'verify this source', 'check credibility', 'is this reliable', or when investigating social media accounts, verifying images/videos/documents, or building verification trails. Produces structured verification records with confidence ratings."
 metadata:
   source: https://github.com/jamditis/claude-skills-journalism
   author: jamditis

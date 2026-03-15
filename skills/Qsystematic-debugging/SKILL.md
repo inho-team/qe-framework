@@ -1,6 +1,6 @@
 ---
 name: Qsystematic-debugging
-description: "Use before applying fixes when encountering bugs, test failures, or unexpected behavior. Find the root cause first through systematic debugging, test hypotheses, then fix."
+description: "Finds root causes of bugs through systematic hypothesis-driven investigation BEFORE applying any fixes. Use when encountering bugs, test failures, or unexpected behavior where the cause is unknown. Distinct from Ecode-debugger (which analyzes and fixes errors) — this skill enforces a disciplined 'diagnose first, fix second' methodology."
 metadata:
   source: https://skills.sh/obra/superpowers/systematic-debugging
   author: obra
