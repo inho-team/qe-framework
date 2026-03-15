@@ -1,5 +1,5 @@
 ---
-name: salesforce-developer
+name: Qsalesforce-developer
 description: Writes and debugs Apex code, builds Lightning Web Components, optimizes SOQL queries, implements triggers, batch jobs, platform events, and integrations on the Salesforce platform. Use when developing Salesforce applications, customizing CRM workflows, managing governor limits, bulk processing, or setting up Salesforce DX and CI/CD pipelines.
 license: MIT
 metadata:

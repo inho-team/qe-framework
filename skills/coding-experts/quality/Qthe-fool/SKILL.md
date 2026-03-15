@@ -1,5 +1,5 @@
 ---
-name: the-fool
+name: Qthe-fool
 description: Use when challenging ideas, plans, decisions, or proposals using structured critical reasoning. Invoke to play devil's advocate, run a pre-mortem, red team, or audit evidence and assumptions.
 license: MIT
 metadata:

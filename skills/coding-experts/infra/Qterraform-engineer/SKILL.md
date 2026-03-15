@@ -1,5 +1,5 @@
 ---
-name: terraform-engineer
+name: Qterraform-engineer
 description: Use when implementing infrastructure as code with Terraform across AWS, Azure, or GCP. Invoke for module development (create reusable modules, manage module versioning), state management (migrate backends, import existing resources, resolve state conflicts), provider configuration, multi-environment workflows, and infrastructure testing.
 license: MIT
 metadata:

@@ -1,5 +1,5 @@
 ---
-name: dotnet-core-expert
+name: Qdotnet-core-expert
 description: Use when building .NET 8 applications with minimal APIs, clean architecture, or cloud-native microservices. Invoke for Entity Framework Core, CQRS with MediatR, JWT authentication, AOT compilation.
 license: MIT
 metadata:

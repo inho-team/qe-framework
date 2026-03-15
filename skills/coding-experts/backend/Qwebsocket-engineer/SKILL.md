@@ -1,5 +1,5 @@
 ---
-name: websocket-engineer
+name: Qwebsocket-engineer
 description: Use when building real-time communication systems with WebSockets or Socket.IO. Invoke for bidirectional messaging, horizontal scaling with Redis, presence tracking, room management.
 license: MIT
 metadata:

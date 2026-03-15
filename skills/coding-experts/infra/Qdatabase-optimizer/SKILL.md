@@ -1,5 +1,5 @@
 ---
-name: database-optimizer
+name: Qdatabase-optimizer
 description: Optimizes database queries and improves performance across PostgreSQL and MySQL systems. Use when investigating slow queries, analyzing execution plans, or optimizing database performance. Invoke for index design, query rewrites, configuration tuning, partitioning strategies, lock contention resolution.
 license: MIT
 metadata:
