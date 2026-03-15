@@ -5,6 +5,7 @@ import { readFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWriteJson } from './lib/state.mjs';
+import { loadConfig } from './lib/config.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -24,6 +25,7 @@ try {
 }
 
 const cwd = data.cwd || data.directory || process.cwd();
+const cfg = loadConfig(cwd);
 const userMessage = data.user_message || data.message || '';
 
 if (!userMessage) {
@@ -55,7 +57,7 @@ try {
     }
   }
 
-  if (bestMatch && bestScore >= 3) {
+  if (bestMatch && bestScore >= cfg.intent_confidence_threshold) {
     const stateDir = join(cwd, '.qe', 'state');
     if (!existsSync(stateDir)) {
       mkdirSync(stateDir, { recursive: true });
@@ -74,7 +76,7 @@ try {
 
 // --- Ambiguity Detection (short messages only) ---
 const words = userMessage.trim().split(/\s+/);
-if (words.length <= 5 && userMessage.length <= 100) {
+if (words.length <= cfg.ambiguous_max_words && userMessage.length <= cfg.ambiguous_max_chars) {
   const ambiguousPatterns = [
     /^help\s*me$/i,
     /^fix\s*it$/i,

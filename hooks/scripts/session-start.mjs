@@ -4,6 +4,7 @@
 import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
 import { formatMemoryForInjection } from './lib/memory.mjs';
+import { loadConfig } from './lib/config.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 let input = '';
@@ -23,6 +24,7 @@ try {
 }
 
 const cwd = data.cwd || data.directory || process.cwd();
+const cfg = loadConfig(cwd);
 const messages = [];
 
 // Check 1: CLAUDE.md existence (Qinit check)
@@ -35,7 +37,7 @@ if (!existsSync(claudeMdPath)) {
 const analysisDir = join(cwd, '.qe', 'analysis');
 if (existsSync(analysisDir)) {
   const analysisFiles = ['project-structure.md', 'tech-stack.md', 'entry-points.md', 'architecture.md'];
-  const staleThreshold = 24 * 60 * 60 * 1000; // 24 hours
+  const staleThreshold = cfg.analysis_freshness_ms;
   const now = Date.now();
 
   let staleCount = 0;

@@ -2,6 +2,7 @@
 'use strict';
 
 import { readState, readStdinJson, getCwd } from './lib/state.mjs';
+import { loadConfig } from './lib/config.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -10,6 +11,7 @@ if (!data) {
 }
 
 const cwd = getCwd(data);
+const cfg = loadConfig(cwd);
 const sessionId = data.session_id || null;
 
 // Check QE modes in priority order (ultra modes first)
@@ -28,7 +30,7 @@ for (const mode of modes) {
     activeMode = mode;
 
     // Check reinforcement count to prevent infinite loops
-    const maxReinforcements = state.max_reinforcements || 20;
+    const maxReinforcements = state.max_reinforcements || cfg.max_reinforcements;
     const reinforcements = state.reinforcement_count || 0;
 
     if (reinforcements >= maxReinforcements) {
@@ -85,8 +87,7 @@ if (!activeMode) {
       duration_ms: Date.now() - sessionStart
     });
 
-    // Keep only last 20 sessions
-    sessionLog.sessions = sessionLog.sessions.slice(0, 20);
+    sessionLog.sessions = sessionLog.sessions.slice(0, cfg.session_log_max);
 
     writeFileSync(logPath, JSON.stringify(sessionLog, null, 2), 'utf8');
   } catch {
