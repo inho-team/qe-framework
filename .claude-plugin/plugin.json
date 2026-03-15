@@ -1,6 +1,6 @@
 {
   "name": "qe-framework",
-  "version": "1.11.1",
+  "version": "1.12.0",
   "description": "QE Framework - Personal Claude Code skills package",
   "skills": "./skills/",
   "agents": [
