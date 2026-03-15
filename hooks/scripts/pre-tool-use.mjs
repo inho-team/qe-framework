@@ -60,9 +60,11 @@ try {
     if (route.routed_to && route.intent) {
       hints.push(`Routed to: ${route.routed_to} (intent: ${route.intent})`);
     }
-  } else if (!isFirstCall && toolCalls > 1) {
-    // Item 4: No route and not first call — critical warning
-    hints.push('[CRITICAL] Intent route not classified. Check INTENT_GATE and classify user intent before acting.');
+  } else if (!isFirstCall && toolCalls > 3) {
+    // Item 4: No route after grace period — warn (not on every call)
+    if (toolCalls % 10 === 0) {
+      hints.push('[WARN] Intent route not classified. Check INTENT_GATE and classify user intent before acting.');
+    }
   }
 } catch {
   // Fault-tolerant: ignore intent routing errors
@@ -77,8 +79,11 @@ if (existsSync(analysisDir)) {
     const toolInput = data.tool_input || data.toolInput || {};
     const pattern = toolInput.pattern || toolInput.path || '';
 
-    // Only hint when doing broad exploration, not specific file reads
-    if (toolName === 'Glob' && (pattern.includes('**') || pattern.includes('*/'))) {
+    // Hint when doing broad exploration, not specific file reads
+    const isBroadGlob = toolName === 'Glob' && (pattern.includes('**') || pattern.includes('*/'));
+    const isBroadGrep = toolName === 'Grep' && !pattern.includes('/') && !(toolInput.path || '').includes('.');
+    const isBroadRead = toolName === 'Read' && (pattern.includes('README') || pattern.includes('package.json'));
+    if (isBroadGlob || isBroadGrep || isBroadRead) {
       hints.push('Check .qe/analysis/ files first to save tokens.');
     }
   }
@@ -125,7 +130,21 @@ if (existsSync(statsFile)) {
   try {
     const stats = JSON.parse(readFileSync(statsFile, 'utf8'));
     const callCount = stats.tool_calls || 0;
-    if (callCount > cfg.context_pressure_high) {
+    if (callCount > 250) {
+      // Check Utopia mode for auto-compaction
+      const utopiaFile = join(cwd, '.qe', 'state', 'utopia-state.json');
+      let isUtopia = false;
+      try {
+        if (existsSync(utopiaFile)) {
+          isUtopia = JSON.parse(readFileSync(utopiaFile, 'utf8')).enabled === true;
+        }
+      } catch {}
+      if (isUtopia) {
+        hints.push('Context pressure critical: 250+ tool calls in Utopia mode. Run Ecompact-executor NOW to save context.');
+      } else {
+        hints.push('Context pressure critical: 250+ tool calls. Strongly recommend running /Qcompact.');
+      }
+    } else if (callCount > cfg.context_pressure_high) {
       hints.push(`Context pressure warning: ${cfg.context_pressure_high}+ tool calls. Consider running /Qcompact.`);
     } else if (callCount > cfg.context_pressure_warn) {
       hints.push('High context usage: prioritize .qe/analysis/ files to save tokens.');
