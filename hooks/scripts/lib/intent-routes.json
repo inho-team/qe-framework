@@ -56,7 +56,13 @@
     "utopia/autonomous": "Qutopia",
     "update-plugin/upgrade-qe": "Qupdate",
     "migrate-tasks": "Qmigrate-tasks",
-    "refactor-CLAUDE.md": "Qagent-md-refactor"
+    "refactor-CLAUDE.md": "Qagent-md-refactor",
+    "jira/issue/ticket/sprint": "Qjira-cli",
+    "fact-check/verify-claims/accuracy": "Qfact-checker",
+    "source/credibility/SIFT/verify-source": "Qsource-verifier",
+    "convert/md-to-docx/format-conversion": "Qdoc-converter",
+    "content-writing/article/draft-with-research": "Qcontent-research-writer",
+    "skill-test/routing-test/verify-skills": "Qskill-tester"
   },
   "agent_tiers": {
     "LOW_haiku": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],
