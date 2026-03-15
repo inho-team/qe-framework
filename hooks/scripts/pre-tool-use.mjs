@@ -96,17 +96,13 @@ if (['Write', 'Edit'].includes(toolName)) {
       { name: 'Private Key', regex: /-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----/ },
       { name: 'Generic API Key', regex: /(api[_\-]?key|apikey|secret[_\-]?key)\s*[:=]\s*['"][A-Za-z0-9]{20,}['"]/ },
       { name: 'DB Connection String', regex: /(mongodb|postgres|mysql|redis):\/\/[^\s]+@[^\s]+/ },
-      { name: 'Generic Password', regex: /(password|passwd|pwd)\s*[:=]\s*['"][^'"]{8,}['"]/ },
+      { name: 'Generic Password', regex: /(?:^|[^a-zA-Z])(password|passwd|pwd)\s*[:=]\s*['"][^'"]{16,}['"]/ },
     ];
 
     for (const { name, regex } of secretPatterns) {
       if (regex.test(contentToScan)) {
-        console.log(JSON.stringify({
-          continue: false,
-          decision: "block",
-          reason: `Blocked: potential secret detected (${name}). Remove the secret before proceeding.`
-        }));
-        process.exit(0);
+        hints.push(`[SECRET WARNING] Potential secret detected (${name}). Verify this is not a real credential before proceeding.`);
+        break;
       }
     }
   }

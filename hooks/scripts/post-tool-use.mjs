@@ -56,12 +56,12 @@ if (isError) {
     atomicWriteJson(errorFile, errorState);
   } catch {}
 
-  const consecutiveCount = errorState.errors.filter(e => e.tool === toolName).length;
+  const recentCount = errorState.errors.filter(e => e.tool === toolName).length;
 
-  if (consecutiveCount >= 5) {
-    hints.push(`${toolName} tool failed 5+ times. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
-  } else if (consecutiveCount >= 3) {
-    hints.push(`${toolName} tool failed ${consecutiveCount} times consecutively. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
+  if (recentCount >= 5) {
+    hints.push(`${toolName} tool failed 5+ times in 90s window. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
+  } else if (recentCount >= 3) {
+    hints.push(`${toolName} tool failed ${recentCount} times in 90s window. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
   }
 } else {
   // Success - clear error tracking for this tool
