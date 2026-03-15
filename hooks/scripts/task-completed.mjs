@@ -28,7 +28,7 @@ if (taskId) {
   const checklistPath = join(cwd, '.qe', 'checklists', 'pending', `VERIFY_CHECKLIST_${taskId}.md`);
   if (existsSync(checklistPath)) {
     const content = readFileSync(checklistPath, 'utf8');
-    const unchecked = (content.match(/- \[ \]/g) || []).length;
+    const unchecked = (content.match(/- *\[ +\]/g) || []).length;
     if (unchecked > 0) {
       hints.push(`Task ${taskId} has ${unchecked} unchecked verification items. Complete verification before marking done.`);
       // Exit code 2 = prevent completion

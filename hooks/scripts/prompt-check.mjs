@@ -42,15 +42,33 @@ try {
   let bestMatch = null;
   let bestScore = 0;
 
+  const msgWords = msgLower.split(/\s+/);
+
   for (const [keywords, target] of Object.entries(routesConfig.routes)) {
     const parts = keywords.split('/');
-    let score = 0;
+    let matchedParts = 0;
+    let totalWeight = 0;
+
     for (const part of parts) {
       const term = part.toLowerCase().replace(/-/g, ' ');
-      if (msgLower.includes(term)) {
-        score += term.length;
+      const termWords = term.split(/\s+/);
+
+      // Exact word match (higher weight) vs substring match (lower weight)
+      const hasExactWord = termWords.some(tw => msgWords.includes(tw));
+      const hasSubstring = msgLower.includes(term);
+
+      if (hasExactWord) {
+        matchedParts++;
+        totalWeight += term.length * 2;  // exact word match = 2x weight
+      } else if (hasSubstring) {
+        matchedParts++;
+        totalWeight += term.length;
       }
     }
+
+    // Score = matched keyword count * total weight (prioritize more keyword matches)
+    const score = matchedParts > 0 ? matchedParts * 3 + totalWeight : 0;
+
     if (score > bestScore) {
       bestScore = score;
       bestMatch = { intent: keywords, routed_to: target };
