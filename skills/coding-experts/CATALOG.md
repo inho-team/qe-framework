@@ -2,6 +2,8 @@
 
 코딩 전문가 참조 스킬 카탈로그. 워크플로우 스킬(Qrun-task, Qcode-run-task 등)에서 구현 시 해당 언어/프레임워크의 전문가 스킬을 참조한다.
 
+> **공통 원칙**: 모든 코딩 expert 스킬은 [PRINCIPLES.md](PRINCIPLES.md)를 따른다. (Context7 최신 문서 참조, 코드 품질 기본 원칙)
+
 ## languages/ (14)
 
 | Skill | Domain |
