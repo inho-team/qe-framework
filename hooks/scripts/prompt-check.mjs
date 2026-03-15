@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWriteJson } from './lib/state.mjs';
@@ -57,6 +57,44 @@ if (words.length <= cfg.ambiguous_max_words && userMessage.length <= cfg.ambiguo
   if (isAmbiguous) {
     hints.push('Ambiguous request detected. Ask the user to clarify: what file, what behavior, what result?');
   }
+}
+
+// --- Language Detection (Qtranslate support) ---
+try {
+  const profileDir = join(cwd, '.qe', 'profile');
+  const languagePath = join(profileDir, 'language.md');
+
+  // Only detect if language.md doesn't exist yet (first detection per project)
+  if (!existsSync(languagePath)) {
+    const detected = detectLanguage(userMessage);
+    if (detected) {
+      if (!existsSync(profileDir)) mkdirSync(profileDir, { recursive: true });
+
+      const langNames = {
+        ko: 'Korean', en: 'English', ja: 'Japanese', zh: 'Chinese',
+        fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese',
+        it: 'Italian', ru: 'Russian', ar: 'Arabic', vi: 'Vietnamese',
+        th: 'Thai', hi: 'Hindi',
+      };
+      const langName = langNames[detected] || detected;
+      const now = new Date().toISOString().split('T')[0];
+
+      const content = `# Language Profile
+
+## Settings
+- Primary language: ${detected} (${langName})
+- Response language: ${detected} (same as user's language)
+- Internal processing language: en (always English)
+
+## Detection History
+- ${now}: ${langName} detected
+`;
+      writeFileSync(languagePath, content, 'utf8');
+      hints.push(`[LANG] Detected: ${detected} (${langName}). Saved to .qe/profile/language.md`);
+    }
+  }
+} catch {
+  // Fault-tolerant: skip language detection on error
 }
 
 // --- Intent Auto-Classification (skip if ambiguous) ---
@@ -171,4 +209,113 @@ if (hints.length > 0) {
   }));
 } else {
   console.log(JSON.stringify({ continue: true }));
+}
+
+/**
+ * Detect language from message text using Unicode range analysis.
+ * Returns ISO 639-1 code or null if undetectable.
+ */
+function detectLanguage(text) {
+  if (!text || text.trim().length === 0) return null;
+
+  // Count characters by script
+  const counts = { ko: 0, ja: 0, zh: 0, latin: 0, cyrillic: 0, arabic: 0, thai: 0, devanagari: 0 };
+
+  for (const ch of text) {
+    const cp = ch.codePointAt(0);
+    // Korean: Hangul Jamo + Hangul Syllables + Hangul Compatibility Jamo
+    if ((cp >= 0x1100 && cp <= 0x11FF) || (cp >= 0x3131 && cp <= 0x318E) || (cp >= 0xAC00 && cp <= 0xD7A3)) {
+      counts.ko++;
+    }
+    // Japanese: Hiragana + Katakana (but not CJK Unified — shared with Chinese)
+    else if ((cp >= 0x3040 && cp <= 0x309F) || (cp >= 0x30A0 && cp <= 0x30FF)) {
+      counts.ja++;
+    }
+    // CJK Unified Ideographs (shared by Chinese/Japanese/Korean)
+    else if (cp >= 0x4E00 && cp <= 0x9FFF) {
+      counts.zh++; // default to Chinese; Japanese disambiguated by kana presence
+    }
+    // Latin
+    else if ((cp >= 0x0041 && cp <= 0x024F)) {
+      counts.latin++;
+    }
+    // Cyrillic
+    else if (cp >= 0x0400 && cp <= 0x04FF) {
+      counts.cyrillic++;
+    }
+    // Arabic
+    else if (cp >= 0x0600 && cp <= 0x06FF) {
+      counts.arabic++;
+    }
+    // Thai
+    else if (cp >= 0x0E00 && cp <= 0x0E7F) {
+      counts.thai++;
+    }
+    // Devanagari (Hindi)
+    else if (cp >= 0x0900 && cp <= 0x097F) {
+      counts.devanagari++;
+    }
+  }
+
+  // If Japanese kana is present, CJK chars are likely Japanese too
+  if (counts.ja > 0) {
+    counts.ja += counts.zh;
+    counts.zh = 0;
+  }
+
+  // Find dominant script
+  const entries = Object.entries(counts).filter(([, v]) => v > 0);
+  if (entries.length === 0) return null;
+
+  entries.sort((a, b) => b[1] - a[1]);
+  const [dominant, count] = entries[0];
+
+  if (count === 0) return null;
+
+  // Map script to language
+  const scriptToLang = {
+    ko: 'ko', ja: 'ja', zh: 'zh', cyrillic: 'ru', arabic: 'ar', thai: 'th', devanagari: 'hi',
+  };
+
+  if (scriptToLang[dominant]) return scriptToLang[dominant];
+
+  // Latin script — detect specific language by common words/patterns
+  if (dominant === 'latin') {
+    const lower = text.toLowerCase();
+
+    // French indicators
+    if (/\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|nous|vous|ils|elles|faire|très|aussi|mais|ou|où|qui|que|dont)\b/.test(lower)) {
+      const frCount = (lower.match(/\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|très|aussi|mais|qui|que|dont)\b/g) || []).length;
+      if (frCount >= 2) return 'fr';
+    }
+
+    // German indicators
+    if (/\b(der|die|das|ein|eine|ist|sind|für|mit|und|oder|aber|haben|werden|nicht|diese[rnms]?|Sie|über|können)\b/.test(lower)) {
+      const deCount = (lower.match(/\b(der|die|das|ein|eine|ist|sind|für|mit|und|oder|aber|nicht|diese[rnms]?|Sie|über)\b/g) || []).length;
+      if (deCount >= 2) return 'de';
+    }
+
+    // Spanish indicators
+    if (/\b(el|la|los|las|un|una|es|son|para|con|del|esta?|por|como|más|pero|este?|tienen|puede|hacer)\b/.test(lower)) {
+      const esCount = (lower.match(/\b(el|la|los|las|un|una|es|son|para|con|del|esta?|por|como|más|pero)\b/g) || []).length;
+      if (esCount >= 2) return 'es';
+    }
+
+    // Portuguese indicators
+    if (/\b(o|os|uma?|é|são|para|com|não|mais|como|também|pode|fazer|essa?|este|pelo)\b/.test(lower)) {
+      const ptCount = (lower.match(/\b(não|também|é|são|uma?|essa?|pelo)\b/g) || []).length;
+      if (ptCount >= 2) return 'pt';
+    }
+
+    // Italian indicators
+    if (/\b(il|lo|la|gli|le|un|una|è|sono|per|con|non|questo|questa|come|anche|può|fare|della|delle)\b/.test(lower)) {
+      const itCount = (lower.match(/\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della|delle)\b/g) || []).length;
+      if (itCount >= 2) return 'it';
+    }
+
+    // Default Latin → English
+    return 'en';
+  }
+
+  return null;
 }
