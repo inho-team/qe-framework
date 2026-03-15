@@ -48,8 +48,11 @@ const chains = [
 ];
 
 for (const { match, hint } of chains) {
-  if (messageStr.includes(match)) {
+  // Use word boundary match to prevent partial agent name collisions
+  const regex = new RegExp(`\\b${match}\\b`);
+  if (regex.test(messageStr)) {
     hints.push(hint);
+    break;  // One chain action per notification
   }
 }
 
