@@ -116,7 +116,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (60 + 72 Coding Experts)
+## Skills (63 + 72 Coding Experts)
 
 ### Development
 
@@ -132,7 +132,8 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qdoc-comment | Automatically adds documentation comments appropriate for the project's language. |
 | Qmcp-builder | MCP (Model Context Protocol) server creation guide using Python (FastMCP) or TypeScript (MCP SDK). |
 | Qagent-browser | Browser automation CLI for navigation, form filling, screenshots, and data extraction. |
-| Qautoresearch | Autonomous experiment loop inspired by Karpathy's autoresearch. Iterates code changes, evaluates metrics, keeps or discards. |
+| Qautoresearch | Autonomous experiment loop inspired by Karpathy's autoresearch. Supports multi-file targets, integrates Ecode-reviewer/debugger, and keeps or discards based on metrics. |
+| Qmcp-setup | MCP server setup and configuration guide for connecting external services (Google Drive, Slack, GitHub, etc.). |
 
 ### Task Management
 
@@ -192,7 +193,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 |-------|-------------|
 | Qaudio-transcriber | Converts audio recordings (MP3, WAV, M4A, etc.) into professional Markdown documents. |
 | Qyoutube-transcript-api | Extracts, transcribes, and translates YouTube video subtitles/captions. |
-| Qtranslate | Multilingual translation with grammar correction support. |
+| Qtranslate | Multilingual support with programmatic language detection (CJK, Latin, Cyrillic, Arabic, etc.) and automatic language.md management. |
 
 ### Meta
 
@@ -380,16 +381,19 @@ QE Framework runs several agents silently in the background at key lifecycle mom
 
 ### Lifecycle Hooks
 
-The framework uses 6 lifecycle hooks that fire at specific events:
+The framework uses 9 lifecycle hooks that fire at specific events:
 
 | Hook | Trigger | What Happens |
 |------|---------|--------------|
 | `SessionStart` | Conversation begins | Injects framework rules, triggers `Erefresh-executor` if analysis is stale |
-| `PreToolUse` | Before every tool call | **Intent Gate** — classifies user intent and routes to the correct skill/agent |
-| `PostToolUse` | After every tool call | Triggers `Eprofile-collector` to record user patterns |
+| `UserPromptSubmit` | User sends a message | **Intent auto-classification** with CJK/bigram matching + **language detection** for Qtranslate |
+| `PreToolUse` | Before every tool call | Intent Gate routing display, secret scanning, context pressure warnings |
+| `PostToolUse` | After every tool call | Error tracking/escalation, tool call counting, `Eprofile-collector` trigger |
 | `PreCompact` | Before context compaction | Triggers `Ecompact-executor` to save context before it is lost |
-| `Stop` | Conversation ends | Cleanup and finalization |
+| `Stop` | Conversation ends | Session log recording, mode blocking for active work |
 | `Notification` | Background agent completes | Chains follow-up actions when background agents finish |
+| `TaskCompleted` | Task finishes | Validates verify checklist completion before allowing task close |
+| `TeammateIdle` | Agent team member idles | Prompts idle teammates to claim pending tasks |
 
 ### Background Agents
 
@@ -568,7 +572,7 @@ See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for detailed configuration and team pa
 qe-framework/
 ├── .claude-plugin/    # Plugin configuration
 ├── agents/            # 16 agents (E-prefix)
-├── skills/            # 60 core + 72 coding expert skills (Q-prefix)
+├── skills/            # 63 core + 72 coding expert skills (Q-prefix)
 ├── core/              # Shared principles & configuration
 ├── hooks/             # Lifecycle hooks
 ├── install.js         # Installation script
