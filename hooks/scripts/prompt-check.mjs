@@ -283,34 +283,36 @@ function detectLanguage(text) {
   if (dominant === 'latin') {
     const lower = text.toLowerCase();
 
-    // French indicators
-    if (/\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|nous|vous|ils|elles|faire|très|aussi|mais|ou|où|qui|que|dont)\b/.test(lower)) {
-      const frCount = (lower.match(/\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|très|aussi|mais|qui|que|dont)\b/g) || []).length;
-      if (frCount >= 2) return 'fr';
-    }
+    // Detect by unique diacritics/characters first (strong signal, no word counting needed)
+    if (/[àâçéèêëîïôùûüÿœæ]/i.test(text) && /\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|très|mais|qui|que)\b/.test(lower)) return 'fr';
+    if (/[äöüß]/i.test(text) && /\b(der|die|das|ein|eine?|ist|sind|für|mit|und|oder|nicht|über|Sie)\b/.test(lower)) return 'de';
+    if (/[áéíóúñ¿¡]/i.test(text) && /\b(el|la|los|las|una?|es|son|para|con|del|por|más|pero)\b/.test(lower)) return 'es';
+    if (/[ãõçáéíóú]/i.test(text) && /\b(não|também|é|são|uma?|essa?|pelo|para|com)\b/.test(lower)) return 'pt';
+    if (/[àèéìíòóùú]/i.test(text) && /\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della)\b/.test(lower)) return 'it';
 
-    // German indicators
-    if (/\b(der|die|das|ein|eine|ist|sind|für|mit|und|oder|aber|haben|werden|nicht|diese[rnms]?|Sie|über|können)\b/.test(lower)) {
-      const deCount = (lower.match(/\b(der|die|das|ein|eine|ist|sind|für|mit|und|oder|aber|nicht|diese[rnms]?|Sie|über)\b/g) || []).length;
-      if (deCount >= 2) return 'de';
-    }
+    // Fallback: function word counting for text without clear diacritics
+    const langScores = [];
 
-    // Spanish indicators
-    if (/\b(el|la|los|las|un|una|es|son|para|con|del|esta?|por|como|más|pero|este?|tienen|puede|hacer)\b/.test(lower)) {
-      const esCount = (lower.match(/\b(el|la|los|las|un|una|es|son|para|con|del|esta?|por|como|más|pero)\b/g) || []).length;
-      if (esCount >= 2) return 'es';
-    }
+    const frWords = (lower.match(/\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|très|aussi|mais|qui|que|dont|nous|vous)\b/g) || []).length;
+    if (frWords >= 1) langScores.push(['fr', frWords]);
 
-    // Portuguese indicators
-    if (/\b(o|os|uma?|é|são|para|com|não|mais|como|também|pode|fazer|essa?|este|pelo)\b/.test(lower)) {
-      const ptCount = (lower.match(/\b(não|também|é|são|uma?|essa?|pelo)\b/g) || []).length;
-      if (ptCount >= 2) return 'pt';
-    }
+    const deWords = (lower.match(/\b(der|die|das|ein|eine|ist|sind|für|mit|und|oder|aber|nicht|diese[rnms]?|über|können)\b/g) || []).length;
+    if (deWords >= 1) langScores.push(['de', deWords]);
 
-    // Italian indicators
-    if (/\b(il|lo|la|gli|le|un|una|è|sono|per|con|non|questo|questa|come|anche|può|fare|della|delle)\b/.test(lower)) {
-      const itCount = (lower.match(/\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della|delle)\b/g) || []).length;
-      if (itCount >= 2) return 'it';
+    const esWords = (lower.match(/\b(el|la|los|las|una?|es|son|para|con|del|por|como|más|pero)\b/g) || []).length;
+    if (esWords >= 1) langScores.push(['es', esWords]);
+
+    const ptWords = (lower.match(/\b(não|também|é|são|uma?|essa?|pelo|para|com)\b/g) || []).length;
+    if (ptWords >= 1) langScores.push(['pt', ptWords]);
+
+    const itWords = (lower.match(/\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della|delle)\b/g) || []).length;
+    if (itWords >= 1) langScores.push(['it', itWords]);
+
+    // Pick the language with most function word matches (if any beat English default)
+    if (langScores.length > 0) {
+      langScores.sort((a, b) => b[1] - a[1]);
+      // Only override English if the non-English score is clearly dominant
+      if (langScores[0][1] >= 1) return langScores[0][0];
     }
 
     // Default Latin → English
