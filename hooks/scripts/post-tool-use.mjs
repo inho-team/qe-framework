@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, getCwd } from './lib/state.mjs';
+import { loadConfig } from './lib/config.mjs';
 
 let input = '';
 try {
@@ -21,6 +22,7 @@ try {
 }
 
 const cwd = getCwd(data);
+const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const isError = data.tool_response?.includes?.('error') ||
                 data.tool_response?.includes?.('Error') ||
@@ -41,8 +43,8 @@ if (isError) {
     } catch {}
   }
 
-  // Reset window if older than 60 seconds
-  if (Date.now() - errorState.window_start > 90000) {
+  // Reset window if older than configured threshold
+  if (Date.now() - errorState.window_start > cfg.error_window_ms) {
     errorState = { errors: [], window_start: Date.now() };
   }
 
@@ -58,10 +60,10 @@ if (isError) {
 
   const recentCount = errorState.errors.filter(e => e.tool === toolName).length;
 
-  if (recentCount >= 5) {
-    hints.push(`${toolName} tool failed 5+ times in 90s window. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
-  } else if (recentCount >= 3) {
-    hints.push(`${toolName} tool failed ${recentCount} times in 90s window. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
+  if (recentCount >= cfg.error_delegate_count) {
+    hints.push(`${toolName} tool failed ${recentCount}+ times in error window. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
+  } else if (recentCount >= cfg.error_escalate_count) {
+    hints.push(`${toolName} tool failed ${recentCount} times in error window. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
   }
 } else {
   // Success - clear error tracking for this tool
@@ -94,14 +96,14 @@ try {
 
 // Profile collection trigger every 50 tool calls
 try {
-  if (stats.tool_calls > 0 && stats.tool_calls % 20 === 0) {
+  if (stats.tool_calls > 0 && stats.tool_calls % cfg.profile_collect_interval === 0) {
     let safeToCollect = true;
     if (existsSync(errorFile)) {
       try {
         const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
         const hasRecentErrors = Array.isArray(errState.errors) &&
           errState.errors.length > 0 &&
-          (Date.now() - (errState.window_start || 0)) <= 90000;
+          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
         if (hasRecentErrors) safeToCollect = false;
       } catch {}
     }

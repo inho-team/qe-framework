@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { loadConfig } from './lib/config.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -23,6 +24,7 @@ try {
 }
 
 const cwd = data.cwd || data.directory || process.cwd();
+const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const hints = [];
 
@@ -123,9 +125,9 @@ if (existsSync(statsFile)) {
   try {
     const stats = JSON.parse(readFileSync(statsFile, 'utf8'));
     const callCount = stats.tool_calls || 0;
-    if (callCount > 200) {
-      hints.push('Context pressure warning: 200+ tool calls. Consider running /Qcompact.');
-    } else if (callCount > 150) {
+    if (callCount > cfg.context_pressure_high) {
+      hints.push(`Context pressure warning: ${cfg.context_pressure_high}+ tool calls. Consider running /Qcompact.`);
+    } else if (callCount > cfg.context_pressure_warn) {
       hints.push('High context usage: prioritize .qe/analysis/ files to save tokens.');
     }
   } catch {}
