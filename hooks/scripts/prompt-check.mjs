@@ -53,21 +53,37 @@ try {
       const term = part.toLowerCase().replace(/-/g, ' ');
       const termWords = term.split(/\s+/);
 
-      // Exact word match (higher weight) vs substring match (lower weight)
-      const hasExactWord = termWords.some(tw => msgWords.includes(tw));
-      const hasSubstring = msgLower.includes(term);
+      // Multi-word term: all words must match for the term to count
+      const allWordsMatch = termWords.length > 1 &&
+        termWords.every(tw => msgWords.includes(tw) || msgLower.includes(tw));
 
-      if (hasExactWord) {
+      // Single word exact match (word boundary)
+      const hasExactWord = termWords.some(tw => {
+        if (tw.length <= 2) return false; // skip very short words
+        return msgWords.includes(tw);
+      });
+
+      // Substring match — only for longer terms (4+ chars) to avoid false positives
+      const hasSubstring = term.length >= 4 && msgLower.includes(term);
+
+      if (allWordsMatch && termWords.length > 1) {
+        matchedParts++;
+        totalWeight += term.length * 4;  // multi-word exact = 4x weight
+      } else if (hasExactWord) {
         matchedParts++;
         totalWeight += term.length * 2;  // exact word match = 2x weight
-      } else if (hasSubstring) {
-        matchedParts++;
-        totalWeight += term.length;
+      } else if (hasSubstring && !hasExactWord) {
+        // Penalize substring-only matches for common short words
+        const penalty = term.length < 6 ? 0.3 : 0.7;
+        matchedParts += penalty;
+        totalWeight += term.length * penalty;
       }
     }
 
-    // Score = matched keyword count * total weight (prioritize more keyword matches)
-    const score = matchedParts > 0 ? matchedParts * 3 + totalWeight : 0;
+    // Score = matched keyword ratio * total weight
+    // Normalize by number of parts to favor routes where more keywords match
+    const matchRatio = parts.length > 0 ? matchedParts / parts.length : 0;
+    const score = matchedParts > 0 ? matchRatio * 5 + totalWeight : 0;
 
     if (score > bestScore) {
       bestScore = score;
