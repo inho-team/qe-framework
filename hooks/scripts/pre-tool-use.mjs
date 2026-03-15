@@ -60,9 +60,10 @@ try {
     if (route.routed_to && route.intent) {
       hints.push(`Routed to: ${route.routed_to} (intent: ${route.intent})`);
     }
-  } else if (!isFirstCall && toolCalls > 3) {
-    // Item 4: No route after grace period — warn (not on every call)
-    if (toolCalls % 10 === 0) {
+  } else if (!isFirstCall && toolCalls > 10) {
+    // Item 4: No route after extended grace period — warn sparingly
+    // Only warn once at tool call 20, then never again (prompt-check.mjs handles classification)
+    if (toolCalls === 20) {
       hints.push('[WARN] Intent route not classified. Check INTENT_GATE and classify user intent before acting.');
     }
   }
