@@ -1,7 +1,7 @@
 ---
 name: Qgenerate-spec
 description: Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST.md, VERIFY_CHECKLIST.md). Use when starting a new project or when a task specification is needed.
-disable-model-invocation: true
+user_invocable: true
 ---
 > Shared principles: see core/PRINCIPLES.md
 
