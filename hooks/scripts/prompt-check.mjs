@@ -43,6 +43,7 @@ try {
   let bestScore = 0;
 
   const msgWords = msgLower.split(/\s+/);
+  const hasCJK = /[\u3131-\u318E\uAC00-\uD7A3\u4E00-\u9FFF\u3040-\u30FF]/.test(userMessage);
 
   for (const [keywords, target] of Object.entries(routesConfig.routes)) {
     const parts = keywords.split('/');
@@ -52,6 +53,25 @@ try {
     for (const part of parts) {
       const term = part.toLowerCase().replace(/-/g, ' ');
       const termWords = term.split(/\s+/);
+      const isCJKTerm = /[\u3131-\u318E\uAC00-\uD7A3\u4E00-\u9FFF\u3040-\u30FF]/.test(term);
+
+      // CJK terms use substring matching with high weight (no word boundaries in CJK)
+      if (isCJKTerm && hasCJK) {
+        if (msgLower.includes(term)) {
+          matchedParts++;
+          totalWeight += term.length * 3;  // CJK substring = 3x weight
+          continue;
+        }
+        // Partial CJK match: check each word in the term
+        const cjkWords = term.split(/\s+/);
+        const partialMatch = cjkWords.some(w => w.length >= 2 && msgLower.includes(w));
+        if (partialMatch) {
+          matchedParts += 0.7;
+          totalWeight += term.length * 1.5;
+          continue;
+        }
+        continue;
+      }
 
       // Multi-word term: all words must match for the term to count
       const allWordsMatch = termWords.length > 1 &&
