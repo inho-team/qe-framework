@@ -116,7 +116,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 /Qrefresh                        -- プロジェクト分析データを更新
 ```
 
-## Skills (54 + 72 Coding Experts)
+## Skills (60 + 72 Coding Experts)
 
 ### 開発
 
@@ -132,6 +132,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qdoc-comment | プロジェクトの言語に適したドキュメントコメントを自動追加。 |
 | Qmcp-builder | Python (FastMCP) またはTypeScript (MCP SDK) を使用したMCP (Model Context Protocol) サーバー作成ガイド。 |
 | Qagent-browser | ナビゲーション、フォーム入力、スクリーンショット、データ抽出のためのブラウザ自動化CLI。 |
+| Qautoresearch | Karpathyのautoresearchに着想を得た自律実験ループ。コード変更を繰り返し、メトリクスを評価し、keep/discardを判定。 |
 
 ### タスク管理
 
@@ -162,6 +163,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qmermaid-diagrams | Mermaid構文を使用したソフトウェア図を生成（クラス図、シーケンス図、フローチャート、ERDなど）。 |
 | Qc4-architecture | C4モデルのMermaid図を使用したアーキテクチャドキュメントを生成。 |
 | Qimage-analyzer | 画像分析：スクリーンショット、図表、チャート、ワイヤーフレーム、OCRテキスト抽出。 |
+| Qdoc-converter | MD、DOCX、PDF、PPTX、HTML間のドキュメント形式変換。マルチツールオーケストレーション対応。 |
+| Qcontent-research-writer | 引用、反復改善、セクション別フィードバックを含むリサーチ駆動コンテンツ作成。 |
 
 ### 学術
 
@@ -204,6 +207,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qweb-design-guidelines | アクセシビリティとUXに関するWeb Interface Guidelinesに基づきUIコードをレビュー。 |
 | Qlesson-learned | git履歴から最近のコード変更を分析し、エンジニアリングの教訓を抽出。 |
 | Qhelp | QE Frameworkクイックリファレンスカードをターミナルに表示。 |
+| Qskill-tester | 自動スキルルーティングテスター。インテント分類の精度を検証し、誤分類スキルを検出。 |
+| Qjira-cli | MCPサーバー設定不要の軽量Jira CLIラッパー。クイックイシュー管理用。 |
 
 ### 分析
 
@@ -211,6 +216,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 |--------|------|
 | Qdata-analysis | CSV/JSON/Excelデータセットのデータ探索、統計分析、可視化。 |
 | Qfinance-analyst | 財務分析、バリュエーションモデリング、DCF、モンテカルロシミュレーション、ポートフォリオ最適化。 |
+| Qfact-checker | ドキュメントから事実の主張を抽出し、エビデンスベースのリサーチで検証。 |
+| Qsource-verifier | SIFTメソッドを使用してソースの信頼性とデジタルコンテンツの真正性を検証。 |
 
 ## Coding Expert Skills (72)
 
@@ -561,7 +568,7 @@ Agent Teamsが有効でない場合、すべてのエージェントは既存の
 qe-framework/
 ├── .claude-plugin/    # プラグイン設定
 ├── agents/            # 16 agents (E-prefix)
-├── skills/            # 54 core + 72 coding expert skills (Q-prefix)
+├── skills/            # 60 core + 72 coding expert skills (Q-prefix)
 ├── core/              # 共有原則と設定
 ├── hooks/             # ライフサイクルフック
 ├── install.js         # インストールスクリプト

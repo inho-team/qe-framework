@@ -116,7 +116,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 /Qrefresh                        -- 更新项目分析数据
 ```
 
-## Skills (54 + 72 Coding Experts)
+## Skills (60 + 72 Coding Experts)
 
 ### 开发
 
@@ -132,6 +132,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qdoc-comment | 自动添加适合项目语言的文档注释。 |
 | Qmcp-builder | 使用 Python (FastMCP) 或 TypeScript (MCP SDK) 创建 MCP (Model Context Protocol) 服务器的指南。 |
 | Qagent-browser | 用于导航、表单填写、截图和数据提取的浏览器自动化 CLI。 |
+| Qautoresearch | 受Karpathy autoresearch启发的自主实验循环。反复修改代码、评估指标、keep/discard判定。 |
 
 ### 任务管理
 
@@ -162,6 +163,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qmermaid-diagrams | 使用 Mermaid 语法生成软件图表（类图、时序图、流程图、ERD 等）。 |
 | Qc4-architecture | 使用 C4 模型 Mermaid 图表生成架构文档。 |
 | Qimage-analyzer | 分析图像：截图、图表、图形、线框图、OCR 文本提取。 |
+| Qdoc-converter | MD、DOCX、PDF、PPTX、HTML之间的文档格式转换。支持多工具编排。 |
+| Qcontent-research-writer | 包含引用、迭代改进和分节反馈的研究驱动内容写作。 |
 
 ### 学术
 
@@ -204,6 +207,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qweb-design-guidelines | 根据 Web Interface Guidelines 审查 UI 代码的可访问性和用户体验。 |
 | Qlesson-learned | 通过 git 历史分析最近的代码变更并提取工程经验教训。 |
 | Qhelp | 在终端中显示 QE Framework 快速参考卡。 |
+| Qskill-tester | 自动技能路由测试器。验证意图分类准确性，发现误路由技能。 |
+| Qjira-cli | 无需MCP服务器设置的轻量级Jira CLI包装器。用于快速工单管理。 |
 
 ### 分析
 
@@ -211,6 +216,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 |-------|------|
 | Qdata-analysis | CSV/JSON/Excel 数据集的数据探索、统计分析和可视化。 |
 | Qfinance-analyst | 财务分析、估值建模、DCF、蒙特卡洛模拟、投资组合优化。 |
+| Qfact-checker | 从文档中提取事实主张，通过循证研究进行验证。 |
+| Qsource-verifier | 使用SIFT方法验证来源可信度和数字内容真实性。 |
 
 ## Coding Expert Skills (72)
 
@@ -561,7 +568,7 @@ QE Framework 支持 [Claude Agent Teams](https://code.claude.com/docs/en/agent-t
 qe-framework/
 ├── .claude-plugin/    # 插件配置
 ├── agents/            # 16 个代理 (E-prefix)
-├── skills/            # 54 个核心 + 72 个编码专家技能 (Q-prefix)
+├── skills/            # 60 个核心 + 72 个编码专家技能 (Q-prefix)
 ├── core/              # 共享原则与配置
 ├── hooks/             # 生命周期钩子
 ├── install.js         # 安装脚本

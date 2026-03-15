@@ -116,7 +116,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (54 + 72 Coding Experts)
+## Skills (60 + 72 Coding Experts)
 
 ### Development
 
@@ -132,6 +132,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qdoc-comment | Automatically adds documentation comments appropriate for the project's language. |
 | Qmcp-builder | MCP (Model Context Protocol) server creation guide using Python (FastMCP) or TypeScript (MCP SDK). |
 | Qagent-browser | Browser automation CLI for navigation, form filling, screenshots, and data extraction. |
+| Qautoresearch | Autonomous experiment loop inspired by Karpathy's autoresearch. Iterates code changes, evaluates metrics, keeps or discards. |
 
 ### Task Management
 
@@ -162,6 +163,8 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qmermaid-diagrams | Generates software diagrams using Mermaid syntax (class, sequence, flowchart, ERD, etc.). |
 | Qc4-architecture | Generates architecture documentation using C4 model Mermaid diagrams. |
 | Qimage-analyzer | Analyzes images: screenshots, diagrams, charts, wireframes, OCR text extraction. |
+| Qdoc-converter | Document format converter between MD, DOCX, PDF, PPTX, HTML with multi-tool orchestration. |
+| Qcontent-research-writer | Research-driven content writing with citations, iterative refinement, and section feedback. |
 
 ### Academic
 
@@ -204,6 +207,8 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qweb-design-guidelines | Reviews UI code against Web Interface Guidelines for accessibility and UX. |
 | Qlesson-learned | Analyzes recent code changes via git history and extracts engineering lessons. |
 | Qhelp | Shows QE Framework quick reference card in terminal. |
+| Qskill-tester | Automated skill routing tester. Verifies intent classification accuracy and finds misrouted skills. |
+| Qjira-cli | Lightweight Jira CLI wrapper for quick issue management without MCP server setup. |
 
 ### Analysis
 
@@ -211,6 +216,8 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 |-------|-------------|
 | Qdata-analysis | Data exploration, statistical analysis, and visualization for CSV/JSON/Excel datasets. |
 | Qfinance-analyst | Financial analysis, valuation modeling, DCF, Monte Carlo simulation, and portfolio optimization. |
+| Qfact-checker | Extracts factual claims from documents and verifies them through evidence-based research. |
+| Qsource-verifier | Verifies source credibility and digital content authenticity using the SIFT method. |
 
 ## Coding Expert Skills (72)
 
@@ -561,7 +568,7 @@ See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for detailed configuration and team pa
 qe-framework/
 ├── .claude-plugin/    # Plugin configuration
 ├── agents/            # 16 agents (E-prefix)
-├── skills/            # 54 core + 72 coding expert skills (Q-prefix)
+├── skills/            # 60 core + 72 coding expert skills (Q-prefix)
 ├── core/              # Shared principles & configuration
 ├── hooks/             # Lifecycle hooks
 ├── install.js         # Installation script
