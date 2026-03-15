@@ -116,7 +116,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 /Qrefresh                        -- 프로젝트 분석 데이터 갱신
 ```
 
-## Skills (54 + 72 Coding Experts)
+## Skills (60 + 72 Coding Experts)
 
 ### 개발
 
@@ -132,6 +132,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qdoc-comment | 프로젝트 언어에 적합한 문서화 주석을 자동으로 추가합니다. |
 | Qmcp-builder | Python (FastMCP) 또는 TypeScript (MCP SDK)를 사용한 MCP (Model Context Protocol) 서버 생성 가이드. |
 | Qagent-browser | 탐색, 폼 입력, 스크린샷, 데이터 추출을 위한 브라우저 자동화 CLI. |
+| Qautoresearch | Karpathy의 autoresearch에서 영감 받은 자율 실험 루프. 코드 변경을 반복하고, 메트릭을 평가하고, keep/discard 판정. |
 
 ### 작업 관리
 
@@ -162,6 +163,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qmermaid-diagrams | Mermaid 구문을 사용하여 소프트웨어 다이어그램을 생성합니다 (클래스, 시퀀스, 플로우차트, ERD 등). |
 | Qc4-architecture | C4 모델 Mermaid 다이어그램을 사용한 아키텍처 문서를 생성합니다. |
 | Qimage-analyzer | 이미지 분석: 스크린샷, 다이어그램, 차트, 와이어프레임, OCR 텍스트 추출. |
+| Qdoc-converter | MD, DOCX, PDF, PPTX, HTML 간 문서 형식 변환. 멀티 도구 오케스트레이션 지원. |
+| Qcontent-research-writer | 인용, 반복 개선, 섹션별 피드백을 포함한 리서치 기반 콘텐츠 작성. |
 
 ### 학술
 
@@ -204,6 +207,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qweb-design-guidelines | 접근성과 UX를 위한 Web Interface Guidelines에 따라 UI 코드를 검토합니다. |
 | Qlesson-learned | git 히스토리를 통해 최근 코드 변경을 분석하고 엔지니어링 교훈을 추출합니다. |
 | Qhelp | QE Framework 빠른 참조 카드를 터미널에 표시합니다. |
+| Qskill-tester | 자동 스킬 라우팅 테스터. 인텐트 분류 정확도를 검증하고 오분류 스킬을 찾습니다. |
+| Qjira-cli | MCP 서버 설정 없이 빠른 이슈 관리를 위한 경량 Jira CLI 래퍼. |
 
 ### 분석
 
@@ -211,6 +216,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 |------|------|
 | Qdata-analysis | CSV/JSON/Excel 데이터셋의 데이터 탐색, 통계 분석, 시각화. |
 | Qfinance-analyst | 재무 분석, 밸류에이션 모델링, DCF, 몬테카를로 시뮬레이션, 포트폴리오 최적화. |
+| Qfact-checker | 문서에서 사실 주장을 추출하고 증거 기반 리서치를 통해 검증합니다. |
+| Qsource-verifier | SIFT 방법론을 사용하여 출처 신뢰성과 디지털 콘텐츠 진위를 검증합니다. |
 
 ## Coding Expert Skills (72)
 
@@ -561,7 +568,7 @@ Agent Teams가 활성화되지 않은 경우 모든 에이전트는 기존 Subag
 qe-framework/
 ├── .claude-plugin/    # 플러그인 설정
 ├── agents/            # 16개 에이전트 (E-prefix)
-├── skills/            # 54개 core + 72개 coding expert 스킬 (Q-prefix)
+├── skills/            # 60개 core + 72개 coding expert 스킬 (Q-prefix)
 ├── core/              # 공유 원칙 및 설정
 ├── hooks/             # 라이프사이클 훅
 ├── install.js         # 설치 스크립트
