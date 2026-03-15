@@ -1,6 +1,7 @@
 ---
 name: Erefresh-executor
 description: A background sub-agent that detects project changes, updates .qe/ analysis data, and records change history.
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md

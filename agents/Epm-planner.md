@@ -148,6 +148,12 @@ tags: []
 -
 ```
 
+## Delegation
+
+| Target Agent | Trigger Condition |
+|-------------|-------------------|
+| Edoc-generator | Delegate when batch document generation (3+ formats simultaneously) is needed |
+
 ## Constraints
 - Do not overwrite existing documents without user permission
 - Do not include sensitive information (personal data, passwords, etc.) in documents

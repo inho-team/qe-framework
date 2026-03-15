@@ -1,6 +1,7 @@
 ---
 name: Ecompact-executor
 description: A background sub-agent that detects context window pressure, automatically saves context, and supports context restoration after compaction.
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md

@@ -1,6 +1,7 @@
 ---
 name: Ecommit-executor
 description: A background sub-agent that analyzes diffs, generates commit messages, and stages files. Leaves no AI traces.
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md

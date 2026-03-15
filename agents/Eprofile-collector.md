@@ -1,6 +1,7 @@
 ---
 name: Eprofile-collector
 description: A background sub-agent that collects user command patterns, writing style, and correction history, then records them in .qe/profile/.
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md

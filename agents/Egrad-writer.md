@@ -1,6 +1,7 @@
 ---
 name: Egrad-writer
 description: A sub-agent delegated to write academic paper chapters. Adheres to academic writing style and citation rules.
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md

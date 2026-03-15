@@ -1,6 +1,7 @@
 ---
 name: Edoc-generator
 description: A background sub-agent that handles batch document generation (docx/pdf/pptx/xlsx).
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md

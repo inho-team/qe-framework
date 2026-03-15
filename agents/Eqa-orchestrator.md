@@ -1,6 +1,7 @@
 ---
 name: Eqa-orchestrator
 description: A sub-agent that receives delegation for and executes the full test→review→fix quality loop. Protects the main context.
+tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
 > Shared principles: see core/PRINCIPLES.md
