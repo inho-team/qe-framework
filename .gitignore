@@ -5,3 +5,8 @@ node_modules/
 .claude/
 CLAUDE.md
 .qe
+test-routing.js
+test-translate.js
+test-framework.js
+results.tsv
+run.log
