@@ -59,9 +59,9 @@ if (isError) {
   const consecutiveCount = errorState.errors.filter(e => e.tool === toolName).length;
 
   if (consecutiveCount >= 5) {
-    hints.push(`${toolName} tool failed 5+ times. Try a different approach or ask the user.`);
+    hints.push(`${toolName} tool failed 5+ times. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
   } else if (consecutiveCount >= 3) {
-    hints.push(`${toolName} tool failed ${consecutiveCount} times consecutively. Analyze the root cause.`);
+    hints.push(`${toolName} tool failed ${consecutiveCount} times consecutively. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
   }
 } else {
   // Success - clear error tracking for this tool
