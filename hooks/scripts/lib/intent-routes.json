@@ -62,7 +62,8 @@
     "source/credibility/SIFT/verify-source": "Qsource-verifier",
     "convert/md-to-docx/format-conversion": "Qdoc-converter",
     "content-writing/article/draft-with-research": "Qcontent-research-writer",
-    "skill-test/routing-test/verify-skills": "Qskill-tester"
+    "skill-test/routing-test/verify-skills": "Qskill-tester",
+    "autoresearch/autonomous-experiment/experiment-loop": "Qautoresearch"
   },
   "agent_tiers": {
     "LOW_haiku": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],
