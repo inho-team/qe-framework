@@ -68,18 +68,15 @@ if (existsSync(snapshotPath)) {
   }
 }
 
-// Check 4: Qtranslate — Internal English processing (skip for English-only users)
+// Check 4: User language context (language.md)
 const languagePath = join(cwd, '.qe', 'profile', 'language.md');
 if (existsSync(languagePath)) {
   const langContent = readFileSync(languagePath, 'utf8');
   const langMatch = langContent.match(/Primary language:\s*(\w+)/);
-  const userLang = langMatch ? langMatch[1] : 'auto-detect';
-  // English users don't need translation instructions — save context window tokens
-  if (userLang !== 'en') {
-    messages.push(`[Qtranslate] Active. User language: ${userLang}. Think and reason internally in English. Translate final responses to the user's language.`);
+  const userLang = langMatch ? langMatch[1] : null;
+  if (userLang && userLang !== 'en') {
+    messages.push(`[Language] User language: ${userLang}. Respond in the user's language.`);
   }
-} else {
-  messages.push('[Qtranslate] Active. Detect user language from first message, save to .qe/profile/language.md. Think and reason internally in English. Translate final responses to the user\'s language.');
 }
 
 // Check 4.5: User profile data — corrections and command patterns

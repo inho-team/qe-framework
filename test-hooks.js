@@ -69,26 +69,26 @@ function getCtx(result) {
 
 // ============ 1. session-start.mjs ============
 
-// 1a. Qtranslate injection (no language.md)
+// 1a. Language context (no language.md — should not inject language message)
 cleanState();
 const langPath = join(CWD, '.qe', 'profile', 'language.md');
 try { unlinkSync(langPath); } catch {}
 
 const ss1 = getCtx(runHook('session-start.mjs', { cwd: CWD }));
-if (ss1.includes('Qtranslate') && ss1.includes('Detect')) {
-  pass('session-start:qtranslate-detect');
+if (!ss1.includes('[Language]')) {
+  pass('session-start:no-lang-without-file');
 } else {
-  fail('session-start:qtranslate-detect', `Expected Qtranslate detect, got: ${ss1.slice(0, 80)}`);
+  fail('session-start:no-lang-without-file', `Expected no language injection, got: ${ss1.slice(0, 80)}`);
 }
 
-// 1b. Qtranslate injection (with language.md)
+// 1b. Language context (with language.md — should inject for non-English)
 ensureDir(join(CWD, '.qe', 'profile'));
 writeFileSync(langPath, '# Language Profile\n\n## Settings\n- Primary language: ko\n');
 const ss2 = getCtx(runHook('session-start.mjs', { cwd: CWD }));
-if (ss2.includes('Qtranslate') && ss2.includes('ko')) {
-  pass('session-start:qtranslate-ko');
+if (ss2.includes('[Language]') && ss2.includes('ko')) {
+  pass('session-start:lang-ko');
 } else {
-  fail('session-start:qtranslate-ko', `Expected ko, got: ${ss2.slice(0, 80)}`);
+  fail('session-start:lang-ko', `Expected ko language context, got: ${ss2.slice(0, 80)}`);
 }
 try { unlinkSync(langPath); } catch {}
 

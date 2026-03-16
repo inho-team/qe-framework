@@ -72,8 +72,6 @@ PLANNING
 MEDIA
   /Qaudio-transcriber      Audio → text (meeting notes)
   /Qyoutube-transcript-api YouTube subtitles & transcription
-  /Qtranslate              Multilingual translation
-
 META
   /Qskill-creator          Create or modify skills
   /Qcommand-creator        Create slash commands

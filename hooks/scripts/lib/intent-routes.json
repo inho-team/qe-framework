@@ -66,8 +66,7 @@
     "autoresearch/experiment-loop/자율 실험": "Qautoresearch",
     "archive-task/completed-archive/아카이브/작업 보관": "Qarchive",
     "quality-loop/code-run-task/코드 품질 루프": "Qcode-run-task",
-    "mcp-setup/connect-service/MCP 설정/서비스 연결": "Qmcp-setup",
-    "translate/grammar/번역/문법 교정/언어 변환": "Qtranslate"
+    "mcp-setup/connect-service/MCP 설정/서비스 연결": "Qmcp-setup"
   },
   "agent_tiers": {
     "LOW_haiku": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],

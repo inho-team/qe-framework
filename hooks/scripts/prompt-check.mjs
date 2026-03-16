@@ -59,7 +59,7 @@ if (words.length <= cfg.ambiguous_max_words && userMessage.length <= cfg.ambiguo
   }
 }
 
-// --- Language Detection (Qtranslate support) ---
+// --- Language Detection (save to .qe/profile/language.md) ---
 try {
   const profileDir = join(cwd, '.qe', 'profile');
   const languagePath = join(profileDir, 'language.md');

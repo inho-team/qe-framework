@@ -16,7 +16,7 @@ QE Framework is built on proven engineering principles:
 - **YAGNI** -- Implement only what is needed now; no speculative design
 - **Evidence-based** -- Do not guess. When uncertain, read the file and verify.
 - **Minimal change** -- Modify only what was requested. Do not refactor adjacent code.
-- **Internal English processing** -- All reasoning and analysis is done in English internally for higher accuracy, then translated to the user's language before responding. This produces better results while keeping the conversation natural in any language.
+- **Multilingual** -- Automatic language detection and response in the user's preferred language via `.qe/profile/language.md`.
 
 ## Architecture
 
@@ -193,8 +193,6 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 |-------|-------------|
 | Qaudio-transcriber | Converts audio recordings (MP3, WAV, M4A, etc.) into professional Markdown documents. |
 | Qyoutube-transcript-api | Extracts, transcribes, and translates YouTube video subtitles/captions. |
-| Qtranslate | Multilingual support with programmatic language detection (CJK, Latin, Cyrillic, Arabic, etc.) and automatic language.md management. |
-
 ### Meta
 
 | Skill | Description |
@@ -386,7 +384,7 @@ The framework uses 9 lifecycle hooks that fire at specific events:
 | Hook | Trigger | What Happens |
 |------|---------|--------------|
 | `SessionStart` | Conversation begins | Injects framework rules, triggers `Erefresh-executor` if analysis is stale |
-| `UserPromptSubmit` | User sends a message | **Intent auto-classification** with CJK/bigram matching + **language detection** for Qtranslate |
+| `UserPromptSubmit` | User sends a message | **Intent auto-classification** with CJK/bigram matching + **language detection** (saves to `.qe/profile/language.md`) |
 | `PreToolUse` | Before every tool call | Intent Gate routing display, secret scanning, context pressure warnings |
 | `PostToolUse` | After every tool call | Error tracking/escalation, tool call counting, `Eprofile-collector` trigger |
 | `PreCompact` | Before context compaction | Triggers `Ecompact-executor` to save context before it is lost |

@@ -51,7 +51,6 @@ All skills and agents refer to this classification to determine whether a reques
 | **Audio transcription** | "transcribe audio", "meeting recording", "audio to text", "convert recording" | Qaudio-transcriber |
 | **Image analysis** | "analyze image", "describe screenshot", "extract text from image", "analyze wireframe" | Qimage-analyzer |
 | **Mermaid diagrams** | "mermaid diagram", "sequence diagram", "flowchart", "ERD", "class diagram", "Gantt chart" | Qmermaid-diagrams |
-| **Translation** | "translate", "grammar correction", "multilingual", "convert to English" | Qtranslate |
 | **Web design review** | "UI review", "accessibility check", "design audit", "UX review", "web guidelines" | Qweb-design-guidelines |
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |
 | **Financial analysis** | "financial analysis", "valuation", "DCF", "Monte Carlo", "quant", "investment analysis", "portfolio", "ratio analysis", "sensitivity analysis" | Qfinance-analyst |
