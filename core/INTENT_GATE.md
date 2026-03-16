@@ -56,6 +56,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |
 | **Financial analysis** | "financial analysis", "valuation", "DCF", "Monte Carlo", "quant", "investment analysis", "portfolio", "ratio analysis", "sensitivity analysis" | Qfinance-analyst |
 | **Data analysis** | "analyze this data", "data exploration", "statistics", "correlation", "distribution", "visualize data", "CSV analysis", "hypothesis test", "regression", "outliers" | Qdata-analysis |
+| **Domain knowledge** | "domain docs", "domain knowledge", "domain rules", "business rules docs" | Refer to .qe/docs/ (background agent: Edocs-collector) |
 | **Agent team** | "create team", "spawn teammates", "parallel team", "team mode" | Refer to core/AGENT_TEAMS.md for team creation guidance |
 
 ## Classification Rules
@@ -89,3 +90,8 @@ Before routing, refer to `.qe/analysis/` to understand the project context.
 This provides additional context for disambiguation when multiple intents could match.
 - Java project + "security" → prefer Qspringboot-security over generic research
 - React project + "design" → prefer Qfrontend-design over generic documentation
+
+## Using .qe/docs/
+When domain-specific keywords appear, check `.qe/docs/` for existing domain knowledge documents.
+- If relevant docs exist, include them in context before executing the routed skill/agent
+- Edocs-collector runs as a background agent — it is not directly invoked by user intent

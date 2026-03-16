@@ -113,6 +113,26 @@ try {
   }
 } catch {}
 
+// --- Domain knowledge collection trigger ---
+try {
+  const docsInterval = cfg.docs_collect_interval || 100;
+  if (stats.tool_calls > 0 && stats.tool_calls % docsInterval === 0) {
+    let safeToCollect = true;
+    if (existsSync(errorFile)) {
+      try {
+        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
+        const hasRecentErrors = Array.isArray(errState.errors) &&
+          errState.errors.length > 0 &&
+          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
+        if (hasRecentErrors) safeToCollect = false;
+      } catch {}
+    }
+    if (safeToCollect) {
+      hints.push('Run Edocs-collector in background to extract domain knowledge.');
+    }
+  }
+} catch {}
+
 // --- Quality Check Hints (Write/Edit only) ---
 if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};

@@ -21,11 +21,10 @@ User input (any language)
     ↓
 1. Language detection → reference/update .qe/profile/language.md
     ↓
-2. Rewrite to English
+2. Rewrite to English (non-English) or grammar check (English)
     ↓
 3. Internal processing (English)
    - Intermediate progress displayed in the user's language
-   - e.g., "Analyzing project...", "Code review complete"
     ↓
 4. Translate results to the user's language and respond
 ```
@@ -33,9 +32,14 @@ User input (any language)
 ## Language Detection Rules
 
 ### Automatic Detection
-- Detects the language from the user's first message
+- Detects the language from the user's first message via `prompt-check.mjs` hook
 - Records it in `.qe/profile/language.md`
 - In subsequent sessions, the saved language setting takes priority
+
+### Language Switch Detection
+- If the user starts writing in a different language mid-session, update `language.md`
+- Detection signal: 3+ consecutive messages in a different language
+- Single foreign-language words in otherwise same-language text are NOT a language switch (code-switching is normal)
 
 ### language.md Format
 ```markdown
@@ -57,10 +61,16 @@ User input (any language)
 - Technical terms and proper nouns are kept in their original form
 - The rewritten English is not shown to the user (internal processing only)
 
-### For English Input
+### For English Input (Grammar Mode)
+When a user explicitly invokes `/Qtranslate` with English text:
 - Points out grammar errors and suggests improvements
 - Rewrites in more natural expressions
-- Proceeds with internal processing using the corrected English
+- Shows corrections inline: ~~wrong~~ → **correct**
+- Does NOT auto-correct silently — show the user what changed and why
+
+When English is the detected primary language (automatic):
+- No grammar correction is applied automatically
+- session-start.mjs skips Qtranslate context injection for English users (saves tokens)
 
 ### Intermediate Status Display
 Progress shown to the user during internal processing is in the user's language:
@@ -77,7 +87,7 @@ Progress shown to the user during internal processing is in the user's language:
 ## Supported Languages
 - Not limited to specific languages
 - Automatically detects and handles the language the user writes in
-- Supports all languages including Korean, English, Japanese, Chinese, Spanish, French, German, etc.
+- Detection supports: Korean, Japanese, Chinese, Russian, Arabic, Thai, Hindi, Vietnamese, French, German, Spanish, Portuguese, Italian, English (default for Latin)
 
 ## Qprofile Integration
 - Records the user's language in `.qe/profile/language.md`
@@ -87,7 +97,7 @@ Progress shown to the user during internal processing is in the user's language:
 ## Will
 - Automatically detect user language
 - Non-English input → rewrite to English (internally)
-- English input → grammar correction + improvement suggestions
+- English input → grammar correction + improvement suggestions (manual invocation only)
 - Translate results to the user's language
 - Display intermediate progress in the user's language
 - Manage .qe/profile/language.md
@@ -97,3 +107,4 @@ Progress shown to the user during internal processing is in the user's language:
 - Support only specific languages (handles all languages)
 - Translate technical terms or proper nouns (keep original form)
 - Translate variable names or comments inside code (keep code as-is)
+- Auto-correct grammar for English users in normal flow (only on explicit `/Qtranslate` invocation)
