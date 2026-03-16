@@ -17,6 +17,7 @@ const DEFAULTS = {
   error_escalate_count: 3,              // escalate after N errors in window
   error_delegate_count: 5,              // delegate after N errors in window
   profile_collect_interval: 20,         // collect profile every N tool calls
+  docs_collect_interval: 50,             // collect domain docs every N tool calls
 
   // stop-handler.mjs
   max_reinforcements: 20,              // max stop blocks in work modes

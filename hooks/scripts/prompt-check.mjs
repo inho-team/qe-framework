@@ -290,6 +290,9 @@ function detectLanguage(text) {
     if (/[ãõçáéíóú]/i.test(text) && /\b(não|também|é|são|uma?|essa?|pelo|para|com)\b/.test(lower)) return 'pt';
     if (/[àèéìíòóùú]/i.test(text) && /\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della)\b/.test(lower)) return 'it';
 
+    // Vietnamese: unique diacritics (ơ, ư, ă, đ) + tonal marks
+    if (/[ơưăđ]/i.test(text) && /\b(của|và|không|có|được|này|là|một|những|các)\b/.test(lower)) return 'vi';
+
     // Fallback: function word counting for text without clear diacritics
     const langScores = [];
 
@@ -311,8 +314,9 @@ function detectLanguage(text) {
     // Pick the language with most function word matches (if any beat English default)
     if (langScores.length > 0) {
       langScores.sort((a, b) => b[1] - a[1]);
-      // Only override English if the non-English score is clearly dominant
-      if (langScores[0][1] >= 1) return langScores[0][0];
+      // Require 3+ function word matches to override English (prevents false positives
+      // from single common words like "la" or "le" appearing in English text)
+      if (langScores[0][1] >= 3) return langScores[0][0];
     }
 
     // Default Latin → English

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
+import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { formatMemoryForInjection } from './lib/memory.mjs';
 import { loadConfig } from './lib/config.mjs';
@@ -68,15 +68,52 @@ if (existsSync(snapshotPath)) {
   }
 }
 
-// Check 4: Qtranslate — Internal English processing
+// Check 4: Qtranslate — Internal English processing (skip for English-only users)
 const languagePath = join(cwd, '.qe', 'profile', 'language.md');
 if (existsSync(languagePath)) {
   const langContent = readFileSync(languagePath, 'utf8');
   const langMatch = langContent.match(/Primary language:\s*(\w+)/);
   const userLang = langMatch ? langMatch[1] : 'auto-detect';
-  messages.push(`[Qtranslate] Active. User language: ${userLang}. Think and reason internally in English. Translate final responses to the user's language.`);
+  // English users don't need translation instructions — save context window tokens
+  if (userLang !== 'en') {
+    messages.push(`[Qtranslate] Active. User language: ${userLang}. Think and reason internally in English. Translate final responses to the user's language.`);
+  }
 } else {
   messages.push('[Qtranslate] Active. Detect user language from first message, save to .qe/profile/language.md. Think and reason internally in English. Translate final responses to the user\'s language.');
+}
+
+// Check 4.5: User profile data — corrections and command patterns
+try {
+  const profileDir = join(cwd, '.qe', 'profile');
+  if (existsSync(profileDir)) {
+    const profileParts = [];
+    // Load corrections to prevent repeated misunderstandings
+    const correctionsPath = join(profileDir, 'corrections.md');
+    if (existsSync(correctionsPath)) {
+      const content = readFileSync(correctionsPath, 'utf8');
+      // Extract the corrections list (compact, max 500 chars)
+      const correctionsMatch = content.match(/## Corrections\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+      if (correctionsMatch) {
+        const corrections = correctionsMatch[1].trim().slice(0, 500);
+        if (corrections) profileParts.push(`Corrections: ${corrections}`);
+      }
+    }
+    // Load command patterns for intent disambiguation
+    const patternsPath = join(profileDir, 'command-patterns.md');
+    if (existsSync(patternsPath)) {
+      const content = readFileSync(patternsPath, 'utf8');
+      const patternsMatch = content.match(/## Top Commands\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+      if (patternsMatch) {
+        const patterns = patternsMatch[1].trim().slice(0, 300);
+        if (patterns) profileParts.push(`Frequent commands: ${patterns}`);
+      }
+    }
+    if (profileParts.length > 0) {
+      messages.push(`[User Profile] ${profileParts.join(' | ')}`);
+    }
+  }
+} catch {
+  // Fault tolerance — ignore profile loading errors
 }
 
 // Check 5: Project memory
@@ -85,7 +122,39 @@ if (memoryContext) {
   messages.push(memoryContext);
 }
 
-// Check 6: Git branch and uncommitted changes
+// Check 6: Domain knowledge documents in .qe/docs/ — load content for context
+try {
+  const docsDir = join(cwd, '.qe', 'docs');
+  if (existsSync(docsDir)) {
+    const docFiles = readdirSync(docsDir).filter(f => f.endsWith('.md') && !f.startsWith('_'));
+    if (docFiles.length > 0) {
+      const summaries = [];
+      for (const file of docFiles.slice(0, 10)) {
+        try {
+          const content = readFileSync(join(docsDir, file), 'utf8');
+          // Extract frontmatter fields and core rules section
+          const topicMatch = content.match(/^topic:\s*(.+)$/m);
+          const domainMatch = content.match(/^domain:\s*(.+)$/m);
+          const confirmedMatch = content.match(/^confirmed:\s*(.+)$/m);
+          const topic = topicMatch ? topicMatch[1].trim() : file.replace('.md', '');
+          const domain = domainMatch ? domainMatch[1].trim() : 'unknown';
+          const confirmed = confirmedMatch ? confirmedMatch[1].trim() : 'false';
+          // Extract Core Rules section content (compact)
+          const rulesMatch = content.match(/## Core Rules\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+          const rules = rulesMatch ? rulesMatch[1].trim().slice(0, 300) : '';
+          summaries.push(`[${domain}/${topic}] (confirmed:${confirmed})\n${rules}`);
+        } catch {}
+      }
+      if (summaries.length > 0) {
+        messages.push(`[Domain Knowledge] ${docFiles.length} doc${docFiles.length > 1 ? 's' : ''} loaded from .qe/docs/:\n${summaries.join('\n---\n')}`);
+      }
+    }
+  }
+} catch {
+  // Fault tolerance — ignore docs detection errors
+}
+
+// Check 7: Git branch and uncommitted changes
 try {
   const { execSync } = await import('child_process');
   const gitParts = [];
