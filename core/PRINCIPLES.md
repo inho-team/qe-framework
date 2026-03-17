@@ -46,7 +46,7 @@ All git commit/push operations MUST go through the `/Qcommit` skill, which deleg
 - **Protect sensitive information**: Never expose PATs, passwords, or API keys in logs, responses, or files.
 - **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
 - **Confirm file modification permissions**: Ask the user for permission before creating, modifying, or deleting any file.
-- **Utopia mode check**: Before calling AskUserQuestion, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
+- **Utopia mode check**: Before calling AskUserQuestion, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. For complex requests (3+ steps, multi-file, new features), automatically route through `Qgenerate-spec → Qrun-task → verify` pipeline. Simple requests (1-2 step single-file edits) execute directly. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
 
 ---
 
