@@ -1,6 +1,6 @@
 ---
 name: Edoc-generator
-description: A background sub-agent that handles batch document generation (docx/pdf/pptx/xlsx).
+description: A background sub-agent that handles batch document generation (docx/pdf/pptx/xlsx). Invoke when Qrun-task or Epm-planner needs to generate office documents in batch.
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 

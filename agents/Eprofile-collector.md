@@ -1,6 +1,6 @@
 ---
 name: Eprofile-collector
-description: A background sub-agent that collects user command patterns, writing style, and correction history, then records them in .qe/profile/.
+description: A background sub-agent that collects user command patterns, writing style, and correction history. Invoke when Qprofile needs to analyze and persist user behavior data to .qe/profile/.
 tools: Read, Write, Edit, Grep, Glob, Bash
 recommendedModel: haiku
 ---

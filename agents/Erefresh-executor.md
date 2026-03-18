@@ -1,6 +1,6 @@
 ---
 name: Erefresh-executor
-description: A background sub-agent that detects project changes, updates .qe/ analysis data, and records change history.
+description: A background sub-agent that detects project changes, updates .qe/ analysis data, and records change history. Invoke when Qrefresh needs to update project analysis files.
 tools: Read, Write, Edit, Grep, Glob, Bash
 recommendedModel: haiku
 ---

@@ -1,6 +1,6 @@
 ---
 name: Ecommit-executor
-description: A background sub-agent that analyzes diffs, generates commit messages, and stages files. Leaves no AI traces.
+description: A background sub-agent that analyzes diffs, generates commit messages, and stages files. Invoke when Qcommit needs to perform the actual git operations. Leaves no AI traces.
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
