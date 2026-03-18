@@ -1,6 +1,6 @@
 ---
 name: Qpdf
-description: "Comprehensive PDF processing toolkit. Use for text/table extraction, creating new PDFs, merging/splitting, rotating, watermarking, form filling, encryption, OCR, and image extraction."
+description: "Comprehensive PDF processing toolkit. Use for text/table extraction, PDF 작업, PDF 추출, creating new PDFs, merging/splitting, rotating, watermarking, form filling, encryption, OCR, and image extraction."
 metadata:
   source: https://github.com/tfriedel/claude-office-skills
   author: tfriedel

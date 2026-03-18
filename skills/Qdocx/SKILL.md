@@ -1,6 +1,6 @@
 ---
 name: Qdocx
-description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, editing existing documents with tracked changes (redlining), extracting text/tables, adding comments, and converting between formats. Supports professional workflows for legal, business, and academic documents."
+description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, 워드 파일, 문서 작성, editing with tracked changes, extracting text/tables, and converting formats. Supports legal, business, and academic documents."
 metadata:
   source: https://github.com/tfriedel/claude-office-skills
   author: tfriedel

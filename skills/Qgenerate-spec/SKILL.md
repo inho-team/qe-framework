@@ -1,6 +1,6 @@
 ---
 name: Qgenerate-spec
-description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when starting a new project, defining task specifications, or when the user says 'generate spec', 'create task', 'write requirements', or 'spec'. Supports --ultrawork and --ultraqa modes for autonomous execution."
+description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when starting a new project, defining task specifications, or when the user says generate spec, create task, 스펙 작성, 태스크 만들어줘, write requirements, or spec. Supports --ultrawork and --ultraqa modes."
 user_invocable: true
 ---
 > Shared principles: see core/PRINCIPLES.md

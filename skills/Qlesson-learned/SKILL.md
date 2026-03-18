@@ -1,6 +1,6 @@
 ---
 name: Qlesson-learned
-description: "Analyzes recent code changes via git history and extracts software engineering lessons. Use when the user asks 'what can we learn from this?', 'what's the key takeaway from an engineering perspective?', or 'let's look back at this code'."
+description: "Analyzes recent code changes via git history and extracts software engineering lessons. Use when the user asks what can we learn, 회고, 배운 점, 교훈, key takeaway from an engineering perspective, or let's look back at this code."
 ---
 > Shared principles: see core/PRINCIPLES.md
 

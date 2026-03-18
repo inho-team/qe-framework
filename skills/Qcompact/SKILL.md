@@ -1,6 +1,6 @@
 ---
 name: Qcompact
-description: Context preservation and session handoff. When run automatically in the background, saves context to .qe/context/. When invoked manually, generates a detailed handoff document in .qe/handoffs/. Use for "save state", "handoff", "save context", "end session", or "continue later" requests.
+description: Context preservation and session handoff. When run automatically in the background, saves context to .qe/context/. When invoked manually, generates a detailed handoff document in .qe/handoffs/. Use for save state, handoff, save context, end session, 저장, 핸드오프, 세션 저장, 이어하기, or continue later requests.
 ---
 
 > Shared principles: see core/PRINCIPLES.md

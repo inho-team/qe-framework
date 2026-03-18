@@ -1,6 +1,6 @@
 ---
 name: Qwriting-clearly
-description: Use when writing text that humans will read. Applies to documentation, commit messages, error messages, explanations, reports, UI text, and more. Writes clearer, stronger, and more professional prose based on Strunk's principles.
+description: Use when writing text that humans will read. 글 다듬기, 문장 개선, make this clearer, edit this writing, improve prose. Applies to documentation, commit messages, error messages, reports, and UI text. Based on Strunk's principles.
 ---
 > Shared principles: see core/PRINCIPLES.md
 

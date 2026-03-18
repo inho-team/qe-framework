@@ -1,6 +1,6 @@
 ---
 name: Qrefresh
-description: Manually refreshes project analysis data. Updates .qe/analysis/ files and shows change history. Use for "refresh", "update", or "sync" requests.
+description: Manually refreshes project analysis data. Updates .qe/analysis/ files and shows change history. Use for refresh, update, sync, 분석 갱신, 새로고침, 업데이트 requests.
 ---
 
 > Shared principles: see core/PRINCIPLES.md

@@ -1,6 +1,6 @@
 ---
 name: Qweb-design-guidelines
-description: Reviews UI code against Web Interface Guidelines. Use for requests like "review my UI", "accessibility check", "design audit", "UX review", or "check site best practices".
+description: Reviews UI code against Web Interface Guidelines. Use for requests like review my UI, accessibility check, design audit, UX review, or check site best practices. Distinct from Qfrontend-design (which builds new UI from scratch) — this skill reviews and audits existing UI code.
 metadata:
   author: vercel
   version: "1.0.0"

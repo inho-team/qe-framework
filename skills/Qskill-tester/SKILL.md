@@ -1,6 +1,6 @@
 ---
 name: Qskill-tester
-description: "Automated skill/agent routing tester. Generates virtual user prompts, simulates intent classification, and verifies that the correct skill or agent is triggered. Use when auditing skill descriptions, validating intent routing accuracy, or after adding/modifying skills. Finds misrouted, unreachable, or conflicting skills and suggests fixes."
+description: "Automated skill/agent routing tester. Generates virtual user prompts, simulates intent classification, and verifies correct routing. Use when auditing skill descriptions, validating routing accuracy, or after adding/modifying skills. Distinct from Qskill-creator (which creates/modifies skills) — this skill tests and benchmarks them."
 metadata:
   version: "1.0.0"
   domain: quality

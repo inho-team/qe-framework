@@ -1,6 +1,6 @@
 ---
 name: Qfact-checker
-description: "Extracts factual claims from documents and verifies them through evidence-based research. Use when asked to 'fact-check this', 'verify these claims', 'is this true', 'check accuracy', or when reviewing reports, articles, or proposals for factual correctness. Produces a structured report with claim-by-claim ratings (true/false/unverifiable) and supporting evidence."
+description: "Extracts factual claims from documents and verifies them through evidence-based research. Use when asked to fact-check this, verify these claims, is this true, check accuracy, or when reviewing reports for factual correctness. Distinct from Qsource-verifier (which checks source credibility/authenticity) — this skill verifies specific factual claims. Produces claim-by-claim ratings with evidence."
 metadata:
   source: https://github.com/jamditis/claude-skills-journalism
   author: jamditis
