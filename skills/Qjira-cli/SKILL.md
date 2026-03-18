@@ -13,6 +13,8 @@ allowed-tools: Bash(jira:*), Bash(jira *)
 keywords: jira, cli, issue, ticket, sprint, board, backlog, JQL
 ---
 
+> Shared principles: see core/PRINCIPLES.md
+
 # Jira CLI — 경량 Jira 터미널 도구
 
 `ankitpokhrel/jira-cli` 기반. MCP 서버 없이 Bash에서 바로 Jira를 조작한다.

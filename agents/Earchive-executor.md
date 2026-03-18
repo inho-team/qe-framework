@@ -2,6 +2,7 @@
 name: Earchive-executor
 description: A background sub-agent that archives completed task files into .qe/.archive/ by version.
 tools: Read, Write, Edit, Grep, Glob, Bash
+recommendedModel: haiku
 ---
 
 > Shared principles: see core/PRINCIPLES.md

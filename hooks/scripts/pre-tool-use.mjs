@@ -5,6 +5,9 @@ import { readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { loadConfig } from './lib/config.mjs';
+import { checkContextPressure } from './context-monitor.mjs';
+import { loadPendingContext } from './lib/context-loader.mjs';
+import { atomicWriteJson } from './lib/state.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -67,6 +70,42 @@ try {
   // Fault-tolerant: ignore intent routing errors
 }
 
+// --- On-Demand Context Injection ---
+// Inject profile, memory, failures, and docs on the first tool call of the session.
+// context_loaded tracks which items have already been injected to prevent repetition.
+// Fallback: if context_loaded is absent (legacy session-stats), inject all items once.
+try {
+  const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
+  if (existsSync(statsFile)) {
+    const statsRaw = JSON.parse(readFileSync(statsFile, 'utf8'));
+    const toolCalls = statsRaw.tool_calls || 0;
+    // Only run on first tool call (tool_calls <= 1 at time of pre-tool-use check)
+    const isFirstCall = toolCalls <= 1;
+    // Treat missing context_loaded as empty array (fallback: load everything)
+    const alreadyLoaded = Array.isArray(statsRaw.context_loaded) ? statsRaw.context_loaded : [];
+    const isLegacyStats = !Array.isArray(statsRaw.context_loaded);
+
+    if (isFirstCall || isLegacyStats) {
+      const pending = loadPendingContext(cwd, alreadyLoaded);
+      if (pending.length > 0) {
+        // Inject each item as a separate hint message
+        for (const { message } of pending) {
+          hints.push(message);
+        }
+        // Update context_loaded so subsequent calls skip these items
+        const updatedLoaded = [...alreadyLoaded, ...pending.map(p => p.key)];
+        try {
+          atomicWriteJson(statsFile, { ...statsRaw, context_loaded: updatedLoaded });
+        } catch {
+          // Fault-tolerant: proceed even if write fails
+        }
+      }
+    }
+  }
+} catch {
+  // Fault-tolerant: ignore on-demand context errors
+}
+
 // If .qe/analysis/ exists, remind to use it instead of scanning
 const analysisDir = join(cwd, '.qe', 'analysis');
 if (existsSync(analysisDir)) {
@@ -121,32 +160,14 @@ if (['Write', 'Edit'].includes(toolName)) {
   }
 }
 
-// Preemptive compaction warning based on tool call count
-const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
-if (existsSync(statsFile)) {
-  try {
-    const stats = JSON.parse(readFileSync(statsFile, 'utf8'));
-    const callCount = stats.tool_calls || 0;
-    if (callCount > 250) {
-      // Check Utopia mode for auto-compaction
-      const utopiaFile = join(cwd, '.qe', 'state', 'utopia-state.json');
-      let isUtopia = false;
-      try {
-        if (existsSync(utopiaFile)) {
-          isUtopia = JSON.parse(readFileSync(utopiaFile, 'utf8')).enabled === true;
-        }
-      } catch {}
-      if (isUtopia) {
-        hints.push('Context pressure critical: 250+ tool calls in Utopia mode. Run Ecompact-executor NOW to save context.');
-      } else {
-        hints.push('Context pressure critical: 250+ tool calls. Strongly recommend running /Qcompact.');
-      }
-    } else if (callCount > cfg.context_pressure_high) {
-      hints.push(`Context pressure warning: ${cfg.context_pressure_high}+ tool calls. Consider running /Qcompact.`);
-    } else if (callCount > cfg.context_pressure_warn) {
-      hints.push('High context usage: prioritize .qe/analysis/ files to save tokens.');
-    }
-  } catch {}
+// Context usage monitoring (delegated to context-monitor.mjs)
+try {
+  const { message: ctxMessage } = checkContextPressure(cwd);
+  if (ctxMessage) {
+    hints.push(ctxMessage);
+  }
+} catch {
+  // Fault-tolerant: ignore context monitor errors
 }
 
 if (hints.length > 0) {

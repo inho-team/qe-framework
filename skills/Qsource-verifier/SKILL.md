@@ -14,6 +14,8 @@ metadata:
 keywords: source verification, credibility, SIFT, digital verification, image verification, document verification
 ---
 
+> Shared principles: see core/PRINCIPLES.md
+
 # Source Verifier — 출처 검증 방법론
 
 출처의 신뢰성과 디지털 콘텐츠의 진위를 체계적으로 검증한다.

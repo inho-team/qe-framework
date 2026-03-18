@@ -51,6 +51,10 @@ For tech stack selection or architecture decisions, you can delegate to the `Ede
   - Task type (type): `code` | `analysis` | `docs` | `other`
   - Validation criteria (checks)
   - Verification notes (verifyNotes)
+  - Decision rationale (optional) — only when design alternatives exist:
+    - Chosen approach and why (chosen_approach, why_chosen)
+    - Alternatives considered with rejection reasons (alternatives)
+    - Consequences of the decision (consequences)
 
 ### Step 2: Draft Documents
 Write drafts of the 3 documents from the collected information.
@@ -59,6 +63,100 @@ Write drafts of the 3 documents from the collected information.
   - `templates/TASK_REQUEST_TEMPLATE.md`
   - `templates/VERIFY_CHECKLIST_TEMPLATE.md`
 - Replace `{{placeholder}}` in templates with actual content.
+
+### Step 2.5: Plan Review (Automatic Verification Loop)
+After drafting documents in Step 2, automatically verify the spec quality using the **Plan agent** before presenting to the user. This step is invisible to the user — only the refined result is shown in Step 3.
+
+**Procedure:**
+1. Spawn a Plan agent via the Agent tool with `subagent_type: "Plan"` and pass the drafted TASK_REQUEST and VERIFY_CHECKLIST content.
+2. The Plan agent evaluates the spec against **5 verification criteria**:
+   - (1) Each checklist item follows the single responsibility principle
+   - (2) Each item is specific and verifiable (no vague expressions)
+   - (3) VERIFY_CHECKLIST and TASK_REQUEST are consistent with each other
+   - (4) No conflicts between constraints and checklist items
+   - (5) No missing dependencies or prerequisites
+3. The Plan agent responds with one of:
+   - `APPROVE` — spec passes all criteria, proceed to Step 3
+   - `REVISE: {specific revision items}` — spec needs changes
+4. On `REVISE`: apply the suggested revisions to the draft, then re-submit to the Plan agent for re-evaluation.
+5. **Maximum 3 iterations.** If the spec does not receive `APPROVE` after 3 rounds, proceed to Step 3 with the best version available and note the unresolved items for the user.
+
+**Plan agent prompt template:**
+```
+Review the following spec documents against these 5 criteria:
+1. Single responsibility: Does each checklist item perform exactly one task?
+2. Specificity: Is each item concrete and verifiable (yes/no)?
+3. Consistency: Do TASK_REQUEST and VERIFY_CHECKLIST align?
+4. No conflicts: Are there contradictions between constraints and checklist?
+5. Completeness: Are there missing dependencies or prerequisites?
+
+Respond with APPROVE if all criteria pass.
+Otherwise respond with REVISE: followed by specific items to fix.
+
+[TASK_REQUEST content]
+[VERIFY_CHECKLIST content]
+```
+
+**Ultra Modes compatibility:** This verification loop runs in both normal and ultra modes. In ultra modes, the loop operates identically — it does not skip or auto-approve. The loop is an internal quality gate, not a user interaction point.
+
+### Step 2.7: Executability Verification (Automatic)
+After Step 2.5 (structural/completeness review) passes, verify that each checklist item is **practically executable** by an implementation agent. This is a self-check within Qgenerate-spec — no additional agent is spawned.
+
+> **Role separation from Step 2.5:** Step 2.5 checks *structural quality* (single responsibility, specificity, consistency). Step 2.7 checks *executability* — whether the plan can actually be carried out without ambiguity or failure at runtime.
+
+**4 Verification Criteria:**
+
+| # | Criterion | Check Question | Fail Example |
+|---|-----------|---------------|--------------|
+| E1 | Single-action executability | Can an agent complete this item with a single focused edit or command (not "is it one responsibility")? | `"API 설계 및 라우트 구현"` — requires two distinct file edits that cannot be done atomically |
+| E2 | Output path validity | Does the `→ output:` path have a valid directory and consistent extension? | `→ output: src/utils/helper` — missing extension; `→ output: nonexistent-dir/foo.ts` — directory does not exist in project |
+| E3 | Logical ordering | Does each item's input exist by the time it executes (no forward dependency)? | Item 3 references a file created in Item 5 |
+| E4 | Verifiable completion | Can an agent objectively confirm this item is done (yes/no) without subjective judgment? | `"코드를 적절히 리팩토링"` — "적절히" is subjective |
+
+**Procedure:**
+1. Iterate through every checklist item in TASK_REQUEST and evaluate against E1–E4.
+2. For each item, produce a pass/fail verdict per criterion.
+3. If **all items pass all 4 criteria** → proceed to Step 3.
+4. If **any item fails** → apply fixes automatically, then re-verify (retry loop).
+
+**Retry Loop:**
+- **Maximum 2 retries.** On each retry, fix only the failing items and re-run the full E1–E4 check.
+- After 2 retries, if failures remain, proceed to Step 3 with the best version and attach unresolved items as a note to the user.
+
+**Failure Feedback Format:**
+When a criterion fails, record it in the following structured format before applying fixes:
+
+```
+[EXECUTABILITY FAIL]
+- Item: "{{ checklist item text }}"
+- Criterion: E{{ number }} — {{ criterion name }}
+- Reason: {{ specific reason for failure }}
+- Fix: {{ proposed correction }}
+```
+
+Example:
+```
+[EXECUTABILITY FAIL]
+- Item: "API 엔드포인트 설계 및 라우트 구현"
+- Criterion: E1 — Single-action executability
+- Reason: Contains two distinct actions (설계 + 구현) that should be separate items
+- Fix: Split into "API 엔드포인트 설계 → output: docs/api-design.md" and "API 라우트 구현 → output: src/routes/api.ts"
+
+[EXECUTABILITY FAIL]
+- Item: "헬퍼 함수 작성 → output: src/utils/helper"
+- Criterion: E2 — Output path validity
+- Reason: Missing file extension in output path
+- Fix: Change to "→ output: src/utils/helper.ts"
+```
+
+After applying fixes, log:
+```
+[EXECUTABILITY RETRY {{ n }}/2]
+- Fixed items: {{ count }}
+- Remaining failures: {{ count or "none" }}
+```
+
+**Ultra Modes compatibility:** This verification runs in both normal and ultra modes. It does not skip or auto-approve. It operates as an internal gate after Step 2.5 and before user review.
 
 ### Step 3: Review and Revise
 - Show the drafts to the user and collect feedback.
@@ -114,6 +212,53 @@ After file creation is complete, use the **`AskUserQuestion` tool** to ask wheth
 - For multiple tasks: guide with `/Qrun-task {UUID1} {UUID2}` format
 - If the user selects "Run", follow the `/Qrun-task` skill procedure.
 
+## Pre-execution Gate
+
+When `--ultrawork`, `--ultraqa`, or Utopia mode triggers autonomous execution, the **Pre-execution Gate** checks whether the user's prompt is specific enough to proceed directly. Vague prompts are redirected to the normal Qgenerate-spec flow (Step 1~5) to ensure proper scoping before execution.
+
+### Gate Logic
+
+1. **Scan for anchor signals** in the user's prompt:
+
+| Signal Type | Pattern | Example |
+|---|---|---|
+| File path | Path separators, extensions (`.ts`, `.py`, `src/`) | `src/auth/login.ts` |
+| Function/class name | camelCase, PascalCase, snake_case identifiers | `processKeywordDetector`, `UserModel` |
+| Issue/PR number | `#N`, `issue N`, `PR N` | `#42`, `issue 15` |
+| Error reference | Error type names (`TypeError`, `Error:`) | `TypeError in auth` |
+| Code block | Triple backticks | `` ```ts ... ``` `` |
+| Numbered steps | `1. ... 2. ...` pattern | `1. Add validation 2. Write tests` |
+| Escape prefix | `force:` or `!` at start | `force: ultrawork 성능 개선` |
+
+2. **Decision rule:**
+   - **Any anchor signal found** → Gate passes, proceed with autonomous execution
+   - **No anchor signals AND effective word count ≤ 15** → Gate fires, redirect to Qgenerate-spec normal flow
+   - **No anchor signals BUT effective word count > 15** → Gate passes (detailed enough)
+
+3. **On Gate fire:**
+   - Inform the user: "프롬프트가 모호하여 계획 수립 단계로 전환합니다. 우회하려면 `force:` 또는 `!` 접두어를 사용하세요."
+   - Invoke Qgenerate-spec Step 1 (Collect Information) with the user's original prompt as context
+
+### Gate Bypass
+
+Users can bypass the gate with:
+- `force:` prefix — e.g., `force: ultrawork 성능 개선`
+- `!` prefix — e.g., `! ultrawork 앱 개선`
+
+When bypass is detected, skip the gate entirely and proceed with autonomous execution.
+
+### Good vs Bad Prompts
+
+| Verdict | Prompt | Reason |
+|---------|--------|--------|
+| Pass | `ultrawork src/auth/login.ts의 null 체크 수정` | File path anchor |
+| Pass | `ultrawork issue #42 구현` | Issue number anchor |
+| Pass | `ultrawork processKeywordDetector 함수 리팩토링` | Function name anchor |
+| Pass | `force: ultrawork 성능 개선` | Escape prefix |
+| Gate | `ultrawork 성능 개선해줘` | No anchor, vague |
+| Gate | `ultrawork 인증 추가` | No anchor, scope unclear |
+| Gate | `ultrawork 앱 개선` | No anchor, extremely vague |
+
 ## Ultra Modes
 
 When invoked with `--ultrawork` or `--ultraqa` flag, the skill enters an AI-driven autonomous execution mode.
@@ -122,7 +267,7 @@ When invoked with `--ultrawork` or `--ultraqa` flag, the skill enters an AI-driv
 Spec generation → single user confirmation → autonomous parallel task execution.
 
 **Modified workflow:**
-1. Steps 1–2: Same as normal (collect info, draft documents)
+1. Steps 1–2.7: Same as normal (collect info, draft documents, plan review loop, executability verification)
 2. Step 3: Show drafts → **single confirmation** via `AskUserQuestion` ("Approve & Execute" / "Needs revision")
 3. Step 4: Create files (same as normal)
 4. **Step 5 (auto-execute):** Skip the execution prompt. Instead:
@@ -192,6 +337,7 @@ Same as `--ultrawork`, plus a full quality verification loop on every task.
   - **Appropriate size**: Each item can be completed within 30 minutes
   - If an item exceeds these criteria, split it into sub-items
 - **Execution instructions required**: Always include a `## How to Run` section at the end of the document with the `/Qrun-task {UUID}` command. If related tasks in the same batch exist, include a multi-UUID run example (e.g., `/Qrun-task UUID1 UUID2`)
+- **Decision rationale (ADR) section (optional)**: Include the `## 의사결정 근거` section when a task involves design decisions with 2+ viable alternatives. Omit for simple tasks (bug fixes, config changes, single-line edits). The section records: chosen approach with rationale, alternatives considered with rejection reasons, and downstream consequences. This creates an audit trail for future reference without adding overhead to trivial tasks.
 
 ### VERIFY_CHECKLIST
 - Each validation criterion must be answerable as yes/no

@@ -116,7 +116,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (63 + 72 Coding Experts)
+## Skills (62 + 72 Coding Experts)
 
 ### Development
 

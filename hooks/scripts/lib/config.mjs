@@ -22,6 +22,7 @@ const DEFAULTS = {
   // stop-handler.mjs
   max_reinforcements: 20,              // max stop blocks in work modes
   session_log_max: 20,                 // keep last N session logs
+  satisfaction_enabled: false,         // opt-in: prompt user for 1-5 rating at session end
 
   // pre-tool-use.mjs
   context_pressure_high: 200,          // tool calls before compaction warning

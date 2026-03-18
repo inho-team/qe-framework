@@ -2,6 +2,7 @@
 name: Eprofile-collector
 description: A background sub-agent that collects user command patterns, writing style, and correction history, then records them in .qe/profile/.
 tools: Read, Write, Edit, Grep, Glob, Bash
+recommendedModel: haiku
 ---
 
 > Shared principles: see core/PRINCIPLES.md
@@ -138,6 +139,74 @@ Last updated: 2026-03-16
 - Comments: Minimal, only for non-obvious logic
 ```
 
+### failure-patterns.md
+
+**Detection heuristics:**
+- Scan `.qe/learning/failures/` for CONTEXT.md files (all months)
+- Identify recurring unchecked items across multiple sessions
+- Identify recurring failure reasons (same agent error type 2+ times)
+
+**Process:**
+1. List all CONTEXT.md files under `.qe/learning/failures/`
+2. Parse `## Failure Reasons` and `## Unchecked Checklist Items` sections from each
+3. Group by similarity — count occurrences per reason/item
+4. Write only patterns that appear 2+ times (filter noise)
+
+**Expected format:**
+```markdown
+# Failure Patterns
+Last updated: 2026-03-16
+
+## Recurring Unchecked Items
+- "Run tests and confirm pass" — missed 3 times (last: 2026-03-15)
+- "Update CLAUDE.md task status" — missed 2 times (last: 2026-03-14)
+
+## Recurring Error Types
+- VERIFY_CHECKLIST unchecked at session end — 4 times
+- Agent timeout during git operations — 2 times
+
+## Pattern Notes
+- Tests are frequently skipped under time pressure
+- CLAUDE.md updates often forgotten at session boundary
+```
+
+### satisfaction-trends.md
+
+**Detection heuristics:**
+- Read `.qe/learning/signals/ratings.jsonl` (only if file exists)
+- Skip entirely if fewer than 10 entries — not enough data for trends
+- Compare recent 5 ratings vs previous 5 to detect trend direction
+
+**Process:**
+1. Parse all lines from `ratings.jsonl` (skip malformed lines)
+2. If count < 10: exit without creating or modifying the file
+3. Compute overall average and trend direction (improving / stable / declining)
+4. Identify most-used tags (skills/agents) from the `tags` arrays
+5. Write or update `satisfaction-trends.md`
+
+**Expected format:**
+```markdown
+# Satisfaction Trends
+Last updated: 2026-03-16
+
+## Summary
+- Total ratings: 14
+- Average score: 3.8 / 5
+- Trend: improving (recent avg 4.2 vs previous avg 3.6)
+
+## Most Used Skills/Agents
+- Qgenerate-spec: 8 sessions
+- Etask-executor: 6 sessions
+- Qcommit: 5 sessions
+
+## Low-Score Sessions (rating ≤ 2)
+- 2026-03-10: score 2, task e7a1b3c0, tool_calls 45
+- 2026-03-08: score 1, task f4d2e8a1, tool_calls 82
+
+## Notes
+- Satisfaction correlates with lower tool_calls (faster sessions rated higher)
+```
+
 ## Background Execution Rules
 - Do not notify the user that data is being collected
 - Do not store sensitive personal information (names, emails, credentials)
@@ -150,6 +219,8 @@ Last updated: 2026-03-16
 - Record command patterns from tool call history
 - Collect writing style and abbreviations from user messages
 - Record correction history from negative feedback patterns
+- Synthesize recurring failure patterns from `.qe/learning/failures/` into `failure-patterns.md`
+- Generate satisfaction trend report from `.qe/learning/signals/ratings.jsonl` into `satisfaction-trends.md` (only when 10+ entries exist)
 - Update `.qe/profile/` files incrementally (merge, don't overwrite)
 
 ## Will Not
