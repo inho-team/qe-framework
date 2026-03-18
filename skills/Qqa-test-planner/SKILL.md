@@ -1,6 +1,6 @@
 ---
 name: Qqa-test-planner
-description: Comprehensive tool for QA engineers to generate test plans, manual test cases, regression test suites, and bug reports. Includes design verification via Figma MCP integration.
+description: "Generates test plans, manual test cases, regression suites, and bug reports for QA workflows. Use for test plan, QA plan, 테스트 계획, test case generation, regression suite, bug report template, or QA documentation."
 user_invocable: true
 ---
 > Shared principles: see core/PRINCIPLES.md

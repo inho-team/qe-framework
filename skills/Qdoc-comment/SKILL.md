@@ -1,6 +1,6 @@
 ---
 name: Qdoc-comment
-description: Automatically adds documentation comments appropriate for the project's language. Supports Java (JavaDoc), Python (docstring), TypeScript (TSDoc), Go (godoc), Kotlin (KDoc), Rust (rustdoc), and more.
+description: "Adds documentation comments to code in the appropriate language format. Use for add docs, document this function, add JSDoc, docstring, add comments to code. Supports JavaDoc, Python docstring, TSDoc, godoc, KDoc, rustdoc. Distinct from Qdoc-converter (which converts file formats) — this skill adds inline code comments."
 ---
 > Shared principles: see core/PRINCIPLES.md
 

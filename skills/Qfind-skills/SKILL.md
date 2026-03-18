@@ -1,6 +1,6 @@
 ---
 name: Qfind-skills
-description: Searches for skills on skills.sh, analyzes their content, and directly creates SKILL.md files to install them. Instead of npx skills add, reads the source via WebFetch and converts to global/local skills.
+description: "Finds and installs skills from skills.sh. Use when you want to find a skill, install a skill, browse available skills, or search skills.sh. Fetches skill content and creates SKILL.md files directly."
 ---
 > Shared principles: see core/PRINCIPLES.md
 

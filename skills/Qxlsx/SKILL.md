@@ -1,6 +1,6 @@
 ---
 name: Qxlsx
-description: "All tasks related to spreadsheet files (.xlsx, .xlsm, .csv, .tsv): opening, reading, editing, creating, formulas, formatting, charts, and data cleanup."
+description: "All tasks related to spreadsheet files (.xlsx, .xlsm, .csv, .tsv). Use for open Excel, read spreadsheet, edit xlsx, create spreadsheet, 엑셀, 스프레드시트, formulas, formatting, charts, and data cleanup."
 metadata:
   source: https://skills.sh/anthropics/skills/xlsx
   author: anthropic
