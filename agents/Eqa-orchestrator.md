@@ -1,6 +1,6 @@
 ---
 name: Eqa-orchestrator
-description: A sub-agent that receives delegation for and executes the full test→review→fix quality loop. Protects the main context.
+description: A sub-agent that executes the full test→review→fix quality loop. Invoke when Qcode-run-task or Qrun-task needs a delegated quality verification loop that protects the main context.
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
