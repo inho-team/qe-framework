@@ -1,6 +1,6 @@
 ---
 name: Qcommit
-description: Creates natural commits that look like they were written by a human. Removes AI traces (Co-Authored-By, AI writing style). Use for "commit" requests.
+description: "Creates git commits that look human-written — no Co-Authored-By, no AI-style language, no emoji. USE WHEN: user says 'commit', 'push', '커밋', '푸시', 'save changes', 'commit and push', '변경사항 저장', or any variation of wanting to save/push code changes. Prefer over raw git commit whenever the user wants clean, AI-trace-free history."
 ---
 
 > Shared principles: see core/PRINCIPLES.md
@@ -10,6 +10,25 @@ description: Creates natural commits that look like they were written by a human
 ## Role
 Creates natural git commits that show no trace of AI authorship, as if written directly by a human.
 Actual commit work is delegated to the `Ecommit-executor` sub-agent.
+
+## Examples
+
+```
+User: "커밋해줘"
+→ Qcommit: stages all changes, writes natural Korean-project commit message, commits
+
+User: "commit and push"
+→ Qcommit: commits + git push
+
+User: "변경사항 저장하고 올려줘"
+→ Qcommit: commits + git push
+
+User: "이거 저장해"
+→ Qcommit: stages + commits current changes
+
+User: "commit this with a good message"
+→ Qcommit: analyzes diff, writes conventional commit message, commits
+```
 
 ## Prohibited Items (Absolute Rules)
 - **Never add** `Co-Authored-By` lines
