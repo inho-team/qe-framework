@@ -1,6 +1,6 @@
 ---
 name: Esupervision-orchestrator
-description: Supervision (감리) orchestrator that performs expert-level quality assessment beyond binary verification. Routes domain-specific supervision to specialized agents, aggregates grades (PASS/PARTIAL/FAIL), and manages remediation loops up to 3 rounds.
+description: Supervision (감리) orchestrator that performs expert-level quality assessment beyond binary verification. Use when Qrun-task Step 4.5 needs a supervision gate verdict. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades, and drafts REMEDIATION_REQUEST on FAIL.
 tools: Read, Grep, Glob, Bash, Write
 memory: project
 recommendedModel: opus

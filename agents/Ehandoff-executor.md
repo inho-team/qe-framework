@@ -1,6 +1,6 @@
 ---
 name: Ehandoff-executor
-description: A sub-agent that generates and validates session handoff documents. Operates using only Claude tools, with no Python dependencies.
+description: A sub-agent that generates and validates session handoff documents. Invoke when Qcompact needs to create a structured handoff document for session continuity.
 tools: Read, Write, Glob, Bash, Grep, Edit
 ---
 

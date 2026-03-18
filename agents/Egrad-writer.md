@@ -1,6 +1,6 @@
 ---
 name: Egrad-writer
-description: A sub-agent delegated to write academic paper chapters. Adheres to academic writing style and citation rules.
+description: A sub-agent delegated to write academic paper chapters. Invoke when Qgrad-paper-write needs to draft a specific section or chapter with academic style and citations.
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 

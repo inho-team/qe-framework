@@ -1,6 +1,6 @@
 ---
 name: Edocs-collector
-description: A background sub-agent that extracts domain knowledge from task context and records it in .qe/docs/.
+description: A background sub-agent that extracts domain knowledge from task context and records it in .qe/docs/. Invoke when domain knowledge needs to be persisted from a completed task.
 tools: Read, Write, Edit, Grep, Glob, Bash, AskQuestion
 ---
 
