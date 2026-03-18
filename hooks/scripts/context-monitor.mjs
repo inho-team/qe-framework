@@ -120,7 +120,7 @@ export function checkContextPressure(cwd) {
   const cfg = loadConfig(cwd);
   const thresholds = {
     context_warning_calls: cfg.context_warning_calls ?? cfg.context_pressure_warn ?? DEFAULT_THRESHOLDS.context_warning_calls,
-    context_critical_calls: cfg.context_critical_calls ?? cfg.context_pressure_high ?? DEFAULT_THRESHOLDS.context_critical_calls,
+    context_critical_calls: cfg.context_critical_calls ?? DEFAULT_THRESHOLDS.context_critical_calls,
     context_debounce_count: cfg.context_debounce_count ?? DEFAULT_THRESHOLDS.context_debounce_count,
   };
 
