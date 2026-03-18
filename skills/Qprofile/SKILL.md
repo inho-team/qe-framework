@@ -1,6 +1,6 @@
 ---
 name: Qprofile
-description: Analyzes the user's command patterns, writing style, and frequently used expressions, then saves the results to .qe/profile/. Improves intent recognition accuracy and reduces misunderstandings.
+description: "Analyzes command patterns, writing style, and common expressions to build a user profile. Use for profile update, 프로필 업데이트, learn my style, improve intent recognition, or update preferences."
 ---
 
 > Shared principles: see core/PRINCIPLES.md

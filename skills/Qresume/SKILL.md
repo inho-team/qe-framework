@@ -1,6 +1,6 @@
 ---
 name: Qresume
-description: Restores saved context after compaction. Automatically loads context when the skill is invoked to resume previous work.
+description: "Restores saved context after compaction or session break. Use for resume, restore context, 이어하기, continue from where I left off, or load previous session."
 ---
 
 > Shared principles: see core/PRINCIPLES.md

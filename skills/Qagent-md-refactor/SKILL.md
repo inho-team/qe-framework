@@ -1,6 +1,6 @@
 ---
 name: Qagent-md-refactor
-description: Refactors bloated AGENTS.md, CLAUDE.md, or similar agent instruction files following the progressive disclosure principle. Splits a single file into systematically organized, linked documents.
+description: "Refactors bloated AGENTS.md, CLAUDE.md, or similar agent instruction files following the progressive disclosure principle. Use when a single instruction file has grown too large or is hard to navigate. Splits it into systematically organized, linked documents."
 license: MIT
 ---
 > Shared principles: see core/PRINCIPLES.md

@@ -1,6 +1,6 @@
 ---
 name: Qcode-run-task
-description: Performs a test → review → fix → retest quality verification loop after code task completion. Automatically triggered from Qrun-task for type: code tasks.
+description: "Performs a test → review → fix → retest quality verification loop. Use for code quality checks, test failures, or when Qrun-task finishes a code task. Triggered automatically for type:code tasks."
 ---
 > Shared principles: see core/PRINCIPLES.md
 

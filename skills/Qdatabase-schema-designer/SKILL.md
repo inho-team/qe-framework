@@ -1,6 +1,6 @@
 ---
 name: Qdatabase-schema-designer
-description: Designs robust, scalable SQL/NoSQL database schemas. Provides normalization guidelines, indexing strategies, migration patterns, constraint design, and performance optimization.
+description: "Designs SQL/NoSQL database schemas with normalization, indexing, migration, and constraint recommendations. Use for database design, schema design, DB schema, table structure, ERD, 데이터베이스 설계, or schema optimization."
 license: MIT
 ---
 > Shared principles: see core/PRINCIPLES.md

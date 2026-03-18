@@ -1,6 +1,6 @@
 ---
 name: Qarchive
-description: Automatically archives completed task files. Runs automatically in the background when Qrun-task completes; manual invocation is also possible.
+description: "Archives completed task files into .qe/.archive/. Runs automatically after Qrun-task completes. Use manually for archive, 아카이브, 정리, clean up completed tasks."
 ---
 
 > Shared principles: see core/PRINCIPLES.md

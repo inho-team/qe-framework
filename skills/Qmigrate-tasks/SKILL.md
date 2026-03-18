@@ -1,6 +1,6 @@
 ---
 name: Qmigrate-tasks
-description: Migrates scattered TASK_REQUEST/VERIFY_CHECKLIST files from the project root into the .qe/tasks/ and .qe/checklists/ directory structure, and updates CLAUDE.md to the latest convention.
+description: "Migrates TASK_REQUEST/VERIFY_CHECKLIST files from project root into .qe/tasks/ and .qe/checklists/ directories. Use when task files are scattered in the root, when upgrading to the .qe/ structure, or when CLAUDE.md needs convention updates."
 ---
 > Shared principles: see core/PRINCIPLES.md
 
