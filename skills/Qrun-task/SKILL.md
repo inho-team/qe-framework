@@ -15,7 +15,9 @@ An assistant that **executes tasks and completes verification** based on spec do
 ```
 /Qgenerate-spec     → Generate 3 documents (refine through conversation)
                    ↓
-/Qrun-task          → Read documents → Summarize → Approve → Execute → Verify → ✅ Done
+/Qrun-task          → Read documents → Summarize → Approve → Execute → Verify → Supervise → ✅ Done
+                                                                                                  ↑           |
+                                                                             REMEDIATION loop-back └── FAIL ──┘ (max 3x)
 ```
 
 ## Directory Structure
@@ -182,6 +184,110 @@ Result: N/M passed
 **All items pass** → Proceed to Step 5
 **Failing items exist** → Fix and re-verify only those items
 
+### Step 4.5: Supervision Gate
+
+After Step 4 verification passes, run a supervision check before completing the task.
+
+#### Skip Conditions
+
+Skip this step and proceed directly to Step 5 if **both** of the following are true:
+- The TASK_REQUEST contains a `<!-- skip-supervision -->` comment **OR** the task `type` is `other`
+- The checklist has **fewer than 3 items** AND the task type is **not** `code`
+
+> Note: `type: code` tasks are **never** auto-skipped — even a 1-line code change can introduce security or quality issues. Only `type: docs`, `type: analysis`, and `type: other` tasks with fewer than 3 checklist items may be auto-skipped. Manual override always available via `<!-- skip-supervision -->`.
+
+#### Task Type Routing
+
+Determine the task type from TASK_REQUEST frontmatter (`type:` field) and route to the appropriate supervisor(s):
+
+| Task Type | Supervisor Agent(s) |
+|-----------|---------------------|
+| `code` | `Ecode-quality-supervisor` + `Esecurity-officer` |
+| `docs` | `Edocs-supervisor` |
+| `analysis` | `Eanalysis-supervisor` |
+| `other` / unset | `Esupervision-orchestrator` |
+
+#### Supervision Invocation
+
+Call the supervisor agent(s) via the Agent tool. Pass the following context:
+- TASK_REQUEST content (what, how, checklist)
+- VERIFY_CHECKLIST content and verification results from Step 4
+- `supervision_iteration` counter (starts at 1)
+- Changed files list
+
+#### Supervision Verdicts
+
+The supervisor returns one of three verdicts:
+
+**PASS** — Work meets quality bar
+- Record the supervision result (verdict + summary) in the TASK_REQUEST file as a comment block
+- Proceed to Step 5
+
+**PARTIAL** — Minor issues noted but not blocking
+- Record supervision notes in the TASK_REQUEST file
+- Proceed to Step 5 (non-blocking; feedback is for record only)
+
+**FAIL** — Quality issues require remediation
+- Follow the REMEDIATION flow (see below)
+
+#### Supervision Loop Counter
+
+Track iterations with `supervision_iteration`:
+- Initialize to `1` before the first supervision call
+- Increment by `1` on each REMEDIATION loop-back
+- **Maximum 3 iterations.** If `supervision_iteration > 3` after a FAIL verdict, escalate to the user (do not loop again).
+- **Persistence across sessions:** Write the current iteration as a comment in the TASK_REQUEST file so it survives session interruption:
+  ```
+  <!-- supervision_iteration: N -->
+  ```
+  Append this comment at the bottom of the TASK_REQUEST file before calling the supervision agent. On resume, read this comment to restore the counter.
+
+**Escalation message format:**
+```
+Supervision loop limit reached (3/3 iterations).
+
+The following issues remain unresolved:
+[Issue list from latest supervisor report]
+
+Options:
+1. Override — accept as-is and proceed to Step 5
+2. Abort — move task to on-hold for manual review
+3. Continue — attempt one more remediation (not recommended)
+
+Which option would you like?
+```
+
+#### REMEDIATION Flow (on FAIL)
+
+1. Create a `REMEDIATION_REQUEST_{UUID}_{iteration}.md` file in `.qe/tasks/remediation/`
+2. Populate the file using the structure defined in `core/REMEDIATION_REQUEST_FORMAT.md` (if the file does not exist, use the basic structure below)
+3. Delegate the remediation to `Etask-executor` via the Agent tool, passing the REMEDIATION_REQUEST content
+4. Keep CLAUDE.md task status at 🔶 (do not mark as complete)
+5. After `Etask-executor` completes remediation, return to **Step 3** to re-execute the affected items, then re-run **Step 4** and **Step 4.5**
+
+**Basic REMEDIATION_REQUEST structure (fallback if `core/REMEDIATION_REQUEST_FORMAT.md` is absent):**
+```markdown
+# REMEDIATION_REQUEST_{UUID}_{iteration}
+
+## Original Task
+- UUID: {UUID}
+- Task name: {task name}
+- Supervision iteration: {N}
+
+## Issues Found
+{Supervisor FAIL report — issue list with severity}
+
+## Remediation Scope
+{Specific files or checklist items that must be fixed}
+
+## Acceptance Criteria
+{What the supervisor needs to see to issue PASS or PARTIAL}
+
+## Notes
+- CLAUDE.md status remains 🔶 until supervision passes
+- Do not mark the original task complete until Step 4.5 clears
+```
+
 ### Step 5: Completion Processing
 
 **Documentation auto-generation:**
@@ -221,11 +327,11 @@ When multiple UUIDs are provided, execute sequentially in the following flow:
 ```
 Queue: [UUID1, UUID2, UUID3]
 
-[UUID1] Step 2 summary/approval → Step 3 execute → Step 4 verify → Step 5 complete
+[UUID1] Step 2 summary/approval → Step 3 execute → Step 4 verify → Step 4.5 supervise → Step 5 complete
     ↓
-[UUID2] Step 2 summary/approval → Step 3 execute → Step 4 verify → Step 5 complete
+[UUID2] Step 2 summary/approval → Step 3 execute → Step 4 verify → Step 4.5 supervise → Step 5 complete
     ↓
-[UUID3] Step 2 summary/approval → Step 3 execute → Step 4 verify → Step 5 complete
+[UUID3] Step 2 summary/approval → Step 3 execute → Step 4 verify → Step 4.5 supervise → Step 5 complete
     ↓
 Overall completion report
 ```
@@ -288,6 +394,26 @@ When `Etask-executor` fails or crashes mid-execution:
    - **Retry**: Re-run the entire task from scratch
    - **Abort**: Move to `on-hold/` and proceed to the next task in queue
 4. If in autonomous mode (ultra), automatically choose "Resume" and retry up to 2 times before escalating to user
+
+### REMEDIATION Processing
+
+When Step 4.5 returns a FAIL verdict, follow this procedure:
+
+**File location:** `.qe/tasks/remediation/REMEDIATION_REQUEST_{UUID}_{iteration}.md`
+- Create the directory with `mkdir -p .qe/tasks/remediation/` if it does not exist
+- `{iteration}` matches the current `supervision_iteration` counter (e.g., `_1`, `_2`, `_3`)
+
+**Loop-back procedure:**
+1. Create the REMEDIATION_REQUEST file (see Step 4.5 for the file structure)
+2. Delegate to `Etask-executor` via Agent tool, passing the full REMEDIATION_REQUEST content as the task scope
+3. After `Etask-executor` completes, **loop back to Step 3** to re-execute the affected checklist items
+4. After Step 3, re-run **Step 4** (final verification) and **Step 4.5** (supervision)
+5. Increment `supervision_iteration` before each supervision re-check
+
+**CLAUDE.md status during remediation:** Remain at 🔶 (in-progress). Do not transition to ✅ until Step 4.5 clears with PASS or PARTIAL.
+
+**Loop limit — escalation at 3 iterations:**
+If `supervision_iteration` would exceed 3, stop looping and present the user with the escalation prompt defined in Step 4.5. Do not create a 4th REMEDIATION_REQUEST automatically.
 
 ### No CLAUDE.md
 - Tasks can still be executed with just TASK_REQUEST and VERIFY_CHECKLIST
