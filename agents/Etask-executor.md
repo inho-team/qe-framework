@@ -1,6 +1,6 @@
 ---
 name: Etask-executor
-description: PROACTIVELY use this agent when Qrun-task executes implementation with 5 or more checklist items. Implements checklist items sequentially or via dependency-aware wave parallelism, and learns task patterns to improve efficiency for repetitive work.
+description: PROACTIVELY use this agent when Qrun-task executes implementation with 5 or more checklist items. Invoke for implementation tasks with complex checklists. Implements items sequentially or via dependency-aware wave parallelism.
 tools: Read, Write, Edit, Grep, Glob, Bash
 color: cyan
 memory: project
