@@ -36,11 +36,11 @@ const SEVERITY_ORDER = { none: 0, warning: 1, critical: 2 };
 // --- Default thresholds (tool-call-count-based proxy) ---
 // These map to approximate context remaining percentages:
 //   WARNING  (~35% remaining) => 150 tool calls
-//   CRITICAL (~25% remaining) => 200 tool calls
+//   CRITICAL (~25% remaining) => 250 tool calls
 // Values can be overridden via .qe/config.json hooks section.
 const DEFAULT_THRESHOLDS = {
   context_warning_calls: 150,   // ~35% remaining
-  context_critical_calls: 200,  // ~25% remaining
+  context_critical_calls: 250,  // ~25% remaining
   context_debounce_count: 5,    // suppress re-alert for N tool calls
 };
 
@@ -54,7 +54,7 @@ const MESSAGES = {
   ].join(' '),
 
   [SEVERITY.CRITICAL]: [
-    '[Context Monitor - CRITICAL] Estimated ~25% context remaining.',
+    '[Context Monitor - CRITICAL] Context usage is at a critical level — estimated ~25% remaining.',
     'Context exhaustion is imminent.',
     'Running Ecompact-executor now is strongly recommended to preserve session continuity.',
     'If in Utopia mode, Ecompact-executor will handle compaction automatically.',

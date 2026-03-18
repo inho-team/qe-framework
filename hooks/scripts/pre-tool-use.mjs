@@ -106,22 +106,19 @@ try {
   // Fault-tolerant: ignore on-demand context errors
 }
 
-// If .qe/analysis/ exists, remind to use it instead of scanning
+// If doing broad exploration, remind to check .qe/analysis/ first (always hint — dir may not exist yet)
 const analysisDir = join(cwd, '.qe', 'analysis');
-if (existsSync(analysisDir)) {
-  // Only remind for exploration tools
-  if (['Glob', 'Grep', 'Read'].includes(toolName)) {
-    // Check if this might be a project exploration (not a specific file read)
-    const toolInput = data.tool_input || data.toolInput || {};
-    const pattern = toolInput.pattern || toolInput.path || '';
+if (['Glob', 'Grep', 'Read'].includes(toolName)) {
+  // Check if this might be a project exploration (not a specific file read)
+  const toolInput = data.tool_input || data.toolInput || {};
+  const pattern = toolInput.pattern || toolInput.path || '';
 
-    // Hint when doing broad exploration, not specific file reads
-    const isBroadGlob = toolName === 'Glob' && (pattern.includes('**') || pattern.includes('*/'));
-    const isBroadGrep = toolName === 'Grep' && !pattern.includes('/') && !(toolInput.path || '').includes('.');
-    const isBroadRead = toolName === 'Read' && (pattern.includes('README') || pattern.includes('package.json'));
-    if (isBroadGlob || isBroadGrep || isBroadRead) {
-      hints.push('Check .qe/analysis/ files first to save tokens.');
-    }
+  // Hint when doing broad exploration, not specific file reads
+  const isBroadGlob = toolName === 'Glob' && (pattern.includes('**') || pattern.includes('*/'));
+  const isBroadGrep = toolName === 'Grep' && !pattern.includes('/') && !(toolInput.path || '').includes('.');
+  const isBroadRead = toolName === 'Read' && (pattern.includes('README') || pattern.includes('package.json'));
+  if (isBroadGlob || isBroadGrep || isBroadRead) {
+    hints.push('Check .qe/analysis/ files first to save tokens.');
   }
 }
 
