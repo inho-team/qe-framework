@@ -5,6 +5,7 @@ tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch
 color: purple
 maxTurns: 50
 permissionMode: acceptEdits
+recommendedModel: opus
 ---
 
 > Shared principles: see core/PRINCIPLES.md

@@ -14,6 +14,8 @@ metadata:
 keywords: content writing, research, citations, articles, reports, editing, hooks, drafting
 ---
 
+> Shared principles: see core/PRINCIPLES.md
+
 # Content Research Writer — 리서치 기반 콘텐츠 작성
 
 리서치를 수행하고 인용을 추가하며, 섹션별 피드백을 제공하면서 작성자의 고유한 문체를 유지하는 글쓰기 파트너.

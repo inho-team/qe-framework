@@ -3,6 +3,7 @@ name: Ecode-debugger
 description: Debugging specialist. Analyzes bug root causes, traces errors, and performs troubleshooting. Use for requests like "why doesn't this work", "getting an error", "bug", "find the cause", "it's not working".
 tools: Read, Grep, Glob, Bash
 memory: user
+recommendedModel: sonnet
 ---
 
 > Shared principles: see core/PRINCIPLES.md

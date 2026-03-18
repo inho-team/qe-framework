@@ -47,6 +47,7 @@ All git commit/push operations MUST go through the `/Qcommit` skill, which deleg
 - **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
 - **Confirm file modification permissions**: Ask the user for permission before creating, modifying, or deleting any file.
 - **Utopia mode check**: Before calling AskUserQuestion, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. For complex requests (3+ steps, multi-file, new features), automatically route through `Qgenerate-spec → Qrun-task → verify` pipeline. Simple requests (1-2 step single-file edits) execute directly. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
+- **Pre-execution Gate**: In Utopia/ultrawork/ultraqa modes, before autonomous execution of complex tasks, check if the prompt has concrete anchor signals (file paths, function names, issue numbers, etc.). If the prompt is vague (no anchors + ≤15 words), redirect to Qgenerate-spec normal flow for proper scoping. Users can bypass with `force:` or `!` prefix. See the "Pre-execution Gate" section in Qgenerate-spec SKILL.md for details.
 
 ---
 
@@ -79,3 +80,37 @@ Decision rules:
 - When unsure, ask. Do not guess.
 - When there are 3 or more alternatives, present them in a comparison table.
 - A small, correct change beats a large, clever one.
+
+---
+
+## Model Routing
+
+Agent invocation should consider model complexity and availability. Each agent has a `recommendedModel` field in its frontmatter that guides model selection. The recommended model is **advisory** — the skill or caller makes the final decision.
+
+**Routing Criteria:**
+
+| Model | Complexity | Use Cases | Examples |
+|-------|-----------|-----------|----------|
+| **haiku** | Low | Simple, repetitive, background tasks | Archiving, data refresh, profile collection, basic formatting |
+| **sonnet** | Medium | Standard development work | Code implementation, debugging, testing, code review |
+| **opus** | High | Complex analysis, design, research | Architecture design, deep system analysis, strategic planning |
+
+**Agent Routing Table:**
+
+| Agent | Recommended Model | Rationale |
+|-------|------------------|-----------|
+| Earchive-executor | haiku | Archival = simple metadata collection & storage |
+| Erefresh-executor | haiku | Refresh = straightforward data update loops |
+| Eprofile-collector | haiku | Profile collection = basic I/O operations |
+| Ecode-debugger | sonnet | Debugging = intermediate complexity analysis & tracing |
+| Ecode-reviewer | sonnet | Code review = pattern matching & quality assessment |
+| Ecode-test-engineer | sonnet | Testing = standard engineering (test design, implementation) |
+| Etask-executor | sonnet | Task execution = multi-step implementation work |
+| Epm-planner | opus | Planning = architecture & strategic decisions |
+| Edeep-researcher | opus | Research = deep analysis & synthesis across domains |
+
+**Implementation:**
+- Agents declare `recommendedModel:` in YAML frontmatter (e.g., `recommendedModel: sonnet`)
+- Skills and callers inspect `recommendedModel` when invoking agents via Claude Code Agent tool
+- Model selection respects rate limits and availability — recommended model is a preference, not a guarantee
+- No enforcement: if a caller invokes an agent with a different model, it is not an error

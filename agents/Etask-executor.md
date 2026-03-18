@@ -1,11 +1,12 @@
 ---
 name: Etask-executor
-description: PROACTIVELY use this agent when Qrun-task executes implementation with 5 or more checklist items. Implements checklist items in order and learns task patterns to improve efficiency for repetitive work.
+description: PROACTIVELY use this agent when Qrun-task executes implementation with 5 or more checklist items. Implements checklist items sequentially or via dependency-aware wave parallelism, and learns task patterns to improve efficiency for repetitive work.
 tools: Read, Write, Edit, Grep, Glob, Bash
 color: cyan
 memory: project
 maxTurns: 50
 permissionMode: acceptEdits
+recommendedModel: sonnet
 ---
 
 > Shared principles: see core/PRINCIPLES.md
@@ -90,41 +91,163 @@ Report in the following format upon task completion:
 - Do not work on tasks not in the checklist
 - Do not arbitrarily change the content of spec documents
 
-## Team Mode (Experimental)
+## Wave Execution Model
 
-> Requires Agent Teams enabled. Falls back to sequential execution if not available.
+> Dependency-aware parallel execution. Falls back to sequential execution when conditions are not met.
 
-### When to Activate
-- Agent Teams feature is enabled AND
-- Checklist has 5+ items AND
-- At least 3 items are independent (no sequential dependency)
+### Activation Conditions
+All of the following must be true:
+- Agent tool is available for subagent spawning
+- Checklist has 5+ items
+- Wave analysis produces at least 2 waves with the first wave containing 2+ independent items
 
-### Independence Check
-Items are independent when:
-- They modify different files
-- No item's output is another item's input
-- They don't share state (database, config)
+If any condition is not met, fall back to **Sequential Execution** (default behavior).
 
-### Team Structure
-- Lead partitions checklist into independent groups
-- One teammate per group (max 5 teammates)
-- Each teammate gets: group items + CLAUDE.md constraints + file ownership list
+### Dependency Analysis
 
-### File Ownership
-Before spawning, Lead creates a partition:
+Dependencies between checklist items are resolved in two ways, checked in priority order:
+
+**1. Explicit `depends:` tag (highest priority)**
+Items may declare dependencies directly:
 ```
-Teammate A: src/auth/* (items 1, 3)
-Teammate B: src/api/* (items 2, 4)
-Teammate C: tests/* (items 5, 6)
+- [ ] Build auth module → output: src/auth/mod.rs
+- [ ] Write auth tests (depends: 1) → output: tests/auth_test.rs
 ```
-No overlap allowed. Shared files (package.json, etc.) are handled by Lead after teammates finish.
+The `depends: N` tag references item numbers (1-indexed). Multiple dependencies use comma separation: `depends: 1, 3`.
 
-### Workflow
-1. Lead analyzes checklist for independence
-2. If 3+ independent groups --> create team
-3. Teammates claim tasks from shared task list
-4. Lead monitors, reassigns if teammate is stuck
-5. After all teammates finish, Lead handles shared files and runs integration checks
+**Parsing order:** When both tags are present on a single item (e.g., `- [ ] Write tests (depends: 1) → output: tests/test.rs`), parse `→ output:` first (everything after the arrow), then parse `(depends: N)` from the remaining description text (inside parentheses before the arrow).
 
-### Fallback
-If fewer than 3 independent groups, use sequential Subagent mode (current behavior).
+**2. Output-path inference (automatic)**
+When no explicit `depends:` tag is present, dependencies are inferred by matching file paths:
+- Parse each item's `→ output:` path to identify what it produces
+- Parse each item's description for file path references (e.g., `src/auth/mod.rs`, `config/*.yaml`)
+- If item B's description references a path that matches item A's output, then B depends on A
+- Glob patterns in references are expanded against output paths
+
+**Path matching rules:**
+- Exact match: `src/auth/mod.rs` matches `src/auth/mod.rs`
+- Directory match: an item referencing `src/auth/*` depends on any item outputting to `src/auth/`
+- Same-file match: if items A and B both output to the same file, they are serialized (B depends on A by checklist order)
+
+**Dependency graph construction:**
+```
+For each item i in checklist:
+  i.produces = parse output path from "→ output:" suffix
+  i.references = parse all file paths mentioned in description
+  i.explicit_deps = parse "depends:" tag if present
+
+For each pair (i, j) where j appears after i:
+  if j.explicit_deps contains i.index → add edge i → j
+  else if j.references intersects i.produces → add edge i → j
+  else if i.produces == j.produces → add edge i → j (same-file serialization)
+```
+
+### Wave Classification Algorithm
+
+Assign each item to a wave using topological level assignment:
+
+```
+1. Build dependency graph G from analysis above
+2. Check for cycles — if found, abort wave analysis → fall back to sequential
+3. Compute in-degree for each node
+4. Initialize: wave_level = 0, queue = all nodes with in-degree 0
+5. While queue is not empty:
+   a. All nodes in queue are assigned to wave_level
+   b. For each node in queue, decrement in-degree of its dependents
+   c. Collect newly zero-in-degree nodes as next queue
+   d. wave_level += 1
+6. Result: items grouped by wave level
+```
+
+**Example:**
+```
+Checklist:
+- [ ] [1] Create data model → output: src/model.rs
+- [ ] [2] Build CLI parser → output: src/cli.rs
+- [ ] [3] Write model tests (depends: 1) → output: tests/model_test.rs
+- [ ] [4] Integrate CLI with model (depends: 1, 2) → output: src/main.rs
+- [ ] [5] Write integration tests (depends: 4) → output: tests/integration_test.rs
+
+Dependency graph: 1→3, 1→4, 2→4, 4→5
+
+Wave 0: [1, 2]     — no dependencies, run in parallel
+Wave 1: [3, 4]     — depend on wave 0 items, run in parallel after wave 0
+Wave 2: [5]         — depends on wave 1, runs after wave 1
+```
+
+### Wave Execution Protocol
+
+**Orchestrator role (Lead):**
+The orchestrator maintains minimal context to preserve token budget (~15% of total):
+- Full checklist with current completion status
+- Wave assignment map
+- File ownership partition
+- Error log
+
+The orchestrator does NOT load file contents or implementation details — that is the subagent's job.
+
+**File Ownership:**
+Before spawning a wave, the orchestrator partitions file ownership:
+```
+Wave 1, Agent A: src/model.rs (item 1)
+Wave 1, Agent B: src/cli.rs (item 2)
+```
+No file overlap within a wave. If two items in the same wave would modify the same file, one is deferred to the next wave (same-file serialization rule).
+
+**Subagent input format:**
+Each subagent receives a focused context package:
+```markdown
+## Assigned Items
+- [ ] [item number] item description → output: path
+
+## Constraints
+[Relevant CLAUDE.md constraints]
+
+## File Ownership
+You own: [list of files this agent may modify]
+Do NOT modify: [any file not in your ownership list]
+
+## Dependencies Resolved
+[List of items already completed in previous waves, with summary of what was done]
+
+## Project Memory
+[Relevant patterns from project memory, if any]
+```
+
+**Result collection:**
+After each subagent completes, the orchestrator collects:
+- Completion status (done / error)
+- Changed files list
+- Brief summary (1-2 lines)
+- Error details if failed
+
+**Wave transition:**
+```
+For each wave W (0, 1, 2, ...):
+  1. Orchestrator partitions file ownership for items in W
+  2. Spawn one Agent per item (or per item group if items share no files)
+  3. Wait for all agents in W to complete
+  4. If any agent failed:
+     a. Log error with item number and reason
+     b. Mark dependent items in later waves as blocked
+     c. Continue with non-blocked items in next wave
+  5. Update checklist status
+  6. Proceed to wave W+1
+```
+
+**Post-execution:**
+After all waves complete, the orchestrator:
+- Handles shared files that could not be assigned to a single agent (e.g., package.json, CLAUDE.md updates)
+- Runs integration checks if specified in the checklist
+- Produces the final Implementation Result report
+
+### Fallback to Sequential Execution
+
+Sequential execution is used when:
+- Wave analysis detects a cycle in the dependency graph
+- Wave analysis produces only 1 wave (all items are interdependent)
+- First wave contains fewer than 2 independent items
+- Agent tool is not available
+- Checklist has fewer than 5 items
+
+In fallback mode, items are executed in checklist order as defined in the Sequential Implementation section above. No subagents are spawned.

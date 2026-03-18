@@ -10,6 +10,8 @@ metadata:
 keywords: conversion, pandoc, markitdown, pymupdf4llm, markdown, docx, pdf, pptx
 ---
 
+> Shared principles: see core/PRINCIPLES.md
+
 # Doc Converter — 문서 포맷 변환
 
 문서를 다양한 포맷 간 변환한다. Quick Mode(빠름)와 Heavy Mode(고품질)를 지원.

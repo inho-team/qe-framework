@@ -3,6 +3,7 @@ name: Ecode-reviewer
 description: Code review specialist. Reviews quality, security, performance, and pattern compliance after code changes. Use for requests like "review this", "look at this code", "is this okay?".
 tools: Read, Grep, Glob, Bash
 memory: user
+recommendedModel: sonnet
 ---
 
 > Shared principles: see core/PRINCIPLES.md

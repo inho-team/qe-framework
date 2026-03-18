@@ -1,6 +1,7 @@
 ---
 name: Ehandoff-executor
 description: A sub-agent that generates and validates session handoff documents. Operates using only Claude tools, with no Python dependencies.
+tools: Read, Write, Glob, Bash, Grep, Edit
 ---
 
 > Shared principles: see core/PRINCIPLES.md

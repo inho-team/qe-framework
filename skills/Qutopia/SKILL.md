@@ -76,6 +76,16 @@ Examples of COMPLEX:
 - "API 엔드포인트 만들어줘"
 - "성능 최적화해줘"
 
+#### Pre-execution Gate Integration
+
+Before routing, COMPLEX requests pass through the **Pre-execution Gate** (defined in Qgenerate-spec SKILL.md). The gate checks if the prompt has concrete anchor signals (file paths, function names, issue numbers, code blocks, numbered steps, etc.).
+
+- **Anchor found** → proceed with COMPLEX pipeline directly
+- **No anchor + ≤15 effective words** → redirect to Qgenerate-spec normal flow (Step 1) for proper scoping
+- **Bypass**: `force:` or `!` prefix skips the gate entirely
+
+See the "Pre-execution Gate" section in Qgenerate-spec SKILL.md for the full anchor signal table and bypass rules.
+
 #### Routing Behavior
 
 ```
@@ -86,17 +96,19 @@ Complexity Classification (automatic, no user prompt)
 ├── SIMPLE → Execute directly (no spec, no task file)
 │   └── Done → Report result
 │
-└── COMPLEX → Autonomous Pipeline:
-    1. Qgenerate-spec (auto-generate, skip all confirmations)
-       - Create TASK_REQUEST + VERIFY_CHECKLIST
-       - Auto-select "Generate" (no user review)
-    2. Qrun-task (auto-execute)
-       - Read task files, implement all checklist items
-       - Skip approval step
-    3. Verify
-       - Check all VERIFY_CHECKLIST items
-       - Auto-commit via Qcommit
-    4. Report completion summary
+└── COMPLEX → Pre-execution Gate check
+    ├── Gate fires → Qgenerate-spec normal flow (Step 1~5)
+    └── Gate passes → Autonomous Pipeline:
+        1. Qgenerate-spec (auto-generate, skip all confirmations)
+           - Create TASK_REQUEST + VERIFY_CHECKLIST
+           - Auto-select "Generate" (no user review)
+        2. Qrun-task (auto-execute)
+           - Read task files, implement all checklist items
+           - Skip approval step
+        3. Verify
+           - Check all VERIFY_CHECKLIST items
+           - Auto-commit via Qcommit
+        4. Report completion summary
 ```
 
 #### Classification Output Format

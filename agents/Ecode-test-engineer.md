@@ -3,6 +3,7 @@ name: Ecode-test-engineer
 description: Test engineer. Handles test writing, coverage analysis, and test strategy planning. Use for requests like "write tests", "test this", "coverage", "QA".
 tools: Read, Grep, Glob, Bash, Edit, Write
 memory: user
+recommendedModel: sonnet
 ---
 
 > Shared principles: see core/PRINCIPLES.md
