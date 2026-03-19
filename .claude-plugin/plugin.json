@@ -1,6 +1,6 @@
 {
   "name": "qe-framework",
-  "version": "1.26.0",
+  "version": "2.0.0",
   "description": "QE Framework - Personal Claude Code skills package",
   "author": { "name": "inho-team" },
   "skills": "./skills/",
