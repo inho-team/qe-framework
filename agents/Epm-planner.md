@@ -8,9 +8,6 @@ permissionMode: acceptEdits
 recommendedModel: opus
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## Will
 - Write PM deliverables such as PRDs, user stories, roadmaps, and meeting notes
 - Convert brainstorming and notes into structured planning documents

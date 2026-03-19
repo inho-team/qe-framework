@@ -7,9 +7,6 @@ recommendedModel: haiku
 color: purple
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Esupervision-orchestrator — Supervision (감리) Orchestrator
 
 ## Philosophy

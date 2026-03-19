@@ -4,9 +4,6 @@ description: A background sub-agent that handles batch document generation (docx
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Edoc-generator — Document Generation Sub-Agent
 
 ## Role

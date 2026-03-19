@@ -4,9 +4,6 @@ description: A sub-agent delegated to write academic paper chapters. Invoke when
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Egrad-writer — Academic Paper Writing Sub-Agent
 
 ## Role

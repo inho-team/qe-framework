@@ -4,9 +4,6 @@ description: A sub-agent that executes the full test→review→fix quality loop
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Eqa-orchestrator — Quality Loop Orchestrator
 
 ## When to Use

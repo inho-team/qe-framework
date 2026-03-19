@@ -112,21 +112,27 @@ if (['Write', 'Edit'].includes(toolName)) {
   const contentToScan = toolInput.new_string || toolInput.content || '';
 
   if (contentToScan) {
-    const secretPatterns = [
-      { name: 'AWS Access Key', regex: /AKIA[0-9A-Z]{16}/ },
-      { name: 'AWS Secret Key', regex: /(?:aws_secret_access_key|secret_?key)\s*[:=]\s*['"]?[0-9a-zA-Z/+=]{40}['"]?/i },
-      { name: 'GitHub Token', regex: /gh[pousr]_[A-Za-z0-9_]{36,}/ },
-      { name: 'JWT', regex: /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+/ },
-      { name: 'Private Key', regex: /-----BEGIN (RSA |EC |DSA )?PRIVATE KEY-----/ },
-      { name: 'Generic API Key', regex: /(api[_\-]?key|apikey|secret[_\-]?key)\s*[:=]\s*['"][A-Za-z0-9]{20,}['"]/ },
-      { name: 'DB Connection String', regex: /(mongodb|postgres|mysql|redis):\/\/[^\s]+@[^\s]+/ },
-      { name: 'Generic Password', regex: /(?:^|[^a-zA-Z])(password|passwd|pwd)\s*[:=]\s*['"][^'"]{16,}['"]/ },
-    ];
+    // Combined regex: single-pass pre-filter before identifying the specific pattern
+    const COMBINED_SECRET_REGEX = /AKIA[0-9A-Z]{16}|(?:aws_secret_access_key|secret_?key)\s*[:=]\s*['"]?[0-9a-zA-Z/+=]{40}['"]?|gh[pousr]_[A-Za-z0-9_]{36,}|eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+|-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----|(?:api[_\-]?key|apikey|secret[_\-]?key)\s*[:=]\s*['"][A-Za-z0-9]{20,}['"]|(?:mongodb|postgres|mysql|redis):\/\/[^\s]+@[^\s]+|(?:^|[^a-zA-Z])(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{16,}['"]/i;
 
-    for (const { name, regex } of secretPatterns) {
-      if (regex.test(contentToScan)) {
-        hints.push(`[SECRET WARNING] Potential secret detected (${name}). Verify this is not a real credential before proceeding.`);
-        break;
+    if (COMBINED_SECRET_REGEX.test(contentToScan)) {
+      // Pre-filter matched — identify specific pattern for the warning message
+      const secretPatterns = [
+        { name: 'AWS Access Key', regex: /AKIA[0-9A-Z]{16}/ },
+        { name: 'AWS Secret Key', regex: /(?:aws_secret_access_key|secret_?key)\s*[:=]\s*['"]?[0-9a-zA-Z/+=]{40}['"]?/i },
+        { name: 'GitHub Token', regex: /gh[pousr]_[A-Za-z0-9_]{36,}/ },
+        { name: 'JWT', regex: /eyJ[A-Za-z0-9\-_]+\.eyJ[A-Za-z0-9\-_]+/ },
+        { name: 'Private Key', regex: /-----BEGIN (?:RSA |EC |DSA )?PRIVATE KEY-----/ },
+        { name: 'Generic API Key', regex: /(?:api[_\-]?key|apikey|secret[_\-]?key)\s*[:=]\s*['"][A-Za-z0-9]{20,}['"]/ },
+        { name: 'DB Connection String', regex: /(?:mongodb|postgres|mysql|redis):\/\/[^\s]+@[^\s]+/ },
+        { name: 'Generic Password', regex: /(?:^|[^a-zA-Z])(?:password|passwd|pwd)\s*[:=]\s*['"][^'"]{16,}['"]/ },
+      ];
+
+      for (const { name, regex } of secretPatterns) {
+        if (regex.test(contentToScan)) {
+          hints.push(`[SECRET WARNING] Potential secret detected (${name}). Verify this is not a real credential before proceeding.`);
+          break;
+        }
       }
     }
   }
@@ -177,7 +183,7 @@ try {
   const docsInterval = cfg.docs_collect_interval || 100;
   if (currentCalls > 0 && currentCalls % docsInterval === 0) {
     if (!hasRecentToolErrors) {
-      hints.push('Run Edocs-collector in background to extract domain knowledge.');
+      hints.push('Check .qe/docs/ for domain knowledge if relevant to current task.');
     }
   }
 } catch {}

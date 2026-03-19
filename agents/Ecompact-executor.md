@@ -4,9 +4,6 @@ description: A background sub-agent that detects context window pressure, automa
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Ecompact-executor — Context Preservation Sub-Agent
 
 ## Role

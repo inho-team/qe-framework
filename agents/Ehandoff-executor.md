@@ -4,9 +4,6 @@ description: A sub-agent that generates and validates session handoff documents.
 tools: Read, Write, Glob, Bash, Grep, Edit
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Ehandoff-executor — Handoff Sub-Agent
 
 ## Role

@@ -15,7 +15,6 @@
     "./agents/Ecompact-executor.md",
     "./agents/Edeep-researcher.md",
     "./agents/Edoc-generator.md",
-    "./agents/Edocs-collector.md",
     "./agents/Edocs-supervisor.md",
     "./agents/Eanalysis-supervisor.md",
     "./agents/Egrad-writer.md",

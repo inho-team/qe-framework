@@ -7,9 +7,6 @@ recommendedModel: haiku
 color: red
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## Will
 - Scan only changed code (`git diff HEAD`) — not the full project
 - Classify every finding with a severity level (FAIL / WARN / PASS)

@@ -6,9 +6,6 @@ memory: user
 recommendedModel: sonnet
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## Will
 - Review code changes for correctness, security, performance, and maintainability, then write a report
 - Classify findings by severity (Critical/Warning/Suggestion) and provide concrete fix examples

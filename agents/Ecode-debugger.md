@@ -6,9 +6,6 @@ memory: user
 recommendedModel: sonnet
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## When to Use
 - **Use this agent** when: you need to actually find and fix a specific bug — read code, trace errors, analyze stack traces, and propose concrete fixes
 - **Use Qsystematic-debugging instead** when: you need a structured debugging methodology guide — how to approach root cause analysis and form hypotheses before diving into code

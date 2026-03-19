@@ -3,9 +3,6 @@ name: Qgenerate-spec
 description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when starting a new project, defining task specifications, or when the user says generate spec, create task, 스펙 작성, 태스크 만들어줘, write requirements, or spec. Supports --ultrawork and --ultraqa modes."
 user_invocable: true
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 
 # Project Spec Document Generation Skill
 
@@ -26,61 +23,34 @@ You generate **3 documents** based on the user's project description.
 | 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.qe/checklists/pending/` | Verification checklist — validation criteria, additional notes |
 
 - A single task shares the same UUID across both documents.
-- If there are multiple tasks, generate a separate TASK_REQUEST / VERIFY_CHECKLIST pair for each.
-- Newly generated documents are always saved in the `pending/` directory.
+- Multiple tasks get separate TASK_REQUEST / VERIFY_CHECKLIST pairs.
+- Newly generated documents always go in `pending/`.
 
 ## Workflow
 
 ### Step 1: Collect Information
 Ask the user for the information below. Skip items already provided.
 
-For complex projects or those requiring PRD-level planning, you can delegate to the `Epm-planner` agent for detailed requirements analysis.
+Delegation options:
+- Complex projects requiring PRD-level planning → delegate to `Epm-planner`
+- Tech stack / architecture decisions → delegate to `Edeep-researcher`
 
-For tech stack selection or architecture decisions, you can delegate to the `Edeep-researcher` agent for technical research and comparative analysis.
-
-- **Project name**: Official name of the project
-- **Project description**: One-paragraph summary
-- **Goals**: What this project aims to achieve (1–5 items)
-- **Constraints**: Things that must be respected — tech stack, performance, security, etc.
-- **Decisions**: Technical or business decisions already finalized
-- **Task list**: Tasks to be performed. For each task:
-  - What is wanted (what)
-  - How it will be built (how)
-  - Implementation checklist (steps)
-  - Expected output files (outputs) — file paths produced or modified by each checklist item (optional)
-  - Notes (notes)
-  - Task type (type): `code` | `analysis` | `docs` | `other`
-  - Validation criteria (checks)
-  - Verification notes (verifyNotes)
-  - Decision rationale (optional) — only when design alternatives exist:
-    - Chosen approach and why (chosen_approach, why_chosen)
-    - Alternatives considered with rejection reasons (alternatives)
-    - Consequences of the decision (consequences)
+Required information:
+- **Project name**, **description** (one-paragraph summary)
+- **Goals** (1-5 items), **Constraints** (tech stack, performance, security, etc.), **Decisions** (finalized)
+- **Task list** — for each task: what, how, steps (checklist), expected output files (optional), notes, type (`code`|`analysis`|`docs`|`other`), validation criteria (checks), verification notes, and optional decision rationale (chosen approach, alternatives, consequences)
 
 ### Step 2: Draft Documents
-Write drafts of the 3 documents from the collected information.
-- Refer to template files in this skill's `templates/` directory:
-  - `templates/CLAUDE_MD_TEMPLATE.md`
-  - `templates/TASK_REQUEST_TEMPLATE.md`
-  - `templates/VERIFY_CHECKLIST_TEMPLATE.md`
-- Replace `{{placeholder}}` in templates with actual content.
+Write drafts using templates from `templates/` directory (`CLAUDE_MD_TEMPLATE.md`, `TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). Replace `{{placeholder}}` with actual content.
 
 ### Step 2.5: Plan Review (Automatic Verification Loop)
-After drafting documents in Step 2, automatically verify the spec quality using the **Plan agent** before presenting to the user. This step is invisible to the user — only the refined result is shown in Step 3.
+After drafting, automatically verify spec quality using the **Plan agent** (invisible to user).
 
 **Procedure:**
-1. Spawn a Plan agent via the Agent tool with `subagent_type: "Plan"` and pass the drafted TASK_REQUEST and VERIFY_CHECKLIST content.
-2. The Plan agent evaluates the spec against **5 verification criteria**:
-   - (1) Each checklist item follows the single responsibility principle
-   - (2) Each item is specific and verifiable (no vague expressions)
-   - (3) VERIFY_CHECKLIST and TASK_REQUEST are consistent with each other
-   - (4) No conflicts between constraints and checklist items
-   - (5) No missing dependencies or prerequisites
-3. The Plan agent responds with one of:
-   - `APPROVE` — spec passes all criteria, proceed to Step 3
-   - `REVISE: {specific revision items}` — spec needs changes
-4. On `REVISE`: apply the suggested revisions to the draft, then re-submit to the Plan agent for re-evaluation.
-5. **Maximum 3 iterations.** If the spec does not receive `APPROVE` after 3 rounds, proceed to Step 3 with the best version available and note the unresolved items for the user.
+1. Spawn Plan agent via Agent tool (`subagent_type: "Plan"`) with drafted TASK_REQUEST and VERIFY_CHECKLIST content
+2. Plan agent evaluates against **5 criteria**: (1) single responsibility per item, (2) specific and verifiable, (3) TASK_REQUEST/VERIFY_CHECKLIST consistency, (4) no constraint conflicts, (5) no missing dependencies
+3. Response: `APPROVE` → proceed to Step 3; `REVISE: {items}` → apply revisions and re-submit
+4. **Max 3 iterations.** If not approved after 3 rounds, proceed with best version and note unresolved items.
 
 **Plan agent prompt template:**
 ```
@@ -98,86 +68,49 @@ Otherwise respond with REVISE: followed by specific items to fix.
 [VERIFY_CHECKLIST content]
 ```
 
-**Ultra Modes compatibility:** This verification loop runs in both normal and ultra modes. In ultra modes, the loop operates identically — it does not skip or auto-approve. The loop is an internal quality gate, not a user interaction point.
+This loop runs identically in both normal and ultra modes.
 
 ### Step 2.7: Executability Verification (Automatic)
-After Step 2.5 (structural/completeness review) passes, verify that each checklist item is **practically executable** by an implementation agent. This is a self-check within Qgenerate-spec — no additional agent is spawned.
+After Step 2.5 passes, self-check that each checklist item is **practically executable**. No additional agent spawned.
 
-> **Role separation from Step 2.5:** Step 2.5 checks *structural quality* (single responsibility, specificity, consistency). Step 2.7 checks *executability* — whether the plan can actually be carried out without ambiguity or failure at runtime.
+> **Role separation:** Step 2.5 = structural quality; Step 2.7 = executability.
 
-**4 Verification Criteria:**
+**4 Criteria:**
 
 | # | Criterion | Check Question | Fail Example |
 |---|-----------|---------------|--------------|
-| E1 | Single-action executability | Can an agent complete this item with a single focused edit or command (not "is it one responsibility")? | `"API 설계 및 라우트 구현"` — requires two distinct file edits that cannot be done atomically |
-| E2 | Output path validity | Does the `→ output:` path have a valid directory and consistent extension? | `→ output: src/utils/helper` — missing extension; `→ output: nonexistent-dir/foo.ts` — directory does not exist in project |
-| E3 | Logical ordering | Does each item's input exist by the time it executes (no forward dependency)? | Item 3 references a file created in Item 5 |
-| E4 | Verifiable completion | Can an agent objectively confirm this item is done (yes/no) without subjective judgment? | `"코드를 적절히 리팩토링"` — "적절히" is subjective |
+| E1 | Single-action executability | Can an agent complete this with a single focused edit/command? | `"API 설계 및 라우트 구현"` — two distinct edits |
+| E2 | Output path validity | Does `→ output:` path have valid directory and extension? | `→ output: src/utils/helper` — missing extension |
+| E3 | Logical ordering | Does each item's input exist by execution time? | Item 3 references file from Item 5 |
+| E4 | Verifiable completion | Can completion be confirmed objectively (yes/no)? | `"코드를 적절히 리팩토링"` — subjective |
 
 **Procedure:**
-1. Iterate through every checklist item in TASK_REQUEST and evaluate against E1–E4.
-2. For each item, produce a pass/fail verdict per criterion.
-3. If **all items pass all 4 criteria** → proceed to Step 3.
-4. If **any item fails** → apply fixes automatically, then re-verify (retry loop).
+1. Evaluate every checklist item against E1-E4
+2. All pass → proceed to Step 3
+3. Any fail → fix automatically, re-verify (**max 2 retries**)
+4. After 2 retries with remaining failures → proceed with best version, note unresolved items
 
-**Retry Loop:**
-- **Maximum 2 retries.** On each retry, fix only the failing items and re-run the full E1–E4 check.
-- After 2 retries, if failures remain, proceed to Step 3 with the best version and attach unresolved items as a note to the user.
-
-**Failure Feedback Format:**
-When a criterion fails, record it in the following structured format before applying fixes:
-
+**Failure format:**
 ```
 [EXECUTABILITY FAIL]
 - Item: "{{ checklist item text }}"
 - Criterion: E{{ number }} — {{ criterion name }}
-- Reason: {{ specific reason for failure }}
+- Reason: {{ specific reason }}
 - Fix: {{ proposed correction }}
 ```
 
-Example:
-```
-[EXECUTABILITY FAIL]
-- Item: "API 엔드포인트 설계 및 라우트 구현"
-- Criterion: E1 — Single-action executability
-- Reason: Contains two distinct actions (설계 + 구현) that should be separate items
-- Fix: Split into "API 엔드포인트 설계 → output: docs/api-design.md" and "API 라우트 구현 → output: src/routes/api.ts"
-
-[EXECUTABILITY FAIL]
-- Item: "헬퍼 함수 작성 → output: src/utils/helper"
-- Criterion: E2 — Output path validity
-- Reason: Missing file extension in output path
-- Fix: Change to "→ output: src/utils/helper.ts"
-```
-
-After applying fixes, log:
-```
-[EXECUTABILITY RETRY {{ n }}/2]
-- Fixed items: {{ count }}
-- Remaining failures: {{ count or "none" }}
-```
-
-**Ultra Modes compatibility:** This verification runs in both normal and ultra modes. It does not skip or auto-approve. It operates as an internal gate after Step 2.5 and before user review.
+Runs identically in normal and ultra modes.
 
 ### Step 3: Review and Revise
-- Show the drafts to the user and collect feedback.
-- Incorporate any revision requests.
-- **Perfection is not required on the first try.** Refine progressively through conversation.
-- After presenting the draft, use the **`AskUserQuestion` tool** to get confirmation:
-  - Options: "Generate" (proceed to file creation), "Needs revision" (revise after feedback)
-  - If the user selects "Generate", proceed to Step 4.
+- Show drafts to user and collect feedback. Refine progressively.
+- Use **`AskUserQuestion` tool**: "Generate" (proceed) or "Needs revision" (revise after feedback)
 
 ### Step 4: Create Files
-Create files after the user selects "Generate" in `AskUserQuestion`.
-- Automatically create directories if they do not exist (`mkdir -p`, etc.).
-- If existing `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` files are found in the project root, suggest migrating them to `.qe/tasks/pending/` and `.qe/checklists/pending/`.
-- **On initial project setup**, if `.claude/settings.json` and `.mcp.json` do not exist, suggest creating them with default settings.
-  - `.claude/settings.json` → empty settings file (`{}`)
-  - `.mcp.json` → create with basic structure if the user wants it
-- **Automatic `.gitignore` management:** If `.gitignore` is missing or any of the entries below are absent, suggest adding them.
-  - Skip entries that already exist; add only missing ones under a `# Claude Code` section.
-  - If `.gitignore` does not exist at all, create it.
-
+Create files after user selects "Generate".
+- Auto-create directories (`mkdir -p`)
+- If existing `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` found in project root, suggest migrating to `.qe/tasks/pending/` and `.qe/checklists/pending/`
+- **On initial setup**, if `.claude/settings.json` and `.mcp.json` don't exist, suggest creating with defaults
+- **Automatic `.gitignore` management:** Add missing entries under `# Claude Code` section:
   ```gitignore
   # Claude Code
   .claude/settings-local.json
@@ -191,25 +124,9 @@ Create files after the user selects "Generate" in `AskUserQuestion`.
   .omc/
   ```
 
-```
-project-root/
-├── CLAUDE.md
-├── .mcp.json                   ← MCP server config (optional)
-└── .qe/
-    ├── tasks/
-    │   └── pending/
-    │       ├── TASK_REQUEST_{UUID1}.md
-    │       └── TASK_REQUEST_{UUID2}.md   ← if multiple tasks
-    └── checklists/
-        └── pending/
-            ├── VERIFY_CHECKLIST_{UUID1}.md
-            └── VERIFY_CHECKLIST_{UUID2}.md
-```
-
 ### Step 5: Suggest Immediate Execution
 
-After file creation is complete, output the following status summary **before** asking the question:
-
+Output status summary:
 ```
 ✅ 생성 완료 (spec documents only):
 - CLAUDE.md
@@ -217,219 +134,122 @@ After file creation is complete, output the following status summary **before** 
 - .qe/checklists/pending/VERIFY_CHECKLIST_{UUID}.md
 
 ❌ 아직 없는 것 (실제 작업 결과물):
-- {expected output files from TASK_REQUEST checklist, e.g. docs/FP-SPEC-SUPPLEMENT.md}
+- {expected output files from TASK_REQUEST checklist}
 
 스펙 문서는 "무엇을 할지"의 계획서입니다.
-실제 {작업 결과물 / 코드 / 문서}는 /Qrun-task 실행 후 생성됩니다.
+실제 {작업 결과물}는 /Qrun-task 실행 후 생성됩니다.
 ```
 
-Adapt the status summary to the task type:
-- `type: docs` → "실제 문서는 아직 작성되지 않았습니다."
-- `type: code` → "실제 코드는 아직 작성되지 않았습니다."
-- `type: analysis` → "실제 분석 결과는 아직 작성되지 않았습니다."
+Adapt by task type: `docs` → "실제 문서는 아직 작성되지 않았습니다.", `code` → "실제 코드는...", `analysis` → "실제 분석 결과는..."
 
-Then use the **`AskUserQuestion` tool** to ask whether to execute immediately:
-- Question: "지금 바로 /Qrun-task를 실행하여 실제 {작업 결과물}을 생성할까요?"
-- Options: "지금 실행" (immediately execute `/Qrun-task {UUID}`), "나중에 직접 실행" (finish with spec generation only)
-- For multiple tasks: guide with `/Qrun-task {UUID1} {UUID2}` format
-- If the user selects "지금 실행", follow the `/Qrun-task` skill procedure.
+Then use **`AskUserQuestion` tool**: "지금 실행" (execute `/Qrun-task {UUID}`) or "나중에 직접 실행"
 
 ## Pre-execution Gate
 
-When `--ultrawork`, `--ultraqa`, or Utopia mode triggers autonomous execution, the **Pre-execution Gate** checks whether the user's prompt is specific enough to proceed directly. Vague prompts are redirected to the normal Qgenerate-spec flow (Step 1~5) to ensure proper scoping before execution.
+When `--ultrawork`, `--ultraqa`, or Utopia mode triggers autonomous execution, check prompt specificity. Vague prompts redirect to normal Qgenerate-spec flow (Step 1-5).
 
 ### Gate Logic
 
-The gate asks one question:
-> **Can an AI generate a meaningful spec from this prompt alone, without asking clarifying questions?**
+> **Can an AI generate a meaningful spec from this prompt alone?**
 
-This requires either a **target anchor** (what to work on is explicit) or a **scope anchor** (the scope is implicitly clear from context).
+**1. Target anchors** (task subject explicitly named):
 
-**1. Target anchors** — the subject of the task is explicitly named:
+| Signal Type | Pattern |
+|---|---|
+| File path | `.ts`, `.py`, `src/` |
+| Function/class name | camelCase, PascalCase, snake_case |
+| Issue/PR number | `#N`, `issue N`, `PR N` |
+| Error reference | `TypeError`, `Error:` |
+| Code block | Triple backticks |
+| Numbered steps | `1. ... 2. ...` |
+| Escape prefix | `force:` or `!` at start |
 
-| Signal Type | Pattern | Example |
-|---|---|---|
-| File path | Path separators, extensions (`.ts`, `.py`, `src/`) | `src/auth/login.ts` |
-| Function/class name | camelCase, PascalCase, snake_case identifiers | `processKeywordDetector`, `UserModel` |
-| Issue/PR number | `#N`, `issue N`, `PR N` | `#42`, `issue 15` |
-| Error reference | Error type names (`TypeError`, `Error:`) | `TypeError in auth` |
-| Code block | Triple backticks | `` ```ts ... ``` `` |
-| Numbered steps | `1. ... 2. ...` pattern | `1. Add validation 2. Write tests` |
-| Escape prefix | `force:` or `!` at start | `force: ultrawork 성능 개선` |
-
-**2. Scope anchor** — no specific target named, but the scope is unambiguous:
-
-A prompt has a scope anchor when it is contextually clear that the task covers the current project or system as a whole. This is a semantic judgment, not a keyword match. Ask: *"Would a competent developer know exactly what to inspect or act on, without follow-up questions?"*
-
-- `전수 조사해` on a known codebase → scope is the full codebase. **Scope anchor present.**
-- `전체 검토해줘` with `--ultraqa` in a framework context → scope is the full framework. **Scope anchor present.**
-- `성능 개선해줘` → which part? which metric? **No scope anchor.**
-- `인증 추가` → which system? which method? **No scope anchor.**
+**2. Scope anchor** — no specific target, but scope is unambiguous (semantic judgment):
+- `전수 조사해` on known codebase → full codebase scope. **Present.**
+- `성능 개선해줘` → which part? **Absent.**
 
 **3. Decision rule:**
-
 ```
 Target anchor found          → Gate passes
 Scope anchor inferred        → Gate passes
-Neither found, word count > 20 → Gate passes (detailed enough to infer intent)
+Neither found, word count > 20 → Gate passes (detailed enough)
 Neither found, word count ≤ 20 → Gate fires
 ```
 
-> **Note on word count:** Count meaningful words only (exclude flags like `--ultraqa`, `--ultrawork`). Korean is information-dense; 20 words in Korean carries roughly the same specificity as 35+ words in English.
+> Korean word count: 20 Korean words ~ 35+ English words in specificity.
 
-4. **On Gate fire:**
-   - Inform the user: "프롬프트가 모호하여 계획 수립 단계로 전환합니다. 우회하려면 `force:` 또는 `!` 접두어를 사용하세요."
-   - Invoke Qgenerate-spec Step 1 (Collect Information) with the user's original prompt as context
+**On Gate fire:** Inform user with redirect message; invoke Qgenerate-spec Step 1.
 
-### Gate Bypass
-
-Users can bypass the gate with:
-- `force:` prefix — e.g., `force: ultrawork 성능 개선`
-- `!` prefix — e.g., `! ultrawork 앱 개선`
-
-When bypass is detected, skip the gate entirely and proceed with autonomous execution.
-
-### Good vs Bad Prompts
-
-| Verdict | Prompt | Reason |
-|---------|--------|--------|
-| Pass | `ultrawork src/auth/login.ts의 null 체크 수정` | Target anchor: file path |
-| Pass | `ultrawork issue #42 구현` | Target anchor: issue number |
-| Pass | `ultrawork processKeywordDetector 함수 리팩토링` | Target anchor: function name |
-| Pass | `force: ultrawork 성능 개선` | Escape prefix |
-| Pass | `ultraqa 최적화는 잘 됐는지, 잘못 지정된 부분이 있는지 전수 조사해` | Scope anchor: full-project audit, scope is unambiguous |
-| Pass | `ultraqa 전체 스킬 파일 전반적으로 검토해줘` | Scope anchor: full framework review |
-| Gate | `ultrawork 성능 개선해줘` | No anchor — which part? which metric? |
-| Gate | `ultrawork 인증 추가` | No anchor — which system? which method? |
-| Gate | `ultrawork 앱 개선` | No anchor — scope is indeterminate |
+**Gate bypass:** `force:` or `!` prefix → skip gate entirely.
 
 ## Ultra Modes
 
-When invoked with `--ultrawork` or `--ultraqa` flag, the skill enters an AI-driven autonomous execution mode.
-
 ### `--ultrawork`
-Spec generation → single user confirmation → autonomous parallel task execution.
+Spec generation → single confirmation → autonomous parallel execution.
 
-**Modified workflow:**
-1. Steps 1–2.7: Same as normal (collect info, draft documents, plan review loop, executability verification)
-2. Step 3: Show drafts → **single confirmation** via `AskUserQuestion` ("Approve & Execute" / "Needs revision")
-3. Step 4: Create files (same as normal)
-4. **Step 5 (auto-execute):** Skip the execution prompt. Instead:
-   a. Write ultra state file via Bash: create `.qe/state/ultrawork-state.json` with:
-      ```json
-      {
-        "active": true,
-        "mode": "ultrawork",
-        "started_at": "<ISO timestamp>",
-        "session_id": "<session_id>",
-        "reinforcement_count": 0,
-        "max_reinforcements": 50,
-        "original_prompt": "<user's original prompt>",
-        "task_uuids": ["<UUID1>", "<UUID2>", ...]
-      }
-      ```
-   b. For **multiple tasks**: spawn separate `Etask-executor` agents **in parallel** via the Agent tool (one per task). Pass each agent:
-      - TASK_REQUEST content
-      - VERIFY_CHECKLIST content
-      - CLAUDE.md constraints
-   c. For **single task**: invoke `/Qrun-task {UUID}` in autonomous mode (skip approval step)
-   d. After all agents complete, run VERIFY_CHECKLIST items for each task
-   e. **Supervision gate (per task, sequential):** Route each task to the appropriate supervisor via the Agent tool:
-      - `type: code` → `Ecode-quality-supervisor` + `Esecurity-officer`
-      - `type: docs` → `Edocs-supervisor`
-      - `type: analysis` → `Eanalysis-supervisor`
-      - `type: other` → skip supervision; VERIFY_CHECKLIST pass is sufficient
-      - Pass: TASK_REQUEST content, VERIFY_CHECKLIST results, list of changed files
-      - **PASS / PARTIAL** → mark task complete
-      - **FAIL** → generate `REMEDIATION_REQUEST_{UUID}_1.md`, invoke `Etask-executor` for remediation, re-run supervision once (max 1 remediation round in `--ultrawork`; escalate to user if still FAIL)
-   f. Clear the ultra state file
-   g. Output overall completion report (include supervision verdict per task)
+1. Steps 1-2.7: Same as normal
+2. Step 3: Show drafts → single confirmation ("Approve & Execute" / "Needs revision")
+3. Step 4: Create files
+4. **Step 5 (auto-execute):**
+   a. Write `.qe/state/ultrawork-state.json`: `{ active, mode, started_at, session_id, reinforcement_count: 0, max_reinforcements: 50, original_prompt, task_uuids }`
+   b. **Multiple tasks:** spawn separate `Etask-executor` agents in parallel (one per task)
+   c. **Single task:** invoke `/Qrun-task {UUID}` in autonomous mode
+   d. Run VERIFY_CHECKLIST for each task
+   e. **Supervision gate (per task):** route by type: `code` → `Ecode-quality-supervisor` + `Esecurity-officer`; `docs` → `Edocs-supervisor`; `analysis` → `Eanalysis-supervisor`; `other` → skip. PASS/PARTIAL → complete; FAIL → generate `REMEDIATION_REQUEST`, invoke `Etask-executor`, re-run once (escalate if still FAIL)
+   f. Clear state file, output completion report
 
 ### `--ultraqa`
-Same as `--ultrawork`, plus a full quality verification loop on every task.
+Same as `--ultrawork` plus full quality verification loop.
 
-**Additional behavior on top of `--ultrawork`:**
-1. Write ultra state file with `"mode": "ultraqa"` and `"max_reinforcements": 80`
-2. After each task's `Etask-executor` completes, run the full quality + supervision pipeline (no user confirmation at any step):
-   a. **Quality loop** (type: code only): run `/Qcode-run-task` quality loop (test → review → fix → retest, max 3 cycles)
-   b. **Supervision gate**: invoke the appropriate supervisor via Agent tool based on task type:
-      - `type: code` → `Ecode-quality-supervisor` + `Esecurity-officer`
-      - `type: docs` → `Edocs-supervisor`
-      - `type: analysis` → `Eanalysis-supervisor`
-      - `type: other` → VERIFY_CHECKLIST pass is sufficient; skip supervision
-      - Pass: TASK_REQUEST content, VERIFY_CHECKLIST results, list of changed files, `supervision_iteration` counter
-   c. **On PASS / PARTIAL**: record verdict in TASK_REQUEST as a comment block; mark task complete
-   d. **On FAIL**: generate `REMEDIATION_REQUEST_{UUID}_{N}.md` → delegate to `Etask-executor` → re-run quality loop (if code) → re-run supervision. Repeat up to **3 total supervision rounds**. Update `supervision_iteration` in the ultraqa state file after each round. If still FAIL after round 3, escalate to user.
-3. After all tasks complete, perform a **cross-task audit**:
-   - Check all VERIFY_CHECKLIST items across all tasks
-   - Verify inter-task consistency (shared files, dependencies)
-   - Confirm supervision passed (PASS or PARTIAL) for every task
-4. Output comprehensive QA report including:
-   - Per-task verification results
-   - Per-task supervision verdict (PASS / PARTIAL / FAIL + summary)
-   - Cross-task consistency check results
-   - Overall quality score
+1. State file: `"mode": "ultraqa"`, `"max_reinforcements": 80`
+2. After each task's `Etask-executor` completes:
+   a. **Quality loop** (code only): `/Qcode-run-task` (test → review → fix → retest, max 3 cycles)
+   b. **Supervision gate**: same routing as ultrawork, with `supervision_iteration` counter
+   c. **PASS/PARTIAL**: record verdict, mark complete
+   d. **FAIL**: generate REMEDIATION_REQUEST → Etask-executor → re-run quality/supervision. **Max 3 supervision rounds**, then escalate.
+3. **Cross-task audit**: verify all checklists, inter-task consistency, supervision pass
+4. Output comprehensive QA report (per-task results, supervision verdicts, cross-task consistency, overall score)
 
 ### Ultra Mode Common Rules
-- **State management**: Always create the state file before starting execution, clear it after completion
-- **Reinforcement**: The Stop hook checks the state file. While active, stop signals are blocked up to `max_reinforcements`
-- **Parallel execution**: When multiple tasks exist, use the Agent tool to spawn multiple `Etask-executor` agents concurrently
-- **Error handling**: If a task fails, log the failure, skip to the next task, and report all failures at the end
-- **No intermediate user prompts**: After the single initial confirmation, the AI operates fully autonomously
-- **Progress output**: Periodically report progress (e.g., "3/7 tasks complete") so the user can monitor
+- **State management**: create before execution, clear after completion
+- **Reinforcement**: Stop hook checks state file; stop signals blocked up to `max_reinforcements`
+- **Parallel execution**: Agent tool spawns multiple `Etask-executor` agents concurrently
+- **Error handling**: log failure, skip to next task, report all at end
+- **No intermediate user prompts** after initial confirmation
+- **Progress output**: periodic reports (e.g., "3/7 tasks complete")
 
 ## Document Writing Rules
 
 ### Language Matching (Required)
-TASK_REQUEST and VERIFY_CHECKLIST must be written in the language the user
-is communicating in. Infer the language from the user's current messages.
-
-- If the user writes in Korean → generate documents in Korean
-- If the user writes in English → generate documents in English
-- If mixed or unclear → default to English
-
-This applies to all user-facing document content: section headings, descriptions,
-checklist items, notes, and the How to Run section.
-
-**Scope:** TASK_REQUEST and VERIFY_CHECKLIST only.
-Internal framework files (SKILL.md, AGENT.md, hooks) remain in English.
-CLAUDE.md follows the user's language but is not strictly enforced.
+TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
+- Korean user → Korean documents; English user → English documents; mixed/unclear → English
+- **Scope:** TASK_REQUEST and VERIFY_CHECKLIST only. Internal framework files stay English. CLAUDE.md follows user language but not strictly enforced.
 
 ### CLAUDE.md
-- Acts as the "Single Source of Truth" for the project
-- Context file read by AI at every session
-- Task list includes UUID, task name, and status
-- Note that completed tasks (✅) do not need to be referenced
+- Single Source of Truth; read by AI every session
+- Task list includes UUID, task name, status; completed tasks (✅) need not be referenced
 
 ### TASK_REQUEST
-- Clearly separate "what is wanted" from "how it will be built"
-- Checklist items listed in order as `- [ ]`
-- No vague expressions — only specific, verifiable items
-- **Specify output files (optional)**: Append `→ output: {file-path}` after a checklist item to designate where the result goes. Without it, behavior is the same as before.
-  - Example: `- [ ] Analyze TB_AS_B table field mapping → output: analysis/tb_as_b_mapping.md`
-  - Used to verify file existence and content during validation
-- **Checklist item granularity guidelines**:
-  - **Single responsibility**: Each item performs exactly one task
-  - **Verifiable**: Completion can be judged as yes/no
-  - **Appropriate size**: Each item can be completed within 30 minutes
-  - If an item exceeds these criteria, split it into sub-items
-- **Execution instructions required**: Always include a `## How to Run` section at the end of the document with the `/Qrun-task {UUID}` command. If related tasks in the same batch exist, include a multi-UUID run example (e.g., `/Qrun-task UUID1 UUID2`)
-- **Decision rationale (ADR) section (optional)**: Include the `## 의사결정 근거` section when a task involves design decisions with 2+ viable alternatives. Omit for simple tasks (bug fixes, config changes, single-line edits). The section records: chosen approach with rationale, alternatives considered with rejection reasons, and downstream consequences. This creates an audit trail for future reference without adding overhead to trivial tasks.
+- Clearly separate "what" from "how"
+- Checklist items as `- [ ]`, specific and verifiable (no vague expressions)
+- **Output files (optional):** append `→ output: {file-path}` to checklist items
+- **Granularity:** single responsibility, yes/no verifiable, completable within 30 min; split if exceeded
+- **`## How to Run` section required** with `/Qrun-task {UUID}` command
+- **ADR section (optional):** include when 2+ viable design alternatives exist; omit for simple tasks
 
 ### VERIFY_CHECKLIST
-- Each validation criterion must be answerable as yes/no
-- Task is complete when all items are checked
-- Include a note to update the CLAUDE.md task list to ✅ upon completion
+- Each criterion answerable as yes/no
+- Task complete when all items checked
+- Include note to update CLAUDE.md task list to ✅
 
 ## UUID Generation Rules
 - 8-character hex (e.g., `a1b2c3d4`)
-- TASK_REQUEST and VERIFY_CHECKLIST for the same task share the same UUID
+- Same UUID shared between TASK_REQUEST and VERIFY_CHECKLIST for same task
 
 ## Self-Evolving
-- After completing tasks, if recurring patterns are found (frequently missing checklist items, common constraints, etc.), suggest template improvements to the user.
-- Example: "The 'write test code' verification item is added every time in this project. Would you like to include it in the default template?"
-- Upon user approval, reflect that pattern in future document generation.
+- After completing tasks, if recurring patterns found, suggest template improvements
+- On user approval, reflect patterns in future generation
 
 ## Output Format
-- Wrap document content in markdown code blocks when displaying.
-- Do not use JSON. Use pure markdown only.
+- Wrap document content in markdown code blocks when displaying
+- Pure markdown only, no JSON

@@ -7,9 +7,6 @@ recommendedModel: haiku
 color: green
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## Role
 
 A domain supervisor agent that renders an authoritative quality verdict on documentation artifacts. It judges whether docs meet the documentation bar and produces a structured grade that Esupervision-orchestrator can aggregate alongside other domain verdicts.

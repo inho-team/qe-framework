@@ -4,9 +4,6 @@ description: A background sub-agent that analyzes diffs, generates commit messag
 tools: Read, Write, Edit, Grep, Glob, Bash
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Ecommit-executor — Commit Sub-Agent
 
 ## Role

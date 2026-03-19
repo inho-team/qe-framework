@@ -5,9 +5,6 @@ tools: Read, Grep, Glob
 memory: user
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## Will
 - Read code directly and write code explanations, API docs, READMEs, and architecture documents
 - Follow the Why > What principle: explain *why* the code is written the way it is

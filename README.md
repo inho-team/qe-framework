@@ -536,7 +536,6 @@ Agents are automatically assigned a model tier based on task complexity. See [AG
 | Edocs-supervisor | Documentation audit supervisor. Reviews completeness, accuracy, structural consistency, and link validity. Returns PASS/PARTIAL/FAIL. |
 | Eanalysis-supervisor | Analysis audit supervisor. Reviews evidential sufficiency, logical validity, scope adequacy, and actionability. Returns PASS/PARTIAL/FAIL. |
 | Esecurity-officer | Security audit specialist. Scans git diff changes for vulnerabilities, classifies as PASS/WARN/FAIL. |
-| Edocs-collector | Extracts domain knowledge from task context and records it in .qe/docs/. |
 | Edoc-generator | Background sub-agent for batch document generation (docx/pdf/pptx/xlsx). |
 | Egrad-writer | Writes academic paper chapters with academic writing style and citation rules. |
 | Epm-planner | Planning specialist. Handles PRD, user stories, roadmap, and document generation. |

@@ -6,9 +6,6 @@ memory: user
 recommendedModel: sonnet
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## When to Use
 - **Use this agent** when: you need to actually write test code, run tests, analyze coverage, or execute tests against existing code
 - **Use Qtest-driven-development instead** when: you need TDD methodology guidance — how to follow the red-green-refactor cycle and structure your development workflow around tests

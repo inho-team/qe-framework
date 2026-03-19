@@ -45,7 +45,7 @@ try {
     /\.(js|mjs|ts|jsx|tsx|py|java|go|rs|rb|cs|json|yaml|yml|sql)$/.test(f)
   );
   if (hasCodeChanges) {
-    hints.push('Run Edocs-collector in background to extract domain knowledge from completed task.');
+    hints.push('Check .qe/docs/ for domain knowledge relevant to the completed task.');
   }
 } catch {
   // git diff failed — skip docs collection rather than triggering on error

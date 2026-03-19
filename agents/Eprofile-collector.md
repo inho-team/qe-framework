@@ -5,9 +5,6 @@ tools: Read, Write, Edit, Grep, Glob, Bash
 recommendedModel: haiku
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Eprofile-collector — User Profile Collection Sub-Agent
 
 ## Role

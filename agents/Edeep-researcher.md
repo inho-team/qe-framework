@@ -5,9 +5,6 @@ tools: Read, Write, Bash, Grep, Glob, Edit, WebSearch, WebFetch
 recommendedModel: opus
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 # Deep Research Agent
 
 ## Role

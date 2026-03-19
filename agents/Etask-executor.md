@@ -9,9 +9,6 @@ permissionMode: acceptEdits
 recommendedModel: sonnet
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
-
 ## Will
 - Implement TASK_REQUEST checklist items in order
 - Understand the existing code style and patterns and follow them consistently

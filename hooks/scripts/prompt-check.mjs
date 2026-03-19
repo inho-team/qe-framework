@@ -114,7 +114,6 @@ if (!isAmbiguous) try {
 
   for (const [keywords, routeEntry] of Object.entries(routesConfig.routes)) {
     const target = typeof routeEntry === 'object' ? routeEntry.skill : routeEntry;
-    const routeIntent = typeof routeEntry === 'object' ? routeEntry.intent : null;
     const parts = keywords.split('/');
     let matchedParts = 0;
     let totalWeight = 0;
@@ -180,7 +179,7 @@ if (!isAmbiguous) try {
 
     if (score > bestScore) {
       bestScore = score;
-      bestMatch = { intent: routeIntent || keywords, routed_to: target };
+      bestMatch = { intent: keywords, routed_to: target };
     }
   }
 
