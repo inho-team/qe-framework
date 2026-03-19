@@ -3,7 +3,7 @@ name: Esupervision-orchestrator
 description: Supervision (감리) orchestrator that performs expert-level quality assessment beyond binary verification. Use when Qrun-task Step 4.5 needs a supervision gate verdict. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades, and drafts REMEDIATION_REQUEST on FAIL.
 tools: Read, Grep, Glob, Bash, Write
 memory: project
-recommendedModel: opus
+recommendedModel: haiku
 color: purple
 ---
 
@@ -57,12 +57,19 @@ Esupervision-orchestrator does not perform domain-specific inspections itself �
 
 ---
 
+## Context Memoization Protocol
+
+When the caller (Qrun-task) provides a pre-built `supervision_context` summary, use it directly — do NOT re-read TASK_REQUEST or VERIFY_CHECKLIST files. This avoids 30-50KB of redundant file loading per supervision call.
+
+If no `supervision_context` is provided, fall back to reading files directly (Phase 1 below).
+
 ## Execution Workflow
 
 ### Phase 1 — Scope Collection
-1. Read the TASK_REQUEST and VERIFY_CHECKLIST for the given UUID
-2. Identify the task type, changed files, and acceptance criteria
-3. Determine which supervision agents to invoke from the routing table
+1. If `supervision_context` is provided: parse it for UUID, task type, changed files, checklist, and constraints. Skip file reads.
+2. Otherwise: Read the TASK_REQUEST and VERIFY_CHECKLIST for the given UUID
+3. Identify the task type, changed files, and acceptance criteria
+4. Determine which supervision agents to invoke from the routing table
 
 ### Phase 2 — Domain Supervision Dispatch
 For each supervision agent in the route:

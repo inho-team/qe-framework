@@ -36,10 +36,13 @@ Documentation supervision covers: completeness (missing required sections), accu
 
 ---
 
+## Context Memoization
+When the caller provides a `supervision_context` summary, use it directly for scope identification — do NOT re-read TASK_REQUEST or VERIFY_CHECKLIST files.
+
 ## Workflow
 
 ### Phase 1 — Scope
-1. Identify the documentation target (changed `.md` files from `git diff HEAD`, a specific directory, or an explicit file list provided by the caller)
+1. If `supervision_context` is provided: extract changed files list from it. Otherwise, identify the documentation target from changed `.md` files in `git diff HEAD`, a specific directory, or an explicit file list provided by the caller
 2. Collect existing project docs as reference for structural consistency checks
 3. Identify the document type: README, skill spec, agent spec, ADR, guide, changelog, etc.
 
