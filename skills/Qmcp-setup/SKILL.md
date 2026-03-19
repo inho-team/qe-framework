@@ -5,6 +5,28 @@ description: "MCP (Model Context Protocol) server setup and configuration guide 
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
+## Role Boundary (Absolute Rule)
+
+This skill is a **setup and configuration guide only**. It does NOT execute MCP operations.
+
+| Request | Correct action |
+|---------|---------------|
+| "MCP 서버 설정해줘", "connect Google Drive" | **This skill** — guide setup steps |
+| "Google Drive에서 파일 가져와", "Slack 메시지 보내" | **NOT this skill** — use connected MCP tools directly |
+
+### Pre-check: MCP Server Status
+
+Before guiding setup, check if the requested MCP server is already connected:
+
+```bash
+claude mcp list 2>/dev/null | grep -i {service-name}
+```
+
+**If connected**: "이미 연결되어 있습니다. MCP 도구를 직접 사용하세요." — exit skill.
+**If NOT connected**: proceed with setup guide.
+
+---
+
 # Qmcp-setup — MCP Server Setup Guide
 
 ## Role

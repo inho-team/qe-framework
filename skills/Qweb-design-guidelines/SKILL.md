@@ -10,6 +10,16 @@ metadata:
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
+## Role Boundary (Absolute Rule)
+
+This skill is a **UI review guidelines reference only**. It does NOT auto-modify UI code.
+
+| Request | Correct action |
+|---------|---------------|
+| "UI 리뷰해줘", "접근성 체크", "design audit" | **This skill** — review and provide recommendations |
+| "UI 코드 수정해줘", "CSS 고쳐줘" | **NOT this skill** — use Qfrontend-design or standard code implementation |
+
+---
 
 # Web Interface Guidelines
 

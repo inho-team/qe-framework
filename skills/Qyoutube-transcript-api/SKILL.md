@@ -9,6 +9,24 @@ metadata:
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
+## Pre-check: API Key Configuration
+
+Before making API calls, verify the API key is configured:
+
+```bash
+[ -n "$YOUTUBE_TRANSCRIPT_API_KEY" ] && echo "API key is set" || echo "API key is NOT set"
+```
+
+**If set**: proceed with API calls.
+**If NOT set**:
+```
+YouTube Transcript API 키가 설정되지 않았습니다.
+1. https://youtubetranscript.dev 에서 API 키 발급
+2. 환경변수 설정: export YOUTUBE_TRANSCRIPT_API_KEY=your-key
+```
+Do NOT attempt API calls without a valid key.
+
+---
 
 # YouTube Transcript API Skill
 

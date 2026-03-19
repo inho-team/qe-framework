@@ -8,6 +8,16 @@ metadata:
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
+## Role Boundary (Absolute Rule)
+
+This skill is a **MCP server development guide only**. It does NOT auto-generate MCP server code.
+
+| Request | Correct action |
+|---------|---------------|
+| "MCP 서버 만드는 법 알려줘", "MCP 개발 가이드" | **This skill** — guide development process |
+| "MCP 서버 코드 작성해줘", "서버 만들어줘" | **NOT this skill** — use standard code implementation |
+
+---
 
 # MCP Server Development Guide
 
