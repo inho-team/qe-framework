@@ -96,8 +96,21 @@ If the user passes multiple space-separated UUIDs (e.g., `/Qrun-task UUID1 UUID2
 
 Read `TASK_REQUEST_{UUID}.md` and `VERIFY_CHECKLIST_{UUID}.md` for the selected task and summarize.
 
+**Task type banner — shown at the TOP of the summary, before anything else:**
+
+| `type:` value | Banner to display |
+|---------------|-------------------|
+| `code` | `⚠️ TYPE: CODE — This task will CREATE or MODIFY source code files.` |
+| `docs` | `📄 TYPE: DOCS — This task will CREATE or MODIFY documentation files.` |
+| `analysis` | `🔍 TYPE: ANALYSIS — This task will analyze existing files; no new files will be created.` |
+| `other` | `🔧 TYPE: OTHER — [describe what will be done]` |
+| *(unset)* | `❓ TYPE: UNSET — Cannot determine what this task will do. Review checklist items carefully before proceeding.` |
+
 **Summary format:**
 ```markdown
+⚠️ TYPE: CODE — This task will CREATE or MODIFY source code files.
+(or appropriate banner from table above)
+
 ## Task Summary: [Task Name]
 
 **What:** [what section summary - 1–2 sentences]
@@ -114,9 +127,16 @@ Read `TASK_REQUEST_{UUID}.md` and `VERIFY_CHECKLIST_{UUID}.md` for the selected 
 ...
 ```
 
-After outputting the summary, use the **`AskUserQuestion` tool** to get approval:
-- Options: "Proceed" (start task execution), "Needs revision" (re-review spec), "Cancel" (abort task)
-- If the user selects "Proceed", move to Step 3.
+After outputting the summary, use the **`AskUserQuestion` tool** to get approval.
+
+**Approval question wording by task type:**
+
+- `type: code` → `"This will write/modify source code files. Proceed?"` — options: "Yes, write the code", "Needs revision", "Cancel"
+- `type: docs` → `"This will write/modify documentation files. Proceed?"` — options: "Yes, write the docs", "Needs revision", "Cancel"
+- `type: analysis` → `"This will analyze files (read-only). Proceed?"` — options: "Yes, analyze", "Needs revision", "Cancel"
+- `type` unset → `"Task type is unset — review the checklist carefully. Proceed?"` — options: "Yes, proceed", "Needs revision", "Cancel"
+
+If the user selects the "Yes" option, move to Step 3.
 
 **State transition after approval:**
 - Move `TASK_REQUEST_{UUID}.md` from `pending/` → `in-progress/`
