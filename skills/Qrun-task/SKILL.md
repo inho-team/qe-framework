@@ -249,7 +249,26 @@ The supervisor returns one of three verdicts:
 - Proceed to Step 5 (non-blocking; feedback is for record only)
 
 **FAIL** — Quality issues require remediation
-- Follow the REMEDIATION flow (see below)
+
+Before starting the REMEDIATION flow, use **`AskUserQuestion`** to inform the user and get approval:
+
+```
+감리 결과: FAIL (iteration {N}/3)
+
+발견된 문제:
+{supervisor FAIL report — issue list with severity}
+
+재작업을 진행할까요?
+```
+
+Options:
+- "재작업 진행" → proceed with REMEDIATION flow
+- "현재 상태로 완료" → skip remediation, proceed to Step 5 as-is (user accepts the issues)
+- "작업 보류" → move task to on-hold and stop
+
+> **Exception — Autonomous Mode (Ultra):** In `--ultrawork` or `--ultraqa` mode, skip this `AskUserQuestion` and proceed directly with REMEDIATION flow. The only user touchpoint in autonomous mode is the loop-limit escalation at 3/3 iterations.
+
+If the user selects "재작업 진행", follow the REMEDIATION flow (see below).
 
 #### Supervision Loop Counter
 
