@@ -3,7 +3,7 @@ name: Ecode-quality-supervisor
 description: Code quality audit supervisor. Reviews code quality, test coverage, architecture consistency, code smells, duplication, and complexity. Returns a structured PASS/PARTIAL/FAIL grade for the Esupervision-orchestrator to aggregate. Use when you need an authoritative code quality verdict — not a review suggestion.
 tools: Read, Grep, Glob, Bash
 memory: project
-recommendedModel: sonnet
+recommendedModel: haiku
 color: cyan
 ---
 
@@ -36,10 +36,13 @@ Code quality supervision covers: test coverage sufficiency, code smell detection
 
 ---
 
+## Context Memoization
+When the caller provides a `supervision_context` summary, use it directly for scope identification — do NOT re-read TASK_REQUEST or VERIFY_CHECKLIST files.
+
 ## Workflow
 
 ### Phase 1 — Scope
-1. Identify the review target (changed files from `git diff HEAD`, a specific directory, or an explicit file list provided by the caller)
+1. If `supervision_context` is provided: extract changed files list and review scope from it. Otherwise, identify the review target from `git diff HEAD`, a specific directory, or an explicit file list provided by the caller
 2. Classify files by category: source code, test code, configuration, documentation
 3. Determine the expected test coverage scope based on source files present
 

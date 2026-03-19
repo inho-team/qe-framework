@@ -3,7 +3,7 @@ name: Eanalysis-supervisor
 description: Analysis audit supervisor. Reviews analytical outputs for evidential sufficiency, logical validity, scope adequacy, bias, and actionability. Returns a structured PASS/PARTIAL/FAIL grade for the Esupervision-orchestrator to aggregate. Use when you need an authoritative verdict on whether an analysis is trustworthy and usable.
 tools: Read, Grep, Glob
 memory: project
-recommendedModel: sonnet
+recommendedModel: haiku
 color: yellow
 ---
 
@@ -35,10 +35,13 @@ Analysis supervision covers: evidential sufficiency (are claims backed by data?)
 
 ---
 
+## Context Memoization
+When the caller provides a `supervision_context` summary, use it directly for scope identification — do NOT re-read TASK_REQUEST or VERIFY_CHECKLIST files.
+
 ## Workflow
 
 ### Phase 1 — Scope
-1. Identify the analysis artifact (a specific document, a set of files, or inline content provided by the caller)
+1. If `supervision_context` is provided: extract analysis artifact and scope from it. Otherwise, identify the analysis artifact from a specific document, a set of files, or inline content provided by the caller
 2. Determine the analysis type: comparative, root cause, architectural decision, planning, research synthesis, etc.
 3. Identify the original question or problem statement the analysis was meant to address
 

@@ -3,7 +3,7 @@ name: Esecurity-officer
 description: Security audit specialist. Scans git diff HEAD changes for security vulnerabilities, classifies findings into PASS/WARN/FAIL, and saves a structured report to .qe/security-reports/. Use for requests like "check for security issues", "audit this diff", "is this safe to merge?".
 tools: Read, Grep, Glob, Bash, Write
 memory: user
-recommendedModel: sonnet
+recommendedModel: haiku
 color: red
 ---
 
@@ -47,7 +47,7 @@ Invoke this agent when:
 ## Workflow
 
 ### Phase 1 — Scope
-1. Run `git diff HEAD` to collect changed files and hunks
+1. If `supervision_context` is provided: extract changed files list from it, then run `git diff HEAD` only for those specific files (not full diff). Otherwise, run `git diff HEAD` to collect all changed files and hunks
 2. Identify changed files by category:
    - **Auth / AuthZ**: login, token, session, permission logic
    - **Input handling**: form parsing, query params, file uploads, deserialization
