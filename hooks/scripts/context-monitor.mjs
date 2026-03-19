@@ -114,25 +114,31 @@ export function shouldDebounce(currentSeverity, stats, thresholds) {
  * Main entry point: evaluate context pressure and return an alert if needed.
  *
  * @param {string} cwd - Project working directory
- * @returns {{ message: string|null, severity: string }}
+ * @param {object} [preloadedStats] - Pre-read session stats (avoids duplicate file I/O)
+ * @param {object} [preloadedCfg] - Pre-read config (avoids duplicate loadConfig call)
+ * @returns {{ message: string|null, severity: string, stats: object }}
  */
-export function checkContextPressure(cwd) {
-  const cfg = loadConfig(cwd);
+export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
+  const cfg = preloadedCfg || loadConfig(cwd);
   const thresholds = {
     context_warning_calls: cfg.context_warning_calls ?? cfg.context_pressure_warn ?? DEFAULT_THRESHOLDS.context_warning_calls,
     context_critical_calls: cfg.context_critical_calls ?? DEFAULT_THRESHOLDS.context_critical_calls,
     context_debounce_count: cfg.context_debounce_count ?? DEFAULT_THRESHOLDS.context_debounce_count,
   };
 
-  // Read session stats
-  const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
-  let stats = { tool_calls: 0, session_start: Date.now() };
-
-  if (existsSync(statsFile)) {
-    try {
-      stats = JSON.parse(readFileSync(statsFile, 'utf8'));
-    } catch {
-      return { message: null, severity: SEVERITY.NONE };
+  // Use pre-loaded stats or read from disk (fallback for standalone usage)
+  let stats;
+  if (preloadedStats) {
+    stats = preloadedStats;
+  } else {
+    const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
+    stats = { tool_calls: 0, session_start: Date.now() };
+    if (existsSync(statsFile)) {
+      try {
+        stats = JSON.parse(readFileSync(statsFile, 'utf8'));
+      } catch {
+        return { message: null, severity: SEVERITY.NONE, stats };
+      }
     }
   }
 
@@ -140,12 +146,12 @@ export function checkContextPressure(cwd) {
   const severity = estimateSeverity(toolCalls, thresholds);
 
   if (severity === SEVERITY.NONE) {
-    return { message: null, severity };
+    return { message: null, severity, stats };
   }
 
   // Debounce check
   if (shouldDebounce(severity, stats, thresholds)) {
-    return { message: null, severity };
+    return { message: null, severity, stats };
   }
 
   // Update stats with warning metadata
@@ -179,5 +185,5 @@ export function checkContextPressure(cwd) {
     }
   }
 
-  return { message, severity };
+  return { message, severity, stats };
 }

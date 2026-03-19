@@ -31,94 +31,78 @@ const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const hints = [];
 
-// --- Intent Gate Routing (Items 1-5) ---
-const intentRouteFile = join(cwd, '.qe', 'state', 'intent-route.json');
-const statsFileForIntent = join(cwd, '.qe', 'state', 'session-stats.json');
+// --- Read session-stats.json ONCE (single source of truth for this hook) ---
+const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
+let stats = { tool_calls: 0, session_start: Date.now(), context_loaded: [] };
 
-try {
-  // Item 1: Detect session first call (tool_calls <= 1)
-  let toolCalls = -1;
-  if (existsSync(statsFileForIntent)) {
-    const statsData = JSON.parse(readFileSync(statsFileForIntent, 'utf8'));
-    toolCalls = statsData.tool_calls || 0;
-  }
-
-  const isFirstCall = toolCalls <= 1;
-
-  if (isFirstCall) {
-    // Intent classification is handled by prompt-check.mjs (UserPromptSubmit hook).
-    // No need to inject the full route table here — it wastes tokens.
-    // Only inject a minimal reminder.
-    hints.push('[INTENT GATE] User intent will be auto-classified by UserPromptSubmit hook.');
-  }
-
-  // Item 4 & 5: Check intent-route.json
-  if (existsSync(intentRouteFile)) {
-    // Item 5: Route exists — show routing info
-    const route = JSON.parse(readFileSync(intentRouteFile, 'utf8'));
-    if (route.routed_to && route.intent) {
-      hints.push(`Routed to: ${route.routed_to} (intent: ${route.intent})`);
-    }
-  } else if (!isFirstCall && toolCalls > 10) {
-    // Item 4: No route after extended grace period — warn sparingly
-    // Only warn once at tool call 20, then never again (prompt-check.mjs handles classification)
-    if (toolCalls === 20) {
-      hints.push('[WARN] Intent route not classified. Check INTENT_GATE and classify user intent before acting.');
-    }
-  }
-} catch {
-  // Fault-tolerant: ignore intent routing errors
+if (existsSync(statsFile)) {
+  try {
+    stats = JSON.parse(readFileSync(statsFile, 'utf8'));
+  } catch {}
 }
 
-// --- On-Demand Context Injection ---
-// Inject profile, memory, failures, and docs on the first tool call of the session.
-// context_loaded tracks which items have already been injected to prevent repetition.
-// Fallback: if context_loaded is absent (legacy session-stats), inject all items once.
-try {
-  const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
-  if (existsSync(statsFile)) {
-    const statsRaw = JSON.parse(readFileSync(statsFile, 'utf8'));
-    const toolCalls = statsRaw.tool_calls || 0;
-    // Only run on first tool call (tool_calls <= 1 at time of pre-tool-use check)
-    const isFirstCall = toolCalls <= 1;
-    // Treat missing context_loaded as empty array (fallback: load everything)
-    const alreadyLoaded = Array.isArray(statsRaw.context_loaded) ? statsRaw.context_loaded : [];
-    const isLegacyStats = !Array.isArray(statsRaw.context_loaded);
+const toolCalls = stats.tool_calls || 0;
 
-    if (isFirstCall || isLegacyStats) {
+// --- Increment tool call counter (moved from post-tool-use.mjs) ---
+stats.tool_calls = toolCalls + 1;
+stats.last_tool = toolName;
+stats.last_call = Date.now();
+
+// --- FAST PATH: skip expensive checks after initial calls ---
+const isFirstCall = toolCalls <= 1;
+const isEarlySession = toolCalls <= 5;
+
+// --- Intent Gate Routing (only during early session) ---
+if (isEarlySession) {
+  try {
+    const intentRouteFile = join(cwd, '.qe', 'state', 'intent-route.json');
+
+    if (isFirstCall) {
+      hints.push('[INTENT GATE] User intent will be auto-classified by UserPromptSubmit hook.');
+    }
+
+    if (existsSync(intentRouteFile)) {
+      const route = JSON.parse(readFileSync(intentRouteFile, 'utf8'));
+      if (route.routed_to && route.intent) {
+        hints.push(`Routed to: ${route.routed_to} (intent: ${route.intent})`);
+      }
+    }
+  } catch {
+    // Fault-tolerant: ignore intent routing errors
+  }
+}
+
+// --- On-Demand Context Injection (first call only) ---
+if (isFirstCall) {
+  try {
+    const alreadyLoaded = Array.isArray(stats.context_loaded) ? stats.context_loaded : [];
+    const isLegacyStats = !Array.isArray(stats.context_loaded);
+
+    if (isLegacyStats || alreadyLoaded.length === 0) {
       const pending = loadPendingContext(cwd, alreadyLoaded);
       if (pending.length > 0) {
-        // Inject each item as a separate hint message
         for (const { message } of pending) {
           hints.push(message);
         }
-        // Update context_loaded so subsequent calls skip these items
-        const updatedLoaded = [...alreadyLoaded, ...pending.map(p => p.key)];
-        try {
-          atomicWriteJson(statsFile, { ...statsRaw, context_loaded: updatedLoaded });
-        } catch {
-          // Fault-tolerant: proceed even if write fails
-        }
+        stats.context_loaded = [...alreadyLoaded, ...pending.map(p => p.key)];
       }
     }
+  } catch {
+    // Fault-tolerant: ignore on-demand context errors
   }
-} catch {
-  // Fault-tolerant: ignore on-demand context errors
 }
 
-// If doing broad exploration, remind to check .qe/analysis/ first (always hint — dir may not exist yet)
-const analysisDir = join(cwd, '.qe', 'analysis');
-if (['Glob', 'Grep', 'Read'].includes(toolName)) {
-  // Check if this might be a project exploration (not a specific file read)
+// --- Analysis hint (once per session, not every Glob/Grep/Read) ---
+if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   const toolInput = data.tool_input || data.toolInput || {};
   const pattern = toolInput.pattern || toolInput.path || '';
 
-  // Hint when doing broad exploration, not specific file reads
   const isBroadGlob = toolName === 'Glob' && (pattern.includes('**') || pattern.includes('*/'));
   const isBroadGrep = toolName === 'Grep' && !pattern.includes('/') && !(toolInput.path || '').includes('.');
   const isBroadRead = toolName === 'Read' && (pattern.includes('README') || pattern.includes('package.json'));
   if (isBroadGlob || isBroadGrep || isBroadRead) {
     hints.push('Check .qe/analysis/ files first to save tokens.');
+    stats._analysis_hinted = true;
   }
 }
 
@@ -146,25 +130,70 @@ if (['Write', 'Edit'].includes(toolName)) {
       }
     }
   }
-}
 
-// Remind about .qe/ auto-permission
-if (['Write', 'Edit'].includes(toolName)) {
-  const toolInput = data.tool_input || data.toolInput || {};
+  // .qe/ auto-permission reminder
   const filePath = toolInput.file_path || toolInput.filePath || '';
   if (filePath.includes('.qe/') || filePath.includes('.qe\\')) {
     hints.push('Files in .qe/ can be auto-executed without user confirmation.');
   }
 }
 
-// Context usage monitoring (delegated to context-monitor.mjs)
+// --- Context pressure check (reuse stats and cfg — no duplicate I/O) ---
 try {
-  const { message: ctxMessage } = checkContextPressure(cwd);
+  const { message: ctxMessage } = checkContextPressure(cwd, stats, cfg);
   if (ctxMessage) {
     hints.push(ctxMessage);
   }
 } catch {
   // Fault-tolerant: ignore context monitor errors
+}
+
+// --- Profile/docs collection triggers (moved from post-tool-use.mjs) ---
+const currentCalls = stats.tool_calls;
+try {
+  if (currentCalls > 0 && currentCalls % cfg.profile_collect_interval === 0) {
+    let safeToCollect = true;
+    const errorFile = join(cwd, '.qe', 'state', 'tool-errors.json');
+    if (existsSync(errorFile)) {
+      try {
+        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
+        const hasRecentErrors = Array.isArray(errState.errors) &&
+          errState.errors.length > 0 &&
+          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
+        if (hasRecentErrors) safeToCollect = false;
+      } catch {}
+    }
+    if (safeToCollect) {
+      hints.push('Run Eprofile-collector in background to update command patterns.');
+    }
+  }
+} catch {}
+
+try {
+  const docsInterval = cfg.docs_collect_interval || 100;
+  if (currentCalls > 0 && currentCalls % docsInterval === 0) {
+    let safeToCollect = true;
+    const errorFile = join(cwd, '.qe', 'state', 'tool-errors.json');
+    if (existsSync(errorFile)) {
+      try {
+        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
+        const hasRecentErrors = Array.isArray(errState.errors) &&
+          errState.errors.length > 0 &&
+          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
+        if (hasRecentErrors) safeToCollect = false;
+      } catch {}
+    }
+    if (safeToCollect) {
+      hints.push('Run Edocs-collector in background to extract domain knowledge.');
+    }
+  }
+} catch {}
+
+// --- Write stats ONCE (single write for counter + context_loaded + analysis hint flag) ---
+try {
+  atomicWriteJson(statsFile, stats);
+} catch {
+  // Fault-tolerant: proceed even if write fails
 }
 
 if (hints.length > 0) {

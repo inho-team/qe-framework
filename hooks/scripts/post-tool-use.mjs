@@ -31,7 +31,7 @@ const isError = data.tool_response?.includes?.('error') ||
 
 const hints = [];
 
-// Track tool errors
+// --- Error tracking (only reads/writes on actual errors or to clear on success) ---
 const errorFile = join(cwd, '.qe', 'state', 'tool-errors.json');
 
 if (isError) {
@@ -65,89 +65,30 @@ if (isError) {
   } else if (recentCount >= cfg.error_escalate_count) {
     hints.push(`${toolName} tool failed ${recentCount} times in error window. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
   }
-} else {
-  // Success - clear error tracking for this tool
-  if (existsSync(errorFile)) {
-    try {
-      const errorState = JSON.parse(readFileSync(errorFile, 'utf8'));
-      errorState.errors = errorState.errors.filter(e => e.tool !== toolName);
-      atomicWriteJson(errorFile, errorState);
-    } catch {}
-  }
-}
-
-// Track tool call count for context estimation
-const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
-let stats = { tool_calls: 0, session_start: Date.now() };
-
-if (existsSync(statsFile)) {
+} else if (existsSync(errorFile)) {
+  // Success - clear error tracking for this tool (only if error file exists)
   try {
-    stats = JSON.parse(readFileSync(statsFile, 'utf8'));
+    const errorState = JSON.parse(readFileSync(errorFile, 'utf8'));
+    const filtered = errorState.errors.filter(e => e.tool !== toolName);
+    if (filtered.length !== errorState.errors.length) {
+      errorState.errors = filtered;
+      atomicWriteJson(errorFile, errorState);
+    }
   } catch {}
 }
 
-stats.tool_calls = (stats.tool_calls || 0) + 1;
-stats.last_tool = toolName;
-stats.last_call = Date.now();
-
-try {
-  atomicWriteJson(statsFile, stats);
-} catch {}
-
-// Profile collection trigger every 50 tool calls
-try {
-  if (stats.tool_calls > 0 && stats.tool_calls % cfg.profile_collect_interval === 0) {
-    let safeToCollect = true;
-    if (existsSync(errorFile)) {
-      try {
-        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
-        const hasRecentErrors = Array.isArray(errState.errors) &&
-          errState.errors.length > 0 &&
-          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
-        if (hasRecentErrors) safeToCollect = false;
-      } catch {}
-    }
-    if (safeToCollect) {
-      hints.push('Run Eprofile-collector in background to update command patterns.');
-    }
-  }
-} catch {}
-
-// --- Domain knowledge collection trigger ---
-try {
-  const docsInterval = cfg.docs_collect_interval || 100;
-  if (stats.tool_calls > 0 && stats.tool_calls % docsInterval === 0) {
-    let safeToCollect = true;
-    if (existsSync(errorFile)) {
-      try {
-        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
-        const hasRecentErrors = Array.isArray(errState.errors) &&
-          errState.errors.length > 0 &&
-          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
-        if (hasRecentErrors) safeToCollect = false;
-      } catch {}
-    }
-    if (safeToCollect) {
-      hints.push('Run Edocs-collector in background to extract domain knowledge.');
-    }
-  }
-} catch {}
-
-// --- Quality Check Hints (Write/Edit only) ---
+// --- Quality Check Hints (Write/Edit only — matcher ensures this) ---
 if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};
   const filePath = toolInput.file_path || toolInput.filePath || '';
 
   if (filePath) {
-    // TypeScript files
     if (/\.tsx?$/.test(filePath)) {
       hints.push('Consider running type check after TypeScript changes.');
     }
-    // Test files
     if (/\.(test|spec)\./.test(filePath)) {
       hints.push('Test file modified. Run tests to verify.');
     }
-    // Style files
     if (/\.(css|scss|sass|less)$/.test(filePath)) {
       hints.push('Style file changed. Check for visual regression.');
     }
