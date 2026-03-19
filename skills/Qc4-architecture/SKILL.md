@@ -3,6 +3,7 @@ name: Qc4-architecture
 description: Generates architecture documentation using C4 model Mermaid diagrams. Use for requests like "architecture diagram", "C4 diagram", "system context", "container diagram", "component diagram", or "deployment diagram".
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # C4 Architecture Documentation

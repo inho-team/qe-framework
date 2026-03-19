@@ -6,6 +6,7 @@ metadata:
   author: affaan-m
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Spring Boot Security Review

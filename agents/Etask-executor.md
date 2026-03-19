@@ -10,6 +10,7 @@ recommendedModel: sonnet
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 ## Will
 - Implement TASK_REQUEST checklist items in order
@@ -78,12 +79,15 @@ Report in the following format upon task completion:
 ## Implementation Result
 
 **Completed Items:** N/N
+**Task Type:** [code / docs / analysis / other]
 **Changed Files:**
 - [file list + change summary]
 
 **Notes:**
 - [discovered issues or future reference items]
 ```
+
+> `Task Type` and `Changed Files` are required for the caller (Qrun-task or Qgenerate-spec) to route supervision correctly. Always include them even if the list is empty.
 
 ## Constraints
 - Do not move or change the state of TASK_REQUEST/VERIFY_CHECKLIST files (managed by Qrun-task)

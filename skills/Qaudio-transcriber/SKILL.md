@@ -4,6 +4,7 @@ description: Analyzes audio recording files (MP3, WAV, M4A, OGG, FLAC, WEBM) and
 license: MIT
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 ## Purpose

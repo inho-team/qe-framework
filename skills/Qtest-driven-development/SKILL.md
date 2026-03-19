@@ -6,6 +6,7 @@ metadata:
   author: obra
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Test-Driven Development (TDD)

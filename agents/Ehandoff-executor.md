@@ -5,6 +5,7 @@ tools: Read, Write, Glob, Bash, Grep, Edit
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Ehandoff-executor — Handoff Sub-Agent
 

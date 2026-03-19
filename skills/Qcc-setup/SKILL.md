@@ -4,6 +4,7 @@ description: Sets up Claude Code shell aliases (cc, ccc, ccd) for quick terminal
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qcc-setup — Claude Code Shell Alias Setup
 

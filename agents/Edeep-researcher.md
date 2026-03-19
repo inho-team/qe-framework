@@ -6,6 +6,7 @@ recommendedModel: opus
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Deep Research Agent
 

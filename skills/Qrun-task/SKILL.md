@@ -3,6 +3,7 @@ name: Qrun-task
 description: "Executes spec-based tasks from TASK_REQUEST and VERIFY_CHECKLIST documents. Use for run task, 태스크 실행, implement this spec, start working on UUID, or execute checklist. Reads spec → summarizes → implements → verifies."
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Task Execution Skill
@@ -441,16 +442,22 @@ When invoked from an ultra mode (`--ultrawork` or `--ultraqa`), the following ru
 1. **Skip Step 2 approval**: Do not use `AskUserQuestion` for task approval. Proceed directly to execution.
 2. **Skip intermediate user prompts**: Do not ask the user about implementation judgments. Make reasonable decisions autonomously based on CLAUDE.md constraints and TASK_REQUEST notes.
 3. **Auto-proceed on code tasks**: For `type: code` tasks, automatically run `/Qcode-run-task` quality loop without asking (only in `--ultraqa` mode).
-4. **Reinforcement on Stop**: If the stop hook fires during execution, increment `reinforcement_count` in the state file. Continue working until `max_reinforcements` is reached.
-5. **State updates**: After each task completes, update the state file's `updated_at` timestamp.
-6. **Error resilience**: On non-fatal errors, log the issue, attempt a fix once, and continue. Only halt on critical failures (e.g., project won't build at all).
+4. **Step 4.5 supervision still runs**: The supervision gate is NOT skipped in autonomous mode. Supervision executes automatically without user confirmation. On FAIL, the REMEDIATION loop runs automatically (max 3 iterations). The only user touchpoint is escalation after 3 failed iterations — all other supervision steps are fully autonomous.
+5. **Reinforcement on Stop**: If the stop hook fires during execution, increment `reinforcement_count` in the state file. Continue working until `max_reinforcements` is reached.
+6. **State updates**: After each task completes, update the state file's `updated_at` timestamp.
+7. **Error resilience**: On non-fatal errors, log the issue, attempt a fix once, and continue. Only halt on critical failures (e.g., project won't build at all).
 
 ### Parallel Execution
 When called with multiple UUIDs in ultra mode:
 - Instead of sequential execution, spawn separate `Etask-executor` agents **in parallel** via the Agent tool
 - Each agent receives: TASK_REQUEST content, VERIFY_CHECKLIST content, CLAUDE.md constraints
 - Main agent tracks progress and collects results
-- After all agents complete, run final verification on each task
+- After all agents complete, run VERIFY_CHECKLIST final verification on each task
+- **After final verification, run supervision sequentially (one task at a time — supervision is a single-threaded quality gate, not parallelizable):**
+  - Route each task to the appropriate supervisor per the Step 4.5 task type routing table
+  - Collect supervision verdicts for all tasks
+  - For each FAIL: trigger REMEDIATION autonomously (max 3 rounds per task)
+  - Include all supervision verdicts in the overall completion report
 
 #### Agent Teams Integration (Experimental)
 When Agent Teams is enabled and multiple tasks exist:

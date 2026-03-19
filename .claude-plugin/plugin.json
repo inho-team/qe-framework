@@ -1,24 +1,31 @@
 {
   "name": "qe-framework",
-  "version": "1.13.0",
+  "version": "1.15.0",
   "description": "QE Framework - Personal Claude Code skills package",
+  "author": "inho-team",
   "skills": "./skills/",
   "agents": [
     "./agents/Earchive-executor.md",
     "./agents/Ecode-debugger.md",
     "./agents/Ecode-doc-writer.md",
+    "./agents/Ecode-quality-supervisor.md",
     "./agents/Ecode-reviewer.md",
     "./agents/Ecode-test-engineer.md",
     "./agents/Ecommit-executor.md",
     "./agents/Ecompact-executor.md",
     "./agents/Edeep-researcher.md",
     "./agents/Edoc-generator.md",
+    "./agents/Edocs-collector.md",
+    "./agents/Edocs-supervisor.md",
+    "./agents/Eanalysis-supervisor.md",
     "./agents/Egrad-writer.md",
     "./agents/Ehandoff-executor.md",
     "./agents/Epm-planner.md",
     "./agents/Eprofile-collector.md",
     "./agents/Eqa-orchestrator.md",
     "./agents/Erefresh-executor.md",
+    "./agents/Esecurity-officer.md",
+    "./agents/Esupervision-orchestrator.md",
     "./agents/Etask-executor.md"
   ]
 }

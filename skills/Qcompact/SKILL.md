@@ -4,6 +4,7 @@ description: Context preservation and session handoff. When run automatically in
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qcompact — Context Preservation & Handoff
 

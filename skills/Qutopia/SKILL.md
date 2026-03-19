@@ -4,6 +4,7 @@ description: "Utopia mode — fully autonomous execution. Skips all confirmation
 allowed-tools: Bash(*), Read, Write, Edit, Glob, Grep
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qutopia — Utopia Mode (Fully Autonomous Execution)
 

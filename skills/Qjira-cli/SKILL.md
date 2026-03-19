@@ -14,247 +14,248 @@ keywords: jira, cli, issue, ticket, sprint, board, backlog, JQL
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
-# Jira CLI — 경량 Jira 터미널 도구
+# Jira CLI — Lightweight Jira Terminal Tool
 
-`ankitpokhrel/jira-cli` 기반. MCP 서버 없이 Bash에서 바로 Jira를 조작한다.
+Based on `ankitpokhrel/jira-cli`. Manage Jira directly from Bash without an MCP server.
 
-> Confluence가 필요하면 `Qatlassian-mcp` 스킬을 사용한다.
+> For Confluence, use the `Qatlassian-mcp` skill.
 
-## 사전 조건
+## Prerequisites
 
 ```bash
-# 설치 확인
+# Check installation
 jira version
 
-# 미설치 시
+# If not installed
 brew install ankitpokhrel/jira-cli/jira-cli
 
-# 초기 설정 (최초 1회)
+# Initial setup (once)
 jira init
 ```
 
-`jira init` 실행 시 입력 항목:
+Inputs required during `jira init`:
 - Jira Server URL: `https://your-domain.atlassian.net`
 - Login type: `api_token`
-- Email: 본인 Atlassian 이메일
-- API Token: [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens)에서 발급
+- Email: Your Atlassian email
+- API Token: Generate at [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens)
 
-## 핵심 명령어
+## Core Commands
 
-### 이슈 조회
+### Issue Queries
 
 ```bash
-# 나에게 할당된 이슈
+# Issues assigned to me
 jira issue list -a$(jira me)
 
-# JQL로 검색
+# Search with JQL
 jira issue list -q "project = PROJ AND status = 'In Progress' ORDER BY priority DESC"
 
-# 특정 프로젝트의 미해결 이슈
+# Open issues for a specific project
 jira issue list -p PROJ -s "To Do" -s "In Progress"
 
-# 이슈 상세 보기
+# View issue details
 jira issue view PROJ-123
 
-# 플레인 텍스트 출력 (파이프/파싱용)
+# Plain text output (for piping/parsing)
 jira issue list -q "project = PROJ" --plain --columns key,summary,status,assignee
 
-# JSON 출력
+# JSON output
 jira issue list -q "project = PROJ" --plain --no-headers 2>/dev/null
 ```
 
-### 이슈 생성
+### Create Issues
 
 ```bash
-# 대화형 생성
+# Interactive creation
 jira issue create
 
-# 원라이너 생성
-jira issue create -t Bug -p PROJ -s "로그인 SSO 오류" -b "SSO 활성화 시 로그인 불가" -l bug -l production --priority High
+# One-liner creation
+jira issue create -t Bug -p PROJ -s "Login SSO error" -b "Cannot log in when SSO is enabled" -l bug -l production --priority High
 
-# 하위 이슈 생성
-jira issue create -t Sub-task -p PROJ -s "SSO 디버그 로그 추가" --parent PROJ-123
+# Create sub-task
+jira issue create -t Sub-task -p PROJ -s "Add SSO debug logs" --parent PROJ-123
 ```
 
-### 이슈 수정
+### Edit Issues
 
 ```bash
-# 상태 변경 (트랜지션)
+# Change status (transition)
 jira issue move PROJ-123 "In Progress"
 
-# 필드 수정
-jira issue edit PROJ-123 -s "수정된 제목" --priority Highest
+# Edit fields
+jira issue edit PROJ-123 -s "Updated title" --priority Highest
 
-# 담당자 변경
+# Change assignee
 jira issue assign PROJ-123 "jane.doe"
-jira issue assign PROJ-123 $(jira me)  # 나에게 할당
+jira issue assign PROJ-123 $(jira me)  # Assign to myself
 
-# 코멘트 추가
-jira issue comment add PROJ-123 "조사 중. race condition 의심됨."
+# Add comment
+jira issue comment add PROJ-123 "Investigating. Suspected race condition."
 
-# 라벨 추가 (edit으로)
+# Add labels (via edit)
 jira issue edit PROJ-123 -l urgent -l hotfix
 ```
 
-### 이슈 링크
+### Issue Links
 
 ```bash
-# 이슈 링크 (PROJ-100이 PROJ-101을 block)
+# Link issues (PROJ-100 blocks PROJ-101)
 jira issue link PROJ-100 PROJ-101 "Blocks"
 ```
 
-### 스프린트
+### Sprints
 
 ```bash
-# 현재 스프린트 이슈
+# Current sprint issues
 jira sprint list --current
 
-# 이전/다음 스프린트
+# Previous/next sprint
 jira sprint list --prev
 jira sprint list --next
 
-# 특정 보드의 스프린트
+# Sprint for a specific board
 jira sprint list --board-id 42 --state active
 
-# 스프린트에 이슈 추가
+# Add issue to sprint
 jira sprint add <sprint-id> PROJ-100 PROJ-101
 ```
 
-### 보드
+### Boards
 
 ```bash
-# 보드 목록
+# Board list
 jira board list
 
-# 특정 보드 (Kanban/Scrum)
+# Specific board type (Kanban/Scrum)
 jira board list -t scrum
 ```
 
-### 에픽
+### Epics
 
 ```bash
-# 에픽 목록
+# Epic list
 jira epic list -p PROJ
 
-# 에픽에 이슈 추가
+# Add issue to epic
 jira epic add PROJ-50 PROJ-123 PROJ-124
 
-# 에픽 이슈 조회
+# View epic issues
 jira epic list -p PROJ --table
 ```
 
-### 프로젝트
+### Projects
 
 ```bash
-# 프로젝트 목록
+# Project list
 jira project list
 
-# 프로젝트 키로 조회
+# Query by project key
 jira project list --plain --columns key,name,type
 ```
 
-## JQL 자주 쓰는 패턴
+## Common JQL Patterns
 
 ```bash
-# 미해결 고우선순위 버그
+# High-priority open bugs
 jira issue list -q "project = PROJ AND issuetype = Bug AND priority IN (Highest, High) AND resolution IS EMPTY"
 
-# 이번 주 생성된 이슈
+# Issues created this week
 jira issue list -q "project = PROJ AND created >= startOfWeek()"
 
-# 14일 이상 업데이트 없는 이슈
+# Issues with no updates in 14+ days
 jira issue list -q "project = PROJ AND updated <= -14d AND resolution IS EMPTY"
 
-# 백로그 (스프린트 미배정)
+# Backlog (not in any sprint)
 jira issue list -q "project = PROJ AND sprint IS EMPTY AND resolution IS EMPTY"
 
-# 릴리스 블로커
+# Release blockers
 jira issue list -q "fixVersion = '2.0' AND priority = Blocker AND resolution IS EMPTY"
 
-# 내가 코멘트한 이슈
+# Issues I've commented on
 jira issue list -q "project = PROJ AND comment ~ currentUser()"
 ```
 
-## 출력 제어
+## Output Control
 
 ```bash
-# 테이블 (기본)
+# Table (default)
 jira issue list -p PROJ
 
-# 플레인 텍스트 (스크립트용)
+# Plain text (for scripts)
 jira issue list -p PROJ --plain
 
-# 컬럼 선택
+# Select columns
 jira issue list -p PROJ --plain --columns key,summary,status,priority,assignee
 
-# 헤더 없이
+# Without headers
 jira issue list -p PROJ --plain --no-headers
 
-# 페이지 크기
+# Page size
 jira issue list -p PROJ --paginate 100
 ```
 
-## 실전 워크플로우
+## Practical Workflows
 
-### 데일리 스탠드업 뷰
+### Daily Standup View
 
 ```bash
-echo "=== 내 진행 중 ==="
+echo "=== My In Progress ==="
 jira issue list -a$(jira me) -s "In Progress" --plain --columns key,summary
 
-echo "=== 내 리뷰 대기 ==="
+echo "=== My Awaiting Review ==="
 jira issue list -a$(jira me) -s "In Review" --plain --columns key,summary
 
-echo "=== 블로커 ==="
+echo "=== Blockers ==="
 jira issue list -q "assignee = currentUser() AND (status = Blocked OR labels = blocked)" --plain --columns key,summary
 ```
 
-### 빠른 버그 리포트
+### Quick Bug Report
 
 ```bash
 jira issue create \
   -t Bug \
   -p PROJ \
   -s "$1" \
-  -b "## 재현 방법\n1. \n\n## 기대 결과\n\n## 실제 결과\n" \
+  -b "## Steps to Reproduce\n1. \n\n## Expected Result\n\n## Actual Result\n" \
   -l bug \
   --priority High \
   -a $(jira me)
 ```
 
-### 스프린트 완료율 확인
+### Sprint Completion Rate
 
 ```bash
-echo "=== 완료 ==="
+echo "=== Done ==="
 jira sprint list --current -s Done --plain --columns key,summary | wc -l
 
-echo "=== 미완료 ==="
+echo "=== Not Done ==="
 jira sprint list --current -s "To Do" -s "In Progress" --plain --columns key,summary | wc -l
 ```
 
-## Qatlassian-mcp과의 역할 분담
+## Role Division with Qatlassian-mcp
 
-| 작업 | Qjira-cli | Qatlassian-mcp |
+| Task | Qjira-cli | Qatlassian-mcp |
 |------|-----------|----------------|
-| Jira 이슈 CRUD | O | O |
-| JQL 검색 | O | O |
-| 스프린트 관리 | O | O |
-| Confluence 페이지 | X | O |
-| CQL 검색 | X | O |
-| 릴리스 노트 → Confluence | X | O |
-| MCP 서버 불필요 | O | X |
-| 스크립트/파이프 조합 | O (Bash 네이티브) | △ |
+| Jira issue CRUD | Yes | Yes |
+| JQL search | Yes | Yes |
+| Sprint management | Yes | Yes |
+| Confluence pages | No | Yes |
+| CQL search | No | Yes |
+| Release notes → Confluence | No | Yes |
+| No MCP server required | Yes | No |
+| Script/pipe integration | Yes (native Bash) | Partial |
 
-## 제약사항
+## Constraints
 
 ### MUST DO
-- `jira init` 완료 후 사용
-- API Token은 환경변수 또는 `~/.config/.jira/.config.yml`에 저장
-- 대량 작업 시 rate limit 주의 (요청 간 간격 두기)
-- write 작업 전 사용자 확인
+- Use only after `jira init` is complete
+- Store API token in environment variable or `~/.config/.jira/.config.yml`
+- Watch for rate limits on bulk operations (add delay between requests)
+- Confirm with user before write operations
 
 ### MUST NOT DO
-- API Token을 코드에 하드코딩
-- `--plain` 없이 출력 파싱 시도 (ANSI 코드 포함됨)
-- Confluence 작업에 이 스킬 사용 (Qatlassian-mcp 사용)
+- Do not hardcode API tokens in code
+- Do not attempt to parse output without `--plain` (contains ANSI codes)
+- Do not use this skill for Confluence tasks (use Qatlassian-mcp)

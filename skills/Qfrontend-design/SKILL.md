@@ -8,6 +8,7 @@ metadata:
   license: Complete terms in LICENSE.txt
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 This skill guides the creation of original, production-grade frontend interfaces that avoid generic "AI slop" aesthetics. It implements real, working code with exceptional attention to aesthetic detail and creative choices.

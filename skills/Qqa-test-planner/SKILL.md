@@ -4,6 +4,7 @@ description: "Generates test plans, manual test cases, regression suites, and bu
 user_invocable: true
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # QA Test Planner

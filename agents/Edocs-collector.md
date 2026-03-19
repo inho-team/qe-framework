@@ -5,6 +5,7 @@ tools: Read, Write, Edit, Grep, Glob, Bash, AskQuestion
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Edocs-collector — Domain Knowledge Collection Sub-Agent
 

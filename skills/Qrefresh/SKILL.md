@@ -4,6 +4,7 @@ description: Manually refreshes project analysis data. Updates .qe/analysis/ fil
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qrefresh — Project Analysis Refresh
 

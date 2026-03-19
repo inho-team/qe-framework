@@ -4,6 +4,7 @@ description: Financial analysis, valuation modeling, and quantitative investment
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qfinance-analyst — Financial Analysis & Quant Modeling
 

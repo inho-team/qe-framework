@@ -78,7 +78,7 @@ let intentRouting = 'Intent routing: (config not found)';
 let agentTiers = 'Agent tiers: (config not found)';
 try {
   const routesConfig = JSON.parse(readFileSync(join(__dirname, 'lib', 'intent-routes.json'), 'utf8'));
-  const routeEntries = Object.entries(routesConfig.routes).map(([k, v]) => `${k}→${v}`).join(', ');
+  const routeEntries = Object.entries(routesConfig.routes).map(([k, v]) => `${k}→${v.skill}`).join(', ');
   intentRouting = `Intent routing: ${routeEntries}`;
   const tierEntries = Object.entries(routesConfig.agent_tiers).map(([k, v]) => `${k.replace('_', '(')}${')'}=${v.join('/')}`).join(', ');
   agentTiers = `Agent tiers: ${tierEntries}`;

@@ -3,6 +3,7 @@ name: Qgrad-research-plan
 description: Systematically conducts literature reviews and experiment design. Covers keyword strategy, paper summary tables, gap analysis, research question derivation, experimental variable definition, and reproducibility documentation. Use for requests like "literature review", "experiment design", or "research plan".
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Literature Review + Experiment Design Integration
