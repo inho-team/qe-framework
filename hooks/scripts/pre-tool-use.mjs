@@ -150,20 +150,24 @@ try {
 
 // --- Profile/docs collection triggers (moved from post-tool-use.mjs) ---
 const currentCalls = stats.tool_calls;
+
+// Read tool-errors.json ONCE for both profile and docs triggers
+let hasRecentToolErrors = false;
+try {
+  const errorFile = join(cwd, '.qe', 'state', 'tool-errors.json');
+  if (existsSync(errorFile)) {
+    const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
+    hasRecentToolErrors = Array.isArray(errState.errors) &&
+      errState.errors.length > 0 &&
+      (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
+  }
+} catch {
+  // Fault-tolerant: assume no errors if read fails
+}
+
 try {
   if (currentCalls > 0 && currentCalls % cfg.profile_collect_interval === 0) {
-    let safeToCollect = true;
-    const errorFile = join(cwd, '.qe', 'state', 'tool-errors.json');
-    if (existsSync(errorFile)) {
-      try {
-        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
-        const hasRecentErrors = Array.isArray(errState.errors) &&
-          errState.errors.length > 0 &&
-          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
-        if (hasRecentErrors) safeToCollect = false;
-      } catch {}
-    }
-    if (safeToCollect) {
+    if (!hasRecentToolErrors) {
       hints.push('Run Eprofile-collector in background to update command patterns.');
     }
   }
@@ -172,18 +176,7 @@ try {
 try {
   const docsInterval = cfg.docs_collect_interval || 100;
   if (currentCalls > 0 && currentCalls % docsInterval === 0) {
-    let safeToCollect = true;
-    const errorFile = join(cwd, '.qe', 'state', 'tool-errors.json');
-    if (existsSync(errorFile)) {
-      try {
-        const errState = JSON.parse(readFileSync(errorFile, 'utf8'));
-        const hasRecentErrors = Array.isArray(errState.errors) &&
-          errState.errors.length > 0 &&
-          (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
-        if (hasRecentErrors) safeToCollect = false;
-      } catch {}
-    }
-    if (safeToCollect) {
+    if (!hasRecentToolErrors) {
       hints.push('Run Edocs-collector in background to extract domain knowledge.');
     }
   }

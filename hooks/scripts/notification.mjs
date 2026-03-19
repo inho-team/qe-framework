@@ -3,23 +3,15 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { readStdinJson, getCwd } from './lib/state.mjs';
 
-let input = '';
-try {
-  input = readFileSync('/dev/stdin', 'utf8');
-} catch {
-  process.exit(0);
-}
-
-let data;
-try {
-  data = JSON.parse(input);
-} catch {
+const data = readStdinJson();
+if (!data) {
   console.log(JSON.stringify({ continue: true }));
   process.exit(0);
 }
 
-const cwd = data.cwd || data.directory || process.cwd();
+const cwd = getCwd(data);
 const hints = [];
 
 // Extract notification info

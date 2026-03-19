@@ -2,27 +2,16 @@
 'use strict';
 
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
-import { join, dirname } from 'path';
-import { fileURLToPath } from 'url';
+import { join } from 'path';
+import { readStdinJson, getCwd } from './lib/state.mjs';
 
-const __dirname = dirname(fileURLToPath(import.meta.url));
-
-let input = '';
-try {
-  input = readFileSync('/dev/stdin', 'utf8');
-} catch {
-  process.exit(0);
-}
-
-let data;
-try {
-  data = JSON.parse(input);
-} catch {
+const data = readStdinJson();
+if (!data) {
   console.log(JSON.stringify({ continue: true }));
   process.exit(0);
 }
 
-const cwd = data.cwd || data.directory || process.cwd();
+const cwd = getCwd(data);
 
 // Ensure .qe/context/ directory exists
 const contextDir = join(cwd, '.qe', 'context');
@@ -73,34 +62,21 @@ if (activeTasks.length > 0) {
 // Inject reminder to save context
 const taskInfo = activeTasks.length > 0 ? ` ${activeTasks.length} active task(s) need preservation.` : '';
 
-// POST-COMPACT RULES: load from centralized config
-let intentRouting = 'Intent routing: (config not found)';
-let agentTiers = 'Agent tiers: (config not found)';
-try {
-  const routesConfig = JSON.parse(readFileSync(join(__dirname, 'lib', 'intent-routes.json'), 'utf8'));
-  const routeEntries = Object.entries(routesConfig.routes).map(([k, v]) => `${k}→${v.skill}`).join(', ');
-  intentRouting = `Intent routing: ${routeEntries}`;
-  const tierEntries = Object.entries(routesConfig.agent_tiers).map(([k, v]) => `${k.replace('_', '(')}${')'}=${v.join('/')}`).join(', ');
-  agentTiers = `Agent tiers: ${tierEntries}`;
-} catch {
-  // Fallback: use minimal routing info
-}
-
-// Check current routing state
-let currentRoute = '';
+// POST-COMPACT RULES: include current route info only (no full route table)
+let currentRouteInfo = '';
 try {
   const intentRoutePath = join(cwd, '.qe', 'state', 'intent-route.json');
   if (existsSync(intentRoutePath)) {
     const routeData = JSON.parse(readFileSync(intentRoutePath, 'utf8'));
     if (routeData.routed_to && routeData.intent) {
-      currentRoute = ` | Current route: ${routeData.routed_to} (intent: ${routeData.intent})`;
+      currentRouteInfo = ` | Current route: ${routeData.routed_to} (intent: ${routeData.intent})`;
     }
   }
 } catch {
   // Fault tolerance — ignore read errors
 }
 
-const postCompactRules = `[POST-COMPACT RULES] ${intentRouting} | ${agentTiers}${currentRoute}`;
+const postCompactRules = `[POST-COMPACT RULES] Intent routing is auto-classified by UserPromptSubmit hook.${currentRouteInfo}`;
 
 console.log(JSON.stringify({
   continue: true,

@@ -1,6 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { join } from 'path';
+import { execSync } from 'child_process';
 import { readState, readStdinJson, getCwd } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { captureFailure } from './lib/failure-capture.mjs';
@@ -81,9 +84,6 @@ if (!activeMode && cfg.satisfaction_enabled) {
 // --- Session Log Recording ---
 if (!activeMode) {
   try {
-    const { readFileSync, writeFileSync, existsSync, mkdirSync } = await import('fs');
-    const { join } = await import('path');
-
     // Collect session stats
     const statsPath = join(cwd, '.qe', 'state', 'session-stats.json');
     let toolCalls = 0;
@@ -99,7 +99,6 @@ if (!activeMode) {
     // Collect recent commits
     let commits = [];
     try {
-      const { execSync } = await import('child_process');
       const log = execSync('git log --oneline -5', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
       if (log) commits = log.split('\n');
     } catch {}

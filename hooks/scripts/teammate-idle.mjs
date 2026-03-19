@@ -1,19 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync } from 'fs';
+import { readStdinJson } from './lib/state.mjs';
 
-let input = '';
-try {
-  input = readFileSync('/dev/stdin', 'utf8');
-} catch {
-  process.exit(0);
-}
-
-let data;
-try {
-  data = JSON.parse(input);
-} catch {
+const data = readStdinJson();
+if (!data) {
   console.log(JSON.stringify({ continue: true }));
   process.exit(0);
 }

@@ -128,10 +128,11 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
 
   // Use pre-loaded stats or read from disk (fallback for standalone usage)
   let stats;
+  let statsFile = null;
   if (preloadedStats) {
     stats = preloadedStats;
   } else {
-    const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
+    statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
     stats = { tool_calls: 0, session_start: Date.now() };
     if (existsSync(statsFile)) {
       try {
@@ -159,10 +160,14 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
   stats.warning_severity = severity;
   stats.debounce_counter = (stats.debounce_counter || 0) + 1;
 
-  try {
-    atomicWriteJson(statsFile, stats);
-  } catch {
-    // Fault-tolerant: proceed even if write fails
+  // Only write to disk when stats were loaded from disk (not preloaded).
+  // When preloadedStats is provided, the caller owns the write lifecycle.
+  if (!preloadedStats && statsFile) {
+    try {
+      atomicWriteJson(statsFile, stats);
+    } catch {
+      // Fault-tolerant: proceed even if write fails
+    }
   }
 
   // Check Utopia mode for tailored message

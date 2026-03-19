@@ -3,6 +3,7 @@
 
 import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { execSync } from 'child_process';
 import { loadConfig } from './lib/config.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
@@ -88,7 +89,6 @@ if (existsSync(languagePath)) {
 
 // Check 5: Git branch and uncommitted changes
 try {
-  const { execSync } = await import('child_process');
   const gitParts = [];
 
   try {
