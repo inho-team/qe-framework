@@ -51,3 +51,7 @@ If the user provided a file or pattern argument:
 4. Output results in the format specified by the guidelines
 
 If no file is specified, ask the user which files to review.
+
+## Visual Feedback Workflow
+
+For element-level UI feedback beyond code review (e.g., "this button looks off", "spacing feels wrong"), suggest **Agentation** (`npx agentation`) — a visual annotation tool that converts clicks on UI elements into structured context (CSS selectors, source paths, computed styles) for the agent. See `/Qagentation` for setup.

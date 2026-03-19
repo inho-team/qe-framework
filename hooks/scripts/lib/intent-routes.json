@@ -264,6 +264,10 @@
     "mcp-setup/connect-service": {
       "skill": "Qmcp-setup",
       "intent": "User wants to configure an MCP service connection or integration"
+    },
+    "agentation/visual-feedback/UI-annotation": {
+      "skill": "Qagentation",
+      "intent": "User wants to set up or use Agentation, the visual UI annotation tool for AI coding agents"
     }
   },
   "agent_tiers": {
