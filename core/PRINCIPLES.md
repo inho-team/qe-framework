@@ -19,6 +19,46 @@ All git commit/push operations MUST go through the `/Qcommit` skill, which deleg
 
 ---
 
+## SVS Loop Core Principles
+
+The SVS (Spec → Verify → Supervise) Loop is the framework's central execution model. These 4 principles govern how it operates:
+
+### 1. Post-spec Status Clarity
+After `/Qgenerate-spec` creates spec documents, explicitly show:
+- **What was created**: CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST (plans only)
+- **What is NOT yet done**: actual output files (code, docs, analysis results)
+- Then ask user via `AskUserQuestion` whether to run `/Qrun-task` immediately.
+
+### 2. Task Type Banner
+In `/Qrun-task` Step 2, display a prominent type banner at the TOP of the summary before any details:
+- `⚠️ TYPE: CODE` — will create/modify source code
+- `📄 TYPE: DOCS` — will create/modify documentation
+- `🔍 TYPE: ANALYSIS` — read-only analysis, no new files
+- `❓ TYPE: UNSET` — type not specified, review carefully
+
+This ensures the user knows exactly what will happen before approving.
+
+### 3. Automatic Remediation Loop
+When supervision returns **FAIL**, the REMEDIATION flow runs automatically:
+- Create REMEDIATION_REQUEST → delegate to Etask-executor → re-execute → re-verify → re-supervise
+- Maximum 3 iterations, **no AskUserQuestion between iterations**
+- User is contacted only upon PASS/PARTIAL (completion) or after 3 failed iterations (escalation)
+
+### 4. Minimal User Contact Points
+The user is contacted at exactly these points — everything else is automatic:
+
+| # | When | Tool |
+|---|------|------|
+| (a) | Spec generation confirmation | AskUserQuestion (Qgenerate-spec Step 3) |
+| (b) | Immediate execution prompt | AskUserQuestion (Qgenerate-spec Step 5) |
+| (c) | Task execution approval | AskUserQuestion (Qrun-task Step 2) |
+| (d) | Task completion | Completion report (Qrun-task Step 5) |
+| (e) | 3x supervision failure | Escalation AskUserQuestion (Qrun-task Step 4.5) |
+
+Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progress are all automatic.
+
+---
+
 ## Code Quality Principles
 
 - **SOLID**: Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
