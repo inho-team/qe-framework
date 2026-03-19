@@ -207,11 +207,32 @@ project-root/
 ```
 
 ### Step 5: Suggest Immediate Execution
-After file creation is complete, use the **`AskUserQuestion` tool** to ask whether to execute immediately:
-- Question: Would you like to run `/Qrun-task {UUID}` now?
-- Options: "Run" (immediately execute `/Qrun-task {UUID}`), "Later" (finish with spec generation only)
+
+After file creation is complete, output the following status summary **before** asking the question:
+
+```
+✅ 생성 완료 (spec documents only):
+- CLAUDE.md
+- .qe/tasks/pending/TASK_REQUEST_{UUID}.md
+- .qe/checklists/pending/VERIFY_CHECKLIST_{UUID}.md
+
+❌ 아직 없는 것 (실제 작업 결과물):
+- {expected output files from TASK_REQUEST checklist, e.g. docs/FP-SPEC-SUPPLEMENT.md}
+
+스펙 문서는 "무엇을 할지"의 계획서입니다.
+실제 {작업 결과물 / 코드 / 문서}는 /Qrun-task 실행 후 생성됩니다.
+```
+
+Adapt the status summary to the task type:
+- `type: docs` → "실제 문서는 아직 작성되지 않았습니다."
+- `type: code` → "실제 코드는 아직 작성되지 않았습니다."
+- `type: analysis` → "실제 분석 결과는 아직 작성되지 않았습니다."
+
+Then use the **`AskUserQuestion` tool** to ask whether to execute immediately:
+- Question: "지금 바로 /Qrun-task를 실행하여 실제 {작업 결과물}을 생성할까요?"
+- Options: "지금 실행" (immediately execute `/Qrun-task {UUID}`), "나중에 직접 실행" (finish with spec generation only)
 - For multiple tasks: guide with `/Qrun-task {UUID1} {UUID2}` format
-- If the user selects "Run", follow the `/Qrun-task` skill procedure.
+- If the user selects "지금 실행", follow the `/Qrun-task` skill procedure.
 
 ## Pre-execution Gate
 
