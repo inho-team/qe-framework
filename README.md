@@ -8,15 +8,24 @@ QE (Query Executor) is a framework that transforms user queries into structured,
 
 ## Philosophy
 
-QE Framework is built on proven engineering principles:
+> Work without a spec is guesswork.
+> A spec without verification is hope.
+> Verification without supervision is confirmation bias.
 
-- **SOLID** -- Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
-- **DRY** -- No repeated logic; extract common logic into shared components
-- **KISS** -- Prefer simple solutions; eliminate unnecessary complexity
-- **YAGNI** -- Implement only what is needed now; no speculative design
-- **Evidence-based** -- Do not guess. When uncertain, read the file and verify.
-- **Minimal change** -- Modify only what was requested. Do not refactor adjacent code.
-- **Multilingual** -- Automatic language detection and response in the user's preferred language via `.qe/profile/language.md`.
+QE Framework is built around the **SVS Loop** (Spec → Verify → Supervise):
+
+```
+/Qgenerate-spec  →  /Qrun-task  →  Supervision  →  Done
+                                        ↑                |
+                           auto-remediate (max 3x)  ← FAIL
+```
+
+1. **`/Qgenerate-spec`** — Creates TASK_REQUEST + VERIFY_CHECKLIST. A Plan agent reviews the spec automatically before you see it. Executability verification ensures every item is actionable.
+2. **`/Qrun-task`** — Executes the checklist item by item with progress tracking. Shows a task type banner (CODE/DOCS/ANALYSIS) so you know exactly what will happen before approving.
+3. **Supervision** — Domain-specific supervisor agents (code quality, security, docs, analysis) do an independent review. If it fails, a REMEDIATION_REQUEST is auto-generated and the loop runs again — up to 3 times with zero human intervention.
+4. **Minimal interruptions** — You're only asked at 5 points: spec confirmation, execution prompt, task approval, completion report, and 3x supervision failure escalation. Everything else is automatic.
+
+Engineering principles: SOLID, DRY, KISS, YAGNI, evidence-based decisions, minimal change, multilingual (auto language detection).
 
 ## Architecture
 
@@ -116,7 +125,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 /Qrefresh                        -- Update project analysis data
 ```
 
-## Skills (62 + 72 Coding Experts)
+## Skills (65 + 72 Coding Experts)
 
 ### Development
 
@@ -134,6 +143,8 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qagent-browser | Browser automation CLI for navigation, form filling, screenshots, and data extraction. |
 | Qautoresearch | Autonomous experiment loop inspired by Karpathy's autoresearch. Supports multi-file targets, integrates Ecode-reviewer/debugger, and keeps or discards based on metrics. |
 | Qmcp-setup | MCP server setup and configuration guide for connecting external services (Google Drive, Slack, GitHub, etc.). |
+| Qstitch-cli | Google Stitch MCP setup and CLI guide for AI-powered UI design. |
+| Qcc-setup | Claude Code shell alias setup (cc, ccc, ccd) for quick terminal launch. |
 
 ### Task Management
 
@@ -500,7 +511,7 @@ Processes multiple documents in parallel, using templates when available.
 
 ---
 
-## Agents (16)
+## Agents (22)
 
 Agents are automatically assigned a model tier based on task complexity. See [AGENT_TIERS.md](core/AGENT_TIERS.md) for details.
 
@@ -510,16 +521,22 @@ Agents are automatically assigned a model tier based on task complexity. See [AG
 |-------|-------------|
 | Edeep-researcher | Systematic multi-step research agent for technology comparison and decision support. |
 | Eqa-orchestrator | Executes the full test, review, fix quality loop. Protects the main context. |
+| Esupervision-orchestrator | Supervision orchestrator. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades, drafts REMEDIATION_REQUEST on FAIL. |
 
 ### MEDIUM Tier (sonnet)
 
 | Agent | Description |
 |-------|-------------|
-| Etask-executor | Implements checklist items in order. Learns task patterns for repetitive work. |
+| Etask-executor | Implements checklist items in order. Supports wave-based parallel execution for independent items. |
 | Ecode-debugger | Debugging specialist. Analyzes bug root causes, traces errors, and troubleshoots. |
 | Ecode-reviewer | Code review specialist. Reviews quality, security, performance, and pattern compliance. |
 | Ecode-test-engineer | Test engineer. Handles test writing, coverage analysis, and test strategy. |
 | Ecode-doc-writer | Technical documentation specialist. Writes code explanations, API docs, and READMEs. |
+| Ecode-quality-supervisor | Code quality audit supervisor. Reviews code quality, test coverage, architecture consistency. Returns PASS/PARTIAL/FAIL. |
+| Edocs-supervisor | Documentation audit supervisor. Reviews completeness, accuracy, structural consistency, and link validity. Returns PASS/PARTIAL/FAIL. |
+| Eanalysis-supervisor | Analysis audit supervisor. Reviews evidential sufficiency, logical validity, scope adequacy, and actionability. Returns PASS/PARTIAL/FAIL. |
+| Esecurity-officer | Security audit specialist. Scans git diff changes for vulnerabilities, classifies as PASS/WARN/FAIL. |
+| Edocs-collector | Extracts domain knowledge from task context and records it in .qe/docs/. |
 | Edoc-generator | Background sub-agent for batch document generation (docx/pdf/pptx/xlsx). |
 | Egrad-writer | Writes academic paper chapters with academic writing style and citation rules. |
 | Epm-planner | Planning specialist. Handles PRD, user stories, roadmap, and document generation. |
@@ -569,8 +586,8 @@ See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for detailed configuration and team pa
 ```
 qe-framework/
 ├── .claude-plugin/    # Plugin configuration
-├── agents/            # 16 agents (E-prefix)
-├── skills/            # 63 core + 72 coding expert skills (Q-prefix)
+├── agents/            # 22 agents (E-prefix)
+├── skills/            # 65 core + 72 coding expert skills (Q-prefix)
 ├── core/              # Shared principles & configuration
 ├── hooks/             # Lifecycle hooks
 ├── install.js         # Installation script
