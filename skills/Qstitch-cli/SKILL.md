@@ -1,11 +1,38 @@
 ---
 name: Qstitch-cli
-description: "Google Stitch MCP setup and CLI usage guide. Use when connecting Claude Code to Google Stitch (AI UI design tool), generating UI screens from prompts, fetching screen code/images, managing Stitch projects, or running the stitch-mcp proxy. Trigger: 'stitch', 'stitch mcp', 'stitch setup', 'stitch cli', 'generate UI with stitch'."
+description: "Google Stitch MCP setup and CLI usage guide. Use ONLY for setup, configuration, and troubleshooting — NOT for executing Stitch design operations. Trigger: 'stitch setup', 'stitch mcp', 'connect stitch', 'stitch cli'."
 ---
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
 # Qstitch-cli — Google Stitch MCP Setup & CLI
+
+## Role Boundary (Absolute Rule)
+
+This skill is a **setup and configuration guide only**. It does NOT execute Stitch operations.
+
+| Request | Correct action |
+|---------|---------------|
+| "stitch 설정해줘", "stitch mcp 연결" | **This skill** — guide setup |
+| "스크린 만들어줘", "디자인 그려줘", "코드 가져와" | **NOT this skill** — use Stitch MCP tools directly (if connected) |
+
+### Pre-check: MCP Connection Status
+
+**Before doing anything, check if Stitch MCP is already connected:**
+
+```bash
+claude mcp list 2>/dev/null | grep -i stitch
+```
+
+**If connected** (stitch server found):
+- Do NOT re-run setup. Tell the user: "Stitch MCP가 이미 연결되어 있습니다. `generate_screen_from_text`, `fetch_screen_code` 등 MCP 도구를 직접 사용하세요."
+- If the user asked for a design operation (not setup), exit this skill and use the MCP tools directly.
+
+**If NOT connected** (no stitch server):
+- If the user asked for a design operation: "Stitch MCP가 연결되어 있지 않습니다. 먼저 설정이 필요합니다." → proceed with setup guide below.
+- If the user asked for setup: proceed with setup guide below.
+
+---
 
 ## What is Google Stitch?
 

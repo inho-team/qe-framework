@@ -59,6 +59,14 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 
 ---
 
+## Skill Scope Enforcement
+
+- **Guide skills are not execution tools.** A skill that explains how to set up or configure something (e.g., Qstitch-cli, Qmcp-setup, Qcc-setup) must NOT attempt to execute the operations it describes. If the user requests an action that requires external tools (MCP tools, CLI commands), check if those tools are available first.
+- **Pre-check before action.** Before invoking external tools (MCP, API, CLI), verify they are actually connected/available. Do not call tools that are not registered — this produces errors and confuses the user.
+- **Exit when out of scope.** If a user's request falls outside the skill's defined role, say so clearly and redirect to the correct tool or skill. Do not improvise functionality.
+
+---
+
 ## Code Quality Principles
 
 - **SOLID**: Single Responsibility, Open-Closed, Liskov Substitution, Interface Segregation, Dependency Inversion
