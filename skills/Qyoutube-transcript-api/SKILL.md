@@ -7,6 +7,7 @@ metadata:
   license: MIT
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # YouTube Transcript API Skill

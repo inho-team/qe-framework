@@ -6,6 +6,7 @@ recommendedModel: haiku
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Earchive-executor — Archive Sub-Agent
 

@@ -1,3 +1,4 @@
+> Core philosophy: see core/PHILOSOPHY.md
 ---
 name: Qinit
 description: QE framework (Query Executor) initial setup. Creates CLAUDE.md, settings.json, directory structure, and .gitignore in a new project, then auto-analyzes the project. Use for initialize, project setup, init, 초기화, 프로젝트 시작, 셋업 requests.

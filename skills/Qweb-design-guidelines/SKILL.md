@@ -8,6 +8,7 @@ metadata:
   argument-hint: <file-or-pattern>
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Web Interface Guidelines

@@ -4,6 +4,7 @@ description: "Analyzes command patterns, writing style, and common expressions t
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qprofile — User Profile Analysis
 

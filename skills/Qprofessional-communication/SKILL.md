@@ -4,6 +4,7 @@ description: Technical communication guide for software developers. Covers email
 allowed-tools: Read, Glob, Grep
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Professional Communication

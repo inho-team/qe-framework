@@ -7,6 +7,7 @@ recommendedModel: sonnet
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 ## When to Use
 - **Use this agent** when: you need to actually write test code, run tests, analyze coverage, or execute tests against existing code

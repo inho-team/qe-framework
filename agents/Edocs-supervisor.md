@@ -8,6 +8,7 @@ color: green
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 ## Role
 

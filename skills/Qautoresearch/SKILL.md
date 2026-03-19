@@ -15,6 +15,7 @@ keywords: autoresearch, experiment, autonomous, loop, metric, optimize, iterate,
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Autoresearch — Autonomous Experiment Loop
 

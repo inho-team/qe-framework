@@ -3,6 +3,7 @@ name: Qfind-skills
 description: "Finds and installs skills from skills.sh. Use when you want to find a skill, install a skill, browse available skills, or search skills.sh. Fetches skill content and creates SKILL.md files directly."
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Qfind-skills: Skill Search and Installation

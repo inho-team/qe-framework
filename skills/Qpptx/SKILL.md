@@ -6,6 +6,7 @@ metadata:
   author: anthropic
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # PPTX Skill

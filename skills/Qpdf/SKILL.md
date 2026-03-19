@@ -1,3 +1,4 @@
+> Core philosophy: see core/PHILOSOPHY.md
 ---
 name: Qpdf
 description: "Comprehensive PDF processing toolkit. Use for text/table extraction, PDF 작업, PDF 추출, creating new PDFs, merging/splitting, rotating, watermarking, form filling, encryption, OCR, and image extraction."

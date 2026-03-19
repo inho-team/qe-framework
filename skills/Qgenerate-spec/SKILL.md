@@ -4,6 +4,7 @@ description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIF
 user_invocable: true
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Project Spec Document Generation Skill
@@ -218,7 +219,12 @@ When `--ultrawork`, `--ultraqa`, or Utopia mode triggers autonomous execution, t
 
 ### Gate Logic
 
-1. **Scan for anchor signals** in the user's prompt:
+The gate asks one question:
+> **Can an AI generate a meaningful spec from this prompt alone, without asking clarifying questions?**
+
+This requires either a **target anchor** (what to work on is explicit) or a **scope anchor** (the scope is implicitly clear from context).
+
+**1. Target anchors** — the subject of the task is explicitly named:
 
 | Signal Type | Pattern | Example |
 |---|---|---|
@@ -230,12 +236,27 @@ When `--ultrawork`, `--ultraqa`, or Utopia mode triggers autonomous execution, t
 | Numbered steps | `1. ... 2. ...` pattern | `1. Add validation 2. Write tests` |
 | Escape prefix | `force:` or `!` at start | `force: ultrawork 성능 개선` |
 
-2. **Decision rule:**
-   - **Any anchor signal found** → Gate passes, proceed with autonomous execution
-   - **No anchor signals AND effective word count ≤ 15** → Gate fires, redirect to Qgenerate-spec normal flow
-   - **No anchor signals BUT effective word count > 15** → Gate passes (detailed enough)
+**2. Scope anchor** — no specific target named, but the scope is unambiguous:
 
-3. **On Gate fire:**
+A prompt has a scope anchor when it is contextually clear that the task covers the current project or system as a whole. This is a semantic judgment, not a keyword match. Ask: *"Would a competent developer know exactly what to inspect or act on, without follow-up questions?"*
+
+- `전수 조사해` on a known codebase → scope is the full codebase. **Scope anchor present.**
+- `전체 검토해줘` with `--ultraqa` in a framework context → scope is the full framework. **Scope anchor present.**
+- `성능 개선해줘` → which part? which metric? **No scope anchor.**
+- `인증 추가` → which system? which method? **No scope anchor.**
+
+**3. Decision rule:**
+
+```
+Target anchor found          → Gate passes
+Scope anchor inferred        → Gate passes
+Neither found, word count > 20 → Gate passes (detailed enough to infer intent)
+Neither found, word count ≤ 20 → Gate fires
+```
+
+> **Note on word count:** Count meaningful words only (exclude flags like `--ultraqa`, `--ultrawork`). Korean is information-dense; 20 words in Korean carries roughly the same specificity as 35+ words in English.
+
+4. **On Gate fire:**
    - Inform the user: "프롬프트가 모호하여 계획 수립 단계로 전환합니다. 우회하려면 `force:` 또는 `!` 접두어를 사용하세요."
    - Invoke Qgenerate-spec Step 1 (Collect Information) with the user's original prompt as context
 
@@ -251,13 +272,15 @@ When bypass is detected, skip the gate entirely and proceed with autonomous exec
 
 | Verdict | Prompt | Reason |
 |---------|--------|--------|
-| Pass | `ultrawork src/auth/login.ts의 null 체크 수정` | File path anchor |
-| Pass | `ultrawork issue #42 구현` | Issue number anchor |
-| Pass | `ultrawork processKeywordDetector 함수 리팩토링` | Function name anchor |
+| Pass | `ultrawork src/auth/login.ts의 null 체크 수정` | Target anchor: file path |
+| Pass | `ultrawork issue #42 구현` | Target anchor: issue number |
+| Pass | `ultrawork processKeywordDetector 함수 리팩토링` | Target anchor: function name |
 | Pass | `force: ultrawork 성능 개선` | Escape prefix |
-| Gate | `ultrawork 성능 개선해줘` | No anchor, vague |
-| Gate | `ultrawork 인증 추가` | No anchor, scope unclear |
-| Gate | `ultrawork 앱 개선` | No anchor, extremely vague |
+| Pass | `ultraqa 최적화는 잘 됐는지, 잘못 지정된 부분이 있는지 전수 조사해` | Scope anchor: full-project audit, scope is unambiguous |
+| Pass | `ultraqa 전체 스킬 파일 전반적으로 검토해줘` | Scope anchor: full framework review |
+| Gate | `ultrawork 성능 개선해줘` | No anchor — which part? which metric? |
+| Gate | `ultrawork 인증 추가` | No anchor — which system? which method? |
+| Gate | `ultrawork 앱 개선` | No anchor — scope is indeterminate |
 
 ## Ultra Modes
 
@@ -289,22 +312,40 @@ Spec generation → single user confirmation → autonomous parallel task execut
       - VERIFY_CHECKLIST content
       - CLAUDE.md constraints
    c. For **single task**: invoke `/Qrun-task {UUID}` in autonomous mode (skip approval step)
-   d. After all agents complete, perform final verification on each task
-   e. Clear the ultra state file
-   f. Output overall completion report
+   d. After all agents complete, run VERIFY_CHECKLIST items for each task
+   e. **Supervision gate (per task, sequential):** Route each task to the appropriate supervisor via the Agent tool:
+      - `type: code` → `Ecode-quality-supervisor` + `Esecurity-officer`
+      - `type: docs` → `Edocs-supervisor`
+      - `type: analysis` → `Eanalysis-supervisor`
+      - `type: other` → skip supervision; VERIFY_CHECKLIST pass is sufficient
+      - Pass: TASK_REQUEST content, VERIFY_CHECKLIST results, list of changed files
+      - **PASS / PARTIAL** → mark task complete
+      - **FAIL** → generate `REMEDIATION_REQUEST_{UUID}_1.md`, invoke `Etask-executor` for remediation, re-run supervision once (max 1 remediation round in `--ultrawork`; escalate to user if still FAIL)
+   f. Clear the ultra state file
+   g. Output overall completion report (include supervision verdict per task)
 
 ### `--ultraqa`
 Same as `--ultrawork`, plus a full quality verification loop on every task.
 
 **Additional behavior on top of `--ultrawork`:**
 1. Write ultra state file with `"mode": "ultraqa"` and `"max_reinforcements": 80`
-2. After each task's implementation, automatically run the `/Qcode-run-task` quality loop (test → review → fix → retest, max 3 cycles) — no user confirmation needed
+2. After each task's `Etask-executor` completes, run the full quality + supervision pipeline (no user confirmation at any step):
+   a. **Quality loop** (type: code only): run `/Qcode-run-task` quality loop (test → review → fix → retest, max 3 cycles)
+   b. **Supervision gate**: invoke the appropriate supervisor via Agent tool based on task type:
+      - `type: code` → `Ecode-quality-supervisor` + `Esecurity-officer`
+      - `type: docs` → `Edocs-supervisor`
+      - `type: analysis` → `Eanalysis-supervisor`
+      - `type: other` → VERIFY_CHECKLIST pass is sufficient; skip supervision
+      - Pass: TASK_REQUEST content, VERIFY_CHECKLIST results, list of changed files, `supervision_iteration` counter
+   c. **On PASS / PARTIAL**: record verdict in TASK_REQUEST as a comment block; mark task complete
+   d. **On FAIL**: generate `REMEDIATION_REQUEST_{UUID}_{N}.md` → delegate to `Etask-executor` → re-run quality loop (if code) → re-run supervision. Repeat up to **3 total supervision rounds**. Update `supervision_iteration` in the ultraqa state file after each round. If still FAIL after round 3, escalate to user.
 3. After all tasks complete, perform a **cross-task audit**:
    - Check all VERIFY_CHECKLIST items across all tasks
    - Verify inter-task consistency (shared files, dependencies)
-   - Run project-wide validation (build, lint, test suite)
+   - Confirm supervision passed (PASS or PARTIAL) for every task
 4. Output comprehensive QA report including:
    - Per-task verification results
+   - Per-task supervision verdict (PASS / PARTIAL / FAIL + summary)
    - Cross-task consistency check results
    - Overall quality score
 
@@ -317,6 +358,21 @@ Same as `--ultrawork`, plus a full quality verification loop on every task.
 - **Progress output**: Periodically report progress (e.g., "3/7 tasks complete") so the user can monitor
 
 ## Document Writing Rules
+
+### Language Matching (Required)
+TASK_REQUEST and VERIFY_CHECKLIST must be written in the language the user
+is communicating in. Infer the language from the user's current messages.
+
+- If the user writes in Korean → generate documents in Korean
+- If the user writes in English → generate documents in English
+- If mixed or unclear → default to English
+
+This applies to all user-facing document content: section headings, descriptions,
+checklist items, notes, and the How to Run section.
+
+**Scope:** TASK_REQUEST and VERIFY_CHECKLIST only.
+Internal framework files (SKILL.md, AGENT.md, hooks) remain in English.
+CLAUDE.md follows the user's language but is not strictly enforced.
 
 ### CLAUDE.md
 - Acts as the "Single Source of Truth" for the project

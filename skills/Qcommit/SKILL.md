@@ -4,6 +4,7 @@ description: "Creates git commits that look human-written — no Co-Authored-By,
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qcommit — Natural Commits
 

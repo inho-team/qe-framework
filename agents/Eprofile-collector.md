@@ -6,6 +6,7 @@ recommendedModel: haiku
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Eprofile-collector — User Profile Collection Sub-Agent
 
@@ -65,11 +66,13 @@ Last updated: 2026-03-16
 
 ### writing-style.md
 
-**Detection heuristics:**
-- Tone: formal ("해주세요") vs. casual ("해줘", "ㄱㄱ")
-- Abbreviation usage: slang, shortcuts, emoji patterns
-- Sentence structure: short commands vs. detailed descriptions
-- Language mixing: code terms in natural language
+**Detection heuristics (language-agnostic):**
+- Formality level: detect whether the user uses complete grammatical sentences or fragments/shorthand — this signals formality regardless of language
+- Informality markers: abbreviated words, omitted subject/verb, emoji, symbols — any deviation from full sentence structure indicates casual register
+- Sentence structure: short imperative fragments ("do X", single-word commands) vs. detailed descriptive requests
+- Language mixing: code identifiers, technical terms, or English keywords embedded in otherwise non-English messages
+
+**Principle:** Do not maintain a fixed dictionary of informal expressions. Instead, detect informality structurally — a message is casual when it omits required grammatical elements (subject, verb, object) that a formal equivalent would include. This applies in any language.
 
 **Expected format:**
 ```markdown
@@ -80,11 +83,10 @@ Last updated: 2026-03-16
 - Primary: Casual/informal
 - Uses shortened expressions frequently
 
-## Abbreviations
-- "ㄱㄱ" → proceed/go
-- "ㄴㄴ" → no/reject
-- "확인" → check/verify
-- "해줘" → please do
+## Informality Signals Observed
+- Omits sentence subjects (command-mode fragments)
+- Uses single-word triggers instead of full requests
+- Mixes technical identifiers into natural language
 
 ## Instruction Style
 - Prefers short, direct commands
@@ -94,11 +96,11 @@ Last updated: 2026-03-16
 
 ### corrections.md
 
-**Detection heuristics:**
-- Messages starting with "아니", "no", "not that", "그게 아니라"
-- Messages that re-explain after a misunderstanding
-- Sequences: user request → agent action → user correction
-- Pattern: negative feedback + clarification of actual intent
+**Detection heuristics (language-agnostic):**
+- Correction intent is signaled by a **negation + redirect** pattern in any language: the user first denies the previous result (negation), then supplies the correct framing (redirect). Detect this structurally — not by specific words.
+- Structural signals of correction: a short negation phrase followed by a restatement or clarification in the same message or the immediately following message
+- Conversational sequence: user request → agent action → user follow-up that partially overlaps with the original request but changes a key parameter — this is a correction regardless of the words used
+- Re-explanation signal: message length significantly longer than the user's usual style, immediately after an agent response, indicates frustration or clarification
 
 **Expected format:**
 ```markdown
@@ -108,7 +110,7 @@ Last updated: 2026-03-16
 ## Corrections
 - "review" was interpreted as code-review, user meant document-review (2026-03-15)
 - "test" was interpreted as write-tests, user meant run-existing-tests (2026-03-14)
-- User said "간단하게" but got verbose response — prefers concise output (2026-03-16)
+- User said "keep it brief" but got verbose response — prefers concise output (2026-03-16)
 
 ## Misunderstanding Patterns
 - Ambiguous: "check this" → user usually means review, not test
@@ -118,7 +120,7 @@ Last updated: 2026-03-16
 ### preferences.md
 
 **Detection heuristics:**
-- Explicit preferences: "짧게 해줘", "코드만 보여줘"
+- Explicit preferences: stated directly ("keep it short", "show only code", or equivalent in any language)
 - Implicit: consistently ignoring long explanations
 - Code style: indentation, naming conventions in their code
 - Response format: prefers bullet lists vs. paragraphs

@@ -4,6 +4,7 @@ description: Defines aliases for folders, paths, and commands. Allows quick refe
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qalias — Alias Management
 

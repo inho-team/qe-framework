@@ -3,6 +3,7 @@ name: Qpm-prd
 description: Systematically writes PRDs (Product Requirements Documents). Generates complete PRDs including problem definition, user personas, solution overview, success metrics, and user stories. Use for requests like "write a PRD", "create a product spec", "requirements document", or "product planning".
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 ## Purpose

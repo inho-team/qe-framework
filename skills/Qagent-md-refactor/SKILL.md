@@ -4,6 +4,7 @@ description: "Refactors bloated AGENTS.md, CLAUDE.md, or similar agent instructi
 license: MIT
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Agent MD Refactor

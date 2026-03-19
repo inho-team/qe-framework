@@ -4,6 +4,7 @@ description: "Archives completed task files into .qe/.archive/. Runs automatical
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qarchive — Task Archive
 

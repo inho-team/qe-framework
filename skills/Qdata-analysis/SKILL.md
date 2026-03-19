@@ -4,6 +4,7 @@ description: Data exploration, statistical analysis, and visualization. Analyzes
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qdata-analysis — Data Exploration & Statistical Analysis
 

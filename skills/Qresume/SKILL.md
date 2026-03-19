@@ -4,6 +4,7 @@ description: "Restores saved context after compaction or session break. Use for 
 ---
 
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qresume — Context Restoration
 

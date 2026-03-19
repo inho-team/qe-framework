@@ -3,6 +3,7 @@ name: Qhelp
 description: "Shows QE Framework usage overview in terminal. Use for help, how to use, 도움말, 사용법, 뭐할 수 있어, show commands, what can you do."
 ---
 > Shared principles: see core/PRINCIPLES.md
+> Core philosophy: see core/PHILOSOPHY.md
 
 # Qhelp — QE Framework Quick Reference
 

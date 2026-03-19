@@ -1,72 +1,270 @@
 {
-  "_comment": "Centralized INTENT_GATE routing table. Used by pre-tool-use.mjs and pre-compact.mjs.",
+  "_comment": "Centralized INTENT_GATE routing table. Used by pre-tool-use.mjs and pre-compact.mjs. IMPORTANT: trigger strings listed here are illustrative examples only. Routing MUST fall back to semantic intent matching — the user goal described in the 'intent' field — when no literal trigger matches. Adding new keywords without a corresponding intent description is prohibited.",
   "routes": {
-    "init/setup/initialize/초기화/셋업": "Qinit",
-    "generate-spec/spec-document/스펙/task-request/스펙 문서": "Qgenerate-spec",
-    "run-task/execute-task/태스크 실행/실행해": "Qrun-task",
-    "research/compare/investigate/deep-research/조사/비교/조사해": "Edeep-researcher",
-    "bug/error/not-working/crash/버그/오류/안돼/에러": "Ecode-debugger",
-    "code-review/review-code/리뷰/코드 리뷰/리뷰해": "Ecode-reviewer",
-    "write-test/test-coverage/unit-test/테스트 작성/테스트 코드": "Ecode-test-engineer",
-    "write-docs/documentation/explain-code/문서화/문서 작성해/설명해": "Ecode-doc-writer",
-    "commit/push/커밋/푸시/커밋해/푸시해": "Qcommit",
-    "refresh/sync/update-analysis/새로고침/새로고침해줘": "Qrefresh",
-    "debug-method/root-cause/체계적 디버깅/원인 분석": "Qsystematic-debugging",
-    "TDD/test first/test-first/red-green-refactor/테스트 먼저/TDD로": "Qtest-driven-development",
-    "design-UI/frontend-design/dashboard/대시보드/UI 디자인": "Qfrontend-design",
-    "architecture-diagram/C4/system-context/아키텍처 다이어그램": "Qc4-architecture",
-    "database-schema/DB-design/ERD/데이터베이스 스키마/테이블 설계": "Qdatabase-schema-designer",
-    "help/how-to/show-commands/도움말/명령어": "Qhelp",
-    "browser/navigate-web/scrape/screenshot/스크린샷/웹 자동화": "Qagent-browser",
-    "PRD/product-requirements/create PRD/제품 요구사항/PRD 작성": "Qpm-prd",
-    "roadmap/quarterly-plan/로드맵/분기 계획": "Qpm-roadmap",
-    "user story/acceptance-criteria/write user stories/유저 스토리/인수 조건/스토리 작성": "Qpm-user-story",
-    "resume/restore-session/이어서/복원": "Qresume",
-    "mermaid/sequence-diagram/flowchart/머메이드/시퀀스 다이어그램": "Qmermaid-diagrams",
-    "docx/word-document/워드 문서/워드 작성": "Qdocx",
-    "pptx/slides/presentation/create presentation/파워포인트/프레젠테이션": "Qpptx",
-    "xlsx/spreadsheet/excel/create spreadsheet/엑셀/엑셀 파일/스프레드시트": "Qxlsx",
-    "pdf/pdf-report/PDF 리포트": "Qpdf",
-    "image-analysis/analyze-image/이미지 분석/사진 분석/스크린샷 분석": "Qimage-analyzer",
-    "transcribe-audio/audio-to-text/오디오 변환/오디오 파일/녹음 텍스트/텍스트로 변환": "Qaudio-transcriber",
-    "youtube-subtitle/video-caption/유튜브 자막": "Qyoutube-transcript-api",
-    "write-paper/academic-paper/논문 작성/학술 논문/논문 서론/논문 본문": "Qgrad-paper-write",
-    "reviewer-response/paper-rebuttal/리뷰어 응답/리뷰어 코멘트": "Qgrad-paper-review",
-    "literature-review/research-plan/문헌 리뷰/실험 계획": "Qgrad-research-plan",
-    "seminar-prep/conference-talk/세미나 발표/학회 발표": "Qgrad-seminar-prep",
-    "thesis/graduation-thesis/학위논문/졸업논문/논문 진행/논문 관리": "Qgrad-thesis-manage",
-    "financial-analysis/valuation/DCF/재무 분석/밸류에이션": "Qfinance-analyst",
-    "data-analysis/statistics/correlation/데이터 분석/통계/CSV 분석/데이터 탐색": "Qdata-analysis",
-    "writing-clarity/improve-prose/글 다듬기/명확하게": "Qwriting-clearly",
-    "humanize/remove-AI-traces/AI 느낌 제거/자연스럽게": "Qhumanizer",
-    "professional-email/team-message/이메일 작성/팀 메시지": "Qprofessional-communication",
-    "new skill/edit-skill/create skill/스킬 만들기/스킬 만들어/스킬 수정": "Qskill-creator",
-    "slash-command/new-command/create command/커맨드 만들기": "Qcommand-creator",
-    "find skill/search skill/스킬 찾기/스킬 찾아/스킬 검색": "Qfind-skills",
-    "command patterns/my-profile/내 패턴/명령 패턴/패턴 분석해": "Qprofile",
-    "alias/shortcut/create alias/별칭/단축어/별칭 만들기": "Qalias",
-    "test-plan/regression-test/QA-plan/테스트 계획/회귀 테스트": "Qqa-test-planner",
-    "spring-security/authentication/CSRF/인증 설정": "Qspringboot-security",
-    "UI-review/accessibility-check/접근성 리뷰/UI 리뷰": "Qweb-design-guidelines",
-    "MCP-server/MCP-build/MCP 서버": "Qmcp-builder",
-    "docstring/JSDoc/JavaDoc/주석 달기/문서 주석": "Qdoc-comment",
-    "clarify-requirements/unclear-spec/요구사항 명확화": "Qrequirements-clarity",
-    "lesson-learned/lessons/learn from/retrospective/교훈/회고/배울 점/돌아보기": "Qlesson-learned",
-    "compact/save-context/컨텍스트 저장": "Qcompact",
-    "utopia/autonomous/자율 실행": "Qutopia",
-    "update-plugin/upgrade-qe/플러그인 업데이트": "Qupdate",
-    "migrate tasks/migrate-tasks/reorganize-tasks/태스크 마이그레이션/파일 마이그레이션": "Qmigrate-tasks",
-    "refactor-instructions/split-CLAUDE.md/인스트럭션 리팩토링": "Qagent-md-refactor",
-    "jira/jira-ticket/sprint-manage/지라/티켓": "Qjira-cli",
-    "fact-check/verify-claims/팩트체크/사실 확인": "Qfact-checker",
-    "verify-source/credibility-check/SIFT/출처 검증/신뢰도": "Qsource-verifier",
-    "format-convert/md-to-docx/문서 변환/포맷 변환/변환해": "Qdoc-converter",
-    "content-research/article-draft/콘텐츠 리서치/기사 초안": "Qcontent-research-writer",
-    "routing-test/verify-skill-routing/라우팅 테스트/라우팅 검증/라우팅 정확도": "Qskill-tester",
-    "autoresearch/experiment-loop/자율 실험": "Qautoresearch",
-    "archive-task/completed-archive/아카이브/작업 보관": "Qarchive",
-    "quality-loop/code-run-task/코드 품질 루프": "Qcode-run-task",
-    "mcp-setup/connect-service/MCP 설정/서비스 연결": "Qmcp-setup"
+    "init/setup/initialize": {
+      "skill": "Qinit",
+      "intent": "User wants to initialize or set up the QE framework in a project for the first time"
+    },
+    "generate-spec/spec-document/task-request": {
+      "skill": "Qgenerate-spec",
+      "intent": "User wants to create a structured task specification or requirement document before implementation"
+    },
+    "run-task/execute-task": {
+      "skill": "Qrun-task",
+      "intent": "User wants to execute a previously created task request through the QE orchestration loop"
+    },
+    "research/compare/investigate/deep-research": {
+      "skill": "Edeep-researcher",
+      "intent": "User wants in-depth investigation, comparison, or structured research on a topic"
+    },
+    "bug/error/not-working/crash": {
+      "skill": "Ecode-debugger",
+      "intent": "User is experiencing a failure, crash, or unexpected behavior and needs root cause analysis"
+    },
+    "code-review/review-code": {
+      "skill": "Ecode-reviewer",
+      "intent": "User wants a code quality review with feedback on correctness, style, and best practices"
+    },
+    "write-test/test-coverage/unit-test": {
+      "skill": "Ecode-test-engineer",
+      "intent": "User wants to create automated test coverage for existing or new code"
+    },
+    "write-docs/documentation/explain-code": {
+      "skill": "Ecode-doc-writer",
+      "intent": "User wants human-readable documentation or explanation of code behavior"
+    },
+    "commit/push": {
+      "skill": "Qcommit",
+      "intent": "User wants to stage and commit changes to version control, or push to a remote"
+    },
+    "refresh/sync/update-analysis": {
+      "skill": "Qrefresh",
+      "intent": "User wants to refresh stale analysis files or resynchronize project context"
+    },
+    "debug-method/root-cause/systematic-debugging": {
+      "skill": "Qsystematic-debugging",
+      "intent": "User wants a structured, methodical debugging process rather than ad-hoc guessing"
+    },
+    "TDD/test-first/red-green-refactor": {
+      "skill": "Qtest-driven-development",
+      "intent": "User wants to develop code following the test-driven development cycle"
+    },
+    "design-UI/frontend-design/dashboard": {
+      "skill": "Qfrontend-design",
+      "intent": "User wants UI/UX design guidance or frontend component design"
+    },
+    "architecture-diagram/C4/system-context": {
+      "skill": "Qc4-architecture",
+      "intent": "User wants a structured architecture diagram using the C4 model or similar notation"
+    },
+    "database-schema/DB-design/ERD": {
+      "skill": "Qdatabase-schema-designer",
+      "intent": "User wants to design or review a database schema, entity relationships, or table structure"
+    },
+    "help/how-to/show-commands": {
+      "skill": "Qhelp",
+      "intent": "User is asking for help, available commands, or how to use the QE framework"
+    },
+    "browser/navigate-web/scrape/screenshot": {
+      "skill": "Qagent-browser",
+      "intent": "User wants to automate browser interactions, web scraping, or capture screenshots"
+    },
+    "PRD/product-requirements/create-PRD": {
+      "skill": "Qpm-prd",
+      "intent": "User wants to create a Product Requirements Document for a feature or product"
+    },
+    "roadmap/quarterly-plan": {
+      "skill": "Qpm-roadmap",
+      "intent": "User wants to plan or visualize a product or project roadmap over time"
+    },
+    "user-story/acceptance-criteria/write-user-stories": {
+      "skill": "Qpm-user-story",
+      "intent": "User wants to write user stories or acceptance criteria from a product perspective"
+    },
+    "resume/restore-session": {
+      "skill": "Qresume",
+      "intent": "User wants to resume or restore context from a previously interrupted session"
+    },
+    "mermaid/sequence-diagram/flowchart": {
+      "skill": "Qmermaid-diagrams",
+      "intent": "User wants to create a Mermaid diagram — sequence, flowchart, or similar visual notation"
+    },
+    "docx/word-document": {
+      "skill": "Qdocx",
+      "intent": "User wants to produce a Word-format (.docx) document"
+    },
+    "pptx/slides/presentation/create-presentation": {
+      "skill": "Qpptx",
+      "intent": "User wants to create a slide deck or presentation"
+    },
+    "xlsx/spreadsheet/excel/create-spreadsheet": {
+      "skill": "Qxlsx",
+      "intent": "User wants to create or manipulate a spreadsheet or Excel file"
+    },
+    "pdf/pdf-report": {
+      "skill": "Qpdf",
+      "intent": "User wants to generate or export content as a PDF document"
+    },
+    "image-analysis/analyze-image": {
+      "skill": "Qimage-analyzer",
+      "intent": "User wants to extract information or insights from an image or screenshot"
+    },
+    "transcribe-audio/audio-to-text": {
+      "skill": "Qaudio-transcriber",
+      "intent": "User wants to convert audio or voice recordings into text"
+    },
+    "youtube-subtitle/video-caption": {
+      "skill": "Qyoutube-transcript-api",
+      "intent": "User wants to retrieve or process subtitles or captions from a video"
+    },
+    "write-paper/academic-paper": {
+      "skill": "Qgrad-paper-write",
+      "intent": "User wants to write or draft an academic paper including introduction, body, or conclusion"
+    },
+    "reviewer-response/paper-rebuttal": {
+      "skill": "Qgrad-paper-review",
+      "intent": "User wants to draft a response to peer reviewer comments on an academic submission"
+    },
+    "literature-review/research-plan": {
+      "skill": "Qgrad-research-plan",
+      "intent": "User wants to conduct a structured literature review or plan a research experiment"
+    },
+    "seminar-prep/conference-talk": {
+      "skill": "Qgrad-seminar-prep",
+      "intent": "User wants to prepare materials or talking points for an academic seminar or conference"
+    },
+    "thesis/graduation-thesis": {
+      "skill": "Qgrad-thesis-manage",
+      "intent": "User wants to manage progress on a thesis or dissertation"
+    },
+    "financial-analysis/valuation/DCF": {
+      "skill": "Qfinance-analyst",
+      "intent": "User wants to perform financial analysis, valuation modeling, or investment research"
+    },
+    "data-analysis/statistics/correlation": {
+      "skill": "Qdata-analysis",
+      "intent": "User wants to explore, analyze, or visualize data using statistical methods"
+    },
+    "writing-clarity/improve-prose": {
+      "skill": "Qwriting-clearly",
+      "intent": "User wants to improve the clarity, conciseness, or readability of written text"
+    },
+    "humanize/remove-AI-traces": {
+      "skill": "Qhumanizer",
+      "intent": "User wants text rewritten to sound naturally human rather than AI-generated"
+    },
+    "professional-email/team-message": {
+      "skill": "Qprofessional-communication",
+      "intent": "User wants to draft a professional email, Slack message, or team communication"
+    },
+    "new-skill/edit-skill/create-skill": {
+      "skill": "Qskill-creator",
+      "intent": "User wants to create a new QE skill file or edit an existing one"
+    },
+    "slash-command/new-command/create-command": {
+      "skill": "Qcommand-creator",
+      "intent": "User wants to define a new slash command or CLI shortcut"
+    },
+    "find-skill/search-skill": {
+      "skill": "Qfind-skills",
+      "intent": "User wants to discover which skill or agent handles a particular use case"
+    },
+    "command-patterns/my-profile": {
+      "skill": "Qprofile",
+      "intent": "User wants to view or analyze their own command usage patterns and preferences"
+    },
+    "alias/shortcut/create-alias": {
+      "skill": "Qalias",
+      "intent": "User wants to create a personal shorthand that maps to a skill or command sequence"
+    },
+    "test-plan/regression-test/QA-plan": {
+      "skill": "Qqa-test-planner",
+      "intent": "User wants a structured QA or regression test plan for a feature or release"
+    },
+    "spring-security/authentication/CSRF": {
+      "skill": "Qspringboot-security",
+      "intent": "User wants to configure Spring Security, authentication flows, or CSRF protection"
+    },
+    "UI-review/accessibility-check": {
+      "skill": "Qweb-design-guidelines",
+      "intent": "User wants a review of UI design quality or accessibility compliance"
+    },
+    "MCP-server/MCP-build": {
+      "skill": "Qmcp-builder",
+      "intent": "User wants to build or configure an MCP (Model Context Protocol) server"
+    },
+    "docstring/JSDoc/JavaDoc": {
+      "skill": "Qdoc-comment",
+      "intent": "User wants to add or improve inline code documentation comments"
+    },
+    "clarify-requirements/unclear-spec": {
+      "skill": "Qrequirements-clarity",
+      "intent": "User has ambiguous requirements and wants them refined into actionable specifications"
+    },
+    "lesson-learned/lessons/retrospective": {
+      "skill": "Qlesson-learned",
+      "intent": "User wants to document or review lessons learned from a past project or session"
+    },
+    "compact/save-context": {
+      "skill": "Qcompact",
+      "intent": "User wants to snapshot the current context to preserve it before the window fills"
+    },
+    "utopia/autonomous": {
+      "skill": "Qutopia",
+      "intent": "User wants fully autonomous execution across multiple tasks without manual intervention"
+    },
+    "update-plugin/upgrade-qe": {
+      "skill": "Qupdate",
+      "intent": "User wants to update the QE framework plugin to the latest version"
+    },
+    "migrate-tasks/reorganize-tasks": {
+      "skill": "Qmigrate-tasks",
+      "intent": "User wants to migrate or reorganize task files across projects or directories"
+    },
+    "refactor-instructions/split-CLAUDE.md": {
+      "skill": "Qagent-md-refactor",
+      "intent": "User wants to refactor or restructure CLAUDE.md instruction files"
+    },
+    "jira/jira-ticket/sprint-manage": {
+      "skill": "Qjira-cli",
+      "intent": "User wants to manage Jira tickets or sprint planning from the CLI"
+    },
+    "fact-check/verify-claims": {
+      "skill": "Qfact-checker",
+      "intent": "User wants to verify the accuracy of factual claims against authoritative sources"
+    },
+    "verify-source/credibility-check/SIFT": {
+      "skill": "Qsource-verifier",
+      "intent": "User wants to assess the credibility or reliability of a source or piece of information"
+    },
+    "format-convert/md-to-docx": {
+      "skill": "Qdoc-converter",
+      "intent": "User wants to convert a document from one format to another"
+    },
+    "content-research/article-draft": {
+      "skill": "Qcontent-research-writer",
+      "intent": "User wants to research a topic and produce a draft article or content piece"
+    },
+    "routing-test/verify-skill-routing": {
+      "skill": "Qskill-tester",
+      "intent": "User wants to test or validate that skill routing is working correctly"
+    },
+    "autoresearch/experiment-loop": {
+      "skill": "Qautoresearch",
+      "intent": "User wants to run an autonomous research loop with iterative experimentation"
+    },
+    "archive-task/completed-archive": {
+      "skill": "Qarchive",
+      "intent": "User wants to archive completed task files to reduce clutter"
+    },
+    "quality-loop/code-run-task": {
+      "skill": "Qcode-run-task",
+      "intent": "User wants to run a combined code quality and task execution loop"
+    },
+    "mcp-setup/connect-service": {
+      "skill": "Qmcp-setup",
+      "intent": "User wants to configure an MCP service connection or integration"
+    }
   },
   "agent_tiers": {
     "LOW_haiku": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],

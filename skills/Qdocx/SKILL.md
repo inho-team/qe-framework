@@ -1,3 +1,4 @@
+> Core philosophy: see core/PHILOSOPHY.md
 ---
 name: Qdocx
 description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, 워드 파일, 문서 작성, editing with tracked changes, extracting text/tables, and converting formats. Supports legal, business, and academic documents."
