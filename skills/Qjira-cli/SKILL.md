@@ -16,6 +16,25 @@ keywords: jira, cli, issue, ticket, sprint, board, backlog, JQL
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
+## Pre-check: jira CLI Installation
+
+Before executing any Jira commands, verify the CLI is installed:
+
+```bash
+which jira 2>/dev/null && jira version 2>/dev/null
+```
+
+**If installed**: proceed with commands.
+**If NOT installed**:
+```
+jira CLI가 설치되어 있지 않습니다.
+설치: go install github.com/ankitpokhrel/jira-cli/cmd/jira@latest
+또는: brew install ankitpokhrel/jira-cli/jira-cli
+```
+Do NOT attempt to run jira commands without the CLI installed.
+
+---
+
 # Jira CLI — Lightweight Jira Terminal Tool
 
 Based on `ankitpokhrel/jira-cli`. Manage Jira directly from Bash without an MCP server.

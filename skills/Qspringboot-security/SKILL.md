@@ -8,6 +8,16 @@ metadata:
 > Shared principles: see core/PRINCIPLES.md
 > Core philosophy: see core/PHILOSOPHY.md
 
+## Role Boundary (Absolute Rule)
+
+This skill is a **security best practices reference only**. It does NOT auto-modify security configurations.
+
+| Request | Correct action |
+|---------|---------------|
+| "보안 체크리스트 검토", "security review" | **This skill** — provide checklist and recommendations |
+| "보안 설정 바꿔줘", "CSRF 설정 추가해줘" | **NOT this skill** — use standard code implementation with this skill's recommendations as reference |
+
+---
 
 # Spring Boot Security Review
 
