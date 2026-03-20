@@ -18,7 +18,7 @@ You generate **3 documents** based on the user's project description.
 
 | # | Filename | Path | Description |
 |---|----------|------|-------------|
-| 1 | `CLAUDE.md` | Project root | Project context — goals, constraints, decisions, task list. Must reference `QE_CONVENTIONS.md` for QE rules. |
+| 1 | `CLAUDE.md` | Project root | Project context — goals, constraints, decisions. Must reference `QE_CONVENTIONS.md` for QE rules. Task history is in `.qe/TASK_LOG.md`. |
 | 2 | `TASK_REQUEST_{UUID}.md` | `.qe/tasks/pending/` | Task request — what, how, checklist, notes |
 | 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.qe/checklists/pending/` | Verification checklist — validation criteria, additional notes |
 
@@ -139,7 +139,7 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 ### VERIFY_CHECKLIST
 - Each criterion answerable as yes/no
 - Task complete when all items checked
-- Include note to update CLAUDE.md task list to ✅
+- Include note to update `.qe/TASK_LOG.md` task list to ✅
 - **Auto-include by type:**
   - `type: code` → add: "변경된 코드에 보안 취약점(OWASP Top 10)이 없는가", "기존 테스트가 통과하는가"
   - `type: code` + auth/crypto/payment → add: "인증/암호화 구현이 안전한가 (Esecurity-officer 또는 수동 확인)"
