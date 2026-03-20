@@ -1,6 +1,6 @@
 ---
 name: Qpm-prd
-description: Systematically writes PRDs (Product Requirements Documents). Generates complete PRDs including problem definition, user personas, solution overview, success metrics, and user stories. Use for requests like "write a PRD", "create a product spec", "requirements document", or "product planning".
+description: "Writes PRDs (Product Requirements Documents) with P0/P1/P2 prioritization and 10-section template. Use for 'write a PRD', 'product spec', 'requirements document', 'product planning', 'PRD 작성', '요구사항 문서'. Distinct from Qpm-user-story (individual stories) — this produces the full PRD document."
 ---
 
 
@@ -92,12 +92,59 @@ Write structured PRDs from problem definition through engineering handoff. Trans
 - Explicitly list excluded features
 - Technical/external/team dependencies and open questions
 
+## Requirement Prioritization
+
+Classify all requirements using priority tiers:
+
+| Priority | Meaning | Criteria |
+|----------|---------|----------|
+| **P0** | Must-have (launch blocker) | Without this, the product cannot ship |
+| **P1** | Should-have (high value) | Significant user/business impact, target for v1 |
+| **P2** | Nice-to-have (future) | Valuable but can wait for subsequent releases |
+
+Apply to User Stories table:
+```markdown
+| ID | Story | Priority | Effort |
+|----|-------|----------|--------|
+| US-01 | As a... | P0 | M |
+```
+
+## Non-goals & Open Questions
+
+Every PRD must explicitly include:
+
+**Non-goals** — What will NOT be built and why. Prevents scope creep.
+```markdown
+## Non-goals
+- [Feature X]: Out of scope because [reason]. Revisit in Q3.
+- [Feature Y]: Covered by existing [system].
+```
+
+**Open Questions Tracker** — Unresolved decisions with owners and deadlines.
+```markdown
+## Open Questions
+| # | Question | Owner | Due | Status |
+|---|----------|-------|-----|--------|
+| 1 | Which auth provider? | @eng-lead | 03/25 | Open |
+```
+
+## Iterative Workflow Pattern
+
+After initial PRD generation, offer follow-up actions:
+1. **Scope refinement** — Tighten P0/P1/P2 boundaries
+2. **Pre-mortem** → delegate to `/Qpm-retro`
+3. **User story breakdown** → delegate to `/Qpm-user-story`
+4. **Stakeholder communication** — Extract executive summary for leadership
+
 ## Anti-Patterns
 - Write alone then present to team → collaborate while writing
 - Problem definition without evidence → include data/interviews
 - Overly detailed specs → stay high-level
 - No success metrics → always define a primary metric
 - No out of scope → prevents scope creep
+- Vague success metrics ("improve NPS") → be specific ("improve NPS from 32 to 45 within 90 days")
+- No priority tiers → always classify P0/P1/P2
+- Large monolithic PRD → phase into Phase 1 (detailed) + Phase 2 (outline)
 
 ## Usage Examples
 ```
@@ -107,3 +154,4 @@ User: Help me organize the requirements document
 ```
 
 Credits: Original skill by @deanpeters - https://github.com/deanpeters/Product-Manager-Skills
+Credits: 8-section template and iterative patterns adapted from phuryn/pm-skills (MIT)

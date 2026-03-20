@@ -109,9 +109,14 @@ These skills replace specific system default behaviors. **Never fall back to the
 ### Product & Project Management
 | Skill | Purpose |
 |-------|---------|
-| `Qpm-prd` | Write PRDs |
-| `Qpm-roadmap` | Strategic roadmap planning |
-| `Qpm-user-story` | User stories with Gherkin criteria |
+| `Qpm-prd` | Write PRDs (P0/P1/P2 prioritization) |
+| `Qpm-user-story` | User stories with INVEST + Gherkin criteria |
+| `Qpm-roadmap` | Outcome-focused strategic roadmap planning |
+| `Qpm-discovery` | Product discovery: OST, experiments, assumptions, interviews |
+| `Qpm-strategy` | Strategic analysis: Lean Canvas, SWOT, PESTLE, Porter's |
+| `Qpm-gtm` | Go-to-market: ICP, growth loops, battlecards, positioning |
+| `Qpm-okr` | OKR brainstorming with SMART validation |
+| `Qpm-retro` | Retrospectives, pre-mortem, release notes |
 | `Qqa-test-planner` | Test plans and regression suites |
 | `Qfeature-forge` | Requirements workshop > feature specs |
 | `Qjira-cli` | Jira CLI for issue management |

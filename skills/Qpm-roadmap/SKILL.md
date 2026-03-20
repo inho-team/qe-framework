@@ -1,6 +1,6 @@
 ---
 name: Qpm-roadmap
-description: Plans strategic product roadmaps. Includes prioritization, epic definition, stakeholder alignment, and release sequencing. Use for requests like "create a roadmap", "quarterly plan", "product strategy roadmap", or "priority sorting".
+description: "Plans outcome-focused strategic roadmaps with RICE prioritization and stakeholder communication. Use for 'create a roadmap', 'quarterly plan', 'product roadmap', 'priority sorting', '로드맵', '분기 계획'. Distinct from Qpm-okr (goal-setting) — this sequences and visualizes work across time horizons."
 ---
 
 
@@ -116,11 +116,47 @@ Q3 (Later - Low Confidence):
 - [Risk]: [mitigation]
 ```
 
+## Outcome-Focused Roadmap Transformation
+
+Output-focused roadmaps create false precision. Outcome-focused roadmaps clarify customer problems and business value.
+
+### Transformation Process
+
+For each initiative on the roadmap:
+1. **Identify the Output**: What feature or project is planned?
+2. **Uncover the Outcome**: Why are we building it? What changes for customers or business?
+3. **Rewrite as Outcome Statement**:
+```
+Enable [customer segment] to [desired customer outcome] so that [business impact]
+```
+
+### Example
+| Output (Old) | Outcome (New) |
+|--------------|---------------|
+| Build advanced search filters | Enable customers to find products 50% faster through intuitive discovery |
+| Implement AI recommendations | Increase average order value by 20% through personalized recommendations |
+| Redesign dashboard | Help operators monitor all systems with 80% reduction in load time |
+
+### Output vs Outcome Quick Check
+- **Output**: "Build X" → describes what you ship
+- **Outcome**: "Enable Y to Z" → describes what changes for users/business
+- An outcome should be testable and measurable
+- Multiple outputs may achieve one outcome — focus on the outcome
+
+### Strategic Context Alignment
+For the overall roadmap, always include:
+- How outcomes align with company strategy/OKRs
+- Key assumptions about customer needs (link to `/Qpm-discovery` for validation)
+- Flexible release windows (quarters, not specific dates)
+
 ## Anti-Patterns
 - Feature list roadmap (no context) → include hypothesis + success metrics
 - HiPPO prioritization → use frameworks like RICE
 - Treating roadmap as a promise → communicate as "a plan subject to change as we learn"
 - Not mapping dependencies → explicitly map in Phase 4
 - Building alone → collect stakeholder input
+- Output-focused initiatives ("Build X") → rewrite as outcome statements
+- Fixed dates on exploratory items → use confidence levels (Committed/High/Low)
 
 Credits: Original skill by @deanpeters - https://github.com/deanpeters/Product-Manager-Skills
+Credits: Outcome-focused transformation framework adapted from phuryn/pm-skills (MIT)
