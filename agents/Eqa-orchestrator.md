@@ -63,28 +63,40 @@ Running the quality loop in the main context consumes a large number of tokens o
 
 ## Team Mode (Experimental)
 
-> Requires Agent Teams enabled. Falls back to sequential Subagent mode if not available.
+> Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Falls back to sequential Subagent mode if not available.
+> Agent Teams spawns **separate Claude Code instances** — not Agent tool subagents.
 
 ### When to Activate
-- Agent Teams feature is enabled AND
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set AND
 - The codebase has 3+ distinct test/source file groups
 
 ### Team Structure
-| Role | Teammate | Responsibility |
-|------|----------|---------------|
-| Test Engineer | Teammate A | Write and run tests for changed code |
-| Code Reviewer | Teammate B | Review quality, security, performance |
-| Lead (self) | Orchestrator | Synthesize findings, coordinate fixes |
+| Role | Teammate | Responsibility | Model |
+|------|----------|---------------|-------|
+| Lead (self) | Orchestrator | Synthesize findings, coordinate fixes | opus |
+| Test Engineer | test-engineer | Write and run tests for changed code | sonnet |
+| Code Reviewer | reviewer | Review quality, security, performance | sonnet |
+
+### File Ownership Partition
+Before requesting team creation, partition files:
+- **test-engineer** owns: `tests/`, `__tests__/`, `*.test.*`, `*.spec.*`
+- **reviewer** owns: read-only access to all changed files (no edits)
+- **Lead** owns: all fix-phase edits (sequential, after synthesis)
 
 ### Workflow
-1. **Spawn team**: Create 2 teammates (test-engineer, reviewer)
-2. **Parallel phase**: Both teammates work simultaneously
-   - Test Engineer: writes/runs tests, reports results via Mailbox
-   - Reviewer: checks code quality, reports issues via Mailbox
-3. **Synthesis**: Lead collects all findings
+1. **Request team creation** via natural language:
+   ```
+   Create a team with 2 teammates:
+   - "test-engineer" (sonnet): Write and run tests for the changed files. You own test files only.
+   - "reviewer" (sonnet): Review code quality, security, performance. Read-only, report findings.
+   ```
+2. **Parallel phase**: Both teammates work simultaneously in separate contexts
+   - Test Engineer: writes/runs tests, shares results via messages
+   - Reviewer: reviews code quality, shares findings via messages
+3. **Synthesis**: Lead collects all teammate findings
 4. **Fix phase**: Lead executes fixes sequentially (no parallel file edits)
-5. **Re-verify**: If fixes were made, spawn new parallel verification round
+5. **Re-verify**: If fixes were made, request new parallel verification round
 6. **Exit**: Same conditions as Subagent mode (pass or 3 iterations)
 
 ### Fallback
-If Agent Teams is not enabled or team creation fails, automatically fall back to the existing sequential Subagent workflow.
+If Agent Teams is not enabled, team creation fails, or teammates are unresponsive, fall back to the existing sequential Subagent workflow (Ecode-test-engineer → Ecode-reviewer).

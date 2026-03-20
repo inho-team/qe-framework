@@ -8,6 +8,7 @@ import { loadConfig } from './lib/config.mjs';
 import { checkContextPressure } from './context-monitor.mjs';
 import { loadPendingContext } from './lib/context-loader.mjs';
 import { atomicWriteJson } from './lib/state.mjs';
+import { getTeamContext } from './lib/team-detect.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -215,6 +216,18 @@ if (['Write', 'Edit'].includes(toolName)) {
   const filePath = toolInput.file_path || toolInput.filePath || '';
   if (filePath.includes('.qe/') || filePath.includes('.qe\\')) {
     hints.push('Files in .qe/ can be auto-executed without user confirmation.');
+  }
+}
+
+// --- Agent Teams: file ownership warning (Write/Edit in team context) ---
+{
+  const teamCtx = getTeamContext(data);
+  if (teamCtx.isTeam && ['Write', 'Edit'].includes(toolName)) {
+    const toolInput = data.tool_input || data.toolInput || {};
+    const filePath = toolInput.file_path || toolInput.filePath || '';
+    if (filePath) {
+      hints.push(`[AGENT TEAMS] You are teammate "${teamCtx.teammateName}" in team "${teamCtx.teamName}". Verify you own this file before editing: ${filePath}`);
+    }
   }
 }
 

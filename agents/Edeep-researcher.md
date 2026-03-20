@@ -93,34 +93,33 @@ Trigger: When the user requests "literature review", "systematic review", "surve
 
 ## Team Mode (Experimental)
 
-> Requires Agent Teams enabled. Falls back to single-agent research if not available.
+> Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Falls back to single-agent research if not available.
+> Agent Teams spawns **separate Claude Code instances** — not Agent tool subagents.
 
 ### When to Activate
-- Agent Teams feature is enabled AND
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set AND
 - Research scope covers 3+ distinct sources, perspectives, or domains
 
 ### Team Structure (Competing Hypotheses Pattern)
-| Role | Count | Responsibility |
-|------|-------|---------------|
-| Researchers | 2-4 | Each investigates a different angle/source |
-| Devil's Advocate | 1 | Challenges all findings, identifies weaknesses |
-| Lead (self) | 1 | Synthesize, resolve conflicts, produce final report |
+| Role | Count | Responsibility | Model |
+|------|-------|---------------|-------|
+| Lead (self) | 1 | Scope, synthesize, resolve conflicts, final report | opus |
+| Researchers | 2-4 | Each investigates a different angle/source | sonnet |
+| Devil's Advocate | 1 | Challenges all findings, identifies weaknesses | sonnet |
 
 ### Workflow
 1. **Scope**: Lead breaks research question into 3-5 independent angles
-2. **Spawn**: Create teammates with specific research prompts
-3. **Investigate**: Each teammate researches independently
-4. **Debate**: Teammates share findings via Mailbox, Devil's Advocate challenges
+2. **Request team creation** via natural language:
+   ```
+   Create a team with N teammates:
+   - "researcher-1" (sonnet): Investigate {angle_1}. Scope: {sources}. Share findings with the team.
+   - "researcher-2" (sonnet): Investigate {angle_2}. Scope: {sources}. Share findings with the team.
+   - "devils-advocate" (sonnet): Challenge all findings from other teammates. Identify weaknesses and contradictions.
+   ```
+3. **Investigate**: Each teammate researches independently in separate contexts
+4. **Debate**: Teammates share findings via messages, Devil's Advocate challenges
 5. **Converge**: Lead synthesizes findings where consensus emerges
 6. **Report**: Lead produces final research report with confidence levels
 
-### Spawn Prompt Template
-```
-You are a research teammate investigating: {specific_angle}.
-Your scope: {sources_to_examine}.
-After investigating, share your findings with the team.
-Challenge other teammates' conclusions if you find contradicting evidence.
-```
-
 ### Fallback
-If Agent Teams is not enabled, use existing single-agent deep research workflow.
+If Agent Teams is not enabled or team creation fails, use existing single-agent deep research workflow.

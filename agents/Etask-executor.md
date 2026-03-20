@@ -262,3 +262,41 @@ Sequential execution is used when:
 - Agent tool is not available
 
 In fallback mode, items are executed in checklist order as defined in the Sequential Implementation section above. No subagents are spawned.
+
+## Team Mode (Experimental)
+
+> Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Falls back to Wave Execution or Sequential mode if not available.
+> Agent Teams spawns **separate Claude Code instances** — not Agent tool subagents.
+
+### When to Activate
+- `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set AND
+- Checklist has 5+ items AND
+- Wave analysis produces 2+ waves with the first wave containing 3+ independent items
+
+Team Mode replaces Wave Execution's subagent spawning with Agent Teams teammates. The dependency analysis, wave classification, and file ownership rules remain identical.
+
+### Team Structure
+| Role | Responsibility | Model |
+|------|---------------|-------|
+| Lead (self) | Wave orchestration, dependency tracking, shared-file edits, final report | sonnet |
+| Teammates (1 per file group) | Implement assigned checklist items within owned files | sonnet |
+
+### File Ownership
+Same rules as Wave Execution — each teammate owns distinct files. No two teammates edit the same file within a wave. Shared files (package.json, CLAUDE.md) are handled by Lead after all waves complete.
+
+### Workflow
+1. **Dependency analysis**: Same as Wave Execution (build graph, classify waves)
+2. **Request team creation** for each wave via natural language:
+   ```
+   Create a team with N teammates for wave {W}:
+   - "impl-{group}" (sonnet): Implement items [{item_numbers}]. You own: [{file_list}]. Do NOT modify other files.
+   ```
+3. **Wait**: All teammates in wave W complete
+4. **Collect results**: Gather completion status, changed files, errors from each teammate
+5. **Handle failures**: Mark dependent items as blocked, continue non-blocked items
+6. **Next wave**: Repeat for wave W+1
+7. **Shared files**: Lead handles post-wave shared file edits
+8. **Report**: Final Implementation Result
+
+### Fallback
+If Agent Teams is not enabled, team creation fails, or checklist has <5 items, fall back to Wave Execution (subagent-based) or Sequential Execution.

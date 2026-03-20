@@ -69,12 +69,21 @@ Optimizes cost while maintaining quality.
 
 ## Agent Teams Model Selection
 
-When using Agent Teams, model selection applies per-teammate:
+> Agent Teams spawns separate Claude Code instances. Each teammate runs at its own model tier.
 
-| Team Pattern | Lead Model | Teammate Model |
-|-------------|------------|----------------|
-| Quality Review (Eqa-orchestrator) | opus (HIGH) | sonnet (MEDIUM) per teammate |
-| Parallel Implementation (Etask-executor) | sonnet (MEDIUM) | sonnet (MEDIUM) per teammate |
-| Research (Edeep-researcher) | opus (HIGH) | sonnet (MEDIUM) per researcher, opus for Devil's Advocate |
+| Team Pattern | Lead Model | Teammate Model | Notes |
+|-------------|------------|----------------|-------|
+| Quality Review (Eqa-orchestrator) | opus | sonnet per teammate | Lead does synthesis + fixes |
+| Parallel Implementation (Etask-executor) | sonnet | sonnet per file group | Lead does shared-file edits |
+| Research (Edeep-researcher) | opus | sonnet per researcher | Devil's Advocate also sonnet |
 
-Escalation rules apply per-teammate: if a teammate fails 2 consecutive times, escalate that teammate's model tier.
+### Per-Teammate Escalation
+- Escalation rules apply individually: if a specific teammate fails 2x, escalate **that** teammate's model
+- Lead model stays fixed (already at the pattern's designated tier)
+- Teammate model changes do not affect other teammates
+
+### Cost Awareness
+Agent Teams multiplies cost by teammate count. Prefer subagents for tasks where:
+- Independent contexts are not needed
+- Communication between workers is minimal
+- Total items < 5
