@@ -22,7 +22,12 @@ Never leaves AI traces (e.g., Co-Authored-By).
 4. **Validate conventional commit format** (see below)
 5. Selectively `git add` only relevant files
 6. Exclude sensitive files such as `.env`, credentials, etc.
-7. Execute the commit
+7. **Set skill bypass flag** (required — PreToolUse hook blocks raw `git commit`):
+   ```bash
+   mkdir -p .qe/state && echo '{"active":true,"skill":"Qcommit","ts":'$(date +%s000)'}' > .qe/state/skill-bypass.json
+   ```
+8. Execute the commit
+9. Remove bypass flag: `rm -f .qe/state/skill-bypass.json`
 
 ## Conventional Commit Validation (Step 4)
 

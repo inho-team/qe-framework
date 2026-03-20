@@ -65,13 +65,16 @@ Claude Code loads skills from the cached snapshot at `~/.claude/plugins/cache/`,
    ```
 3. Update `installed_plugins.json`: set `version` to `{new_version}` and `gitCommitSha` to the current HEAD commit SHA.
 
-### Step 6 — Commit
+### Step 6 — Commit via Ecommit-executor
 
-Create a git commit with message:
+Delegate the commit to the `Ecommit-executor` agent via the Agent tool with message:
 
 ```
-chore: bump plugin version to {new_version}
+Commit the version bump. Message: "chore: bump plugin version to {new_version}"
+Do not push.
 ```
+
+**Do NOT run `git commit` directly.** The PreToolUse hook blocks raw git commit — only Ecommit-executor has the bypass.
 
 ### Step 7 — Report
 

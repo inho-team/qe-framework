@@ -106,6 +106,80 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   }
 }
 
+// --- Skill Override Guard (QE_CONVENTIONS.md § System Default Override Map) ---
+// Enforces that registered skills are used instead of raw operations.
+// Bypass: .qe/state/skill-bypass.json with {active:true, skill:"Qxxx", ts:...} (60s TTL)
+{
+  const toolInput = data.tool_input || data.toolInput || {};
+
+  // Check bypass flag (set by approved agents like Ecommit-executor)
+  const bypassFile = join(cwd, '.qe', 'state', 'skill-bypass.json');
+  let bypassSkill = null;
+  if (existsSync(bypassFile)) {
+    try {
+      const bypass = JSON.parse(readFileSync(bypassFile, 'utf8'));
+      if (bypass.active && (Date.now() - (bypass.ts || 0)) < 60000) {
+        bypassSkill = bypass.skill || null;
+      }
+    } catch {}
+  }
+
+  // Define override rules: [condition, blocked skill name, message]
+  const overrideRules = [];
+
+  if (toolName === 'Bash') {
+    const cmd = toolInput.command || '';
+
+    // git commit → Qcommit
+    if (/\bgit\s+commit\b/.test(cmd)) {
+      overrideRules.push({
+        skill: 'Qcommit',
+        msg: 'Raw git commit is blocked. Use /Qcommit instead.'
+      });
+    }
+
+    // version bump (editing plugin.json version via sed/echo) → Qbump
+    if (/plugin\.json/.test(cmd) && /version/.test(cmd) && /sed|echo|printf/.test(cmd)) {
+      overrideRules.push({
+        skill: 'Qbump',
+        msg: 'Direct version editing is blocked. Use /Qbump instead.'
+      });
+    }
+  }
+
+  if (toolName === 'Edit') {
+    const filePath = toolInput.file_path || toolInput.filePath || '';
+    const newStr = toolInput.new_string || '';
+
+    // Editing plugin.json version field → Qbump
+    if (/plugin\.json$/.test(filePath) && /"version"/.test(newStr)) {
+      overrideRules.push({
+        skill: 'Qbump',
+        msg: 'Direct version editing is blocked. Use /Qbump instead.'
+      });
+    }
+  }
+
+  // Block if any rule matched and not bypassed by the corresponding skill
+  for (const rule of overrideRules) {
+    if (bypassSkill !== rule.skill) {
+      console.log(JSON.stringify({
+        continue: false,
+        reason: `[QE] ${rule.msg} (QE_CONVENTIONS.md § System Default Override Map)`
+      }));
+      process.exit(0);
+    }
+  }
+
+  // Soft hints for actions that can't be reliably blocked
+  if (toolName === 'Read') {
+    const filePath = toolInput.file_path || toolInput.filePath || '';
+    if (/plugin\.json$/.test(filePath)) {
+      hints.push('Use /Qversion to show framework version instead of reading plugin.json directly.');
+    }
+  }
+}
+
 // --- Secret Scanner (Write/Edit only) ---
 if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};
