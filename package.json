@@ -1,6 +1,6 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "2.0.1",
+  "version": "2.1.0",
   "description": "Personal Claude Code skills package",
   "scripts": {
     "postinstall": "node install.js",
