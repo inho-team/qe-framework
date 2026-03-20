@@ -214,6 +214,8 @@ Last updated: 2026-03-16
 - If no new patterns are found, exit immediately without modifying files
 - Only update files when meaningful new data is discovered (avoid version churn)
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Record command patterns from tool call history
 - Collect writing style and abbreviations from user messages
@@ -225,5 +227,4 @@ Last updated: 2026-03-16
 ## Will Not
 - Respond directly to the user
 - Store sensitive information
-- Make arbitrary decisions based on the profile
 - Overwrite existing data — always merge

@@ -5,8 +5,6 @@ metadata:
   source: https://skills.sh/anthropics/skills/mcp-builder
   author: anthropic
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 ## Role Boundary (Absolute Rule)
 

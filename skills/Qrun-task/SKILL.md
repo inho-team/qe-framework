@@ -1,9 +1,7 @@
 ---
 name: Qrun-task
-description: "Executes spec-based tasks from TASK_REQUEST and VERIFY_CHECKLIST documents. Use for run task, 태스크 실행, implement this spec, start working on UUID, or execute checklist. Reads spec → summarizes → implements → verifies."
+description: "Executes spec-based tasks from TASK_REQUEST and VERIFY_CHECKLIST documents. Use when running a task, implementing a spec, starting work on a UUID, or executing a checklist. Reads spec, summarizes, implements, and verifies."
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Task Execution Skill
 
@@ -12,7 +10,7 @@ Execute tasks and complete verification based on spec documents from `/Qgenerate
 
 ## Workflow
 ```
-/Qgenerate-spec → /Qrun-task → Read → Summarize → Approve → Execute → Verify → [Supervise] → ✅ Done
+/Qgenerate-spec → /Qrun-task → Read → Summarize → Approve → Execute → Verify → ✅ Done
 ```
 
 ## Directory Structure
@@ -54,7 +52,9 @@ Read TASK_REQUEST + VERIFY_CHECKLIST, show summary:
 **Steps** (N items): [list]  **Validation** (M items): [list]
 ```
 
-Use `AskUserQuestion` for approval. On approve → move files to `in-progress/`, set CLAUDE.md to 🔶.
+**Chained execution skip:** If TASK_REQUEST contains `<!-- chained-from: Qgenerate-spec -->`, skip the approval prompt (user already approved in Qgenerate-spec). Remove the comment after reading.
+
+Otherwise, use `AskUserQuestion` for approval. On approve → move files to `in-progress/`, set CLAUDE.md to 🔶.
 
 ## Step 3: Execute
 
@@ -66,75 +66,17 @@ Execute checklist items in order. Report: `✅ [1/N] desc - done`. Record `- [x]
 
 ## Step 4: Final Verification
 
-Verify all VERIFY_CHECKLIST items. Show pass/fail results. All pass → Step 4.5. Failures → fix and re-verify.
+Verify all VERIFY_CHECKLIST items. Show pass/fail results. All pass → Step 5. Failures → fix and re-verify (max 2 retries, then escalate to user).
 
-## Step 4.5: Supervision Gate
+## Step 4.5: Agent Trigger Check
 
-### Complexity-Based Model Routing
+After verification, check `.qe/agent-triggers/` for trigger files written by agents during execution:
+1. Glob `.qe/agent-triggers/*.trigger.md`
+2. For each trigger: spawn the target agent with the provided context (in parallel if multiple)
+3. Delete processed trigger files
+4. If triggered agents produce new findings, append to verification results
 
-Before invoking supervision, assess task complexity to route the appropriate model:
-
-| Signal | Model |
-|--------|-------|
-| Checklist ≤ 3 items AND no security-sensitive files | haiku |
-| Checklist 4-7 items OR docs/analysis type | haiku (default for supervisors) |
-| Checklist 8+ items OR `type: code` with auth/crypto/payment changes | sonnet |
-| Architecture-level changes OR cross-cutting concerns | opus |
-
-Pass the recommended model as the `model` parameter when spawning supervisor agents.
-
-### Skip Conditions (Fast Path)
-
-Skip supervision and go to Step 5 if **any** of these are true:
-- TASK_REQUEST has `<!-- skip-supervision -->` comment
-- `type: docs` or `type: analysis` with **fewer than 5 items**
-- `type: other` with **fewer than 3 items**
-- Checklist has **only 1 item** (regardless of type, except `type: code` with security-sensitive files)
-- All changes are **documentation-only** (only `.md` files changed)
-
-> `type: code` with security-sensitive files (auth, crypto, secrets, payments) is **never auto-skipped**.
-
-### Context Memoization
-
-To avoid redundant context loading in supervision loops:
-
-1. **Before first supervision call**: Build a `supervision_context` summary:
-   - Task UUID, name, type
-   - Checklist items (numbered, one line each)
-   - Changed files list
-   - Key constraints from CLAUDE.md (3-5 bullet points max)
-   - Verification results summary (pass/fail counts)
-
-2. **Pass `supervision_context` as the prompt** to supervisor agents — do NOT tell them to re-read TASK_REQUEST/VERIFY_CHECKLIST files themselves.
-
-3. **On remediation loop-back**: Update only the changed portions (new files changed, updated verification results). Reuse the rest.
-
-This reduces per-supervision token cost from ~40KB to ~5-8KB.
-
-### Routing
-
-| Task Type | Supervisor(s) |
-|-----------|--------------|
-| `code` | `Ecode-quality-supervisor` + `Esecurity-officer` |
-| `docs` | `Edocs-supervisor` |
-| `analysis` | `Eanalysis-supervisor` |
-| `other`/unset | `Esupervision-orchestrator` |
-
-### Verdicts
-
-- **PASS** → record in TASK_REQUEST, go to Step 5
-- **PARTIAL** → record notes, go to Step 5 (non-blocking)
-- **FAIL** → auto-remediate (no user confirmation needed)
-
-### Supervision Loop
-
-Track `supervision_iteration` (max 3). Write `<!-- supervision_iteration: N -->` in TASK_REQUEST for session persistence.
-
-On FAIL:
-1. Create `REMEDIATION_REQUEST_{UUID}_{iteration}.md` in `.qe/tasks/remediation/`
-2. Delegate to `Etask-executor` with remediation content
-3. Loop back to Step 3 (affected items only) → Step 4 → Step 4.5
-4. After 3 iterations: escalate to user with Override/Abort/Continue options
+Skip if no trigger files exist.
 
 ## Step 5: Completion
 
@@ -143,6 +85,7 @@ On FAIL:
 3. Update CLAUDE.md to ✅
 4. `type: code` → call `Ecode-doc-writer`; `type: docs` → call `Edoc-generator`
 5. Auto-run `/Qarchive` in background
+6. Clean up `.qe/agent-results/` (delete result files older than current task)
 
 Report: UUID, items completed, verification passed, changed files.
 
@@ -161,7 +104,11 @@ Report: UUID, items completed, verification passed, changed files.
 
 ## Multiple UUID Execution
 
-Execute sequentially: each task runs Steps 2-5 independently. On failure: ask skip or stop.
+**Parallel by default.** Spawn separate `Etask-executor` agents concurrently (one per UUID). Each task runs Steps 2-5 independently.
+
+Sequential fallback only when tasks have explicit inter-dependencies (e.g., task B's input is task A's output).
+
+On failure: skip failed task, continue others, report all failures at end.
 
 ## Autonomous Mode (Ultra)
 
@@ -169,8 +116,7 @@ When `.qe/state/ultra{work,qa}-state.json` is active:
 - Skip Step 2 approval
 - Auto-proceed on judgments
 - `--ultraqa`: auto-run code quality loop
-- Supervision still runs (autonomous, no user prompts)
-- Multiple UUIDs: parallel Etask-executor agents, sequential supervision
+- Multiple UUIDs: parallel Etask-executor agents
 
 ## Coding Expert References
 

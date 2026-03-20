@@ -5,8 +5,6 @@ metadata:
   source: https://skills.sh/obra/superpowers/test-driven-development
   author: obra
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Test-Driven Development (TDD)

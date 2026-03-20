@@ -2,6 +2,7 @@
 name: Ecommit-executor
 description: A background sub-agent that analyzes diffs, generates commit messages, and stages files. Invoke when Qcommit needs to perform the actual git operations. Leaves no AI traces.
 tools: Read, Write, Edit, Grep, Glob, Bash
+recommendedModel: haiku
 ---
 
 # Ecommit-executor — Commit Sub-Agent
@@ -55,6 +56,8 @@ See `core/rules/git-workflow.md` for full git workflow standards.
 - Adding Co-Authored-By lines
 - Any AI-related wording
 - Using emojis
+
+> Base patterns: see core/AGENT_BASE.md
 
 ## Will
 - Analyze diff and generate commit message

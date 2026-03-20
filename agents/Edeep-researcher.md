@@ -36,6 +36,8 @@ Indicate confidence level for each conclusion:
 - List of sources
 - Areas requiring further investigation
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Comparative technology analysis
 - Architecture decision support

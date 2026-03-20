@@ -1,10 +1,8 @@
 ---
 name: Qdata-analysis
-description: Data exploration, statistical analysis, and visualization. Analyzes CSV/JSON/Excel datasets with distribution profiling, correlation analysis, hypothesis testing, and chart generation. Use for requests like analyze this data, data exploration, 데이터 분석, 통계, statistics, correlation, distribution, visualize, 시각화.
+description: Data exploration, statistical analysis, and visualization. Analyzes CSV/JSON/Excel datasets with distribution profiling, correlation analysis, hypothesis testing, and chart generation. Use when the user asks to analyze data, explore datasets, compute statistics, find correlations, check distributions, or visualize data.
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qdata-analysis — Data Exploration & Statistical Analysis
 

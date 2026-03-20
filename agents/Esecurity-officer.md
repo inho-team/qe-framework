@@ -7,6 +7,8 @@ recommendedModel: haiku
 color: red
 ---
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Scan only changed code (`git diff HEAD`) — not the full project
 - Classify every finding with a severity level (FAIL / WARN / PASS)

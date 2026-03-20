@@ -1,10 +1,8 @@
 ---
 name: Qprofessional-communication
-description: Technical communication guide for software developers. Covers email structure, team message etiquette, meeting agendas, and tailoring messages for technical and non-technical audiences. Use when writing professional messages, 이메일 작성, 업무 메시지, preparing for meeting communication, or improving written documentation skills.
+description: Technical communication guide for software developers. Use when writing professional emails, composing team messages, preparing meeting agendas, or tailoring messages for technical and non-technical audiences.
 allowed-tools: Read, Glob, Grep
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Professional Communication

@@ -1,6 +1,6 @@
 ---
 name: Qgenerate-spec
-description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when starting a new project, defining task specifications, or when the user says generate spec, create task, 스펙 작성, 태스크 만들어줘, write requirements, or spec. Supports --ultrawork and --ultraqa modes."
+description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when the user wants to start a new project, define task specifications, generate a spec, create a task, or write requirements."
 user_invocable: true
 ---
 
@@ -18,7 +18,7 @@ You generate **3 documents** based on the user's project description.
 
 | # | Filename | Path | Description |
 |---|----------|------|-------------|
-| 1 | `CLAUDE.md` | Project root | Project context — goals, constraints, decisions, task list |
+| 1 | `CLAUDE.md` | Project root | Project context — goals, constraints, decisions, task list. Must reference `QE_CONVENTIONS.md` for QE rules. |
 | 2 | `TASK_REQUEST_{UUID}.md` | `.qe/tasks/pending/` | Task request — what, how, checklist, notes |
 | 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.qe/checklists/pending/` | Verification checklist — validation criteria, additional notes |
 
@@ -41,73 +41,44 @@ Required information:
 - **Task list** — for each task: what, how, steps (checklist), expected output files (optional), notes, type (`code`|`analysis`|`docs`|`other`), validation criteria (checks), verification notes, and optional decision rationale (chosen approach, alternatives, consequences)
 
 ### Step 2: Draft Documents
-Write drafts using templates from `templates/` directory (`CLAUDE_MD_TEMPLATE.md`, `TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). Replace `{{placeholder}}` with actual content.
+Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). For CLAUDE.md, reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and include a reference line pointing to it. Replace `{{placeholder}}` with actual content.
 
-### Step 2.5: Plan Review (Automatic Verification Loop)
-After drafting, automatically verify spec quality using the **Plan agent** (invisible to user).
+### Step 2.5: Spec Verification (Automatic)
+After drafting, verify spec quality. **Skip conditions (fast path):** checklist ≤ 3 items OR `type: docs`/`analysis` → skip entirely, proceed to Step 3.
 
-**Procedure:**
-1. Spawn Plan agent via Agent tool (`subagent_type: "Plan"`) with drafted TASK_REQUEST and VERIFY_CHECKLIST content
-2. Plan agent evaluates against **5 criteria**: (1) single responsibility per item, (2) specific and verifiable, (3) TASK_REQUEST/VERIFY_CHECKLIST consistency, (4) no constraint conflicts, (5) no missing dependencies
-3. Response: `APPROVE` → proceed to Step 3; `REVISE: {items}` → apply revisions and re-submit
-4. **Max 3 iterations.** If not approved after 3 rounds, proceed with best version and note unresolved items.
+When verification runs, perform **both structural and executability checks in a single pass** (no separate agent spawn for simple tasks):
 
-**Plan agent prompt template:**
-```
-Review the following spec documents against these 5 criteria:
-1. Single responsibility: Does each checklist item perform exactly one task?
-2. Specificity: Is each item concrete and verifiable (yes/no)?
-3. Consistency: Do TASK_REQUEST and VERIFY_CHECKLIST align?
-4. No conflicts: Are there contradictions between constraints and checklist?
-5. Completeness: Are there missing dependencies or prerequisites?
+**Structural criteria (S1-S5):**
+1. Single responsibility per item
+2. Specific and verifiable (yes/no)
+3. TASK_REQUEST/VERIFY_CHECKLIST consistency
+4. No constraint conflicts
+5. No missing dependencies
 
-Respond with APPROVE if all criteria pass.
-Otherwise respond with REVISE: followed by specific items to fix.
+**Executability criteria (E1-E4):**
 
-[TASK_REQUEST content]
-[VERIFY_CHECKLIST content]
-```
+| # | Criterion | Fail Example |
+|---|-----------|--------------|
+| E1 | Single-action executability | `"API 설계 및 라우트 구현"` — two distinct edits |
+| E2 | Output path validity | `→ output: src/utils/helper` — missing extension |
+| E3 | Logical ordering | Item 3 references file from Item 5 |
+| E4 | Verifiable completion | `"코드를 적절히 리팩토링"` — subjective |
 
-This loop runs identically in both normal and ultra modes.
+**For complex tasks (8+ items):** Spawn Plan agent (`subagent_type: "Plan"`) for S1-S5 review while self-checking E1-E4 in parallel. Max 2 iterations.
 
-### Step 2.7: Executability Verification (Automatic)
-After Step 2.5 passes, self-check that each checklist item is **practically executable**. No additional agent spawned.
+**For simple tasks (4-7 items):** Self-check all 9 criteria without agent spawn. Max 1 iteration.
 
-> **Role separation:** Step 2.5 = structural quality; Step 2.7 = executability.
+Any fail → fix automatically. After max iterations, proceed with best version.
 
-**4 Criteria:**
+### Step 3: Review, Create, and Execute (Single Confirmation)
+Show drafts to user and collect feedback with a **single `AskUserQuestion`** offering 3 options:
+- **"Generate & Execute"** — create files and immediately run `/Qrun-task {UUID}` (sets `<!-- chained-from: Qgenerate-spec -->` flag so Qrun-task skips its own approval step)
+- **"Generate Only"** — create files, do not execute
+- **"Needs Revision"** — revise after feedback
 
-| # | Criterion | Check Question | Fail Example |
-|---|-----------|---------------|--------------|
-| E1 | Single-action executability | Can an agent complete this with a single focused edit/command? | `"API 설계 및 라우트 구현"` — two distinct edits |
-| E2 | Output path validity | Does `→ output:` path have valid directory and extension? | `→ output: src/utils/helper` — missing extension |
-| E3 | Logical ordering | Does each item's input exist by execution time? | Item 3 references file from Item 5 |
-| E4 | Verifiable completion | Can completion be confirmed objectively (yes/no)? | `"코드를 적절히 리팩토링"` — subjective |
-
-**Procedure:**
-1. Evaluate every checklist item against E1-E4
-2. All pass → proceed to Step 3
-3. Any fail → fix automatically, re-verify (**max 2 retries**)
-4. After 2 retries with remaining failures → proceed with best version, note unresolved items
-
-**Failure format:**
-```
-[EXECUTABILITY FAIL]
-- Item: "{{ checklist item text }}"
-- Criterion: E{{ number }} — {{ criterion name }}
-- Reason: {{ specific reason }}
-- Fix: {{ proposed correction }}
-```
-
-Runs identically in normal and ultra modes.
-
-### Step 3: Review and Revise
-- Show drafts to user and collect feedback. Refine progressively.
-- Use **`AskUserQuestion` tool**: "Generate" (proceed) or "Needs revision" (revise after feedback)
-
-### Step 4: Create Files
-Create files after user selects "Generate".
+On "Generate & Execute" or "Generate Only":
 - Auto-create directories (`mkdir -p`)
+- Create all spec files
 - If existing `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` found in project root, suggest migrating to `.qe/tasks/pending/` and `.qe/checklists/pending/`
 - **On initial setup**, if `.claude/settings.json` and `.mcp.json` don't exist, suggest creating with defaults
 - **Automatic `.gitignore` management:** Add missing entries under `# Claude Code` section:
@@ -124,9 +95,7 @@ Create files after user selects "Generate".
   .omc/
   ```
 
-### Step 5: Suggest Immediate Execution
-
-Output status summary:
+Output status summary after file creation:
 ```
 ✅ 생성 완료 (spec documents only):
 - CLAUDE.md
@@ -135,88 +104,18 @@ Output status summary:
 
 ❌ 아직 없는 것 (실제 작업 결과물):
 - {expected output files from TASK_REQUEST checklist}
-
-스펙 문서는 "무엇을 할지"의 계획서입니다.
-실제 {작업 결과물}는 /Qrun-task 실행 후 생성됩니다.
 ```
 
-Adapt by task type: `docs` → "실제 문서는 아직 작성되지 않았습니다.", `code` → "실제 코드는...", `analysis` → "실제 분석 결과는..."
+On "Generate & Execute" → invoke `/Qrun-task {UUID}` immediately.
 
-Then use **`AskUserQuestion` tool**: "지금 실행" (execute `/Qrun-task {UUID}`) or "나중에 직접 실행"
+## Autonomous Mode Support
 
-## Pre-execution Gate
+When called from Qutopia (autonomous mode), Qgenerate-spec:
+- Skips all `AskUserQuestion` calls — auto-selects first option
+- Auto-proceeds through Steps 1-3 without user confirmation
+- Sets `<!-- chained-from: Qgenerate-spec -->` on generated TASK_REQUEST files
 
-When `--ultrawork`, `--ultraqa`, or Utopia mode triggers autonomous execution, check prompt specificity. Vague prompts redirect to normal Qgenerate-spec flow (Step 1-5).
-
-### Gate Logic
-
-> **Can an AI generate a meaningful spec from this prompt alone?**
-
-**1. Target anchors** (task subject explicitly named):
-
-| Signal Type | Pattern |
-|---|---|
-| File path | `.ts`, `.py`, `src/` |
-| Function/class name | camelCase, PascalCase, snake_case |
-| Issue/PR number | `#N`, `issue N`, `PR N` |
-| Error reference | `TypeError`, `Error:` |
-| Code block | Triple backticks |
-| Numbered steps | `1. ... 2. ...` |
-| Escape prefix | `force:` or `!` at start |
-
-**2. Scope anchor** — no specific target, but scope is unambiguous (semantic judgment):
-- `전수 조사해` on known codebase → full codebase scope. **Present.**
-- `성능 개선해줘` → which part? **Absent.**
-
-**3. Decision rule:**
-```
-Target anchor found          → Gate passes
-Scope anchor inferred        → Gate passes
-Neither found, word count > 20 → Gate passes (detailed enough)
-Neither found, word count ≤ 20 → Gate fires
-```
-
-> Korean word count: 20 Korean words ~ 35+ English words in specificity.
-
-**On Gate fire:** Inform user with redirect message; invoke Qgenerate-spec Step 1.
-
-**Gate bypass:** `force:` or `!` prefix → skip gate entirely.
-
-## Ultra Modes
-
-### `--ultrawork`
-Spec generation → single confirmation → autonomous parallel execution.
-
-1. Steps 1-2.7: Same as normal
-2. Step 3: Show drafts → single confirmation ("Approve & Execute" / "Needs revision")
-3. Step 4: Create files
-4. **Step 5 (auto-execute):**
-   a. Write `.qe/state/ultrawork-state.json`: `{ active, mode, started_at, session_id, reinforcement_count: 0, max_reinforcements: 50, original_prompt, task_uuids }`
-   b. **Multiple tasks:** spawn separate `Etask-executor` agents in parallel (one per task)
-   c. **Single task:** invoke `/Qrun-task {UUID}` in autonomous mode
-   d. Run VERIFY_CHECKLIST for each task
-   e. **Supervision gate (per task):** route by type: `code` → `Ecode-quality-supervisor` + `Esecurity-officer`; `docs` → `Edocs-supervisor`; `analysis` → `Eanalysis-supervisor`; `other` → skip. PASS/PARTIAL → complete; FAIL → generate `REMEDIATION_REQUEST`, invoke `Etask-executor`, re-run once (escalate if still FAIL)
-   f. Clear state file, output completion report
-
-### `--ultraqa`
-Same as `--ultrawork` plus full quality verification loop.
-
-1. State file: `"mode": "ultraqa"`, `"max_reinforcements": 80`
-2. After each task's `Etask-executor` completes:
-   a. **Quality loop** (code only): `/Qcode-run-task` (test → review → fix → retest, max 3 cycles)
-   b. **Supervision gate**: same routing as ultrawork, with `supervision_iteration` counter
-   c. **PASS/PARTIAL**: record verdict, mark complete
-   d. **FAIL**: generate REMEDIATION_REQUEST → Etask-executor → re-run quality/supervision. **Max 3 supervision rounds**, then escalate.
-3. **Cross-task audit**: verify all checklists, inter-task consistency, supervision pass
-4. Output comprehensive QA report (per-task results, supervision verdicts, cross-task consistency, overall score)
-
-### Ultra Mode Common Rules
-- **State management**: create before execution, clear after completion
-- **Reinforcement**: Stop hook checks state file; stop signals blocked up to `max_reinforcements`
-- **Parallel execution**: Agent tool spawns multiple `Etask-executor` agents concurrently
-- **Error handling**: log failure, skip to next task, report all at end
-- **No intermediate user prompts** after initial confirmation
-- **Progress output**: periodic reports (e.g., "3/7 tasks complete")
+See `Qutopia` for autonomous execution modes (`--work`, `--qa`).
 
 ## Document Writing Rules
 
@@ -241,6 +140,10 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 - Each criterion answerable as yes/no
 - Task complete when all items checked
 - Include note to update CLAUDE.md task list to ✅
+- **Auto-include by type:**
+  - `type: code` → add: "변경된 코드에 보안 취약점(OWASP Top 10)이 없는가", "기존 테스트가 통과하는가"
+  - `type: code` + auth/crypto/payment → add: "인증/암호화 구현이 안전한가 (Esecurity-officer 또는 수동 확인)"
+  - `type: docs` → add: "문서 내 링크가 유효한가", "용어/포맷이 일관적인가"
 
 ## UUID Generation Rules
 - 8-character hex (e.g., `a1b2c3d4`)

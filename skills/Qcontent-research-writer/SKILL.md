@@ -14,8 +14,6 @@ metadata:
 keywords: content writing, research, citations, articles, reports, editing, hooks, drafting
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Content Research Writer — Research-Driven Content Writing
 

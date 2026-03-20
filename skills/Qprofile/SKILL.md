@@ -1,10 +1,8 @@
 ---
 name: Qprofile
-description: "Analyzes command patterns, writing style, and common expressions to build a user profile. Use for profile update, 프로필 업데이트, learn my style, improve intent recognition, or update preferences."
+description: "Analyzes command patterns, writing style, and common expressions to build a user profile. Use when updating the user profile, learning user style, improving intent recognition, or updating preferences."
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qprofile — User Profile Analysis
 

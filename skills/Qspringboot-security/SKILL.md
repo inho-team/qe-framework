@@ -5,8 +5,6 @@ metadata:
   source: https://skills.sh/affaan-m/everything-claude-code/springboot-security
   author: affaan-m
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 ## Role Boundary (Absolute Rule)
 

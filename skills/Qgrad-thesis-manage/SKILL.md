@@ -2,8 +2,6 @@
 name: Qgrad-thesis-manage
 description: Manages thesis progress for master's and doctoral degrees. Supports chapter structure design, progress tracking, advisor meeting preparation, and milestone management. Use for requests like "thesis", "graduation thesis", "thesis progress", or "advisor meeting".
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Thesis Progress Management

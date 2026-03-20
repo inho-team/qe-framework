@@ -2,8 +2,6 @@
 name: Qgrad-seminar-prep
 description: Prepares academic presentations for seminars, conferences, and lab meetings. Generates slide structure, presentation scripts, and anticipated Q&A. Use for requests like "prepare presentation", "seminar", "conference talk", or "slides".
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Seminar and Conference Presentation Preparation

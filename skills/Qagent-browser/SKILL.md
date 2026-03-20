@@ -7,8 +7,6 @@ metadata:
 allowed-tools: Bash(npx agent-browser:*), Bash(agent-browser:*)
 keywords: browser, automation, web test, form fill, screenshot, scrape, navigate
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 ## Pre-check: agent-browser Installation
 

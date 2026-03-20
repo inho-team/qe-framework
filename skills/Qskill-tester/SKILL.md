@@ -1,4 +1,3 @@
-> Core philosophy: see core/PHILOSOPHY.md
 ---
 name: Qskill-tester
 description: "Automated skill/agent routing tester. Generates virtual user prompts, simulates intent classification, and verifies correct routing. Use when auditing skill descriptions, validating routing accuracy, or after adding/modifying skills. Distinct from Qskill-creator (which creates/modifies skills) — this skill tests and benchmarks them."
@@ -15,7 +14,7 @@ keywords: skill test, intent routing, trigger verification, self-improvement, qu
 
 # Skill Tester — Automated Routing Verification
 
-Automatically verifies that all skill/agent triggers work correctly, and identifies and fixes misroutes.
+Verifies that all skill/agent triggers route correctly, identifies misroutes, and suggests fixes.
 
 ## Workflow
 
@@ -25,250 +24,107 @@ Automatically verifies that all skill/agent triggers work correctly, and identif
 
 ## Step 1: Collect Skills
 
-Collect all skills and agents in the project.
-
 ```bash
-# Skill list
-find skills/ -name "SKILL.md" | sort
-
-# Agent list
-find agents/ -name "*.md" | sort
-
-# Intent route config
-cat hooks/scripts/lib/intent-routes.json
+find skills/ -name "SKILL.md" | sort    # Skill list
+find agents/ -name "*.md" | sort        # Agent list
+cat hooks/scripts/lib/intent-routes.json # Route config
 ```
 
-Information to extract from each skill:
-- `name`: Skill name
-- `description`: Description (including trigger conditions)
-- `triggers`: Trigger keywords from metadata
-- `keywords`: Additional keywords
+Extract per skill: `name`, `description`, `triggers`, `keywords`.
 
 ## Step 2: Generate Test Cases
 
 Generate **3 types** of virtual prompts per skill:
 
-### A. Normal Invocation (this skill should be triggered)
-```markdown
-| Skill | Test Prompt | Expected Result |
-|-------|-------------|-----------------|
-| Qreact-expert | "Create a React component" | Qreact-expert |
-| Qfact-checker | "Fact-check this report" | Qfact-checker |
-| Qdoc-converter | "Convert this markdown to Word" | Qdoc-converter |
-```
-
-### B. Boundary Cases (distinguishing between similar skills)
-```markdown
-| Test Prompt | Expected Result | Misroute Risk |
-|-------------|-----------------|---------------|
-| "Create UI design" | Qfrontend-design | Qweb-design-guidelines |
-| "Find root cause of bug" | Qsystematic-debugging | Ecode-debugger |
-| "Write tests first" | Qtest-driven-development | Ecode-test-engineer |
-```
-
-### C. Unregistered Prompts (no route defined)
-```markdown
-| Test Prompt | Expected Result |
-|-------------|-----------------|
-| "Create a jira issue" | Qjira-cli (or Qatlassian-mcp) |
-| "Verify the source" | Qsource-verifier |
-| "Help me write something" | Qcontent-research-writer |
-```
+| Type | Purpose | Example |
+|------|---------|---------|
+| **A. Normal** | Should trigger this skill | "Create a React component" -> Qreact-expert |
+| **B. Boundary** | Distinguish similar skills | "Find root cause of bug" -> Qsystematic-debugging (not Ecode-debugger) |
+| **C. Unregistered** | No route defined | "Create a jira issue" -> Qjira-cli |
 
 ## Step 3: Simulate Routing
 
-Simulate the routing logic of `intent-routes.json`.
-
-### Matching Algorithm (same as prompt-check.mjs)
+Use the same matching algorithm as `prompt-check.mjs`:
 
 ```javascript
 function simulateRouting(userMessage, routes) {
   const msgLower = userMessage.toLowerCase();
   const msgWords = msgLower.split(/\s+/);
-  let bestMatch = null;
-  let bestScore = 0;
+  let bestMatch = null, bestScore = 0;
 
   for (const [keywords, target] of Object.entries(routes)) {
     const parts = keywords.split('/');
-    let matchedParts = 0;
-    let totalWeight = 0;
-
+    let matchedParts = 0, totalWeight = 0;
     for (const part of parts) {
       const term = part.toLowerCase().replace(/-/g, ' ');
       const termWords = term.split(/\s+/);
-
       const hasExactWord = termWords.some(tw => msgWords.includes(tw));
       const hasSubstring = msgLower.includes(term);
-
-      if (hasExactWord) {
-        matchedParts++;
-        totalWeight += term.length * 2;
-      } else if (hasSubstring) {
-        matchedParts++;
-        totalWeight += term.length;
-      }
+      if (hasExactWord) { matchedParts++; totalWeight += term.length * 2; }
+      else if (hasSubstring) { matchedParts++; totalWeight += term.length; }
     }
-
     const score = matchedParts > 0 ? matchedParts * 3 + totalWeight : 0;
-
     if (score > bestScore) {
       bestScore = score;
       bestMatch = { intent: keywords, routed_to: target, score };
     }
   }
-
   return bestMatch;
 }
 ```
 
-### Execution Method
-
-For each test prompt:
-1. Run `simulateRouting(prompt, routes)`
-2. Compare result against expected value
-3. Record any mismatches
-
 ## Step 4: Verdict
-
-### Result Classification
 
 | Verdict | Meaning |
 |---------|---------|
 | **PASS** | Correctly routed to expected skill |
-| **MISROUTE** | Incorrectly routed to a different skill |
-| **UNREACHABLE** | Not registered in intent-routes.json, cannot be routed |
-| **CONFLICT** | Two or more skills tie with the same score |
-| **WEAK** | Routes but with a low score, making routing unstable |
+| **MISROUTE** | Routed to wrong skill |
+| **UNREACHABLE** | Not in intent-routes.json |
+| **CONFLICT** | Two+ skills tie with same score |
+| **WEAK** | Routes but low score — unstable |
 
-### Verdict Criteria
-
-```
-score >= threshold × 2  → PASS (strong match)
-score >= threshold      → PASS (weak match) — mark with WEAK warning
-score < threshold       → UNREACHABLE
-expected ≠ actual       → MISROUTE
-```
+Criteria: `score >= threshold*2` = PASS (strong); `score >= threshold` = PASS + WEAK warning; `score < threshold` = UNREACHABLE; `expected != actual` = MISROUTE.
 
 ## Step 5: Write Report
 
-### Test Results Report
-
 ```markdown
 # Skill Routing Test Report
+**Run Date:** [date] | **Total:** N | **PASS:** N | **MISROUTE:** N | **UNREACHABLE:** N | **CONFLICT:** N
 
-**Run Date:** [date]
-**Total Tests:** N
-**PASS:** N | **MISROUTE:** N | **UNREACHABLE:** N | **CONFLICT:** N
-
-## MISROUTE (immediate fix required)
-
+## MISROUTE (fix required)
 | Prompt | Expected | Actual | Score | Root Cause |
-|--------|----------|--------|-------|------------|
-| "..." | Qfrontend-design | Qweb-design-guidelines | 12 | Keyword "UI" conflicts in triggers |
 
-## UNREACHABLE (route registration needed)
+## UNREACHABLE (route needed)
+| Skill | Suggested Route Keywords |
 
-| Skill | Registered | Suggested Route Keywords |
-|-------|-----------|--------------------------|
-| Qjira-cli | Not registered | "jira/issue/ticket/sprint" |
-
-## CONFLICT (priority adjustment needed)
-
+## CONFLICT (priority adjustment)
 | Prompt | Competing Skills | Score |
-|--------|-----------------|-------|
-| "..." | SkillA (12) vs SkillB (12) | Tied |
 
-## WEAK (unstable match)
-
+## WEAK (unstable)
 | Prompt | Skill | Score | Risk |
-|--------|-------|-------|------|
-| "..." | Qfact-checker | 4 | Slight prompt variation may cause misroute |
 
 ## Coverage
-
-| Category | Registered Skills | Unregistered Skills | Coverage |
-|----------|------------------|---------------------|----------|
-| General skills | 28/32 | 4 | 87.5% |
-| Coding experts | N/A | N/A | Separate trigger |
-| Agents | 5/16 | 11 | 31.3% |
+| Category | Registered | Unregistered | Coverage % |
 ```
 
-## Step 6: Suggest Automatic Fixes
+## Step 6: Suggest Fixes
 
-### MISROUTE Fix
+**MISROUTE fix:** Modify skill description to add differentiating keywords, or update intent-routes.json with more specific routes.
 
-```markdown
-### Fix Suggestion: [Skill Name]
+**UNREACHABLE fix:** Add missing routes to intent-routes.json.
 
-**Problem:** "[prompt]" is being routed to [wrong skill]
-**Cause:** "[keyword]" is missing from description, or keyword conflict in intent-routes.json
-
-**Fix A — Modify description:**
-Before: "..."
-After: "... Use when [specific trigger]..."
-
-**Fix B — Modify intent-routes.json:**
-Before: "keyword1/keyword2" → "SkillA"
-After: "keyword1/keyword2/keyword3" → "SkillA"  (add differentiating keyword)
-```
-
-### UNREACHABLE Fix
-
-```markdown
-### Fix Suggestion: Add to intent-routes.json
-
-Routes to add:
-  "jira/issue/ticket/sprint": "Qjira-cli",
-  "fact-check/verify-claims/accuracy": "Qfact-checker",
-  "source/credibility/SIFT": "Qsource-verifier",
-  "convert/md-to-docx/format": "Qdoc-converter",
-  "content-writing/article/draft": "Qcontent-research-writer"
-```
-
-### Re-verify
-
-After applying fixes, re-run the same tests to confirm PASS.
+**Re-verify:** After applying fixes, re-run the same tests to confirm PASS.
 
 ## Execution Modes
 
-### Quick Verification (default)
+| Mode | Command | Scope |
+|------|---------|-------|
+| Quick (default) | `/Qskill-tester` | Registered skills only, 2 prompts each |
+| Full | `/Qskill-tester --full` | All skills/agents, 5 prompts each, full report + fixes |
+| Specific | `/Qskill-tester Qfact-checker Qsource-verifier` | Named skills only |
 
-```
-/Qskill-tester
-```
+## Constraints
 
-- Verifies only skills registered in intent-routes.json
-- Auto-generates 2 test prompts per skill
-- Reports only MISROUTE/UNREACHABLE
+**MUST DO:** Cross-verify intent-routes.json vs actual skill list; test boundary cases between similar skills; confirm no regressions before fixes; get user confirmation before applying.
 
-### Full Verification
-
-```
-/Qskill-tester --full
-```
-
-- Verifies all skills/agents (including coding-experts)
-- 5 test prompts per skill (3 normal + 2 boundary)
-- Full report + fix suggestions + confirm whether to auto-fix
-
-### Specific Skill Verification
-
-```
-/Qskill-tester Qfact-checker Qsource-verifier
-```
-
-- Focuses on the specified skills only
-
-## Execution Rules
-
-### MUST DO
-- Cross-verify intent-routes.json against the actual skill list
-- Always test boundary cases between similar skills
-- Confirm no regressions to existing routing before applying fixes
-- Get user confirmation before applying fixes
-
-### MUST NOT DO
-- Do not modify descriptions without testing
-- Do not change intent-routes.json without user confirmation
-- Do not change descriptions of coding-experts skills (they use a different trigger mechanism)
-- Do not use real user data in test cases
+**MUST NOT DO:** Modify descriptions without testing; change intent-routes.json without confirmation; change coding-experts descriptions (different trigger mechanism); use real user data.

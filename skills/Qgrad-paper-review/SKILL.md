@@ -2,8 +2,6 @@
 name: Qgrad-paper-review
 description: Analyzes academic paper reviewer comments and writes Response Letters. Supports response strategy planning, revision planning, and point-by-point response drafting. Use for requests like "reviewer response", "reviewer comment", "rebuttal", "response letter", or "revision".
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Academic Paper Review Response and Response Letter Writing

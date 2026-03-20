@@ -3,8 +3,6 @@ name: Qfinance-analyst
 description: Financial analysis, valuation modeling, and quantitative investment tools. Covers ratio analysis, DCF valuation, Monte Carlo simulation, sensitivity analysis, and portfolio optimization. Use for requests like "financial analysis", "valuation", "DCF", "Monte Carlo", "quant", "investment analysis", "portfolio".
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qfinance-analyst — Financial Analysis & Quant Modeling
 

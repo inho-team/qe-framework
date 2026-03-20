@@ -45,6 +45,8 @@ Runs silently in the background.
 - Archive versions track task completion history, not software releases
 - Each archive increment represents a batch of completed tasks, not a code release
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Archive completed files
 - Auto-determine version

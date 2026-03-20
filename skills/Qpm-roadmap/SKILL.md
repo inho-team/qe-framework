@@ -2,8 +2,6 @@
 name: Qpm-roadmap
 description: Plans strategic product roadmaps. Includes prioritization, epic definition, stakeholder alignment, and release sequencing. Use for requests like "create a roadmap", "quarterly plan", "product strategy roadmap", or "priority sorting".
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 ## Purpose

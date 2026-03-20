@@ -148,11 +148,11 @@ Every skill, agent, and hook in this framework must uphold the following:
 
 2. **Do not skip verification.** A task is not complete until its VERIFY_CHECKLIST items are checked. Marking a task complete without checking is a violation.
 
-3. **Do not conflate verification and supervision.** Verification is self-assessment. Supervision is external assessment. Both are required for high-stakes tasks.
+3. **Parallel first.** If two operations have no data dependency, run them in parallel. Never default to sequential when parallel is possible. This applies to: agent spawning, file reads/writes, analysis tasks, test+review, multi-UUID execution, and wave execution in Etask-executor. Sequential is the fallback, not the default.
 
-4. **Remediation is a new spec, not a patch.** When supervision fails, generate a proper REMEDIATION_REQUEST with a proper checklist. Do not apply ad-hoc fixes without a spec.
+4. **Remediation is a new spec, not a patch.** When verification fails, generate a proper REMEDIATION_REQUEST with a proper checklist. Do not apply ad-hoc fixes without a spec.
 
-5. **The loop is the product.** Features, skills, and agents are means to an end. The end is always: spec defined → verified → supervised → shipped with confidence.
+5. **The loop is the product.** Features, skills, and agents are means to an end. The end is always: spec defined → verified → shipped with confidence.
 
 ---
 

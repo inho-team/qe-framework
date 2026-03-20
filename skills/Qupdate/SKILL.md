@@ -3,8 +3,6 @@ name: Qupdate
 description: Updates the QE Framework plugin to the latest version. Use for "update plugin", "upgrade", "update qe".
 allowed-tools: Bash(claude plugin:*)
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qupdate — Plugin Self-Update
 

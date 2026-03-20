@@ -3,8 +3,6 @@ name: Qalias
 description: Defines aliases for folders, paths, and commands. Allows quick reference to long paths or complex commands using short names. Use when the user requests "alias", "shortcut", or similar.
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qalias — Alias Management
 

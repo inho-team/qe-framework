@@ -27,12 +27,15 @@ Detect changes that occurred outside the framework:
 - File system scan — detect new/deleted files
 - Dependency file change detection (compare modification times of package.json, pom.xml, build.gradle, etc.)
 
-### Step 2: Update .qe/analysis/
-Update the 4 files using the same approach as Qinit's analysis:
-- `project-structure.md` — directory structure, file count, language ratio
-- `tech-stack.md` — dependencies, version information
-- `entry-points.md` — entry points, API endpoints
-- `architecture.md` — layer structure, module relationships
+### Step 2: Update .qe/analysis/ (parallel)
+Update the 4 files **in parallel** — they are independent analyses with no cross-dependencies. Use parallel tool calls or spawn subagents concurrently:
+
+| File | Analysis | Method |
+|------|----------|--------|
+| `project-structure.md` | Directory structure, file count, language ratio | Glob + ls |
+| `tech-stack.md` | Dependencies, version information | Read package files |
+| `entry-points.md` | Entry points, API endpoints | Grep patterns |
+| `architecture.md` | Layer structure, module relationships | Directory + import analysis |
 
 Update rules:
 - If there are no changes, do not overwrite the file (preserve modification time).
@@ -78,14 +81,19 @@ All other commits are considered external (manual user edits, CI/CD, other tools
 - If execution takes too long (30s+), perform only a structural scan and skip deep analysis.
 - Do not block other tasks.
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Detect project changes (git diff, file system)
 - Update 4 files in .qe/analysis/
 - Record history in .qe/changelog.md
 - Tag external changes
+- Write triggers when significant changes detected:
+  - Architecture change → `.qe/agent-triggers/Ecode-quality-supervisor.trigger.md`
+  - New dependency added → `.qe/agent-triggers/Esecurity-officer.trigger.md`
+- Write result to `.qe/agent-results/Erefresh-executor-latest.md`
 
 ## Will Not
 - Respond directly to the user
 - Modify source code
-- Directly modify CLAUDE.md → Qrefresh proposes this to the user
 - Change state of incomplete tasks

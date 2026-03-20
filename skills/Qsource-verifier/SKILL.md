@@ -14,8 +14,6 @@ metadata:
 keywords: source verification, credibility, SIFT, digital verification, image verification, document verification
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Source Verifier — Source Verification Methodology
 

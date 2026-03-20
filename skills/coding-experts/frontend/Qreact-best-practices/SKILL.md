@@ -138,4 +138,6 @@ Each rule file contains:
 
 ## Full Compiled Document
 
-For the complete guide with all rules expanded: `AGENTS.md`
+Reference: see `references/react-patterns.md` for detailed patterns.
+
+For the complete guide with all rules expanded: `references/react-patterns.md`

@@ -1,7 +1,6 @@
-> Core philosophy: see core/PHILOSOPHY.md
 ---
 name: Qinit
-description: QE framework (Query Executor) initial setup. Creates CLAUDE.md, settings.json, directory structure, and .gitignore in a new project, then auto-analyzes the project. Use for initialize, project setup, init, 초기화, 프로젝트 시작, 셋업 requests.
+description: QE framework (Query Executor) initial setup. Creates CLAUDE.md, settings.json, directory structure, and .gitignore in a new project, then auto-analyzes the project. Use when the user wants to initialize a project, set up the framework, or start a new project setup.
 ---
 
 # Qinit — QE Framework Initialization
@@ -55,14 +54,16 @@ Create the following files and directories:
 
 #### CLAUDE.md Template Selection
 
-Select a template from `templates/claude-md/` based on project analysis:
+Use `templates/claude-md/base.md` as the primary template. It contains conditional sections marked with `<!-- if: type -->` / `<!-- end: type -->` comments. Detect the project type, then include only the matching conditional sections.
 
-| Project Type | Template | When to Use |
-|-------------|----------|-------------|
-| Script / small utility | `minimal.md` | Single-purpose project, few files, no build system |
-| Standard application | `standard.md` | Single app with build/test pipeline (default) |
-| Full-stack application | `fullstack.md` | Separate frontend + backend + database |
-| Monorepo | `monorepo.md` | Multiple packages/apps in one repository (detected by workspaces config) |
+| Project Type | Sections to Include | When to Use |
+|-------------|-------------------|-------------|
+| `minimal` | Core only (Overview, Tech Stack, Constraints, Task List) | Single-purpose project, few files, no build system |
+| `standard` | Core + Build & Run, Project Structure, Goals | Single app with build/test pipeline (default) |
+| `fullstack` | Core + standard sections + Frontend/Backend/Database subsections, API Endpoints, Environment Variables | Separate frontend + backend + database |
+| `monorepo` | Core + standard sections + Packages table, Build Order, Shared Dependencies | Multiple packages/apps in one repository |
+
+Conditional markers: `<!-- if: standard+ -->` applies to standard, fullstack, and monorepo. Type-specific markers (e.g., `<!-- if: fullstack -->`) apply only to that type.
 
 Detection heuristics:
 - **monorepo**: `workspaces` in package.json, `pnpm-workspace.yaml`, `lerna.json`, or `nx.json` exists
@@ -70,9 +71,11 @@ Detection heuristics:
 - **minimal**: Fewer than 10 source files, no package manager config
 - **standard**: Everything else (default)
 
+> Legacy templates (`minimal.md`, `standard.md`, `fullstack.md`, `monorepo.md`) are retained for backward compatibility but `base.md` is the preferred template going forward.
+
 #### CLAUDE.md
 Generate using the selected template from `templates/claude-md/`.
-Also reference `Qgenerate-spec`'s `templates/CLAUDE_MD_TEMPLATE.md` for task list format.
+Also reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and add a reference line in the generated CLAUDE.md pointing to it.
 - Fill in project name and description
 - Reflect tech stack from Step 2 analysis results
 - Leave goals, constraints, and decisions empty
@@ -93,6 +96,8 @@ Empty settings file. Users can add hooks etc. as needed.
 │   ├── tech-stack.md
 │   ├── entry-points.md
 │   └── architecture.md
+├── agent-results/
+├── agent-triggers/
 ├── .archive/
 ├── context/
 ├── profile/

@@ -1,17 +1,72 @@
 ---
 name: Qpptx
-description: "All tasks related to PPTX files: creating slide decks, reading/parsing, editing, and working with templates. Use when deck, slides, presentation, .pptx, 발표자료, 슬라이드, 프레젠테이션 is mentioned."
+description: "All tasks related to PPTX files: creating slide decks, reading/parsing, editing, and working with templates. Use when deck, slides, presentation, .pptx is mentioned."
 metadata:
   source: https://skills.sh/anthropics/skills/pptx
   author: anthropic
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # PPTX Skill
 
-## Quick Reference
+## HTML-First Collaborative Workflow (Recommended)
+
+When creating a new presentation, use the **HTML-first + collaborative** approach. Instead of building all slides at once, communicate with the user at each phase.
+
+```
+Phase 1: Structure Agreement → Propose slide outline → User feedback → Finalize
+Phase 2: Per-Slide Authoring → One slide (or section) at a time → User confirmation → Next
+Phase 3: Visual Polish        → HTML styling → Fine-tune with Agentation
+Phase 4: Conversion           → HTML → PPTX (or PDF)
+```
+
+### Phase 1: Structure Agreement
+1. User provides topic/purpose/audience
+2. Propose a slide outline:
+   - Total slide count, section breakdown
+   - One-line key message per slide
+   - "How long is the presentation? Shall we proceed with this structure?"
+3. Incorporate feedback → Finalize structure
+
+### Phase 2: Per-Slide Authoring
+1. Start with the title slide → User confirmation → Next slide
+2. **Proactively ask questions when input is needed**:
+   - "Do you have data/charts to include in this slide?"
+   - "Should this content be presented as text or a diagram?"
+   - "What is the key message to emphasize here?"
+   - "Does the transition from this slide to the next flow naturally?"
+
+### Phase 3: Visual Polish (HTML + Agentation)
+1. HTML styling (`/Qfrontend-design` principles — typography, color, spatial design)
+2. Diagrams: `mmdc -i diagram.mmd -o diagram.png -t neutral -b transparent -s 2` → embed as `<img>`
+3. **Agentation required** — `npx agentation` → click to specify edit targets
+
+**Exception**: Skip if the user directly specifies selectors/file paths, or if only text changes are needed.
+
+### HTML Slide Structure
+```html
+<!-- Each .slide = one PPTX slide -->
+<div class="slide" style="width:960px; height:540px;">
+  <h1>Title</h1>
+  <p>Content</p>
+</div>
+```
+
+### HTML → PPTX Conversion
+```bash
+# Option 1: Chrome headless → PDF → PPTX
+google-chrome --headless --print-to-pdf=slides.pdf slides.html
+
+# Option 2: pptxgenjs (programmatic, preserves structure)
+node generate-pptx.js
+
+# Option 3: LibreOffice (HTML → ODP → PPTX)
+soffice --headless --convert-to pptx slides.html
+```
+
+---
+
+## Quick Reference (Existing Files)
 | Task | Guide |
 |------|-------|
 | Read/analyze | `python -m markitdown presentation.pptx` |
@@ -20,7 +75,7 @@ metadata:
 
 ## Design Ideas
 
-**Don't create boring slides.**
+**Don't create boring slides.** Apply `/Qfrontend-design` reference docs for professional quality.
 
 ### Before Starting
 - Pick a bold, content-informed color palette specific to THIS topic

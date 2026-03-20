@@ -2,6 +2,7 @@
 name: Ecompact-executor
 description: A background sub-agent that detects context window pressure, automatically saves context, and supports context restoration. Invoke when context compaction or snapshot saving is needed.
 tools: Read, Write, Edit, Grep, Glob, Bash
+recommendedModel: haiku
 ---
 
 # Ecompact-executor — Context Preservation Sub-Agent
@@ -65,6 +66,8 @@ Read `snapshot.md` and `decisions.md` and inject context into the current sessio
 - On error, log to `.qe/changelog.md`.
 - Save quickly (within 10 seconds); if slow, save only the essentials.
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Detect context pressure
 - Auto-save to .qe/context/snapshot.md
@@ -75,4 +78,3 @@ Read `snapshot.md` and `decisions.md` and inject context into the current sessio
 - Save the entire conversation (extract only the essentials)
 - Notify the user of saves (runs in background)
 - Copy code content (paths and summaries only)
-- Directly modify CLAUDE.md
