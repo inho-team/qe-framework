@@ -2,8 +2,6 @@
 name: Qcommand-creator
 description: A skill for creating Claude Code slash commands. Use when the user requests "create a command", "add a slash command", or wants to turn a repetitive workflow into a reusable command.
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Command Creator

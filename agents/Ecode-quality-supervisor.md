@@ -15,6 +15,8 @@ Code quality supervision covers: test coverage sufficiency, code smell detection
 
 ---
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Delegate deep review work to **Ecode-reviewer** and **Ecode-test-engineer**, then synthesize their outputs into a single grade
 - Evaluate test coverage sufficiency against the scope of changed code
@@ -43,15 +45,15 @@ When the caller provides a `supervision_context` summary, use it directly for sc
 2. Classify files by category: source code, test code, configuration, documentation
 3. Determine the expected test coverage scope based on source files present
 
-### Phase 2 — Delegate
-Spawn or invoke the following in parallel when possible:
+### Phase 2 — Delegate (parallel, always)
+Spawn both delegates **in parallel** — they are independent assessments. Use a single message with two Agent tool calls:
 
 | Delegate | Purpose |
 |----------|---------|
 | **Ecode-reviewer** | Code smells, architecture consistency, duplication, complexity |
 | **Ecode-test-engineer** | Coverage analysis — are the changed source files adequately tested? |
 
-If delegation is unavailable, perform the checks directly using the criteria tables below.
+**Never run these sequentially.** If Agent tool is unavailable, perform both checks directly (still in parallel tool calls where possible).
 
 ### Phase 3 — Audit Criteria
 
@@ -114,19 +116,19 @@ Format the result using the unified return format and return it to the caller.
 
 ```
 Grade: PASS | PARTIAL | FAIL
-Findings: N건
+Findings: N items
 Details:
-- [FAIL/WARN/INFO] {항목}: {구체적 문제점} → {재작업 지시}
+- [FAIL/WARN/INFO] {category}: {specific issue} → {rework instruction}
 ```
 
 ### Example
 
 ```
 Grade: PARTIAL
-Findings: 2건
+Findings: 2 items
 Details:
-- [WARN] 테스트 커버리지: UserService.createUser()의 에러 분기가 테스트되지 않음 → 에러 케이스 테스트 추가 필요
-- [WARN] 복잡도: parseConfig() 함수 cyclomatic complexity 13 (임계값 10 초과) → 분기 로직을 별도 함수로 분리
+- [WARN] Test coverage: error branch in UserService.createUser() is not tested → add error case tests
+- [WARN] Complexity: parseConfig() function cyclomatic complexity 13 (exceeds threshold of 10) → extract branching logic into separate functions
 ```
 
 ---
@@ -135,6 +137,6 @@ Details:
 
 - Security findings must not appear in this report — escalate to **Esecurity-officer** if encountered
 - Scope is always the explicitly provided target or `git diff HEAD` by default
-- Always provide a concrete rework instruction (`→ {재작업 지시}`) for every FAIL and WARN finding
+- Always provide a concrete rework instruction (`→ {rework instruction}`) for every FAIL and WARN finding
 - INFO items may be omitted if they do not affect the grade
 - Do not report findings from unchanged surrounding context

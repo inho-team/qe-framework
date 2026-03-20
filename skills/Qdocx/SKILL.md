@@ -1,207 +1,185 @@
-> Core philosophy: see core/PHILOSOPHY.md
 ---
 name: Qdocx
-description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, 워드 파일, 문서 작성, editing with tracked changes, extracting text/tables, and converting formats. Supports legal, business, and academic documents."
+description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, editing with tracked changes, extracting text/tables, and converting formats. Supports legal, business, and academic documents."
 metadata:
   source: https://github.com/tfriedel/claude-office-skills
   author: tfriedel
   version: "2.0.0"
-  triggers: docx, word, document, tracked changes, redline, 워드, 문서
+  triggers: docx, word, document, tracked changes, redline
   related-skills: Qpdf, Qdoc-converter
 keywords: docx, word, document, tracked changes, redlining, OOXML, pandoc
 ---
 
-# DOCX — Word 문서 생성·편집·분석
+# DOCX — Word Document Creation/Editing/Analysis
 
-## 워크플로우 결정 트리
+## HTML-First Conversational Workflow (Recommended for New Documents)
 
-| 작업 | 방법 |
-|------|------|
-| **읽기/분석** | `pandoc document.docx -o output.md` |
-| **새 문서 생성** | docx-js (JavaScript) |
-| **기존 문서 편집 (내가 만든)** | Unpack → XML 편집 → Repack |
-| **기존 문서 편집 (남이 만든)** | **Redlining 워크플로우** (권장) |
-| **법률/학술/비즈니스 문서** | **Redlining 워크플로우** (필수) |
-| **이미지로 변환** | DOCX → PDF(LibreOffice) → JPEG(pdftoppm) |
+Do not produce a finished document in one shot. Communicate with the user at every phase.
 
-## 1. 읽기/분석
-
-### 텍스트 추출 (Pandoc)
-
-```bash
-# 마크다운으로 변환
-pandoc document.docx -o output.md
-
-# 변경 추적 포함
-pandoc --track-changes=all document.docx -o output.md
-# Options: --track-changes=accept/reject/all
+```
+Phase 1: Agree on Structure  → Present outline/structure → User feedback → Finalize
+Phase 2: Write by Section    → Write one section at a time → User confirmation → Next section
+Phase 3: Visual Polish       → HTML styling → Fine-tune with Agentation
+Phase 4: Conversion          → HTML → DOCX
 ```
 
-### Raw XML 접근
+### Phase 1: Agree on Structure
+1. User provides the topic/purpose
+2. Propose a document structure (table of contents, section layout, estimated length)
+3. Ask the user: "Shall we proceed with this structure? Any sections to add or remove?"
+4. Incorporate feedback → Finalize structure
 
-코멘트, 복잡한 서식, 임베디드 미디어, 메타데이터가 필요할 때:
+### Phase 2: Write by Section
+1. Write the first section → User confirmation → After approval, move to the next section
+2. **Proactively ask questions when input is needed**:
+   - When data/figures are needed → "Do you have specific numbers to include here?"
+   - When direction is ambiguous → "Which approach is correct, A or B?"
+   - When external information is needed → "Do you have any reference materials?"
+
+### Phase 3: Visual Polish (HTML + Agentation)
+1. HTML styling (`/Qfrontend-design` principles — `typography.md`, `color-and-contrast.md`, `spatial-design.md`)
+2. Diagrams: `mmdc -i diagram.mmd -o diagram.png -t neutral -b transparent -s 2` → embed with `<img>`
+3. **Agentation required** — `npx agentation` → click to specify what to fix
+
+### Phase 4: Conversion
+```bash
+pandoc output.html -o output.docx
+pandoc output.html --reference-doc=template.docx -o output.docx   # Apply style template
+```
+
+---
+
+## Workflow Decision Tree
+
+| Task | Method |
+|------|--------|
+| **Read/Analyze** | `pandoc document.docx -o output.md` |
+| **Create new document** | **HTML-First Workflow** (recommended) or docx-js |
+| **Edit existing document (your own)** | Unpack → XML edit → Repack |
+| **Edit existing document (someone else's)** | **Redlining Workflow** (recommended) |
+| **Legal/Academic/Business documents** | **Redlining Workflow** (required) |
+| **Convert to image** | DOCX → PDF (LibreOffice) → JPEG (pdftoppm) |
+
+## 1. Read/Analyze
 
 ```bash
-# 문서 언팩
+pandoc document.docx -o output.md                         # Convert to markdown
+pandoc --track-changes=all document.docx -o output.md      # Include tracked changes (accept/reject/all)
+```
+
+### Raw XML Access
+Use when you need comments, complex formatting, embedded media, or metadata:
+```bash
 python ooxml/scripts/unpack.py document.docx unpacked/
 ```
+Key files: `word/document.xml` (body), `word/comments.xml` (comments), `word/media/` (media), `<w:ins>`/`<w:del>` (tracked changes).
 
-주요 파일 구조:
-- `word/document.xml` — 본문
-- `word/comments.xml` — 코멘트
-- `word/media/` — 이미지·미디어
-- `<w:ins>` / `<w:del>` — 변경 추적 태그
-
-## 2. 새 문서 생성 (docx-js)
+## 2. Create New Document (docx-js)
 
 ```javascript
 const { Document, Packer, Paragraph, TextRun, HeadingLevel,
-        Table, TableRow, TableCell, WidthType, AlignmentType } = require('docx');
+        Table, TableRow, TableCell, WidthType } = require('docx');
 const fs = require('fs');
 
 const doc = new Document({
   sections: [{
-    properties: {
-      page: {
-        size: { width: 12240, height: 15840 }  // US Letter (DXA)
-      }
-    },
+    properties: { page: { size: { width: 12240, height: 15840 } } },  // US Letter (DXA)
     children: [
       new Paragraph({
         heading: HeadingLevel.HEADING_1,
-        children: [new TextRun({ text: "보고서 제목", bold: true })]
+        children: [new TextRun({ text: "제목", bold: true })]
       }),
-      new Paragraph({
-        children: [new TextRun("본문 내용입니다.")]
-      }),
-      // 테이블
+      new Paragraph({ children: [new TextRun("본문 내용")] }),
       new Table({
-        rows: [
-          new TableRow({
-            children: [
-              new TableCell({
-                width: { size: 5000, type: WidthType.DXA },
-                children: [new Paragraph("셀 1")]
-              }),
-              new TableCell({
-                width: { size: 5000, type: WidthType.DXA },
-                children: [new Paragraph("셀 2")]
-              })
-            ]
-          })
-        ]
+        rows: [new TableRow({
+          children: [
+            new TableCell({ width: { size: 5000, type: WidthType.DXA }, children: [new Paragraph("셀 1")] }),
+            new TableCell({ width: { size: 5000, type: WidthType.DXA }, children: [new Paragraph("셀 2")] })
+          ]
+        })]
       })
     ]
   }]
 });
-
 Packer.toBuffer(doc).then(buf => fs.writeFileSync("report.docx", buf));
 ```
 
-### 필수 규칙
+### docx-js Essential Rules
 
-| 규칙 | 설명 |
-|------|------|
-| 페이지 크기 명시 | US Letter: 12240 x 15840 DXA |
-| `\n` 사용 금지 | 별도 Paragraph 객체 사용 |
-| 유니코드 불릿 금지 | `LevelFormat.BULLET` 사용 |
-| PageBreak | 반드시 Paragraph 안에 |
-| ImageRun | `type` (png/jpg) 필수 지정 |
-| 테이블 너비 | 항상 `WidthType.DXA` |
-| 셀 배경색 | `ShadingType.CLEAR` (SOLID 아님) |
+| Rule | Details |
+|------|---------|
+| Specify page size | US Letter: 12240 x 15840 DXA |
+| No `\n` usage | Use separate Paragraph objects |
+| No unicode bullets | Use `LevelFormat.BULLET` |
+| PageBreak | Must be inside a Paragraph |
+| ImageRun | `type` (png/jpg) must be specified |
+| Table width | Always use `WidthType.DXA` |
+| Cell background | `ShadingType.CLEAR` (not SOLID) |
 
-## 3. 기존 문서 편집
+## 3. Edit Existing Documents
 
-### 기본 편집 (Unpack → Edit → Repack)
-
+### Basic Editing (Unpack → Edit → Repack)
 ```bash
-# 1. 언팩
-python ooxml/scripts/unpack.py document.docx unpacked/
-
-# 2. XML 편집 (word/document.xml)
-# Python 스크립트로 DOM 조작
-
-# 3. 리팩
-python ooxml/scripts/pack.py unpacked/ output.docx
+python ooxml/scripts/unpack.py document.docx unpacked/   # Unpack
+# Edit XML (word/document.xml) — Python DOM manipulation
+python ooxml/scripts/pack.py unpacked/ output.docx        # Repack
 ```
 
-### Redlining 워크플로우 (변경 추적)
+### Redlining Workflow (Tracked Changes)
 
-법률·비즈니스·학술 문서에서 변경 사항을 추적하며 편집하는 워크플로우.
-
-**원칙: 최소한의 정확한 편집** — 변경된 텍스트만 마킹한다.
+Edit legal/business/academic documents with change tracking. **Principle: minimal, precise edits** — only mark the changed text.
 
 ```python
-# 나쁜 예 — 전체 문장 교체
+# Bad example — replace entire sentence
 '<w:del><w:delText>The term is 30 days.</w:delText></w:del>'
 '<w:ins><w:t>The term is 60 days.</w:t></w:ins>'
 
-# 좋은 예 — 변경 부분만 마킹
+# Good example — mark only the changed portion
 '<w:r><w:t>The term is </w:t></w:r>'
 '<w:del><w:delText>30</w:delText></w:del>'
 '<w:ins><w:t>60</w:t></w:ins>'
 '<w:r><w:t> days.</w:t></w:r>'
 ```
 
-#### Redlining 프로세스
-
+#### Redlining Process
 ```
-1. 마크다운 변환     pandoc --track-changes=all doc.docx -o current.md
-2. 변경 사항 식별     배치로 그룹핑 (3-10개씩)
-3. 언팩              python ooxml/scripts/unpack.py doc.docx unpacked/
-4. 배치별 스크립트    grep으로 위치 확인 → DOM 편집 → doc.save()
-5. 리팩              python ooxml/scripts/pack.py unpacked/ reviewed.docx
-6. 검증              pandoc --track-changes=all reviewed.docx -o verify.md
+1. Convert to markdown     pandoc --track-changes=all doc.docx -o current.md
+2. Identify changes        Group into batches (3-10 each, by section/type/location)
+3. Unpack                  python ooxml/scripts/unpack.py doc.docx unpacked/
+4. Script per batch        grep to locate → DOM edit → doc.save()
+5. Repack                  python ooxml/scripts/pack.py unpacked/ reviewed.docx
+6. Verify                  pandoc --track-changes=all reviewed.docx -o verify.md
 ```
 
-#### 배치 그룹핑 전략
-
-| 전략 | 예시 |
-|------|------|
-| 섹션별 | "Section 3 수정", "정의 조항 수정" |
-| 유형별 | "날짜 변경", "당사자명 변경" |
-| 위치별 | "1-3페이지 변경", "후반부 변경" |
-
-### 변경 추적 XML 패턴
-
+#### Tracked Changes XML Patterns
 ```xml
-<!-- 삽입 -->
+<!-- Insertion -->
 <w:ins w:id="1" w:author="Reviewer" w:date="2026-03-15T00:00:00Z">
   <w:r><w:t>삽입된 텍스트</w:t></w:r>
 </w:ins>
-
-<!-- 삭제 -->
+<!-- Deletion -->
 <w:del w:id="2" w:author="Reviewer" w:date="2026-03-15T00:00:00Z">
   <w:r><w:delText>삭제된 텍스트</w:delText></w:r>
 </w:del>
 ```
 
-## 4. 문서 → 이미지 변환
+## 4. Document to Image Conversion
 
 ```bash
-# DOCX → PDF
-soffice --headless --convert-to pdf document.docx
-
-# PDF → JPEG (페이지별)
-pdftoppm -jpeg -r 150 document.pdf page
-# 결과: page-1.jpg, page-2.jpg, ...
-
-# 특정 페이지만
-pdftoppm -jpeg -r 150 -f 2 -l 5 document.pdf page
+soffice --headless --convert-to pdf document.docx          # DOCX → PDF
+pdftoppm -jpeg -r 150 document.pdf page                    # PDF → JPEG (all pages)
+pdftoppm -jpeg -r 150 -f 2 -l 5 document.pdf page         # Specific pages only
 ```
 
-## 의존성
+## Dependencies
 
-| 도구 | 설치 | 용도 |
-|------|------|------|
-| pandoc | `brew install pandoc` | 텍스트 추출, 포맷 변환 |
-| docx | `npm install -g docx` | 새 문서 생성 |
-| LibreOffice | `brew install --cask libreoffice` | PDF 변환 |
-| Poppler | `brew install poppler` | PDF→이미지 (pdftoppm) |
-| defusedxml | `pip install defusedxml` | 안전한 XML 파싱 |
+| Tool | Installation | Purpose |
+|------|-------------|---------|
+| pandoc | `brew install pandoc` | Text extraction, format conversion |
+| docx | `npm install -g docx` | New document creation |
+| LibreOffice | `brew install --cask libreoffice` | PDF conversion |
+| Poppler | `brew install poppler` | PDF to image (pdftoppm) |
+| defusedxml | `pip install defusedxml` | Safe XML parsing |
 
-## 코드 스타일
-
-- 간결하게 작성한다
-- 불필요한 print 문을 넣지 않는다
-- 장황한 변수명을 피한다
+## Code Style
+- Write concisely, no unnecessary print statements, avoid verbose variable names

@@ -10,6 +10,8 @@ recommendedModel: sonnet
 - **Use this agent** when: you need to actually find and fix a specific bug — read code, trace errors, analyze stack traces, and propose concrete fixes
 - **Use Qsystematic-debugging instead** when: you need a structured debugging methodology guide — how to approach root cause analysis and form hypotheses before diving into code
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Analyze error messages, stack traces, and logs to identify the root cause of bugs
 - Read code and trace data flow to confirm the cause based on evidence

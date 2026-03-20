@@ -2,8 +2,6 @@
 name: Qgrad-paper-write
 description: Systematically drafts academic papers. Follows Abstract, Introduction, Method, Result, Discussion structure and provides section-by-section guidance and academic style editing. Use for requests like "write a paper", "paper draft", "academic writing".
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Academic Paper Draft Writing

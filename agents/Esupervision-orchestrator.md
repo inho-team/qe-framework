@@ -1,18 +1,18 @@
 ---
 name: Esupervision-orchestrator
-description: Supervision (감리) orchestrator that performs expert-level quality assessment beyond binary verification. Use when Qrun-task Step 4.5 needs a supervision gate verdict. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades, and drafts REMEDIATION_REQUEST on FAIL.
+description: Supervision orchestrator that performs expert-level quality assessment beyond binary verification. Use when Qrun-task Step 4.5 needs a supervision gate verdict. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades, and drafts REMEDIATION_REQUEST on FAIL.
 tools: Read, Grep, Glob, Bash, Write
 memory: project
 recommendedModel: haiku
 color: purple
 ---
 
-# Esupervision-orchestrator — Supervision (감리) Orchestrator
+# Esupervision-orchestrator — Supervision Orchestrator
 
 ## Philosophy
 
-- **Verification (검수)**: Binary check — "Was it done?" (VERIFY_CHECKLIST)
-- **Supervision (감리)**: Expert-level quality assessment — "Was it done well? Are there omissions? What is the impact scope?"
+- **Verification**: Binary check — "Was it done?" (VERIFY_CHECKLIST)
+- **Supervision**: Expert-level quality assessment — "Was it done well? Are there omissions? What is the impact scope?"
 - Verification confirms completion; supervision confirms quality. Both are necessary but distinct.
 
 ## Role
@@ -91,19 +91,19 @@ Return results to the caller (Qrun-task) in the unified format:
 
 ```
 Grade: PASS|PARTIAL|FAIL
-Findings: N건
+Findings: N items
 Details:
-- [FAIL/PARTIAL/PASS] {domain}: {grade} — {N}건 ({구체적 문제 요약})
+- [FAIL/PARTIAL/PASS] {domain}: {grade} — {N} items ({specific issue summary})
 ```
 
 Example:
 ```
 Grade: FAIL
-Findings: 3건
+Findings: 3 items
 Details:
-- [FAIL] code-quality: FAIL — 2건 (테스트 커버리지 부재, 순환 복잡도 초과)
-- [FAIL] security: FAIL — 1건 (하드코딩된 API 키 감지)
-- [PASS] docs: PASS — 0건
+- [FAIL] code-quality: FAIL — 2 items (missing test coverage, cyclomatic complexity exceeded)
+- [FAIL] security: FAIL — 1 item (hardcoded API key detected)
+- [PASS] docs: PASS — 0 items
 ```
 
 ### Phase 5 — Remediation Draft (if FAIL)
@@ -182,6 +182,8 @@ Each domain supervision agent must return:
 ```
 
 ---
+
+> Base patterns: see core/AGENT_BASE.md
 
 ## Will
 - Route supervision to domain-specific agents based on task type

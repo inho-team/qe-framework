@@ -2,8 +2,6 @@
 name: Qpm-user-story
 description: Writes user stories in Mike Cohn format with Gherkin acceptance criteria. Use when converting user needs into development-ready tasks. Triggered by "write user stories", "create a story", "acceptance criteria", "As a user", etc.
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 ## Purpose

@@ -1,9 +1,7 @@
 ---
 name: Qhelp
-description: "Shows QE Framework usage overview in terminal. Use for help, how to use, 도움말, 사용법, 뭐할 수 있어, show commands, what can you do."
+description: "Shows QE Framework usage overview in terminal. Use when the user asks for help, how to use the framework, available commands, or what the framework can do."
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qhelp — QE Framework Quick Reference
 
@@ -74,6 +72,7 @@ MEDIA
   /Qaudio-transcriber      Audio → text (meeting notes)
   /Qyoutube-transcript-api YouTube subtitles & transcription
 META
+  /Qversion                Show current version
   /Qskill-creator          Create or modify skills
   /Qcommand-creator        Create slash commands
   /Qfind-skills            Search skills.sh marketplace

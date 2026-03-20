@@ -15,6 +15,8 @@ Documentation supervision covers: completeness (missing required sections), accu
 
 ---
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Audit all documentation files within the specified scope
 - Verify required sections are present and non-empty
@@ -109,20 +111,20 @@ Format the result using the unified return format and return it to the caller.
 
 ```
 Grade: PASS | PARTIAL | FAIL
-Findings: N건
+Findings: N items
 Details:
-- [FAIL/WARN/INFO] {항목}: {구체적 문제점} → {재작업 지시}
+- [FAIL/WARN/INFO] {category}: {specific issue} → {rework instruction}
 ```
 
 ### Example
 
 ```
 Grade: FAIL
-Findings: 3건
+Findings: 3 items
 Details:
-- [FAIL] 링크 유효성: agents/Efoo-agent.md 링크가 존재하지 않는 파일을 참조함 → 올바른 경로로 수정 또는 파일 생성 필요
-- [WARN] 예시 충분성: WebSearch 도구 사용법에 대한 실행 가능한 예시 없음 → 구체적인 호출 예시 추가 필요
-- [INFO] 구조 일관성: 다른 에이전트 스펙과 달리 Will Not 섹션이 Will 앞에 위치함 → 선택적 재정렬 권고
+- [FAIL] Link validity: agents/Efoo-agent.md link references a non-existent file → fix to correct path or create the file
+- [WARN] Example sufficiency: no runnable example for WebSearch tool usage → add a concrete invocation example
+- [INFO] Structural consistency: Will Not section placed before Will, unlike other agent specs → optional reordering recommended
 ```
 
 ---
@@ -132,5 +134,5 @@ Details:
 - Scope is always the explicitly provided target or changed `.md` files in `git diff HEAD` by default
 - Cross-reference all file paths and code identifiers against the actual codebase using Read/Grep/Glob
 - Do not penalize intentional structural choices that are consistently applied across the entire project
-- Always provide a concrete rework instruction (`→ {재작업 지시}`) for every FAIL and WARN finding
+- Always provide a concrete rework instruction (`→ {rework instruction}`) for every FAIL and WARN finding
 - INFO items may be omitted if they do not affect the grade

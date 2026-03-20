@@ -10,6 +10,8 @@ recommendedModel: sonnet
 - **Use this agent** when: you need to actually write test code, run tests, analyze coverage, or execute tests against existing code
 - **Use Qtest-driven-development instead** when: you need TDD methodology guidance — how to follow the red-green-refactor cycle and structure your development workflow around tests
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - First understand existing test patterns and frameworks, then write tests in a consistent style
 - Write Unit / Integration / E2E tests appropriate to the purpose, run them, and confirm they pass
@@ -143,3 +145,6 @@ class UserServiceTest {
 - Ensure test independence (no shared state)
 - Always run tests after writing them to confirm they pass
 - Do not target unnecessarily high coverage (prioritize core logic)
+- Before starting, read `.qe/agent-results/Ecode-reviewer-latest.md` if it exists (review findings inform test targets)
+- If coverage below 50%, write trigger: `.qe/agent-triggers/Ecode-quality-supervisor.trigger.md`
+- After completion, write result to `.qe/agent-results/Ecode-test-engineer-latest.md`

@@ -13,25 +13,18 @@ allowed-tools: Bash(jira:*), Bash(jira *)
 keywords: jira, cli, issue, ticket, sprint, board, backlog, JQL
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 ## Pre-check: jira CLI Installation
-
-Before executing any Jira commands, verify the CLI is installed:
 
 ```bash
 which jira 2>/dev/null && jira version 2>/dev/null
 ```
 
-**If installed**: proceed with commands.
-**If NOT installed**:
+**If NOT installed:**
 ```
-jira CLI가 설치되어 있지 않습니다.
 설치: go install github.com/ankitpokhrel/jira-cli/cmd/jira@latest
 또는: brew install ankitpokhrel/jira-cli/jira-cli
 ```
-Do NOT attempt to run jira commands without the CLI installed.
 
 ---
 
@@ -44,175 +37,89 @@ Based on `ankitpokhrel/jira-cli`. Manage Jira directly from Bash without an MCP 
 ## Prerequisites
 
 ```bash
-# Check installation
-jira version
-
-# If not installed
-brew install ankitpokhrel/jira-cli/jira-cli
-
-# Initial setup (once)
-jira init
+jira version           # Check installation
+jira init              # Initial setup (once)
 ```
 
-Inputs required during `jira init`:
-- Jira Server URL: `https://your-domain.atlassian.net`
-- Login type: `api_token`
-- Email: Your Atlassian email
-- API Token: Generate at [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens)
+Setup requires: Jira Server URL, login type (`api_token`), email, API token from [id.atlassian.com](https://id.atlassian.com/manage-profile/security/api-tokens).
 
 ## Core Commands
 
 ### Issue Queries
 
 ```bash
-# Issues assigned to me
-jira issue list -a$(jira me)
-
-# Search with JQL
-jira issue list -q "project = PROJ AND status = 'In Progress' ORDER BY priority DESC"
-
-# Open issues for a specific project
-jira issue list -p PROJ -s "To Do" -s "In Progress"
-
-# View issue details
-jira issue view PROJ-123
-
-# Plain text output (for piping/parsing)
-jira issue list -q "project = PROJ" --plain --columns key,summary,status,assignee
-
-# JSON output
-jira issue list -q "project = PROJ" --plain --no-headers 2>/dev/null
+jira issue list -a$(jira me)                                    # My issues
+jira issue list -q "project = PROJ AND status = 'In Progress'"  # JQL search
+jira issue list -p PROJ -s "To Do" -s "In Progress"             # By status
+jira issue view PROJ-123                                         # Details
+jira issue list -q "project = PROJ" --plain --columns key,summary,status,assignee  # Plain output
 ```
 
 ### Create Issues
 
 ```bash
-# Interactive creation
-jira issue create
-
-# One-liner creation
-jira issue create -t Bug -p PROJ -s "Login SSO error" -b "Cannot log in when SSO is enabled" -l bug -l production --priority High
-
-# Create sub-task
-jira issue create -t Sub-task -p PROJ -s "Add SSO debug logs" --parent PROJ-123
+jira issue create                                                # Interactive
+jira issue create -t Bug -p PROJ -s "Login SSO error" -b "Details" -l bug --priority High  # One-liner
+jira issue create -t Sub-task -p PROJ -s "Add logs" --parent PROJ-123  # Sub-task
 ```
 
 ### Edit Issues
 
 ```bash
-# Change status (transition)
-jira issue move PROJ-123 "In Progress"
-
-# Edit fields
-jira issue edit PROJ-123 -s "Updated title" --priority Highest
-
-# Change assignee
-jira issue assign PROJ-123 "jane.doe"
-jira issue assign PROJ-123 $(jira me)  # Assign to myself
-
-# Add comment
-jira issue comment add PROJ-123 "Investigating. Suspected race condition."
-
-# Add labels (via edit)
-jira issue edit PROJ-123 -l urgent -l hotfix
+jira issue move PROJ-123 "In Progress"            # Transition
+jira issue edit PROJ-123 -s "Updated title"        # Edit fields
+jira issue assign PROJ-123 "jane.doe"              # Assign
+jira issue assign PROJ-123 $(jira me)              # Assign to self
+jira issue comment add PROJ-123 "Comment text"     # Comment
+jira issue link PROJ-100 PROJ-101 "Blocks"         # Link issues
 ```
 
-### Issue Links
+### Sprints & Boards
 
 ```bash
-# Link issues (PROJ-100 blocks PROJ-101)
-jira issue link PROJ-100 PROJ-101 "Blocks"
+jira sprint list --current                         # Current sprint
+jira sprint list --prev / --next                   # Adjacent sprints
+jira sprint list --board-id 42 --state active       # By board
+jira sprint add <sprint-id> PROJ-100 PROJ-101      # Add to sprint
+jira board list                                     # All boards
+jira board list -t scrum                           # By type
 ```
 
-### Sprints
+### Epics & Projects
 
 ```bash
-# Current sprint issues
-jira sprint list --current
-
-# Previous/next sprint
-jira sprint list --prev
-jira sprint list --next
-
-# Sprint for a specific board
-jira sprint list --board-id 42 --state active
-
-# Add issue to sprint
-jira sprint add <sprint-id> PROJ-100 PROJ-101
-```
-
-### Boards
-
-```bash
-# Board list
-jira board list
-
-# Specific board type (Kanban/Scrum)
-jira board list -t scrum
-```
-
-### Epics
-
-```bash
-# Epic list
-jira epic list -p PROJ
-
-# Add issue to epic
-jira epic add PROJ-50 PROJ-123 PROJ-124
-
-# View epic issues
-jira epic list -p PROJ --table
-```
-
-### Projects
-
-```bash
-# Project list
-jira project list
-
-# Query by project key
-jira project list --plain --columns key,name,type
+jira epic list -p PROJ                             # List epics
+jira epic add PROJ-50 PROJ-123 PROJ-124            # Add to epic
+jira project list                                   # List projects
 ```
 
 ## Common JQL Patterns
 
 ```bash
 # High-priority open bugs
-jira issue list -q "project = PROJ AND issuetype = Bug AND priority IN (Highest, High) AND resolution IS EMPTY"
+"project = PROJ AND issuetype = Bug AND priority IN (Highest, High) AND resolution IS EMPTY"
 
 # Issues created this week
-jira issue list -q "project = PROJ AND created >= startOfWeek()"
+"project = PROJ AND created >= startOfWeek()"
 
-# Issues with no updates in 14+ days
-jira issue list -q "project = PROJ AND updated <= -14d AND resolution IS EMPTY"
+# Stale issues (14+ days)
+"project = PROJ AND updated <= -14d AND resolution IS EMPTY"
 
-# Backlog (not in any sprint)
-jira issue list -q "project = PROJ AND sprint IS EMPTY AND resolution IS EMPTY"
+# Backlog (no sprint)
+"project = PROJ AND sprint IS EMPTY AND resolution IS EMPTY"
 
 # Release blockers
-jira issue list -q "fixVersion = '2.0' AND priority = Blocker AND resolution IS EMPTY"
-
-# Issues I've commented on
-jira issue list -q "project = PROJ AND comment ~ currentUser()"
+"fixVersion = '2.0' AND priority = Blocker AND resolution IS EMPTY"
 ```
 
 ## Output Control
 
 ```bash
-# Table (default)
-jira issue list -p PROJ
-
-# Plain text (for scripts)
-jira issue list -p PROJ --plain
-
-# Select columns
-jira issue list -p PROJ --plain --columns key,summary,status,priority,assignee
-
-# Without headers
-jira issue list -p PROJ --plain --no-headers
-
-# Page size
-jira issue list -p PROJ --paginate 100
+jira issue list -p PROJ                            # Table (default)
+jira issue list -p PROJ --plain                    # Plain text
+jira issue list -p PROJ --plain --columns key,summary,status  # Select columns
+jira issue list -p PROJ --plain --no-headers       # No headers
+jira issue list -p PROJ --paginate 100             # Page size
 ```
 
 ## Practical Workflows
@@ -220,61 +127,22 @@ jira issue list -p PROJ --paginate 100
 ### Daily Standup View
 
 ```bash
-echo "=== My In Progress ==="
-jira issue list -a$(jira me) -s "In Progress" --plain --columns key,summary
-
-echo "=== My Awaiting Review ==="
-jira issue list -a$(jira me) -s "In Review" --plain --columns key,summary
-
-echo "=== Blockers ==="
-jira issue list -q "assignee = currentUser() AND (status = Blocked OR labels = blocked)" --plain --columns key,summary
-```
-
-### Quick Bug Report
-
-```bash
-jira issue create \
-  -t Bug \
-  -p PROJ \
-  -s "$1" \
-  -b "## Steps to Reproduce\n1. \n\n## Expected Result\n\n## Actual Result\n" \
-  -l bug \
-  --priority High \
-  -a $(jira me)
-```
-
-### Sprint Completion Rate
-
-```bash
-echo "=== Done ==="
-jira sprint list --current -s Done --plain --columns key,summary | wc -l
-
-echo "=== Not Done ==="
-jira sprint list --current -s "To Do" -s "In Progress" --plain --columns key,summary | wc -l
+echo "=== In Progress ===" && jira issue list -a$(jira me) -s "In Progress" --plain --columns key,summary
+echo "=== In Review ===" && jira issue list -a$(jira me) -s "In Review" --plain --columns key,summary
+echo "=== Blockers ===" && jira issue list -q "assignee = currentUser() AND status = Blocked" --plain --columns key,summary
 ```
 
 ## Role Division with Qatlassian-mcp
 
 | Task | Qjira-cli | Qatlassian-mcp |
 |------|-----------|----------------|
-| Jira issue CRUD | Yes | Yes |
-| JQL search | Yes | Yes |
-| Sprint management | Yes | Yes |
-| Confluence pages | No | Yes |
-| CQL search | No | Yes |
-| Release notes → Confluence | No | Yes |
+| Jira issue CRUD / JQL / Sprint | Yes | Yes |
+| Confluence / CQL | No | Yes |
 | No MCP server required | Yes | No |
-| Script/pipe integration | Yes (native Bash) | Partial |
+| Native Bash piping | Yes | Partial |
 
 ## Constraints
 
-### MUST DO
-- Use only after `jira init` is complete
-- Store API token in environment variable or `~/.config/.jira/.config.yml`
-- Watch for rate limits on bulk operations (add delay between requests)
-- Confirm with user before write operations
+**MUST DO:** Verify `jira init` complete; store API token securely; watch rate limits; confirm before write ops.
 
-### MUST NOT DO
-- Do not hardcode API tokens in code
-- Do not attempt to parse output without `--plain` (contains ANSI codes)
-- Do not use this skill for Confluence tasks (use Qatlassian-mcp)
+**MUST NOT DO:** Hardcode tokens; parse output without `--plain`; use for Confluence (use Qatlassian-mcp).

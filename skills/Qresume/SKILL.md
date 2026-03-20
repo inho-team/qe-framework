@@ -1,10 +1,8 @@
 ---
 name: Qresume
-description: "Restores saved context after compaction or session break. Use for resume, restore context, 이어하기, continue from where I left off, or load previous session."
+description: "Restores saved context after compaction or session break. Use when resuming work, restoring context, continuing from where you left off, or loading a previous session."
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qresume — Context Restoration
 

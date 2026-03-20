@@ -1,10 +1,8 @@
 ---
 name: Qcc-setup
-description: Sets up Claude Code shell aliases (cc, ccc, ccd) for quick terminal launch. Supports macOS/Linux (zsh/bash) and Windows (PowerShell). Use when the user wants "claude shortcut", "cc alias", "shell alias setup", or "터미널 단축어".
+description: Sets up Claude Code shell aliases (cc, ccc, ccd) for quick terminal launch. Supports macOS/Linux (zsh/bash) and Windows (PowerShell). Use when the user wants "claude shortcut", "cc alias", "shell alias setup", or "terminal shortcut".
 ---
 
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qcc-setup — Claude Code Shell Alias Setup
 

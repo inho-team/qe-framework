@@ -6,8 +6,6 @@ metadata:
   author: YouTubeTranscript.dev
   license: MIT
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 ## Pre-check: API Key Configuration
 

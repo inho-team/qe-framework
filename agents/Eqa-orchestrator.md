@@ -2,6 +2,7 @@
 name: Eqa-orchestrator
 description: A sub-agent that executes the full test→review→fix quality loop. Invoke when Qcode-run-task or Qrun-task needs a delegated quality verification loop that protects the main context.
 tools: Read, Write, Edit, Grep, Glob, Bash
+recommendedModel: opus
 ---
 
 # Eqa-orchestrator — Quality Loop Orchestrator
@@ -40,6 +41,8 @@ After the loop completes, return a summary only:
 
 ## Token Optimization Benefit
 Running the quality loop in the main context consumes a large number of tokens over 3 iterations. By delegating to Eqa-orchestrator, only the final summary is returned to the main context, reducing token consumption.
+
+> Base patterns: see core/AGENT_BASE.md
 
 ## Will
 - Execute test→review→fix loop

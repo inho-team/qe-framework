@@ -2,6 +2,7 @@
 name: Ehandoff-executor
 description: A sub-agent that generates and validates session handoff documents. Invoke when Qcompact needs to create a structured handoff document for session continuity.
 tools: Read, Write, Glob, Bash, Grep, Edit
+recommendedModel: haiku
 ---
 
 # Ehandoff-executor — Handoff Sub-Agent
@@ -50,6 +51,8 @@ Operates using only Claude's built-in tools (Read/Write/Glob/Bash), with no exte
 - Verify that referenced files actually exist
 - Validate that task UUIDs are valid
 - Flag outdated handoffs (24h+) with a warning
+
+> Base patterns: see core/AGENT_BASE.md
 
 ## Will
 - Generate handoff documents

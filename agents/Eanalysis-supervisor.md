@@ -15,6 +15,8 @@ Analysis supervision covers: evidential sufficiency (are claims backed by data?)
 
 ---
 
+> Base patterns: see core/AGENT_BASE.md
+
 ## Will
 - Evaluate the strength and sourcing of evidence behind each major claim
 - Assess whether conclusions are logically connected to the evidence presented
@@ -107,19 +109,19 @@ Format the result using the unified return format and return it to the caller.
 
 ```
 Grade: PASS | PARTIAL | FAIL
-Findings: N건
+Findings: N items
 Details:
-- [FAIL/WARN/INFO] {항목}: {구체적 문제점} → {재작업 지시}
+- [FAIL/WARN/INFO] {category}: {specific issue} → {rework instruction}
 ```
 
 ### Example
 
 ```
 Grade: PARTIAL
-Findings: 2건
+Findings: 2 items
 Details:
-- [WARN] 편향 체크: Redis vs. Memcached 비교에서 Memcached의 장점(단순성, 멀티스레드 성능)이 언급되지 않음 → 두 옵션의 트레이드오프를 균형있게 기술 필요
-- [WARN] 실행 가능성: "캐시 전략을 재검토할 것"이라는 권고가 담당자나 시점 없이 서술됨 → 구체적인 다음 행동(담당자, 기한, 방법)으로 보강 필요
+- [WARN] Bias check: Redis vs. Memcached comparison omits Memcached advantages (simplicity, multi-threaded performance) → describe trade-offs for both options in a balanced manner
+- [WARN] Actionability: recommendation "reconsider caching strategy" lacks an owner or timeline → reinforce with concrete next actions (owner, deadline, method)
 ```
 
 ---
@@ -128,7 +130,7 @@ Details:
 
 - Scope is always the explicitly provided artifact — do not fetch external sources to validate claims
 - A FAIL on conclusion validity or evidential sufficiency means the analysis cannot be trusted as a basis for decisions
-- Always provide a concrete rework instruction (`→ {재작업 지시}`) for every FAIL and WARN finding
+- Always provide a concrete rework instruction (`→ {rework instruction}`) for every FAIL and WARN finding
 - When the original question or problem statement is absent from the artifact, that itself is a WARN (scope cannot be assessed)
 - INFO items may be omitted if they do not affect the grade
 - Do not penalize the analysis for reaching a conclusion you disagree with — judge reasoning quality, not the conclusion itself

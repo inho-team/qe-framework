@@ -2,8 +2,6 @@
 name: Qmcp-setup
 description: "MCP (Model Context Protocol) server setup and configuration guide for Claude Code. Use when adding external service integrations (Google Drive, Slack, GitHub, databases, etc.) via MCP servers. Invoke for 'mcp setup', 'mcp add', 'connect service', 'integrate with', 'add mcp server'."
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 ## Role Boundary (Absolute Rule)
 

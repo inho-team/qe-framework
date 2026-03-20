@@ -2,8 +2,6 @@
 name: Qrequirements-clarity
 description: Clarifies ambiguous requirements through focused dialogue before implementation. Use when requirements are unclear, the feature is complex (2+ days), or cross-team collaboration is needed. Secures clarity before coding through two core questions — Why? (YAGNI check) and Simpler? (KISS check).
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Requirements Clarity Skill

@@ -2,8 +2,6 @@
 name: Qcode-run-task
 description: "Performs a test → review → fix → retest quality verification loop. Use for code quality checks, test failures, or when Qrun-task finishes a code task. Triggered automatically for type:code tasks."
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 
 # Code Quality Verification Loop Skill
@@ -29,11 +27,11 @@ Qrun-task Step 3 complete (implementation done)
     ↓
 Step 1: Collect context
     ↓
-Step 2: Test (Ecode-test-engineer)
+Step 2+3: Test + Review (parallel)
+    ├── Ecode-test-engineer (test)
+    └── Ecode-reviewer (review)
     ↓
-Step 3: Review (Ecode-reviewer)
-    ↓
-Step 4: Issues found → Fix (Ecode-debugger) → Return to Step 2
+Step 4: Issues found → Fix (Ecode-debugger) → Return to Step 2+3
          No issues → Step 5
     ↓
 Step 5: Report results
@@ -83,39 +81,22 @@ Identify changed code and related documents.
 **Validation criteria:** M items (see VERIFY_CHECKLIST)
 ```
 
-### Step 2: Test
+### Step 2+3: Test + Review (parallel)
 
-Delegate tests to the `Ecode-test-engineer` sub-agent via the Agent tool.
+Spawn **both agents in parallel** using a single message with two Agent tool calls:
 
-**Information to pass on delegation:**
+**Agent 1 — Ecode-test-engineer:**
 - List of changed files and paths
 - "What is wanted" section from TASK_REQUEST (functional goals)
 - Validation criteria from VERIFY_CHECKLIST
 - Existing test structure and patterns in the project
+- Scope: unit tests, VERIFY_CHECKLIST criteria tests, regression tests
 
-**Test scope:**
-- Write/run unit tests for changed code
-- Tests corresponding to VERIFY_CHECKLIST validation criteria
-- Run regression tests if existing tests are present
-
-**Collect test results:**
-```
-## Test Results (Iteration N/3)
-
-- Passed: X
-- Failed: Y
-- Failed items:
-  - [test name] - [failure reason]
-```
-
-### Step 3: Review
-
-Delegate code review to the `Ecode-reviewer` sub-agent via the Agent tool.
-
-**Information to pass on delegation:**
+**Agent 2 — Ecode-reviewer:**
 - List of changed files and paths
 - Notes from TASK_REQUEST (constraints)
-- Step 2 test results (including failed items)
+
+**Collect results from both** before proceeding to Step 4:
 
 **Collect review results:**
 ```

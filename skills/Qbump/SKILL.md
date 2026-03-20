@@ -1,11 +1,10 @@
 ---
-name: Tbump
-description: "Bumps the QE Framework version in plugin.json and package.json. Use for version bump, 버전업, bump version, release, 릴리스, 버전 올려. Supports major, minor, and patch levels."
+name: Qbump
+description: "Bumps the QE Framework version in plugin.json and package.json. Use for version bump, bump version, release. Supports major, minor, and patch levels."
 allowed-tools: Bash(git *)
 ---
-> Core philosophy: see core/PHILOSOPHY.md
 
-# Tbump — QE Framework Version Bump
+# Qbump — QE Framework Version Bump
 
 ## Purpose
 

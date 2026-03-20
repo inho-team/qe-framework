@@ -1,169 +1,212 @@
 ---
 name: Qutopia
-description: "Utopia mode — fully autonomous execution. Skips all confirmations (AskUserQuestion) and auto-allows tool permissions. Complex tasks automatically go through spec→task→verify pipeline. Use for 'utopia', 'autonomous', 'no questions', '자동 실행'."
+description: "Utopia mode — fully autonomous execution. Skips all confirmations and auto-allows tool permissions. Use when the user wants fully autonomous, no-confirmation execution with keywords like 'utopia', 'autonomous', or 'no questions'. Supports --work (spec pipeline) and --qa (spec + quality loop)."
 allowed-tools: Bash(*), Read, Write, Edit, Glob, Grep
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
-# Qutopia — Utopia Mode (Fully Autonomous Execution)
+# Qutopia — Fully Autonomous Execution
 
-## Role
-Toggles Utopia mode ON/OFF. When ON, the entire QE framework runs autonomously — no user confirmations, and complex tasks automatically follow the spec→task→verify pipeline.
+## Modes
+
+| Command | Behavior |
+|---------|----------|
+| `/Qutopia` | Auto mode — classify simple/complex, auto-select work or qa |
+| `/Qutopia --work` | Force work mode (spec pipeline, no quality loop) |
+| `/Qutopia --qa` | Force qa mode (spec pipeline + quality loop) |
+| `/Qutopia off` | Disable autonomous mode |
+| `/Qutopia status` | Show current state |
 
 ## What It Does
 
-### 1. QE Internal — Skip AskUserQuestion
-Creates/updates `.qe/state/utopia-state.json`:
+### 1. Skip Confirmations
+Creates `.qe/state/utopia-state.json`:
 ```json
 {
   "enabled": true,
-  "activatedAt": "2026-03-14T19:00:00Z"
+  "mode": "auto|work|qa",
+  "activatedAt": "2026-03-20T00:00:00Z"
 }
 ```
 
-When `enabled: true`, ALL skills and agents MUST:
-- Skip `AskUserQuestion` calls — auto-select the first (recommended) option
-- Auto-approve task execution in Qrun-task (always "Proceed")
-- Auto-select "Generate" in Qgenerate-spec
-- Auto-commit and push after task completion via Qcommit
+When `enabled: true`, ALL skills/agents:
+- Skip `AskUserQuestion` — auto-select first (recommended) option
+- Auto-approve in Qrun-task, auto-generate in Qgenerate-spec
+- Auto-commit via Qcommit after task completion
 
-### 2. Claude Code — Auto-allow tool permissions
-Creates/updates `.claude/settings.json` with `allowedTools` to suppress permission prompts:
+### 2. Auto-allow Tool Permissions
+Merge into `.claude/settings.json`:
 ```json
 {
   "permissions": {
     "allow": [
       "Read", "Write", "Edit", "Glob", "Grep",
-      "Bash(*)", "Agent(*)",
-      "WebFetch", "WebSearch",
-      "NotebookEdit"
+      "Bash(*)", "Agent(*)", "WebFetch", "WebSearch", "NotebookEdit"
     ]
   }
 }
 ```
 
-### 3. Autonomous Pipeline — Complexity-based routing
+### 3. Request Routing
 
-When Utopia mode is ON and the user gives a request, **automatically classify complexity** and route accordingly.
-
-#### Complexity Classification
-
-**SIMPLE (직접 실행)** — ALL of the following must be true:
-- Single file change OR single well-defined action
-- No architectural decisions needed
-- Estimated steps: 1-2
-- No new files to create (only modify existing)
-
-Examples of SIMPLE:
-- "이 오타 고쳐줘"
-- "이 함수 이름 바꿔줘"
-- "이 import 추가해"
-- "이 파일 삭제해"
-- "git status 보여줘"
-
-**COMPLEX (spec→task pipeline)** — ANY of the following is true:
-- Multiple files to modify (3+)
-- New feature or component to create
-- Architectural or design decisions involved
-- Estimated steps: 3+
-- Unclear scope requiring analysis first
-- Refactoring across multiple modules
-
-Examples of COMPLEX:
-- "로그인 기능 추가해"
-- "이 모듈 리팩토링해줘"
-- "테스트 코드 작성해"
-- "API 엔드포인트 만들어줘"
-- "성능 최적화해줘"
-
-#### Pre-execution Gate Integration
-
-Before routing, COMPLEX requests pass through the **Pre-execution Gate** (defined in Qgenerate-spec SKILL.md). The gate checks if the prompt has concrete anchor signals (file paths, function names, issue numbers, code blocks, numbered steps, etc.).
-
-- **Anchor found** → proceed with COMPLEX pipeline directly
-- **No anchor + ≤15 effective words** → redirect to Qgenerate-spec normal flow (Step 1) for proper scoping
-- **Bypass**: `force:` or `!` prefix skips the gate entirely
-
-See the "Pre-execution Gate" section in Qgenerate-spec SKILL.md for the full anchor signal table and bypass rules.
-
-#### Routing Behavior
+#### Default mode (`/Qutopia`, no flag)
 
 ```
-Utopia ON + User Request
-    ↓
-Complexity Classification (automatic, no user prompt)
-    ↓
-├── SIMPLE → Execute directly (no spec, no task file)
-│   └── Done → Report result
-│
-└── COMPLEX → Pre-execution Gate check
-    ├── Gate fires → Qgenerate-spec normal flow (Step 1~5)
-    └── Gate passes → Autonomous Pipeline:
-        1. Qgenerate-spec (auto-generate, skip all confirmations)
-           - Create TASK_REQUEST + VERIFY_CHECKLIST
-           - Auto-select "Generate" (no user review)
-        2. Qrun-task (auto-execute)
-           - Read task files, implement all checklist items
-           - Skip approval step
-        3. Verify
-           - Check all VERIFY_CHECKLIST items
-           - Auto-commit via Qcommit
-        4. Report completion summary
+Request → Classify complexity → SIMPLE → Execute directly
+                              → COMPLEX → Auto-select mode → Spec pipeline
 ```
 
-#### Classification Output Format
-When classifying, briefly state the decision:
+**SIMPLE** (all true): single file/action, no architecture decisions, 1-2 steps → execute directly, no spec
+**COMPLEX** (any true): 3+ files, new feature, architecture decisions, 3+ steps → enter spec pipeline
+
+**Auto mode selection for COMPLEX requests:**
+
+| Signal | Mode | Reason |
+|--------|------|--------|
+| `type: code` + has tests (test files exist in project) | **qa** | 테스트 인프라가 있으면 품질 루프 활용 |
+| `type: code` + auth/crypto/payment keywords | **qa** | 보안 민감 코드는 품질 검증 필수 |
+| `type: code` + no tests | **work** | 품질 루프 돌려봐야 테스트가 없어서 의미 없음 |
+| `type: docs` / `type: analysis` / `type: other` | **work** | 품질 루프 불필요 |
+
+Output: `[Utopia] COMPLEX → {mode} mode (reason)`
+
+#### `--work` mode
+
 ```
-[Utopia] SIMPLE — direct execution (single file edit)
+Request → Gate → Qgenerate-spec → Qrun-task → Verify ─┐
+                                                        ├→ Pass → Done
+                                                        └→ Fail → Diagnose → Re-execute → Verify (retry loop)
 ```
-or
+
+- State file: `"mode": "work"`, max reinforcements: 50
+- Multiple tasks: spawn `Etask-executor` agents in parallel
+- Single task: invoke `/Qrun-task {UUID}` in autonomous mode
+
+#### `--qa` mode
+
 ```
-[Utopia] COMPLEX — entering spec→task pipeline (multi-file feature)
+Request → Gate → Qgenerate-spec → Qrun-task → Qcode-run-task → Verify ─┐
+                                                                         ├→ Pass → Done
+                                                                         └→ Fail → Diagnose → Re-execute → Verify (retry loop)
 ```
+
+- State file: `"mode": "qa"`, max reinforcements: 80
+- After each task completes:
+  - Code tasks: `/Qcode-run-task` (test → review → fix → retest, max 3 cycles)
+  - All tasks: run VERIFY_CHECKLIST (quality/security items embedded)
+- Cross-task audit: verify all checklists, inter-task consistency
+- Output QA report (per-task results, overall score)
+
+### Retry Loop (both work and qa)
+
+검증 실패 시 자동으로 원인 분석 → 재실행하는 루프. 성공할 때까지 반복하되 안전 제한 있음.
+
+```
+Verify failed
+  → Step 1: Diagnose — 실패 항목 분석, 원인 분류
+  → Step 2: Strategy — 원인별 대응 결정
+  → Step 3: Re-execute — 실패 항목만 재실행
+  → Step 4: Re-verify — 다시 검증
+  → Pass? → Done
+  → Fail? → retry_count < max? → Step 1로 복귀
+                                → max 도달 → Escalate
+```
+
+#### Diagnosis (Step 1)
+
+실패한 VERIFY_CHECKLIST 항목을 분석하고 원인을 분류:
+
+| 원인 | 대응 | 예시 |
+|------|------|------|
+| **구현 누락** | 해당 체크리스트 항목 재실행 | 파일 생성 안 됨, 함수 미구현 |
+| **구현 오류** | Ecode-debugger로 원인 파악 후 수정 | 테스트 실패, 런타임 에러 |
+| **스펙 모순** | 체크리스트 항목 수정 후 재실행 | 상충하는 요구사항 |
+| **환경 문제** | 환경 수정 후 재실행 | 의존성 누락, 권한 부족 |
+
+#### Retry Limits
+
+| Mode | Max Retries | Max Total Time | Escalation |
+|------|-------------|----------------|------------|
+| work | 3 | — | 사용자에게 실패 보고 + 선택지 (Retry/Abort/Override) |
+| qa | 5 | — | 사용자에게 실패 보고 + QA report |
+
+#### Retry State Tracking
+
+`.qe/state/utopia-state.json`에 retry 상태 기록:
+```json
+{
+  "retry": {
+    "count": 2,
+    "failed_items": ["VERIFY item 3", "VERIFY item 5"],
+    "last_diagnosis": "구현 오류 — test assertion mismatch",
+    "history": [
+      {"attempt": 1, "failed": 3, "fixed": 1},
+      {"attempt": 2, "failed": 2, "fixed": 1}
+    ]
+  }
+}
+```
+
+#### Approach Escalation
+
+같은 항목이 2회 연속 실패하면 접근법을 변경:
+- 1회차: 동일 방식으로 재시도
+- 2회차: Ecode-debugger로 근본 원인 분석 후 다른 방식 시도
+- 3회차(work) / 5회차(qa): 사용자에게 에스컬레이션
+
+Output per retry:
+```
+[Utopia] Retry #{n} — {failed_count} items failed → diagnosis: {cause}
+[Utopia] Re-executing: {item list}
+```
+
+### Pre-execution Gate
+
+Before entering spec pipeline (--work/--qa or COMPLEX routing), check prompt specificity:
+
+| Signal | Example |
+|--------|---------|
+| File path | `.ts`, `src/` |
+| Function/class name | camelCase, PascalCase |
+| Issue/PR number | `#N`, `PR N` |
+| Error reference | `TypeError` |
+| Code block | Triple backticks |
+| Numbered steps | `1. ... 2. ...` |
+
+**Decision:**
+- Anchor found or word count > 20 → proceed
+- No anchor + ≤ 20 words → redirect to Qgenerate-spec Step 1 for scoping
+- `force:` or `!` prefix → bypass gate
+
+## Common Rules (all modes)
+- **State management**: create before execution, clear after completion
+- **Reinforcement**: stop signals blocked up to max_reinforcements
+- **Parallel execution**: multiple Etask-executor agents concurrently
+- **Error handling**: log failure, skip to next task, report all at end
+- **No intermediate user prompts** after activation
+- **Progress output**: periodic reports (e.g., "3/7 tasks complete")
 
 ## Execution Procedure
 
-### `/Qutopia` or `/Qutopia on` — Enable
-1. Create `.qe/state/utopia-state.json` with `enabled: true`
+### Enable
+1. Create `.qe/state/utopia-state.json` with mode
 2. Read `.claude/settings.json` (create if not exists)
-3. Merge `permissions.allow` array (preserve existing settings)
-4. Save `.claude/settings.json`
-5. Report: "Utopia mode ON — autonomous pipeline active"
+3. Merge `permissions.allow` (preserve existing)
+4. Report: `Utopia mode ON ({mode}) — autonomous pipeline active`
 
-### `/Qutopia off` — Disable
-1. Update `.qe/state/utopia-state.json` with `enabled: false`
-2. Remove the `permissions.allow` array from `.claude/settings.json`
-3. Report: "Utopia mode OFF — confirmations restored"
+### Disable (`/Qutopia off`)
+1. Update state file: `enabled: false`
+2. Remove `permissions.allow` from settings
+3. Report: `Utopia mode OFF — confirmations restored`
 
-### `/Qutopia status` — Check status
-1. Read `.qe/state/utopia-state.json`
-2. Report current state
+## Safety
+- Does NOT skip destructive git operations (force push, reset --hard)
+- Does NOT skip file deletion outside .qe/
+- Spec pipeline creates audit trail even in autonomous mode
+- User can always `/Qutopia off`
 
-## How Other Skills Check Utopia Mode
-Before calling `AskUserQuestion`, skills should check:
+## How Skills Check Utopia Mode
 ```
 Read .qe/state/utopia-state.json
 If enabled: true → skip AskUserQuestion, auto-select first option
-If enabled: false or file missing → normal behavior
+If enabled: false or missing → normal behavior
 ```
-
-## Safety
-- Utopia mode does NOT skip destructive git operations (force push, reset --hard)
-- Utopia mode does NOT skip file deletion confirmations for files outside .qe/
-- User can always turn it off with `/Qutopia off`
-- The spec→task pipeline creates an audit trail even in autonomous mode
-
-## Will
-- Toggle autonomous execution mode
-- Classify request complexity and route accordingly
-- Run spec→task→verify pipeline for complex tasks
-- Execute simple tasks directly
-- Manage .claude/settings.json permissions
-- Manage .qe/state/utopia-state.json
-
-## Will Not
-- Enable --dangerously-skip-permissions (CLI flag, not controllable)
-- Skip safety checks for destructive operations
-- Run without explicit user invocation to enable
-- Force spec→task pipeline for trivially simple tasks (1-2 step edits)

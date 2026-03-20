@@ -1,9 +1,7 @@
 ---
 name: Qversion
-description: "Shows the current QE Framework version. Use for version, 버전, what version, 현재 버전, qe version."
+description: "Shows the current QE Framework version. Use when asked 'what version', 'qe version', 'show version', or 'check version'."
 ---
-> Shared principles: see core/PRINCIPLES.md
-> Core philosophy: see core/PHILOSOPHY.md
 
 # Qversion — Version Info
 
