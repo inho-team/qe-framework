@@ -93,9 +93,6 @@ On "Generate & Execute" or "Generate Only":
   TASK_REQUEST_*.md
   VERIFY_CHECKLIST_*.md
   ANALYSIS_*.md
-
-  # Oh My ClaudeCode
-  .omc/
   ```
 
 Output status summary after file creation:

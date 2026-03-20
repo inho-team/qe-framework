@@ -131,9 +131,6 @@ If `.gitignore` does not exist, create it; if it does, add only missing entries 
 TASK_REQUEST_*.md
 VERIFY_CHECKLIST_*.md
 ANALYSIS_*.md
-
-# Oh My ClaudeCode
-.omc/
 ```
 
 ### Step 4: Completion Notice

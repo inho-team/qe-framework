@@ -577,4 +577,4 @@ qe-framework/
 
 ## License
 
-UNLICENSED
+MIT License. See [LICENSE](LICENSE) for details. Third-party attributions are listed in [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

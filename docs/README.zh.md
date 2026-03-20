@@ -616,4 +616,4 @@ qe-framework/
 
 ## 许可证
 
-UNLICENSED
+MIT License。详见 [LICENSE](../LICENSE)。

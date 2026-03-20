@@ -618,4 +618,4 @@ qe-framework/
 
 ## ライセンス
 
-UNLICENSED
+MIT License。詳細は [LICENSE](../LICENSE) をご覧ください。
