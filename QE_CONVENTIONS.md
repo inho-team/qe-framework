@@ -67,6 +67,7 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qprofile` | Analyze user patterns and style |
 | `Qutopia` | Fully autonomous execution mode |
 | `Qagent-md-refactor` | Refactor bloated instruction files |
+| `Qqe-audit` | Full framework quality audit and report |
 
 ### Task Execution
 | Skill | Purpose |

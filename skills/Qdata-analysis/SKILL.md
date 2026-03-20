@@ -1,6 +1,6 @@
 ---
 name: Qdata-analysis
-description: Data exploration, statistical analysis, and visualization. Analyzes CSV/JSON/Excel datasets with distribution profiling, correlation analysis, hypothesis testing, and chart generation. Use when the user asks to analyze data, explore datasets, compute statistics, find correlations, check distributions, or visualize data.
+description: Data exploration, statistical analysis, and visualization. Analyzes CSV/JSON/Excel datasets with distribution profiling, correlation analysis, hypothesis testing, and chart generation. Use when the user asks to analyze data, explore datasets, compute statistics, find correlations, check distributions, or visualize data. Korean: '데이터 분석', '통계', '시각화', '상관관계'. Chinese: '数据分析', '统计', '可视化'. Japanese: 'データ分析', '統計', '可視化'. Arabic: 'تحليل البيانات'. Hindi: 'डेटा विश्लेषण'. Spanish: 'análisis de datos'. Portuguese: 'análise de dados'. French: 'analyse de données'. German: 'Datenanalyse'. Russian: 'анализ данных'. Indonesian: 'analisis data'.
 ---
 
 

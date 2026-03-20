@@ -1,6 +1,6 @@
 ---
 name: Qwriting-clearly
-description: "Use when writing or refining text that humans will read. Triggers: make this clearer, edit this writing, improve prose, polish text, refine sentences. Applies to documentation, commit messages, error messages, reports, and UI text. Based on Strunk's principles."
+description: "Use when writing or refining text that humans will read. Triggers: make this clearer, edit this writing, improve prose, polish text, refine sentences. Applies to documentation, commit messages, error messages, reports, and UI text. Based on Strunk's principles. Korean: '글 다듬기', '문장 정리', '문체 개선'. Chinese: '润色文字', '改善文风'. Japanese: '文章推敲', '文体改善'. Arabic: 'تحسين الكتابة'. Hindi: 'लेखन सुधार'. Spanish: 'mejorar redacción'. Portuguese: 'melhorar redação'. French: 'améliorer rédaction'. German: 'Text verbessern'. Russian: 'улучшить текст'. Indonesian: 'perbaiki tulisan'." 
 ---
 
 

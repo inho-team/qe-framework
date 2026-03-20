@@ -1,6 +1,6 @@
 ---
 name: Qutopia
-description: "Utopia mode — fully autonomous execution. Skips all confirmations and auto-allows tool permissions. Use when the user wants fully autonomous, no-confirmation execution with keywords like 'utopia', 'autonomous', or 'no questions'. Supports --work (spec pipeline) and --qa (spec + quality loop)."
+description: "Utopia mode — fully autonomous execution. Skips all confirmations and auto-allows tool permissions. Use when the user wants fully autonomous, no-confirmation execution with keywords like 'utopia', 'autonomous', or 'no questions'. Supports --work (spec pipeline) and --qa (spec + quality loop). Korean: '자율 실행', '자동 모드', '확인 없이'. Chinese: '自主执行', '全自动'. Japanese: '自律実行', '自動モード'. Arabic: 'تنفيذ تلقائي'. Hindi: 'स्वायत्त निष्पादन'. Spanish: 'ejecución autónoma'. Portuguese: 'execução autônoma'. French: 'exécution autonome'. German: 'autonome Ausführung'. Russian: 'автономное выполнение'. Indonesian: 'eksekusi otonom'."
 allowed-tools: Bash(*), Read, Write, Edit, Glob, Grep
 ---
 
@@ -178,6 +178,7 @@ Before entering spec pipeline (--work/--qa or COMPLEX routing), check prompt spe
 - `force:` or `!` prefix → bypass gate
 
 ## Common Rules (all modes)
+- **Skill priority**: Even in autonomous mode, if a registered skill covers the action (e.g., Qskill-creator for skill creation, Qcommit for git commit, Qagent-creator for agent creation), invoke the skill instead of raw tool calls. QE_CONVENTIONS.md override map always applies.
 - **State management**: create before execution, clear after completion
 - **Reinforcement**: stop signals blocked up to max_reinforcements
 - **Parallel execution**: multiple Etask-executor agents concurrently

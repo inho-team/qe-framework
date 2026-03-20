@@ -1,6 +1,6 @@
 ---
 name: Qcompact
-description: Context preservation and session handoff. When run automatically in the background, saves context to .qe/context/. When invoked manually, generates a detailed handoff document in .qe/handoffs/. Use when the user wants to save state, handoff, save context, end session, or continue later.
+description: Context preservation and session handoff. When run automatically in the background, saves context to .qe/context/. When invoked manually, generates a detailed handoff document in .qe/handoffs/. Use when the user wants to save state, handoff, save context, end session, or continue later. Korean: '컨텍스트 저장', '세션 저장', '핸드오프', '이어서 작업'. Chinese: '保存上下文', '会话保存'. Japanese: 'コンテキスト保存', 'セッション保存'. Arabic: 'حفظ السياق'. Hindi: 'संदर्भ सहेजें'. Spanish: 'guardar contexto'. Portuguese: 'salvar contexto'. French: 'sauvegarder contexte'. German: 'Kontext speichern'. Russian: 'сохранить контекст'. Indonesian: 'simpan konteks'.
 ---
 
 

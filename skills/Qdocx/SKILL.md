@@ -1,6 +1,6 @@
 ---
 name: Qdocx
-description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, editing with tracked changes, extracting text/tables, and converting formats. Supports legal, business, and academic documents."
+description: "Comprehensive Word document creation, editing, and analysis. Use for creating new .docx files, editing with tracked changes, extracting text/tables, and converting formats. Supports legal, business, and academic documents. Korean: '워드 문서', '문서 작성', '문서 편집'. Chinese: 'Word文档', '文档编辑'. Japanese: 'Word文書', '文書作成'. Arabic: 'مستند وورد'. Hindi: 'वर्ड दस्तावेज़'. Spanish: 'documento Word'. Portuguese: 'documento Word'. French: 'document Word'. German: 'Word-Dokument'. Russian: 'документ Word'. Indonesian: 'dokumen Word'."
 metadata:
   source: https://github.com/tfriedel/claude-office-skills
   author: tfriedel

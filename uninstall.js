@@ -1,40 +1,29 @@
 #!/usr/bin/env node
-'use strict';
 
-const fs = require('fs');
-const path = require('path');
-const os = require('os');
+import { readdirSync, existsSync, rmSync } from 'fs';
+import { join, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { homedir } from 'os';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 const targets = [
-  { src: 'skills', dest: path.join(os.homedir(), '.claude', 'commands'), label: 'skill' },
-  { src: 'agents', dest: path.join(os.homedir(), '.claude', 'agents'), label: 'agent' },
+  { src: 'skills', dest: join(homedir(), '.claude', 'commands'), label: 'skill' },
+  { src: 'agents', dest: join(homedir(), '.claude', 'agents'), label: 'agent' },
 ];
 
-function removeRecursive(target) {
-  if (!fs.existsSync(target)) return;
-  const stat = fs.statSync(target);
-  if (stat.isDirectory()) {
-    for (const entry of fs.readdirSync(target)) {
-      removeRecursive(path.join(target, entry));
-    }
-    fs.rmSync(target, { recursive: true });
-  } else {
-    fs.unlinkSync(target);
-  }
-}
-
 for (const { src, dest, label } of targets) {
-  const srcDir = path.join(__dirname, src);
-  if (!fs.existsSync(srcDir)) {
+  const srcDir = join(__dirname, src);
+  if (!existsSync(srcDir)) {
     console.log(`${src}/ not found. Skipping ${label}s.`);
     continue;
   }
-  const entries = fs.readdirSync(srcDir);
+  const entries = readdirSync(srcDir);
   let removed = 0;
   for (const entry of entries) {
-    const target = path.join(dest, entry);
-    if (fs.existsSync(target)) {
-      removeRecursive(target);
+    const target = join(dest, entry);
+    if (existsSync(target)) {
+      rmSync(target, { recursive: true, force: true });
       console.log(`Removed ${label}: ${target}`);
       removed++;
     }

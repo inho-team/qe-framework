@@ -67,6 +67,16 @@
     "archive-task/completed-archive": "Qarchive",
     "quality-loop/code-run-task": "Qcode-run-task",
     "mcp-setup/connect-service": "Qmcp-setup",
-    "agentation/visual-feedback/UI-annotation": "Qagentation"
+    "agentation/visual-feedback/UI-annotation": "Qagentation",
+    "create-agent/new-agent/build-agent": "Qagent-creator",
+    "version-bump/bump-version/release": "Qbump",
+    "stitch/stitch-setup/stitch-mcp": "Qstitch-cli",
+    "show-version/qe-version/check-version": "Qversion",
+    "audit/evaluate/inspect/health-check/framework-report": "Qqe-audit"
+  },
+  "agent_tiers": {
+    "LOW": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],
+    "MEDIUM": ["Etask-executor", "Ecode-debugger", "Ecode-reviewer", "Ecode-test-engineer", "Ecode-doc-writer", "Ecode-quality-supervisor", "Edocs-supervisor", "Eanalysis-supervisor", "Edoc-generator", "Egrad-writer", "Epm-planner", "Erefresh-executor", "Ecompact-executor", "Ehandoff-executor"],
+    "HIGH": ["Edeep-researcher", "Eqa-orchestrator", "Esecurity-officer", "Esupervision-orchestrator"]
   }
 }

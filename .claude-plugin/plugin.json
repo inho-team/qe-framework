@@ -1,7 +1,7 @@
 {
   "name": "qe-framework",
   "version": "2.2.0",
-  "description": "QE Framework - Personal Claude Code skills package",
+  "description": "QE Framework — Spec-driven task execution for Claude Code with SVS loop, 139 skills, and 21 agents",
   "author": { "name": "inho-team" },
   "skills": "./skills/",
   "agents": [

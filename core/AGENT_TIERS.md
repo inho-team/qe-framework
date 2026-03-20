@@ -56,6 +56,11 @@ Optimizes cost while maintaining quality.
 | Erefresh-executor | MEDIUM | — |
 | Ecompact-executor | MEDIUM | — |
 | Ehandoff-executor | MEDIUM | — |
+| Eanalysis-supervisor | MEDIUM | HIGH (complex analysis) |
+| Ecode-quality-supervisor | MEDIUM | HIGH (architecture review) |
+| Edocs-supervisor | MEDIUM | — |
+| Esecurity-officer | HIGH | — |
+| Esupervision-orchestrator | HIGH | — |
 
 ## Escalation Rules
 - 2 failures at MEDIUM → auto-escalate to HIGH

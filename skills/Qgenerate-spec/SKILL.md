@@ -1,6 +1,6 @@
 ---
 name: Qgenerate-spec
-description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when the user wants to start a new project, define task specifications, generate a spec, create a task, or write requirements."
+description: "Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when the user wants to start a new project, define task specifications, generate a spec, create a task, or write requirements. Korean: '스펙 생성', '작업 정의', '요구사항 작성', '태스크 생성'. Chinese: '生成规格', '任务定义', '需求文档'. Japanese: 'スペック生成', 'タスク定義'. Arabic: 'إنشاء المواصفات'. Hindi: 'स्पेक बनाएं'. Spanish: 'generar especificación'. Portuguese: 'gerar especificação'. French: 'générer spécification'. German: 'Spezifikation erstellen'. Russian: 'создать спецификацию'. Indonesian: 'buat spesifikasi'."
 user_invocable: true
 ---
 

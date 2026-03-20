@@ -1,6 +1,6 @@
 ---
 name: Qlesson-learned
-description: "Analyzes recent code changes via git history and extracts software engineering lessons. Use when the user asks for a retrospective, key takeaways, engineering lessons learned, or wants to look back at recent code changes."
+description: "Analyzes recent code changes via git history and extracts software engineering lessons. Use when the user asks for a retrospective, key takeaways, engineering lessons learned, or wants to look back at recent code changes. Korean: '회고', '교훈', '배운 점', '레슨런드'. Chinese: '经验总结', '复盘'. Japanese: '振り返り', '教訓'. Arabic: 'دروس مستفادة'. Hindi: 'सीख'. Spanish: 'lecciones aprendidas'. Portuguese: 'lições aprendidas'. French: 'leçons apprises'. German: 'Lessons Learned'. Russian: 'ретроспектива'. Indonesian: 'pelajaran'."
 ---
 
 

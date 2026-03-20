@@ -1,6 +1,6 @@
 ---
 name: Qpptx
-description: "All tasks related to PPTX files: creating slide decks, reading/parsing, editing, and working with templates. Use when deck, slides, presentation, .pptx is mentioned."
+description: "All tasks related to PPTX files: creating slide decks, reading/parsing, editing, and working with templates. Use when deck, slides, presentation, .pptx is mentioned. Korean: '프레젠테이션', '슬라이드', '발표자료'. Chinese: '演示文稿', '幻灯片'. Japanese: 'プレゼンテーション', 'スライド'. Arabic: 'عرض تقديمي'. Hindi: 'प्रस्तुति'. Spanish: 'presentación'. Portuguese: 'apresentação'. French: 'présentation'. German: 'Präsentation'. Russian: 'презентация'. Indonesian: 'presentasi'."
 metadata:
   source: https://skills.sh/anthropics/skills/pptx
   author: anthropic

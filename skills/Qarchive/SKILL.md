@@ -1,6 +1,6 @@
 ---
 name: Qarchive
-description: "Archives completed task files into .qe/.archive/. Runs automatically after Qrun-task completes. Use when archiving tasks, cleaning up completed tasks, or organizing finished work files."
+description: "Archives completed task files into .qe/.archive/. Runs automatically after Qrun-task completes. Use when archiving tasks, cleaning up completed tasks, or organizing finished work files. Korean: '아카이브', '완료 작업 정리', '작업 보관'. Chinese: '归档', '任务整理'. Japanese: 'アーカイブ', '完了タスク整理'. Arabic: 'أرشفة'. Hindi: 'संग्रह'. Spanish: 'archivar tareas'. Portuguese: 'arquivar tarefas'. French: 'archiver'. German: 'Archivierung'. Russian: 'архивирование'. Indonesian: 'arsipkan tugas'."
 ---
 
 

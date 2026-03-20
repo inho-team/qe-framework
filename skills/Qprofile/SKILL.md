@@ -1,6 +1,6 @@
 ---
 name: Qprofile
-description: "Analyzes command patterns, writing style, and common expressions to build a user profile. Use when updating the user profile, learning user style, improving intent recognition, or updating preferences."
+description: "Analyzes command patterns, writing style, and common expressions to build a user profile. Use when updating the user profile, learning user style, improving intent recognition, or updating preferences. Korean: '프로필', '사용자 패턴', '스타일 분석'. Chinese: '用户画像', '行为分析'. Japanese: 'プロファイル', 'パターン分析'. Arabic: 'ملف شخصي'. Hindi: 'प्रोफ़ाइल'. Spanish: 'perfil de usuario'. Portuguese: 'perfil do usuário'. French: 'profil utilisateur'. German: 'Benutzerprofil'. Russian: 'профиль'. Indonesian: 'profil pengguna'."
 ---
 
 
