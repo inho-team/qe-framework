@@ -35,7 +35,7 @@
 ---
 
 > [!IMPORTANT]
-> **QE Framework v2.1.0** — Haiku 번역 레이어를 통한 i18n 인텐트 라우팅 추가. 비영어 메시지가 자동으로 영어 키워드로 번역되어 스킬 매칭에 사용됩니다.
+> **QE Framework v2.2.0** — Agent Teams 감지 인프라, 에이전트 Team Mode 전면 재작성, 작업 이력을 CLAUDE.md에서 `.qe/TASK_LOG.md`로 분리.
 
 ---
 

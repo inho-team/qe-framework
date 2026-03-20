@@ -24,7 +24,7 @@
 ---
 
 > [!IMPORTANT]
-> **QE Framework v2.1.0** — Haiku翻訳レイヤーによるi18nインテントルーティングを追加。非英語メッセージが自動的に英語キーワードに翻訳されスキルマッチングに使用されます。
+> **QE Framework v2.2.0** — Agent Teams検出インフラ、全エージェントのTeam Mode書き直し、タスク履歴をCLAUDE.mdから`.qe/TASK_LOG.md`に分離。
 
 ---
 

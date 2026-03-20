@@ -40,7 +40,7 @@
 ---
 
 > [!IMPORTANT]
-> **QE Framework v2.1.0** — Added i18n intent routing via Haiku translation layer. Non-English messages are now automatically translated to English keywords for skill matching.
+> **QE Framework v2.2.0** — Agent Teams detection infrastructure, team mode rewrite for all agents, task history extracted from CLAUDE.md to `.qe/TASK_LOG.md`.
 >
 > **[Changelog](CHANGELOG.md)** | **[Update instructions](#update-to-latest-version)**
 
@@ -466,13 +466,13 @@ The framework uses 9 lifecycle hooks that fire at specific events:
 |------|---------|--------------|
 | `SessionStart` | Conversation begins | Injects framework rules, triggers `Erefresh-executor` if analysis is stale |
 | `UserPromptSubmit` | User sends a message | **i18n intent classification** via Haiku translation + **language detection** |
-| `PreToolUse` | Before every tool call | Intent Gate routing, secret scanning, context pressure warnings |
+| `PreToolUse` | Before every tool call | Intent Gate routing, secret scanning, context pressure warnings, **Agent Teams file ownership guard** |
 | `PostToolUse` | After every tool call | Error tracking/escalation, tool call counting, `Eprofile-collector` trigger |
 | `PreCompact` | Before context compaction | Triggers `Ecompact-executor` to save context before it is lost |
 | `Stop` | Conversation ends | Session log recording, mode blocking for active work |
 | `Notification` | Background agent completes | Chains follow-up actions when background agents finish |
 | `TaskCompleted` | Task finishes | Validates verify checklist completion before allowing task close |
-| `TeammateIdle` | Agent team member idles | Prompts idle teammates to claim pending tasks |
+| `TeammateIdle` | Agent team member idles | Reads pending tasks/checklists, suggests next work, keeps teammate active via exit code 2 |
 
 ---
 
@@ -529,13 +529,22 @@ Agents are automatically assigned a model tier based on task complexity. See [AG
 
 ## Agent Teams (Experimental)
 
-QE Framework supports [Claude Agent Teams](https://code.claude.com/docs/en/agent-teams) for complex tasks that benefit from parallel collaboration.
+QE Framework supports [Claude Agent Teams](https://code.claude.com/docs/en/agent-teams) for complex tasks that benefit from parallel collaboration. Agent Teams spawns **separate Claude Code instances** as teammates — fundamentally different from Agent tool subagents.
 
-| Agent | Team Trigger | Team Structure |
-|-------|-------------|----------------|
-| Eqa-orchestrator | 3+ distinct test/source groups | Test Engineer + Code Reviewer in parallel |
-| Etask-executor | 5+ independent checklist items | One teammate per file group |
-| Edeep-researcher | 3+ research sources/perspectives | Researchers + Devil's Advocate |
+| Agent | Team Trigger | Team Structure | Lead Model |
+|-------|-------------|----------------|------------|
+| Eqa-orchestrator | 3+ distinct test/source groups | test-engineer + reviewer | opus |
+| Etask-executor | 5+ independent checklist items | 1 teammate per file group | sonnet |
+| Edeep-researcher | 3+ research sources/perspectives | researchers + devils-advocate | opus |
+
+Teams are created via **natural language request**, not Agent tool calls. Each teammate gets its own context window, file ownership partition, and model assignment.
+
+| Mechanism | Purpose |
+|-----------|---------|
+| Messages | Direct peer-to-peer communication |
+| Shared task list | Work coordination and dependencies |
+| File ownership | Each teammate edits only assigned files |
+| TeammateIdle hook | Keeps idle teammates working on pending tasks |
 
 To enable, add to `.claude/settings.json`:
 ```json

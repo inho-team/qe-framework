@@ -24,7 +24,7 @@
 ---
 
 > [!IMPORTANT]
-> **QE Framework v2.1.0** — 通过 Haiku 翻译层添加 i18n 意图路由。非英语消息自动翻译为英语关键词进行技能匹配。
+> **QE Framework v2.2.0** — Agent Teams 检测基础设施，所有代理的 Team Mode 重写，任务历史从 CLAUDE.md 分离到 `.qe/TASK_LOG.md`。
 
 ---
 
