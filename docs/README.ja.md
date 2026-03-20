@@ -1,10 +1,32 @@
+<div align="center">
+
+<br/>
+
+# QE Framework
+
+### Claude Code向けのスペック駆動タスク実行フレームワーク
+
+![Stars](https://img.shields.io/github/stars/inho-team/qe-framework?style=social)
+![Release](https://img.shields.io/github/v/release/inho-team/qe-framework?style=flat&logo=github&color=8B5CF6)
+![Last Commit](https://img.shields.io/github/last-commit/inho-team/qe-framework?style=flat&logo=git&color=22C55E)
+
+[![Built with Claude](https://img.shields.io/badge/Built_with-Claude-D4A574?style=flat&logo=anthropic&logoColor=white)](https://claude.ai)
+[![65 Skills](https://img.shields.io/badge/Skills-65-8B5CF6?style=flat)](#skills-65--72-coding-experts)
+[![72 Coding Experts](https://img.shields.io/badge/Coding_Experts-72-EC4899?style=flat)](#coding-expert-skills-72)
+[![22 Agents](https://img.shields.io/badge/Agents-22-F97316?style=flat)](#agents-22)
+
+<br/>
+
 [English](../README.md) | [한국어](README.ko.md) | [中文](README.zh.md) | **日本語**
 
-# QE Framework (Query Executor)
+</div>
 
-Claude Code向けの個人用スキル・エージェントパッケージ。
+---
 
-QE (Query Executor) は、ユーザーのクエリを構造化された実行可能なタスクに変換するフレームワークです。仕様生成から実装、検証、コミットまでのライフサイクル全体を、スキルとエージェントの連携システムによって管理します。
+> [!IMPORTANT]
+> **QE Framework v2.1.0** — Haiku翻訳レイヤーによるi18nインテントルーティングを追加。非英語メッセージが自動的に英語キーワードに翻訳されスキルマッチングに使用されます。
+
+---
 
 ## 設計思想
 
