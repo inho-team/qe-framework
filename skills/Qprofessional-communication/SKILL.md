@@ -1,6 +1,6 @@
 ---
 name: Qprofessional-communication
-description: Technical communication guide for software developers. Use when writing professional emails, composing team messages, preparing meeting agendas, or tailoring messages for technical and non-technical audiences.
+description: Technical communication guide for software developers. Use when writing professional emails, composing team messages, preparing meeting agendas, or tailoring messages for technical and non-technical audiences. Korean: '이메일 작성', '업무 메시지', '회의록'. Chinese: '专业邮件', '商务沟通'. Japanese: 'ビジネスメール', '業務連絡'. Arabic: 'بريد احترافي'. Hindi: 'पेशेवर ईमेल'. Spanish: 'comunicación profesional'. Portuguese: 'comunicação profissional'. French: 'communication professionnelle'. German: 'professionelle Kommunikation'. Russian: 'деловая переписка'. Indonesian: 'komunikasi profesional'.
 allowed-tools: Read, Glob, Grep
 ---
 

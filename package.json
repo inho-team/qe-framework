@@ -1,7 +1,7 @@
 {
   "name": "@inho-team/qe-framework",
   "version": "2.2.0",
-  "description": "Personal Claude Code skills package",
+  "description": "Spec-driven task execution framework for Claude Code — SVS (Spec-Verify-Supervise) loop with 139 skills and 21 agents",
   "scripts": {
     "postinstall": "node install.js",
     "preuninstall": "node uninstall.js"
@@ -10,6 +10,7 @@
     "type": "git",
     "url": "https://github.com/inho-team/qe-framework.git"
   },
+  "type": "module",
   "private": false,
   "license": "UNLICENSED"
 }

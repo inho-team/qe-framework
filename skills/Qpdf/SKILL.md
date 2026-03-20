@@ -1,6 +1,6 @@
 ---
 name: Qpdf
-description: "Comprehensive PDF processing toolkit. Use when extracting text/tables, creating new PDFs, merging/splitting, rotating, watermarking, form filling, encrypting, running OCR, or extracting images from PDFs."
+description: "Comprehensive PDF processing toolkit. Use when extracting text/tables, creating new PDFs, merging/splitting, rotating, watermarking, form filling, encrypting, running OCR, or extracting images from PDFs. Korean: 'PDF 처리', 'PDF 변환', 'PDF 추출'. Chinese: 'PDF处理', 'PDF转换'. Japanese: 'PDF処理', 'PDF変換'. Arabic: 'معالجة PDF'. Hindi: 'PDF प्रोसेसिंग'. Spanish: 'procesamiento PDF'. Portuguese: 'processamento PDF'. French: 'traitement PDF'. German: 'PDF-Verarbeitung'. Russian: 'обработка PDF'. Indonesian: 'pemrosesan PDF'."
 metadata:
   source: https://github.com/tfriedel/claude-office-skills
   author: tfriedel

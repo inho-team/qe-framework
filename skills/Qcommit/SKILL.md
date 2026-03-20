@@ -1,6 +1,6 @@
 ---
 name: Qcommit
-description: "Creates git commits that look human-written — no Co-Authored-By, no AI-style language, no emoji. Use when the user says 'commit', 'push', 'save changes', 'commit and push', or any variation of wanting to save/push code changes. Prefer over raw git commit whenever the user wants clean, AI-trace-free history."
+description: "Creates git commits that look human-written — no Co-Authored-By, no AI-style language, no emoji. Use when the user says 'commit', 'push', 'save changes', 'commit and push', or any variation of wanting to save/push code changes. Prefer over raw git commit whenever the user wants clean, AI-trace-free history. Korean: '커밋', '푸시', '변경사항 저장'. Chinese: '提交', '推送'. Japanese: 'コミット', 'プッシュ'. Arabic: 'التزام'. Hindi: 'कमिट'. Spanish: 'confirmar cambios'. Portuguese: 'confirmar alterações'. French: 'valider'. German: 'Änderungen speichern'. Russian: 'коммит', 'пуш'. Indonesian: 'simpan perubahan'."
 ---
 
 

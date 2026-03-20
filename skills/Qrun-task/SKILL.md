@@ -1,6 +1,6 @@
 ---
 name: Qrun-task
-description: "Executes spec-based tasks from TASK_REQUEST and VERIFY_CHECKLIST documents. Use when running a task, implementing a spec, starting work on a UUID, or executing a checklist. Reads spec, summarizes, implements, and verifies."
+description: "Executes spec-based tasks from TASK_REQUEST and VERIFY_CHECKLIST documents. Use when running a task, implementing a spec, starting work on a UUID, or executing a checklist. Reads spec, summarizes, implements, and verifies. Korean: '작업 실행', '체크리스트', '태스크 실행'. Chinese: '执行任务', '检查清单'. Japanese: 'タスク実行', 'チェックリスト'. Arabic: 'تنفيذ المهمة'. Hindi: 'कार्य चलाएं'. Spanish: 'ejecutar tarea'. Portuguese: 'executar tarefa'. French: 'exécuter tâche'. German: 'Aufgabe ausführen'. Russian: 'выполнить задачу'. Indonesian: 'jalankan tugas'."
 ---
 
 # Task Execution Skill
@@ -68,15 +68,31 @@ Execute checklist items in order. Report: `✅ [1/N] desc - done`. Record `- [x]
 
 Verify all VERIFY_CHECKLIST items. Show pass/fail results. All pass → Step 5. Failures → fix and re-verify (max 2 retries, then escalate to user).
 
-## Step 4.5: Agent Trigger Check
+## Step 4.5: Supervision Gate
 
-After verification, check `.qe/agent-triggers/` for trigger files written by agents during execution:
+After verification, run the Supervision Gate to get expert-level quality assessment.
+
+**skip-supervision conditions** (skip if ALL true):
+- Task is `type: docs` or `type: analysis` with fewer than 5 items
+- Single-item tasks
+- MD-only changes
+
+**never skip-supervision for `type: code` tasks** — code always goes through the gate.
+
+Track `supervision_iteration` counter in `.qe/state/session-stats.json` to persist across session compactions. Increment on each supervision round.
+
+1. Invoke `Esupervision-orchestrator` with task context and verification results
+2. If grade is PASS → proceed to Step 5
+3. If grade is PARTIAL → apply suggested improvements, re-verify
+4. If grade is FAIL → save REMEDIATION_REQUEST, re-execute failed items via Etask-executor
+
+**Agent Trigger Check:** After supervision, check `.qe/agent-triggers/` for trigger files written by agents during execution:
 1. Glob `.qe/agent-triggers/*.trigger.md`
 2. For each trigger: spawn the target agent with the provided context (in parallel if multiple)
 3. Delete processed trigger files
 4. If triggered agents produce new findings, append to verification results
 
-Skip if no trigger files exist.
+Skip agent triggers if no trigger files exist.
 
 ## Step 5: Completion
 

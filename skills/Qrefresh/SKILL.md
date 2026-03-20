@@ -1,6 +1,6 @@
 ---
 name: Qrefresh
-description: Manually refreshes project analysis data. Use when refreshing, updating, or syncing .qe/analysis/ files and reviewing change history.
+description: Manually refreshes project analysis data. Use when refreshing, updating, or syncing .qe/analysis/ files and reviewing change history. Korean: '새로고침', '분석 갱신', '동기화'. Chinese: '刷新', '同步分析'. Japanese: 'リフレッシュ', '分析更新'. Arabic: 'تحديث'. Hindi: 'रीफ्रेश'. Spanish: 'actualizar análisis'. Portuguese: 'atualizar análise'. French: 'rafraîchir'. German: 'Analyse aktualisieren'. Russian: 'обновить анализ'. Indonesian: 'segarkan analisis'.
 ---
 
 

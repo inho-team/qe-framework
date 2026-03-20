@@ -1,6 +1,6 @@
 ---
 name: Qhelp
-description: "Shows QE Framework usage overview in terminal. Use when the user asks for help, how to use the framework, available commands, or what the framework can do."
+description: "Shows QE Framework usage overview in terminal. Use when the user asks for help, how to use the framework, available commands, or what the framework can do. Korean: '도움말', '사용법', '명령어 목록'. Chinese: '帮助', '使用方法'. Japanese: 'ヘルプ', '使い方'. Arabic: 'مساعدة'. Hindi: 'मदद'. Spanish: 'ayuda'. Portuguese: 'ajuda'. French: 'aide'. German: 'Hilfe'. Russian: 'помощь'. Indonesian: 'bantuan'."
 ---
 
 # Qhelp — QE Framework Quick Reference

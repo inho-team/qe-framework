@@ -28,14 +28,14 @@ const AGENTS = {
     path: 'agents/Esupervision-orchestrator.md',
     requiredFrontmatter: ['name', 'description', 'tools', 'memory', 'recommendedModel', 'color'],
     requiredSections: ['## Will', '## Will Not', '## Task Type Routing Table', '## Supervision Grade Definitions', '## Execution Workflow', '## Loop Counter Management'],
-    requiredModel: 'opus',
+    requiredModel: 'haiku',
     requiredReturnFormat: 'Grade: PASS|PARTIAL|FAIL',
   },
   'Ecode-quality-supervisor': {
     path: 'agents/Ecode-quality-supervisor.md',
     requiredFrontmatter: ['name', 'description', 'tools', 'memory', 'recommendedModel', 'color'],
     requiredSections: ['## Will', '## Will Not', '## Workflow', '## Return Format'],
-    requiredModel: 'sonnet',
+    requiredModel: 'haiku',
     requiredReturnFormat: 'Grade: PASS | PARTIAL | FAIL',
     mustNotContain: ['security', 'Security'],  // security is Esecurity-officer's job
     mustNotContainNote: 'Should delegate security to Esecurity-officer, not handle it directly',
@@ -51,7 +51,7 @@ const AGENTS = {
     path: 'agents/Eanalysis-supervisor.md',
     requiredFrontmatter: ['name', 'description', 'tools', 'memory', 'recommendedModel', 'color'],
     requiredSections: ['## Will', '## Will Not', '## Workflow', '## Return Format'],
-    requiredModel: 'sonnet',
+    requiredModel: 'haiku',
     requiredReturnFormat: 'Grade: PASS | PARTIAL | FAIL',
   },
 };

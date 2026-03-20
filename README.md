@@ -21,9 +21,9 @@
 
 [![Built with Claude](https://img.shields.io/badge/Built_with-Claude-D4A574?style=flat&logo=anthropic&logoColor=white)](https://claude.ai)
 [![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-22C55E?style=flat)](https://code.claude.com)
-[![65 Skills](https://img.shields.io/badge/Skills-65-8B5CF6?style=flat)](#skills-65--72-coding-experts)
+[![68 Skills](https://img.shields.io/badge/Skills-68-8B5CF6?style=flat)](#skills-68--72-coding-experts)
 [![72 Coding Experts](https://img.shields.io/badge/Coding_Experts-72-EC4899?style=flat)](#coding-expert-skills-72)
-[![22 Agents](https://img.shields.io/badge/Agents-22-F97316?style=flat)](#agents-22)
+[![21 Agents](https://img.shields.io/badge/Agents-21-F97316?style=flat)](#agents-21)
 
 <br/>
 
@@ -31,7 +31,7 @@
 
 **Get Started:** [Installation](#installation) · [Initialize](#initialize-a-project) · [Usage](#usage)
 
-**Reference:** [Skills](#skills-65--72-coding-experts) · [Coding Experts](#coding-expert-skills-72) · [Agents](#agents-22) · [Hooks](#lifecycle-hooks) · [Agent Teams](#agent-teams-experimental)
+**Reference:** [Skills](#skills-68--72-coding-experts) · [Coding Experts](#coding-expert-skills-72) · [Agents](#agents-21) · [Hooks](#lifecycle-hooks) · [Agent Teams](#agent-teams-experimental)
 
 **[English](README.md)** | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md) | [日本語](docs/README.ja.md)
 
@@ -42,7 +42,7 @@
 > [!IMPORTANT]
 > **QE Framework v2.2.0** — Agent Teams detection infrastructure, team mode rewrite for all agents, task history extracted from CLAUDE.md to `.qe/TASK_LOG.md`.
 >
-> **[Changelog](CHANGELOG.md)** | **[Update instructions](#update-to-latest-version)**
+> **Changelog:** See [commit history](https://github.com/inho-team/qe-framework/commits/main) | **[Update instructions](#update-to-latest-version)**
 
 > [!CAUTION]
 > This project is under active development. Breaking changes may occur between minor versions.
@@ -180,7 +180,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 
 ---
 
-## Skills (65 + 72 Coding Experts)
+## Skills (68 + 72 Coding Experts)
 
 ### Development
 
@@ -279,6 +279,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qalias | Defines aliases for folders, paths, and commands using short names. |
 | Qprofile | Analyzes user command patterns, writing style, and frequently used expressions. |
 | Qagent-md-refactor | Refactors bloated agent instruction files following progressive disclosure. |
+| Qqe-audit | Full framework quality audit with PASS/PARTIAL/FAIL grades. |
 | Qweb-design-guidelines | Reviews UI code against Web Interface Guidelines for accessibility and UX. |
 | Qlesson-learned | Analyzes recent code changes via git history and extracts engineering lessons. |
 | Qhelp | Shows QE Framework quick reference card in terminal. |
@@ -476,7 +477,7 @@ The framework uses 9 lifecycle hooks that fire at specific events:
 
 ---
 
-## Agents (22)
+## Agents (21)
 
 Agents are automatically assigned a model tier based on task complexity. See [AGENT_TIERS.md](core/AGENT_TIERS.md) for details.
 
@@ -564,8 +565,8 @@ All agents fall back to Subagent behavior when Agent Teams is not enabled. See [
 ```
 qe-framework/
 ├── .claude-plugin/    # Plugin configuration
-├── agents/            # 22 agents (E-prefix)
-├── skills/            # 65 core + 72 coding expert skills (Q-prefix)
+├── agents/            # 21 agents (E-prefix)
+├── skills/            # 68 core + 72 coding expert skills (Q-prefix)
 ├── core/              # Shared principles & configuration
 ├── hooks/             # 9 lifecycle hooks + i18n translation layer
 ├── install.js         # Installation script

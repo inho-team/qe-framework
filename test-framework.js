@@ -1,5 +1,4 @@
 #!/usr/bin/env node
-'use strict';
 
 /**
  * QE Framework comprehensive health check.
