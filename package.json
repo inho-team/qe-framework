@@ -1,6 +1,6 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "2.2.0",
+  "version": "2.2.1",
   "description": "Spec-driven task execution framework for Claude Code — SVS (Spec-Verify-Supervise) loop with 139 skills and 21 agents",
   "scripts": {
     "postinstall": "node install.js",
