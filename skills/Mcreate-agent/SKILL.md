@@ -1,6 +1,6 @@
 ---
-name: Qagent-creator
-description: "Creates new QE Framework agents (E-prefix background/sub-agents). Use when creating an agent from scratch, or when the user says 'create an agent', 'add a new agent', 'build a sub-agent', or 'I need a background agent for X'. Distinct from Qskill-creator (which creates user-facing skills) — this skill creates background agents that skills delegate work to."
+name: Mcreate-agent
+description: "Creates new QE Framework agents (E-prefix background/sub-agents). Use when creating an agent from scratch, or when the user says 'create an agent', 'add a new agent', 'build a sub-agent', or 'I need a background agent for X'. Distinct from Mcreate-skill (which creates user-facing skills) — this skill creates background agents that skills delegate work to."
 metadata:
   author: qe-framework
   version: "1.0.0"

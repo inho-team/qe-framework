@@ -139,11 +139,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       });
     }
 
-    // version bump (editing plugin.json version via sed/echo) → Qbump
+    // version bump (editing plugin.json version via sed/echo) → Mbump
     if (/plugin\.json/.test(cmd) && /version/.test(cmd) && /sed|echo|printf/.test(cmd)) {
       overrideRules.push({
-        skill: 'Qbump',
-        msg: 'Direct version editing is blocked. Use /Qbump instead.'
+        skill: 'Mbump',
+        msg: 'Direct version editing is blocked. Use /Mbump instead.'
       });
     }
   }
@@ -152,11 +152,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const filePath = toolInput.file_path || toolInput.filePath || '';
     const newStr = toolInput.new_string || '';
 
-    // Editing plugin.json version field → Qbump
+    // Editing plugin.json version field → Mbump
     if (/plugin\.json$/.test(filePath) && /"version"/.test(newStr)) {
       overrideRules.push({
-        skill: 'Qbump',
-        msg: 'Direct version editing is blocked. Use /Qbump instead.'
+        skill: 'Mbump',
+        msg: 'Direct version editing is blocked. Use /Mbump instead.'
       });
     }
   }

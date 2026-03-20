@@ -41,13 +41,13 @@ All skills and agents refer to this classification to determine whether a reques
 | **Professional communication** | "professional email", "team message", "meeting agenda", "communication guide" | Qprofessional-communication |
 | **YouTube transcript** | "YouTube subtitles", "video captions", "transcribe video", "extract subtitles" | Qyoutube-transcript-api |
 | **Lesson learned** | "what can we learn", "key takeaway", "look back at this code", "code review insight" | Qlesson-learned |
-| **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instructions", "instruction bloat" | Qagent-md-refactor |
+| **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instructions", "instruction bloat" | Mrefactor-agent-md |
 | **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qfind-skills |
-| **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Qskill-creator |
+| **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Mcreate-skill |
 | **Create command** | "create slash command", "make a command", "reusable workflow", "automate process" | Qcommand-creator |
 | **Alias management** | "create alias", "register shortcut", "path alias", "command alias" | Qalias |
 | **User profile** | "analyze my patterns", "user profile", "command patterns", "my style" | Qprofile |
-| **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Qmigrate-tasks |
+| **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Mmigrate-tasks |
 | **Audio transcription** | "transcribe audio", "meeting recording", "audio to text", "convert recording" | Qaudio-transcriber |
 | **Image analysis** | "analyze image", "describe screenshot", "extract text from image", "analyze wireframe" | Qimage-analyzer |
 | **Mermaid diagrams** | "mermaid diagram", "sequence diagram", "flowchart", "ERD", "class diagram", "Gantt chart" | Qmermaid-diagrams |

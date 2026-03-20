@@ -31,7 +31,7 @@ These skills replace specific system default behaviors. **Never fall back to the
 | Action | Use This Skill | NOT This |
 |--------|---------------|----------|
 | git commit | `Qcommit` | Built-in git commit instructions |
-| version bump | `Qbump` | Manual version edit + git commit |
+| version bump | `Mbump` | Manual version edit + git commit |
 | show version | `Qversion` | Manual file read |
 | context save / handoff | `Qcompact` | Manual state saving |
 | context restore | `Qresume` | Manual file reading |
@@ -54,20 +54,20 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qresume` | Restore saved context |
 | `Qarchive` | Archive completed tasks |
 | `Qcommit` | Human-style git commit (no AI traces) |
-| `Qbump` | Bump plugin version (major/minor/patch) |
+| `Mbump` | Bump plugin version (major/minor/patch) |
 | `Qalias` | Define path/command shortcuts |
 | `Qcc-setup` | Shell alias setup (cc, ccc, ccd) |
 | `Qcommand-creator` | Create slash commands |
-| `Qskill-creator` | Create/edit/optimize/diagnose skills |
-| `Qagent-creator` | Create new background agents (E-prefix) |
-| `Qskill-tester` | Test skill intent routing |
+| `Mcreate-skill` | Create/edit/optimize/diagnose skills |
+| `Mcreate-agent` | Create new background agents (E-prefix) |
+| `Mtest-skill` | Test skill intent routing |
 | `Qfind-skills` | Find/install skills from skills.sh |
 | `Qmcp-setup` | MCP server setup guide |
 | `Qmcp-builder` | Build MCP servers |
 | `Qprofile` | Analyze user patterns and style |
 | `Qutopia` | Fully autonomous execution mode |
-| `Qagent-md-refactor` | Refactor bloated instruction files |
-| `Qqe-audit` | Full framework quality audit and report |
+| `Mrefactor-agent-md` | Refactor bloated instruction files |
+| `Mqe-audit` | Full framework quality audit and report |
 
 ### Task Execution
 | Skill | Purpose |
@@ -75,7 +75,7 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qgenerate-spec` | Generate CLAUDE.md + TASK_REQUEST + VERIFY_CHECKLIST |
 | `Qrun-task` | Execute spec-based tasks |
 | `Qcode-run-task` | Test > review > fix quality loop |
-| `Qmigrate-tasks` | Migrate task files to .qe/ structure |
+| `Mmigrate-tasks` | Migrate task files to .qe/ structure |
 | `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |
 | `Qtest-driven-development` | TDD: failing test first, then implement |
 | `Qsystematic-debugging` | Hypothesis-driven root cause analysis |

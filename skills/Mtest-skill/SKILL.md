@@ -1,6 +1,6 @@
 ---
-name: Qskill-tester
-description: "Automated skill/agent routing tester. Generates virtual user prompts, simulates intent classification, and verifies correct routing. Use when auditing skill descriptions, validating routing accuracy, or after adding/modifying skills. Distinct from Qskill-creator (which creates/modifies skills) — this skill tests and benchmarks them."
+name: Mtest-skill
+description: "Automated skill/agent routing tester. Generates virtual user prompts, simulates intent classification, and verifies correct routing. Use when auditing skill descriptions, validating routing accuracy, or after adding/modifying skills. Distinct from Mcreate-skill (which creates/modifies skills) — this skill tests and benchmarks them."
 metadata:
   version: "1.0.0"
   domain: quality
@@ -8,7 +8,7 @@ metadata:
   role: specialist
   scope: analysis
   output-format: report
-  related-skills: Qskill-creator, Qfind-skills
+  related-skills: Mcreate-skill, Qfind-skills
 keywords: skill test, intent routing, trigger verification, self-improvement, quality assurance
 ---
 
@@ -119,9 +119,9 @@ Criteria: `score >= threshold*2` = PASS (strong); `score >= threshold` = PASS + 
 
 | Mode | Command | Scope |
 |------|---------|-------|
-| Quick (default) | `/Qskill-tester` | Registered skills only, 2 prompts each |
-| Full | `/Qskill-tester --full` | All skills/agents, 5 prompts each, full report + fixes |
-| Specific | `/Qskill-tester Qfact-checker Qsource-verifier` | Named skills only |
+| Quick (default) | `/Mtest-skill` | Registered skills only, 2 prompts each |
+| Full | `/Mtest-skill --full` | All skills/agents, 5 prompts each, full report + fixes |
+| Specific | `/Mtest-skill Qfact-checker Qsource-verifier` | Named skills only |
 
 ## Constraints
 

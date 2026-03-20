@@ -177,7 +177,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qresume | 在压缩后恢复保存的上下文以继续之前的工作。 |
 | Qcompact | 上下文保存与会话交接。保存上下文或生成交接文档。 |
 | Qarchive | 自动归档已完成的任务文件。 |
-| Qmigrate-tasks | 将分散的任务文件迁移到 .qe/tasks/ 和 .qe/checklists/ 目录结构中。 |
+| Mmigrate-tasks | 将分散的任务文件迁移到 .qe/tasks/ 和 .qe/checklists/ 目录结构中。 |
 | Qupdate | 将 QE Framework 插件更新到最新版本。 |
 | Qutopia | Utopia 模式 -- 无需任何确认的完全自主执行。 |
 
@@ -228,17 +228,17 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 | Skill | 描述 |
 |-------|------|
-| Qskill-creator | 创建新技能、修改现有技能并衡量技能性能。 |
+| Mcreate-skill | 创建新技能、修改现有技能并衡量技能性能。 |
 | Qcommand-creator | 从重复工作流创建 Claude Code 斜杠命令。 |
 | Qfind-skills | 在 skills.sh 上搜索技能并将其安装为 SKILL.md 文件。 |
 | Qalias | 使用短名称为文件夹、路径和命令定义别名。 |
 | Qprofile | 分析用户命令模式、写作风格和常用表达。 |
-| Qagent-md-refactor | 按照渐进式披露原则重构臃肿的代理指令文件。 |
-| Qqe-audit | 框架质量审计报告（PASS/PARTIAL/FAIL评级）。 |
+| Mrefactor-agent-md | 按照渐进式披露原则重构臃肿的代理指令文件。 |
+| Mqe-audit | 框架质量审计报告（PASS/PARTIAL/FAIL评级）。 |
 | Qweb-design-guidelines | 根据 Web Interface Guidelines 审查 UI 代码的可访问性和用户体验。 |
 | Qlesson-learned | 通过 git 历史分析最近的代码变更并提取工程经验教训。 |
 | Qhelp | 在终端中显示 QE Framework 快速参考卡。 |
-| Qskill-tester | 自动技能路由测试器。验证意图分类准确性，发现误路由技能。 |
+| Mtest-skill | 自动技能路由测试器。验证意图分类准确性，发现误路由技能。 |
 | Qjira-cli | 无需MCP服务器设置的轻量级Jira CLI包装器。用于快速工单管理。 |
 
 ### 分析

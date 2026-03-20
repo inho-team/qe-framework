@@ -1,10 +1,10 @@
 ---
-name: Qbump
+name: Mbump
 description: "Bumps the QE Framework version in plugin.json and package.json. Use for version bump, bump version, release. Supports major, minor, and patch levels."
 allowed-tools: Bash(git *)
 ---
 
-# Qbump — QE Framework Version Bump
+# Mbump — QE Framework Version Bump
 
 ## Purpose
 

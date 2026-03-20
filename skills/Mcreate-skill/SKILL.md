@@ -1,5 +1,5 @@
 ---
-name: Qskill-creator
+name: Mcreate-skill
 description: "Create, modify, diagnose, and benchmark QE Framework skills. Use when creating a skill from scratch, editing/optimizing an existing one, or fixing a skill that incorrectly blocks, misroutes, or mishandles a request. Trigger phrases: 'create a skill', 'fix this skill', 'skill is blocking', 'improve skill logic', 'tune the framework'."
 metadata:
   author: anthropic

@@ -1,5 +1,5 @@
 ---
-name: Qqe-audit
+name: Mqe-audit
 description: "QE Framework full quality audit. Runs all test suites, validates skills/agents/hooks/docs, and generates a structured QA report with PASS/PARTIAL/FAIL grades. Use when evaluating the framework, running a full audit, quality check, framework inspection, or asking for a framework report."
 ---
 

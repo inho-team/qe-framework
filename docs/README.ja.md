@@ -179,7 +179,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qresume | コンパクション後に保存されたコンテキストを復元し、前回の作業を再開。 |
 | Qcompact | コンテキストの保存とセッション引き継ぎ。コンテキストを保存またはハンドオフ文書を生成。 |
 | Qarchive | 完了したタスクファイルを自動アーカイブ。 |
-| Qmigrate-tasks | 散在するタスクファイルを .qe/tasks/ と .qe/checklists/ ディレクトリ構造に移行。 |
+| Mmigrate-tasks | 散在するタスクファイルを .qe/tasks/ と .qe/checklists/ ディレクトリ構造に移行。 |
 | Qupdate | QE Frameworkプラグインを最新バージョンに更新。 |
 | Qutopia | Utopiaモード -- 確認なしで完全自律実行。 |
 
@@ -230,17 +230,17 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 | スキル | 説明 |
 |--------|------|
-| Qskill-creator | 新規スキルの作成、既存スキルの変更、スキルパフォーマンスの測定。 |
+| Mcreate-skill | 新規スキルの作成、既存スキルの変更、スキルパフォーマンスの測定。 |
 | Qcommand-creator | 繰り返しワークフローからClaude Codeスラッシュコマンドを作成。 |
 | Qfind-skills | skills.shでスキルを検索し、SKILL.mdファイルとしてインストール。 |
 | Qalias | フォルダ、パス、コマンドの短縮名エイリアスを定義。 |
 | Qprofile | ユーザーのコマンドパターン、文体、頻用表現を分析。 |
-| Qagent-md-refactor | 肥大化したエージェント指示ファイルをプログレッシブディスクロージャーに従いリファクタリング。 |
-| Qqe-audit | フレームワーク品質監査レポート（PASS/PARTIAL/FAIL評価）。 |
+| Mrefactor-agent-md | 肥大化したエージェント指示ファイルをプログレッシブディスクロージャーに従いリファクタリング。 |
+| Mqe-audit | フレームワーク品質監査レポート（PASS/PARTIAL/FAIL評価）。 |
 | Qweb-design-guidelines | アクセシビリティとUXに関するWeb Interface Guidelinesに基づきUIコードをレビュー。 |
 | Qlesson-learned | git履歴から最近のコード変更を分析し、エンジニアリングの教訓を抽出。 |
 | Qhelp | QE Frameworkクイックリファレンスカードをターミナルに表示。 |
-| Qskill-tester | 自動スキルルーティングテスター。インテント分類の精度を検証し、誤分類スキルを検出。 |
+| Mtest-skill | 自動スキルルーティングテスター。インテント分類の精度を検証し、誤分類スキルを検出。 |
 | Qjira-cli | MCPサーバー設定不要の軽量Jira CLIラッパー。クイックイシュー管理用。 |
 
 ### 分析

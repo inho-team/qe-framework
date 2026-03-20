@@ -40,7 +40,7 @@ TASK MANAGEMENT
   /Qresume                 Restore previous session context
   /Qcompact                Save context / session handoff
   /Qarchive                Archive completed tasks
-  /Qmigrate-tasks          Migrate task files to .qe/
+  /Mmigrate-tasks          Migrate task files to .qe/
 
 DOCUMENTATION
   /Qdocx                   Word documents
@@ -73,12 +73,12 @@ MEDIA
   /Qyoutube-transcript-api YouTube subtitles & transcription
 META
   /Qversion                Show current version
-  /Qskill-creator          Create or modify skills
+  /Mcreate-skill          Create or modify skills
   /Qcommand-creator        Create slash commands
   /Qfind-skills            Search skills.sh marketplace
   /Qalias                  Path & command aliases
   /Qprofile                Analyze usage patterns
-  /Qagent-md-refactor      Refactor instruction files
+  /Mrefactor-agent-md      Refactor instruction files
   /Qweb-design-guidelines  UI/UX review
   /Qlesson-learned         Extract engineering lessons
   /Qhelp                   This help screen

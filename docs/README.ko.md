@@ -190,7 +190,7 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 | Qresume | 컴팩션 후 저장된 컨텍스트를 복원하여 이전 작업을 재개합니다. |
 | Qcompact | 컨텍스트 보존 및 세션 인수인계. 컨텍스트를 저장하거나 인수인계 문서를 생성합니다. |
 | Qarchive | 완료된 작업 파일을 자동으로 아카이브합니다. |
-| Qmigrate-tasks | 산재된 작업 파일을 .qe/tasks/ 및 .qe/checklists/ 디렉토리 구조로 마이그레이션합니다. |
+| Mmigrate-tasks | 산재된 작업 파일을 .qe/tasks/ 및 .qe/checklists/ 디렉토리 구조로 마이그레이션합니다. |
 | Qupdate | QE Framework 플러그인을 최신 버전으로 업데이트합니다. |
 | Qutopia | Utopia 모드 -- 확인 없이 완전 자율 실행. |
 
@@ -241,17 +241,17 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 
 | 스킬 | 설명 |
 |------|------|
-| Qskill-creator | 새로운 스킬 생성, 기존 스킬 수정, 스킬 성능 측정. |
+| Mcreate-skill | 새로운 스킬 생성, 기존 스킬 수정, 스킬 성능 측정. |
 | Qcommand-creator | 반복적인 워크플로우에서 Claude Code 슬래시 명령어를 생성합니다. |
 | Qfind-skills | skills.sh에서 스킬을 검색하고 SKILL.md 파일로 설치합니다. |
 | Qalias | 폴더, 경로, 명령어에 대한 짧은 이름의 별칭을 정의합니다. |
 | Qprofile | 사용자 명령 패턴, 작문 스타일, 자주 사용하는 표현을 분석합니다. |
-| Qagent-md-refactor | 비대해진 에이전트 지침 파일을 점진적 공개 원칙에 따라 리팩터링합니다. |
-| Qqe-audit | Full framework quality audit with PASS/PARTIAL/FAIL grades. |
+| Mrefactor-agent-md | 비대해진 에이전트 지침 파일을 점진적 공개 원칙에 따라 리팩터링합니다. |
+| Mqe-audit | Full framework quality audit with PASS/PARTIAL/FAIL grades. |
 | Qweb-design-guidelines | 접근성과 UX를 위한 Web Interface Guidelines에 따라 UI 코드를 검토합니다. |
 | Qlesson-learned | git 히스토리를 통해 최근 코드 변경을 분석하고 엔지니어링 교훈을 추출합니다. |
 | Qhelp | QE Framework 빠른 참조 카드를 터미널에 표시합니다. |
-| Qskill-tester | 자동 스킬 라우팅 테스터. 인텐트 분류 정확도를 검증하고 오분류 스킬을 찾습니다. |
+| Mtest-skill | 자동 스킬 라우팅 테스터. 인텐트 분류 정확도를 검증하고 오분류 스킬을 찾습니다. |
 | Qjira-cli | MCP 서버 설정 없이 빠른 이슈 관리를 위한 경량 Jira CLI 래퍼. |
 
 ### 분석

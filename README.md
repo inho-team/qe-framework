@@ -212,7 +212,7 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qresume | Restores saved context after compaction to resume previous work. |
 | Qcompact | Context preservation and session handoff. Saves context or generates handoff documents. |
 | Qarchive | Automatically archives completed task files. |
-| Qmigrate-tasks | Migrates scattered task files into the .qe/tasks/ and .qe/checklists/ directory structure. |
+| Mmigrate-tasks | Migrates scattered task files into the .qe/tasks/ and .qe/checklists/ directory structure. |
 | Qupdate | Updates the QE Framework plugin to the latest version. |
 | Qutopia | Utopia mode — fully autonomous execution without any confirmations. |
 
@@ -273,17 +273,17 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 
 | Skill | Description |
 |-------|-------------|
-| Qskill-creator | Create new skills, modify existing skills, and measure skill performance. |
+| Mcreate-skill | Create new skills, modify existing skills, and measure skill performance. |
 | Qcommand-creator | Creates Claude Code slash commands from repetitive workflows. |
 | Qfind-skills | Searches for skills on skills.sh and installs them as SKILL.md files. |
 | Qalias | Defines aliases for folders, paths, and commands using short names. |
 | Qprofile | Analyzes user command patterns, writing style, and frequently used expressions. |
-| Qagent-md-refactor | Refactors bloated agent instruction files following progressive disclosure. |
-| Qqe-audit | Full framework quality audit with PASS/PARTIAL/FAIL grades. |
+| Mrefactor-agent-md | Refactors bloated agent instruction files following progressive disclosure. |
+| Mqe-audit | Full framework quality audit with PASS/PARTIAL/FAIL grades. |
 | Qweb-design-guidelines | Reviews UI code against Web Interface Guidelines for accessibility and UX. |
 | Qlesson-learned | Analyzes recent code changes via git history and extracts engineering lessons. |
 | Qhelp | Shows QE Framework quick reference card in terminal. |
-| Qskill-tester | Automated skill routing tester. Verifies intent classification accuracy and finds misrouted skills. |
+| Mtest-skill | Automated skill routing tester. Verifies intent classification accuracy and finds misrouted skills. |
 | Qjira-cli | Lightweight Jira CLI wrapper for quick issue management without MCP server setup. |
 
 ---

@@ -178,7 +178,7 @@ Before entering spec pipeline (--work/--qa or COMPLEX routing), check prompt spe
 - `force:` or `!` prefix → bypass gate
 
 ## Common Rules (all modes)
-- **Skill priority**: Even in autonomous mode, if a registered skill covers the action (e.g., Qskill-creator for skill creation, Qcommit for git commit, Qagent-creator for agent creation), invoke the skill instead of raw tool calls. QE_CONVENTIONS.md override map always applies.
+- **Skill priority**: Even in autonomous mode, if a registered skill covers the action (e.g., Mcreate-skill for skill creation, Qcommit for git commit, Mcreate-agent for agent creation), invoke the skill instead of raw tool calls. QE_CONVENTIONS.md override map always applies.
 - **State management**: create before execution, clear after completion
 - **Reinforcement**: stop signals blocked up to max_reinforcements
 - **Parallel execution**: multiple Etask-executor agents concurrently
