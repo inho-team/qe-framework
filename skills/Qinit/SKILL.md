@@ -148,7 +148,7 @@ Show the list of created files and guide the next steps:
 
 ## Will
 - Create CLAUDE.md from template
-- Create .qe/ directory structure (including analysis/)
+- Create .qe/ directory structure (including analysis/, TASK_LOG.md)
 - Auto-analyze project and save results
 - Configure .gitignore
 - Create .claude/settings.json

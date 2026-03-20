@@ -48,9 +48,9 @@ Check the existing latest version in the `.qe/.archive/` directory and decide th
 - **Copy** CLAUDE.md (preserve original)
 - Auto-create archive directory if it does not exist
 
-### Step 4: Update CLAUDE.md
-- Confirm the status of archived tasks is ✅
-- If a completed task is already ✅ in the CLAUDE.md task list, leave it as-is
+### Step 4: Update Task Log
+- Confirm the status of archived tasks is ✅ in `.qe/TASK_LOG.md`
+- If a completed task is already ✅ in the task log, leave it as-is
 
 ## Archive Rules
 - Tasks that are not complete (🔲, 🔶) are not archived.

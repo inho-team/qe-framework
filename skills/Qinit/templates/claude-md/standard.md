@@ -30,7 +30,5 @@
 ## Goals
 - {{goals}}
 
-## Task List
-
-| UUID | Task | Status |
-|------|------|--------|
+## Task Log
+- **작업 이력 및 상태**: `.qe/TASK_LOG.md` 참조
