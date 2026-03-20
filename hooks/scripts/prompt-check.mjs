@@ -103,8 +103,19 @@ if (!isAmbiguous) try {
   let bestMatch = null;
   let bestScore = 0;
 
-  const msgWords = msgLower.split(/\s+/);
   const hasCJK = /[\u3131-\u318E\uAC00-\uD7A3\u4E00-\u9FFF\u3040-\u30FF]/.test(userMessage);
+
+  // --- i18n: translate non-English input to English keywords via Haiku ---
+  let translatedTerms = '';
+  if (hasCJK) {
+    try {
+      const routeKeys = Object.keys(routesConfig.routes).join(', ');
+      translatedTerms = await translateToKeywords(userMessage, routeKeys);
+    } catch {}
+  }
+
+  const matchMsg = msgLower + (translatedTerms ? ' ' + translatedTerms.toLowerCase() : '');
+  const msgWords = matchMsg.split(/\s+/);
 
   // Build bigrams for contextual matching (e.g., "create skill" vs "create command")
   const msgBigrams = [];
@@ -125,14 +136,14 @@ if (!isAmbiguous) try {
 
       // CJK terms use substring matching with high weight (no word boundaries in CJK)
       if (isCJKTerm && hasCJK) {
-        if (msgLower.includes(term)) {
+        if (matchMsg.includes(term)) {
           matchedParts++;
           totalWeight += term.length * 3;  // CJK substring = 3x weight
           continue;
         }
         // Partial CJK match: check each word in the term
         const cjkWords = term.split(/\s+/);
-        const partialMatch = cjkWords.some(w => w.length >= 2 && msgLower.includes(w));
+        const partialMatch = cjkWords.some(w => w.length >= 2 && matchMsg.includes(w));
         if (partialMatch) {
           matchedParts += 0.7;
           totalWeight += term.length * 1.5;
@@ -144,7 +155,7 @@ if (!isAmbiguous) try {
       // Multi-word term: check bigram match first, then all-words fallback
       const bigramMatch = termWords.length === 2 && msgBigrams.includes(term);
       const allWordsMatch = !bigramMatch && termWords.length > 1 &&
-        termWords.every(tw => msgWords.includes(tw) || msgLower.includes(tw));
+        termWords.every(tw => msgWords.includes(tw) || matchMsg.includes(tw));
 
       // Single word exact match (word boundary)
       const hasExactWord = termWords.some(tw => {
@@ -153,7 +164,7 @@ if (!isAmbiguous) try {
       });
 
       // Substring match — only for longer terms (4+ chars) to avoid false positives
-      const hasSubstring = term.length >= 4 && msgLower.includes(term);
+      const hasSubstring = term.length >= 4 && matchMsg.includes(term);
 
       if (bigramMatch) {
         matchedParts++;
@@ -194,7 +205,7 @@ if (!isAmbiguous) try {
       confidence: bestScore,
       classified_at: new Date().toISOString()
     });
-    hints.push(`[INTENT] Auto-classified → ${bestMatch.routed_to} (intent: ${bestMatch.intent})`);
+    hints.push(`[INTENT] SKILL REQUIRED: Invoke /${bestMatch.routed_to} BEFORE generating any response. Do NOT answer without the skill. (intent: ${bestMatch.intent})`);
   }
 } catch {
   // Fault-tolerant: skip classification on error
@@ -210,6 +221,42 @@ if (hints.length > 0) {
   }));
 } else {
   console.log(JSON.stringify({ continue: true }));
+}
+
+/**
+ * Translate non-English user message to English keywords via claude CLI (Haiku).
+ * Returns space-separated English keywords for intent matching.
+ */
+async function translateToKeywords(message, routeKeys) {
+  // Read Claude Code OAuth token for direct API call (fast, no CLI startup)
+  const credPath = join(process.env.HOME || '/root', '.claude', '.credentials.json');
+  if (!existsSync(credPath)) return '';
+
+  const creds = JSON.parse(readFileSync(credPath, 'utf8'));
+  const token = creds?.claudeAiOauth?.accessToken;
+  if (!token) return '';
+
+  const resp = await fetch('https://api.anthropic.com/v1/messages', {
+    method: 'POST',
+    headers: {
+      'x-api-key': token,
+      'anthropic-version': '2023-06-01',
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({
+      model: 'claude-haiku-4-5-20251001',
+      max_tokens: 50,
+      messages: [{
+        role: 'user',
+        content: `TASK: keyword extraction. Output ONLY space-separated English keywords. No sentences.\nAvailable: ${routeKeys}\nMessage: "${message}"\nKeywords:`
+      }]
+    }),
+    signal: AbortSignal.timeout(3000),
+  });
+
+  if (!resp.ok) return '';
+  const body = await resp.json();
+  return (body.content?.[0]?.text || '').trim().toLowerCase();
 }
 
 /**

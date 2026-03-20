@@ -64,7 +64,7 @@ if (isEarlySession) {
     if (existsSync(intentRouteFile)) {
       const route = JSON.parse(readFileSync(intentRouteFile, 'utf8'));
       if (route.routed_to && route.intent) {
-        hints.push(`Routed to: ${route.routed_to} (intent: ${route.intent})`);
+        hints.push(`SKILL REQUIRED: You MUST invoke /${route.routed_to} before responding. (intent: ${route.intent})`);
       }
     }
   } catch {
