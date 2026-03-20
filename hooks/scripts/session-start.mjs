@@ -76,6 +76,19 @@ if (existsSync(snapshotPath)) {
 
 // --- ALWAYS TIER (continued) ---
 
+// Check: Inject QE_CONVENTIONS.md override rules into session context
+const conventionsPath = join(cwd, 'QE_CONVENTIONS.md');
+if (existsSync(conventionsPath)) {
+  try {
+    const content = readFileSync(conventionsPath, 'utf8');
+    // Extract System Default Override Map section
+    const overrideMatch = content.match(/## System Default Override Map[\s\S]*?\n\n---/);
+    if (overrideMatch) {
+      messages.push(`[QE RULES — MANDATORY]\n${overrideMatch[0].replace(/\n---$/, '').trim()}\nViolating these rules will be BLOCKED by the PreToolUse hook.`);
+    }
+  } catch {}
+}
+
 // Check 4: User language context (language.md)
 const languagePath = join(cwd, '.qe', 'profile', 'language.md');
 if (existsSync(languagePath)) {
