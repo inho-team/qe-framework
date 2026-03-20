@@ -144,7 +144,7 @@ Show the list of created files and guide the next steps:
 ## Creation Rules
 - Do not overwrite files that already exist.
 - Keep existing `.gitignore` content intact; add only missing entries.
-- Do not create files without user confirmation. Show the list first and confirm with `AskUserQuestion`.
+- Do not create files without user confirmation. **MUST use the `AskUserQuestion` tool to confirm — do NOT output confirmation prompts as plain text.**
 
 ## Will
 - Create CLAUDE.md from template

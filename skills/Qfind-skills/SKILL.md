@@ -44,7 +44,7 @@ WebFetch https://github.com/<owner>/<repo>/blob/main/skills/<skill-name>/SKILL.m
 
 ### Step 3: Confirm Installation Location
 
-Ask the user using the AskUserQuestion tool:
+**MUST use `AskUserQuestion` tool** (do NOT output as plain text):
 
 - **Global**: `~/.claude/skills/<skill-name>/SKILL.md` — available in all projects
 - **Local**: `.claude/skills/<skill-name>/SKILL.md` — available in the current project only

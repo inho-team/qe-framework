@@ -28,6 +28,8 @@ The court jester who alone could speak truth to the king. Not naive but strategi
 
 ## Core Workflow
 
+> **MANDATORY:** Mode selection and all user confirmations MUST use the `AskUserQuestion` tool. Do NOT output options as plain text — always call the tool.
+
 1. **Identify** — Extract the user's position from conversation context. Restate it as a steelmanned thesis for confirmation.
 2. **Select** — Use `AskUserQuestion` with two-step mode selection (see below).
 3. **Challenge** — Apply the selected mode's method. Load the corresponding reference file for deep guidance.

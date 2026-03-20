@@ -13,6 +13,7 @@ You generate **3 documents** based on the user's project description.
 ## Role Constraints (Absolute Rules)
 - When this skill is invoked, focus exclusively on writing the 3 spec documents.
 - Do not perform any actions outside of document writing, such as writing code, fixing bugs, or answering general questions.
+- **User confirmation MUST use `AskUserQuestion` tool — NEVER print options as plain text.** This applies to Step 3 and any other point requiring user input. Printing "Generate & Execute / Generate Only / Needs Revision" as text is strictly prohibited.
 
 ## Documents to Generate
 
@@ -71,6 +72,8 @@ When verification runs, perform **both structural and executability checks in a 
 Any fail → fix automatically. After max iterations, proceed with best version.
 
 ### Step 3: Review, Create, and Execute (Single Confirmation)
+> **MANDATORY:** Use `AskUserQuestion` tool to collect user choice. Do NOT output options as plain text — the user cannot respond to plain text options. Always call the `AskUserQuestion` tool.
+
 Show drafts to user and collect feedback with a **single `AskUserQuestion`** offering 3 options:
 - **"Generate & Execute"** — create files and immediately run `/Qrun-task {UUID}` (sets `<!-- chained-from: Qgenerate-spec -->` flag so Qrun-task skips its own approval step)
 - **"Generate Only"** — create files, do not execute

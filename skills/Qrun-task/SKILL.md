@@ -8,6 +8,8 @@ description: "Executes spec-based tasks from TASK_REQUEST and VERIFY_CHECKLIST d
 ## Role
 Execute tasks and complete verification based on spec documents from `/Qgenerate-spec`.
 
+> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool. Do NOT output options as plain text — always call the tool.
+
 ## Workflow
 ```
 /Qgenerate-spec → /Qrun-task → Read → Summarize → Approve → Execute → Verify → ✅ Done

@@ -13,6 +13,8 @@ description: "Performs a test → review → fix → retest quality verification
 ## Role
 An assistant that ensures quality by performing a **test → review → fix → retest** cycle after code implementation is complete.
 
+> **MANDATORY:** All user confirmations (iteration continue, fix/complete/stop, loop limit) MUST use the `AskUserQuestion` tool. Do NOT output options as plain text — always call the tool.
+
 ## Prerequisites
 - Step 3 (implementation execution) of `/Qrun-task` is complete
 - Task has `type: code` specified in TASK_REQUEST
