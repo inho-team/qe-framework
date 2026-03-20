@@ -1,18 +1,63 @@
-**English** | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md) | [日本語](docs/README.ja.md)
+<div align="center">
 
-# QE Framework (Query Executor)
+<br/>
 
-A personal skills and agents package for Claude Code.
+# QE Framework
 
-QE (Query Executor) is a framework that transforms user queries into structured, executable tasks. It handles the full lifecycle — from spec generation to implementation, verification, and commit — through a coordinated system of skills and agents.
+### Spec-Driven Task Execution for Claude Code
+
+[![Typing SVG](https://readme-typing-svg.demolab.com?font=Fira+Code&weight=500&size=22&pause=1000&color=60A5FA&center=true&vCenter=true&width=500&lines=Work+without+a+spec+is+guesswork.;A+spec+without+verification+is+hope.;Verification+without+supervision+is+bias.)](https://github.com/inho-team/qe-framework)
+
+<br/>
+
+![Stars](https://img.shields.io/github/stars/inho-team/qe-framework?style=social)
+![Forks](https://img.shields.io/github/forks/inho-team/qe-framework?style=social)
+![Watchers](https://img.shields.io/github/watchers/inho-team/qe-framework?style=social)
+
+![Release](https://img.shields.io/github/v/release/inho-team/qe-framework?style=flat&logo=github&color=8B5CF6)
+![Last Commit](https://img.shields.io/github/last-commit/inho-team/qe-framework?style=flat&logo=git&color=22C55E)
+![Repo Size](https://img.shields.io/github/repo-size/inho-team/qe-framework?style=flat&logo=database&color=D97706)
+![License](https://img.shields.io/github/license/inho-team/qe-framework?style=flat&color=60A5FA)
+
+[![Built with Claude](https://img.shields.io/badge/Built_with-Claude-D4A574?style=flat&logo=anthropic&logoColor=white)](https://claude.ai)
+[![Claude Code Plugin](https://img.shields.io/badge/Claude_Code-Plugin-22C55E?style=flat)](https://code.claude.com)
+[![65 Skills](https://img.shields.io/badge/Skills-65-8B5CF6?style=flat)](#skills-65--72-coding-experts)
+[![72 Coding Experts](https://img.shields.io/badge/Coding_Experts-72-EC4899?style=flat)](#coding-expert-skills-72)
+[![22 Agents](https://img.shields.io/badge/Agents-22-F97316?style=flat)](#agents-22)
+
+<br/>
+
+**Overview:** [Philosophy](#philosophy) · [SVS Loop](#philosophy) · [Architecture](#architecture) · [How It Works](#background-processing)
+
+**Get Started:** [Installation](#installation) · [Initialize](#initialize-a-project) · [Usage](#usage)
+
+**Reference:** [Skills](#skills-65--72-coding-experts) · [Coding Experts](#coding-expert-skills-72) · [Agents](#agents-22) · [Hooks](#lifecycle-hooks) · [Agent Teams](#agent-teams-experimental)
+
+**[English](README.md)** | [한국어](docs/README.ko.md) | [中文](docs/README.zh.md) | [日本語](docs/README.ja.md)
+
+</div>
+
+---
+
+> [!IMPORTANT]
+> **QE Framework v2.1.0** — Added i18n intent routing via Haiku translation layer. Non-English messages are now automatically translated to English keywords for skill matching.
+>
+> **[Changelog](CHANGELOG.md)** | **[Update instructions](#update-to-latest-version)**
+
+> [!CAUTION]
+> This project is under active development. Breaking changes may occur between minor versions.
+
+---
+
+<div align="center">
+
+## Every query deserves a spec. Every spec deserves verification.
+
+</div>
 
 ## Philosophy
 
-> Work without a spec is guesswork.
-> A spec without verification is hope.
-> Verification without supervision is confirmation bias.
-
-QE Framework is built around the **SVS Loop** (Spec → Verify → Supervise):
+QE Framework turns vague requests into spec-driven, verified, and supervised task execution through the **SVS Loop** (Spec → Verify → Supervise):
 
 ```
 /Qgenerate-spec  →  /Qrun-task  →  Supervision  →  Done
@@ -20,12 +65,16 @@ QE Framework is built around the **SVS Loop** (Spec → Verify → Supervise):
                            auto-remediate (max 3x)  ← FAIL
 ```
 
-1. **`/Qgenerate-spec`** — Creates TASK_REQUEST + VERIFY_CHECKLIST. A Plan agent reviews the spec automatically before you see it. Executability verification ensures every item is actionable.
-2. **`/Qrun-task`** — Executes the checklist item by item with progress tracking. Shows a task type banner (CODE/DOCS/ANALYSIS) so you know exactly what will happen before approving.
-3. **Supervision** — Domain-specific supervisor agents (code quality, security, docs, analysis) do an independent review. If it fails, a REMEDIATION_REQUEST is auto-generated and the loop runs again — up to 3 times with zero human intervention.
-4. **Minimal interruptions** — You're only asked at 5 points: spec confirmation, execution prompt, task approval, completion report, and 3x supervision failure escalation. Everything else is automatic.
+| Step | What Happens |
+|------|-------------|
+| **`/Qgenerate-spec`** | Creates TASK_REQUEST + VERIFY_CHECKLIST. A Plan agent auto-reviews the spec for executability. |
+| **`/Qrun-task`** | Executes checklist items with progress tracking. Shows task type banner (CODE / DOCS / ANALYSIS). |
+| **Supervision** | Domain-specific supervisors (code quality, security, docs, analysis) do independent review. Failures auto-remediate up to 3x. |
+| **Result** | You're only asked at 5 points. Everything else is automatic. |
 
 Engineering principles: SOLID, DRY, KISS, YAGNI, evidence-based decisions, minimal change, multilingual (auto language detection).
+
+---
 
 ## Architecture
 
@@ -42,6 +91,8 @@ Methodology & process      Execution & delegation     Shared principles
 - **Skills** define *how* to do something (process, methodology, workflow orchestration)
 - **Agents** *execute* the work (code writing, debugging, reviewing, research)
 - **Core** provides shared principles, intent routing, and model tier selection
+
+---
 
 ## Installation
 
@@ -87,6 +138,8 @@ Then retry the install command.
 
 This creates `CLAUDE.md`, `.qe/` directory structure, and runs initial project analysis.
 
+---
+
 ## Usage
 
 ### Task Workflow
@@ -94,36 +147,38 @@ This creates `CLAUDE.md`, `.qe/` directory structure, and runs initial project a
 Generate a spec, then execute it:
 
 ```
-/Qgenerate-spec    -- Creates TASK_REQUEST.md + VERIFY_CHECKLIST.md
-/Qrun-task         -- Executes the task with automatic quality verification
+/Qgenerate-spec    → Creates TASK_REQUEST.md + VERIFY_CHECKLIST.md
+/Qrun-task         → Executes the task with automatic quality verification
 ```
 
 ### Commit Changes
 
 ```
-/Qcommit           -- Human-style commits with no AI traces
+/Qcommit           → Human-style commits with no AI traces
 ```
 
 ### Debugging
 
 ```
-/Qsystematic-debugging   -- Root cause analysis before applying fixes
+/Qsystematic-debugging   → Root cause analysis before applying fixes
 ```
 
 ### Deep Research
 
 Invoke the `Edeep-researcher` agent for technology comparison, architecture decisions, or investigative tasks.
 
-### Other Examples
+### More Examples
 
 ```
-/Qgenerate-spec + /Qrun-task     -- Full task lifecycle
-/Qfrontend-design                -- Create production-grade UI components
-/Qtest-driven-development        -- Red-green-refactor TDD workflow
-/Qgrad-paper-write               -- Academic paper drafting
-/Qc4-architecture                -- C4 model architecture diagrams
-/Qrefresh                        -- Update project analysis data
+/Qgenerate-spec + /Qrun-task     → Full task lifecycle
+/Qfrontend-design                → Create production-grade UI components
+/Qtest-driven-development        → Red-green-refactor TDD workflow
+/Qgrad-paper-write               → Academic paper drafting
+/Qc4-architecture                → C4 model architecture diagrams
+/Qrefresh                        → Update project analysis data
 ```
+
+---
 
 ## Skills (65 + 72 Coding Experts)
 
@@ -204,6 +259,16 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 |-------|-------------|
 | Qaudio-transcriber | Converts audio recordings (MP3, WAV, M4A, etc.) into professional Markdown documents. |
 | Qyoutube-transcript-api | Extracts, transcribes, and translates YouTube video subtitles/captions. |
+
+### Analysis
+
+| Skill | Description |
+|-------|-------------|
+| Qdata-analysis | Data exploration, statistical analysis, and visualization for CSV/JSON/Excel datasets. |
+| Qfinance-analyst | Financial analysis, valuation modeling, DCF, Monte Carlo simulation, and portfolio optimization. |
+| Qfact-checker | Extracts factual claims from documents and verifies them through evidence-based research. |
+| Qsource-verifier | Verifies source credibility and digital content authenticity using the SIFT method. |
+
 ### Meta
 
 | Skill | Description |
@@ -220,20 +285,14 @@ Invoke the `Edeep-researcher` agent for technology comparison, architecture deci
 | Qskill-tester | Automated skill routing tester. Verifies intent classification accuracy and finds misrouted skills. |
 | Qjira-cli | Lightweight Jira CLI wrapper for quick issue management without MCP server setup. |
 
-### Analysis
-
-| Skill | Description |
-|-------|-------------|
-| Qdata-analysis | Data exploration, statistical analysis, and visualization for CSV/JSON/Excel datasets. |
-| Qfinance-analyst | Financial analysis, valuation modeling, DCF, Monte Carlo simulation, and portfolio optimization. |
-| Qfact-checker | Extracts factual claims from documents and verifies them through evidence-based research. |
-| Qsource-verifier | Verifies source credibility and digital content authenticity using the SIFT method. |
+---
 
 ## Coding Expert Skills (72)
 
 Domain-specific coding experts organized by category. Each skill provides deep expertise in its technology stack, including best practices, common patterns, and production-ready code generation.
 
-### Languages (14)
+<details>
+<summary><strong>Languages (14)</strong></summary>
 
 | Skill | Description |
 |-------|-------------|
@@ -252,7 +311,10 @@ Domain-specific coding experts organized by category. Each skill provides deep e
 | Qswift-expert | iOS/macOS with SwiftUI, async/await, actors, and protocol-oriented design. |
 | Qtypescript-pro | Advanced generics, conditional types, branded types, and tRPC integration. |
 
-### Frontend (12)
+</details>
+
+<details>
+<summary><strong>Frontend (12)</strong></summary>
 
 | Skill | Description |
 |-------|-------------|
@@ -269,7 +331,10 @@ Domain-specific coding experts organized by category. Each skill provides deep e
 | Qvue-expert-js | Vue 3 with vanilla JavaScript and JSDoc-based typing (no TypeScript). |
 | Qweb-design-guidelines-vercel | UI code review for Web Interface Guidelines compliance. |
 
-### Backend (14)
+</details>
+
+<details>
+<summary><strong>Backend (14)</strong></summary>
 
 | Skill | Description |
 |-------|-------------|
@@ -288,7 +353,10 @@ Domain-specific coding experts organized by category. Each skill provides deep e
 | Qspring-boot-engineer | Spring Boot 3.x REST, Spring Security 6, Spring Data JPA, and WebFlux. |
 | Qwebsocket-engineer | Real-time WebSocket/Socket.IO systems with Redis scaling and presence tracking. |
 
-### Data & AI (6)
+</details>
+
+<details>
+<summary><strong>Data & AI (6)</strong></summary>
 
 | Skill | Description |
 |-------|-------------|
@@ -299,7 +367,10 @@ Domain-specific coding experts organized by category. Each skill provides deep e
 | Qrag-architect | RAG systems, vector databases, hybrid search, reranking, and embedding pipelines. |
 | Qspark-engineer | Spark DataFrame transformations, SQL optimization, and structured streaming. |
 
-### Infra & DevOps (14)
+</details>
+
+<details>
+<summary><strong>Infra & DevOps (14)</strong></summary>
 
 | Skill | Description |
 |-------|-------------|
@@ -318,7 +389,10 @@ Domain-specific coding experts organized by category. Each skill provides deep e
 | Qterraform-engineer | Terraform modules, state management, multi-environment workflows, and testing. |
 | Qwordpress-pro | WordPress themes, Gutenberg blocks, WooCommerce, REST API, and security hardening. |
 
-### Quality & Security (12)
+</details>
+
+<details>
+<summary><strong>Quality & Security (12)</strong></summary>
 
 | Skill | Description |
 |-------|-------------|
@@ -335,11 +409,13 @@ Domain-specific coding experts organized by category. Each skill provides deep e
 | Qthe-fool | Devil's advocate, pre-mortem, red teaming, and assumption auditing. |
 | Qvitest | Vitest unit testing with Jest-compatible API, mocking, and coverage. |
 
+</details>
+
+---
+
 ## Background Processing
 
-QE Framework runs several agents silently in the background at key lifecycle moments. These agents require no manual invocation — they are triggered automatically by hooks and other agents.
-
-### How It Works
+QE Framework runs several agents silently in the background at key lifecycle moments. These agents require no manual invocation — they are triggered automatically by hooks.
 
 ```
 ┌─────────────────────────────────────────────────────────────────────────┐
@@ -378,12 +454,6 @@ QE Framework runs several agents silently in the background at key lifecycle mom
 │  │  Qrun-task   │───▶│ Earchive-executor   │  Archive completed tasks │
 │  │  completes   │    │ Ecommit-executor    │  Auto-commit changes     │
 │  └──────────────┘    └─────────────────────┘                          │
-│         │                                                             │
-│         ▼                                                             │
-│  ┌──────────────┐    ┌─────────────────────┐                          │
-│  │ Notification │───▶│  Chain follow-up    │  Trigger next actions    │
-│  │    Hook      │    │  actions            │  when agents complete    │
-│  └──────────────┘    └─────────────────────┘                          │
 │                                                                       │
 └─────────────────────────────────────────────────────────────────────────┘
 ```
@@ -395,8 +465,8 @@ The framework uses 9 lifecycle hooks that fire at specific events:
 | Hook | Trigger | What Happens |
 |------|---------|--------------|
 | `SessionStart` | Conversation begins | Injects framework rules, triggers `Erefresh-executor` if analysis is stale |
-| `UserPromptSubmit` | User sends a message | **Intent auto-classification** with CJK/bigram matching + **language detection** (saves to `.qe/profile/language.md`) |
-| `PreToolUse` | Before every tool call | Intent Gate routing display, secret scanning, context pressure warnings |
+| `UserPromptSubmit` | User sends a message | **i18n intent classification** via Haiku translation + **language detection** |
+| `PreToolUse` | Before every tool call | Intent Gate routing, secret scanning, context pressure warnings |
 | `PostToolUse` | After every tool call | Error tracking/escalation, tool call counting, `Eprofile-collector` trigger |
 | `PreCompact` | Before context compaction | Triggers `Ecompact-executor` to save context before it is lost |
 | `Stop` | Conversation ends | Session log recording, mode blocking for active work |
@@ -404,146 +474,48 @@ The framework uses 9 lifecycle hooks that fire at specific events:
 | `TaskCompleted` | Task finishes | Validates verify checklist completion before allowing task close |
 | `TeammateIdle` | Agent team member idles | Prompts idle teammates to claim pending tasks |
 
-### Background Agents
-
-These agents run automatically without user interaction. They write results to `.qe/` files and never respond directly to the user.
-
-#### Erefresh-executor — Project Analysis Sync
-
-> Keeps `.qe/analysis/` up to date so other agents skip expensive project scanning.
-
-| | Details |
-|---|---|
-| **When** | Session start (if stale), before Qrun-task, or manually via `/Qrefresh` |
-| **Writes to** | `.qe/analysis/*.md`, `.qe/changelog.md` |
-| **Token saving** | ~50% reduction — agents read 4 analysis files instead of scanning dozens |
-
-**Steps:**
-1. Detect changes via `git diff` and file system scan
-2. Update 4 analysis files: `project-structure`, `tech-stack`, `entry-points`, `architecture`
-3. Record change history in `.qe/changelog.md` tagged as `[External Change]` or `[QE]`
-
-#### Ecompact-executor — Context Preservation
-
-> Saves a lightweight snapshot before context compaction so sessions can be resumed.
-
-| | Details |
-|---|---|
-| **When** | Context window reaches 75%+ capacity (Yellow zone), or manually via `/Qcompact` |
-| **Writes to** | `.qe/context/snapshot.md`, `.qe/context/decisions.md` |
-| **Token saving** | ~70% reduction — restores context from a few files instead of re-exploring the project |
-
-**Steps:**
-1. Collect in-progress tasks, checklist state, recent file changes, and key decisions
-2. Save snapshot to `.qe/context/snapshot.md` (paths and summaries only, no code)
-3. Accumulate decisions in `.qe/context/decisions.md` in reverse chronological order
-
-#### Earchive-executor — Task Archival
-
-> Moves completed tasks to a versioned archive, keeping the workspace clean.
-
-| | Details |
-|---|---|
-| **When** | Qrun-task marks a task as completed, or manually via `/Qarchive` |
-| **Writes to** | `.qe/.archive/vX.Y.Z/tasks/`, `.qe/.archive/vX.Y.Z/checklists/` |
-
-**Steps:**
-1. Scan `.qe/tasks/pending/` for fully completed tasks
-2. Move completed TASK_REQUEST and VERIFY_CHECKLIST to `.qe/.archive/vX.Y.Z/`
-3. Save a CLAUDE.md snapshot alongside archived files
-
-#### Ecommit-executor — Auto-Commit
-
-> Creates human-style commits with zero AI traces.
-
-| | Details |
-|---|---|
-| **When** | Delegated by `/Qcommit`, or auto-commit after Qrun-task completion |
-| **Prohibited** | `Co-Authored-By` lines, AI-related wording, emojis |
-
-**Steps:**
-1. Analyze `git diff` and match the project's existing commit message style
-2. Selectively stage relevant files (excludes `.env`, credentials)
-3. Create a commit indistinguishable from a human-written one
-
-#### Eprofile-collector — User Pattern Learning
-
-> Learns user preferences over time to improve intent recognition accuracy.
-
-| | Details |
-|---|---|
-| **When** | After any skill or agent completes |
-| **Writes to** | `.qe/profile/command-patterns.md`, `writing-style.md`, `corrections.md`, `preferences.md` |
-
-**What it collects:**
-
-| File | Content |
-|------|---------|
-| `command-patterns.md` | Skill/agent invocation frequency and recency |
-| `writing-style.md` | Formal/informal patterns, abbreviation dictionary |
-| `corrections.md` | History of user corrections to prevent repeated misunderstandings |
-| `preferences.md` | Response length, code style, language preferences |
-
-#### Ehandoff-executor — Session Handoff
-
-> Generates a validated handoff document for seamless cross-session continuation.
-
-| | Details |
-|---|---|
-| **When** | Manually via `/Qcompact` (handoff mode) |
-| **Writes to** | `.qe/handoffs/HANDOFF_{date}_{time}.md` |
-
-**Steps:**
-1. Collect task state, checklist progress, recent git changes, and decisions
-2. Generate a structured handoff document with concrete next steps
-3. Validate that all referenced files and task UUIDs actually exist
-
-#### Edoc-generator — Batch Document Generation
-
-> Offloads heavy document generation from the main context window.
-
-| | Details |
-|---|---|
-| **When** | Delegated by Epm-planner, Qrun-task (`type: docs`), or multi-document requests |
-| **Formats** | `.docx`, `.pdf`, `.pptx`, `.xlsx` |
-
-Processes multiple documents in parallel, using templates when available.
-
 ---
 
 ## Agents (22)
 
 Agents are automatically assigned a model tier based on task complexity. See [AGENT_TIERS.md](core/AGENT_TIERS.md) for details.
 
-### HIGH Tier (opus)
+<details>
+<summary><strong>HIGH Tier (opus) — 3 agents</strong></summary>
 
 | Agent | Description |
 |-------|-------------|
 | Edeep-researcher | Systematic multi-step research agent for technology comparison and decision support. |
 | Eqa-orchestrator | Executes the full test, review, fix quality loop. Protects the main context. |
-| Esupervision-orchestrator | Supervision orchestrator. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades, drafts REMEDIATION_REQUEST on FAIL. |
+| Esupervision-orchestrator | Supervision orchestrator. Routes to domain supervisors, aggregates PASS/PARTIAL/FAIL grades. |
 
-### MEDIUM Tier (sonnet)
+</details>
+
+<details>
+<summary><strong>MEDIUM Tier (sonnet) — 15 agents</strong></summary>
 
 | Agent | Description |
 |-------|-------------|
-| Etask-executor | Implements checklist items in order. Supports wave-based parallel execution for independent items. |
+| Etask-executor | Implements checklist items in order. Supports wave-based parallel execution. |
 | Ecode-debugger | Debugging specialist. Analyzes bug root causes, traces errors, and troubleshoots. |
 | Ecode-reviewer | Code review specialist. Reviews quality, security, performance, and pattern compliance. |
 | Ecode-test-engineer | Test engineer. Handles test writing, coverage analysis, and test strategy. |
 | Ecode-doc-writer | Technical documentation specialist. Writes code explanations, API docs, and READMEs. |
-| Ecode-quality-supervisor | Code quality audit supervisor. Reviews code quality, test coverage, architecture consistency. Returns PASS/PARTIAL/FAIL. |
-| Edocs-supervisor | Documentation audit supervisor. Reviews completeness, accuracy, structural consistency, and link validity. Returns PASS/PARTIAL/FAIL. |
-| Eanalysis-supervisor | Analysis audit supervisor. Reviews evidential sufficiency, logical validity, scope adequacy, and actionability. Returns PASS/PARTIAL/FAIL. |
-| Esecurity-officer | Security audit specialist. Scans git diff changes for vulnerabilities, classifies as PASS/WARN/FAIL. |
+| Ecode-quality-supervisor | Code quality audit supervisor. Returns PASS/PARTIAL/FAIL. |
+| Edocs-supervisor | Documentation audit supervisor. Returns PASS/PARTIAL/FAIL. |
+| Eanalysis-supervisor | Analysis audit supervisor. Returns PASS/PARTIAL/FAIL. |
+| Esecurity-officer | Security audit specialist. Scans git diff changes for vulnerabilities. |
 | Edoc-generator | Background sub-agent for batch document generation (docx/pdf/pptx/xlsx). |
 | Egrad-writer | Writes academic paper chapters with academic writing style and citation rules. |
 | Epm-planner | Planning specialist. Handles PRD, user stories, roadmap, and document generation. |
 | Erefresh-executor | Detects project changes, updates .qe/ analysis data, and records change history. |
-| Ecompact-executor | Detects context window pressure, saves context, and supports restoration after compaction. |
+| Ecompact-executor | Detects context window pressure, saves context, and supports restoration. |
 | Ehandoff-executor | Generates and validates session handoff documents. |
 
-### LOW Tier (haiku)
+</details>
+
+<details>
+<summary><strong>LOW Tier (haiku) — 3 agents</strong></summary>
 
 | Agent | Description |
 |-------|-------------|
@@ -551,13 +523,13 @@ Agents are automatically assigned a model tier based on task complexity. See [AG
 | Ecommit-executor | Analyzes diffs, generates commit messages, and stages files with no AI traces. |
 | Eprofile-collector | Collects user command patterns, writing style, and correction history. |
 
+</details>
+
+---
+
 ## Agent Teams (Experimental)
 
-QE Framework supports [Claude Agent Teams](https://code.claude.com/docs/en/agent-teams) for complex tasks that benefit from parallel collaboration. Agent Teams spawn multiple Claude instances that communicate directly and share a task list.
-
-### When Teams Are Used
-
-Teams are activated automatically when the feature is enabled and the task meets complexity thresholds:
+QE Framework supports [Claude Agent Teams](https://code.claude.com/docs/en/agent-teams) for complex tasks that benefit from parallel collaboration.
 
 | Agent | Team Trigger | Team Structure |
 |-------|-------------|----------------|
@@ -565,9 +537,7 @@ Teams are activated automatically when the feature is enabled and the task meets
 | Etask-executor | 5+ independent checklist items | One teammate per file group |
 | Edeep-researcher | 3+ research sources/perspectives | Researchers + Devil's Advocate |
 
-### Enable Agent Teams
-
-Add to `.claude/settings.json`:
+To enable, add to `.claude/settings.json`:
 ```json
 {
   "env": {
@@ -576,9 +546,9 @@ Add to `.claude/settings.json`:
 }
 ```
 
-All agents fall back to their existing Subagent behavior when Agent Teams is not enabled.
+All agents fall back to Subagent behavior when Agent Teams is not enabled. See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for details.
 
-See [AGENT_TEAMS.md](core/AGENT_TEAMS.md) for detailed configuration and team patterns.
+---
 
 ## Project Structure
 
@@ -588,10 +558,12 @@ qe-framework/
 ├── agents/            # 22 agents (E-prefix)
 ├── skills/            # 65 core + 72 coding expert skills (Q-prefix)
 ├── core/              # Shared principles & configuration
-├── hooks/             # Lifecycle hooks
+├── hooks/             # 9 lifecycle hooks + i18n translation layer
 ├── install.js         # Installation script
 └── package.json
 ```
+
+---
 
 ## License
 

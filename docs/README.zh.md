@@ -1,10 +1,32 @@
+<div align="center">
+
+<br/>
+
+# QE Framework
+
+### Claude Code 的规格驱动任务执行框架
+
+![Stars](https://img.shields.io/github/stars/inho-team/qe-framework?style=social)
+![Release](https://img.shields.io/github/v/release/inho-team/qe-framework?style=flat&logo=github&color=8B5CF6)
+![Last Commit](https://img.shields.io/github/last-commit/inho-team/qe-framework?style=flat&logo=git&color=22C55E)
+
+[![Built with Claude](https://img.shields.io/badge/Built_with-Claude-D4A574?style=flat&logo=anthropic&logoColor=white)](https://claude.ai)
+[![65 Skills](https://img.shields.io/badge/Skills-65-8B5CF6?style=flat)](#skills-65--72-coding-experts)
+[![72 Coding Experts](https://img.shields.io/badge/Coding_Experts-72-EC4899?style=flat)](#coding-expert-skills-72)
+[![22 Agents](https://img.shields.io/badge/Agents-22-F97316?style=flat)](#agents-22)
+
+<br/>
+
 [English](../README.md) | [한국어](README.ko.md) | **中文** | [日本語](README.ja.md)
 
-# QE Framework (Query Executor)
+</div>
 
-Claude Code 的个人技能与代理插件包。
+---
 
-QE (Query Executor) 是一个将用户查询转化为结构化可执行任务的框架。它通过协调的技能和代理系统，处理从规格生成到实现、验证和提交的完整生命周期。
+> [!IMPORTANT]
+> **QE Framework v2.1.0** — 通过 Haiku 翻译层添加 i18n 意图路由。非英语消息自动翻译为英语关键词进行技能匹配。
+
+---
 
 ## 设计理念
 
