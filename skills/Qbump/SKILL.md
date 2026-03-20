@@ -54,7 +54,18 @@ Update the `version` field in both files:
 1. `.claude-plugin/plugin.json`
 2. `package.json`
 
-### Step 5 — Commit
+### Step 5 — Sync plugin cache
+
+Claude Code loads skills from the cached snapshot at `~/.claude/plugins/cache/`, not from the local repo. After updating version files, sync the local repo to the cache so new/changed skills are immediately available.
+
+1. Find the plugin cache path from `~/.claude/plugins/installed_plugins.json` (read the `installPath` field for `qe-framework`).
+2. Run `rsync -a --delete` from the local repo to the cache path, excluding `.git/`:
+   ```
+   rsync -a --delete --exclude='.git/' {repo_root}/ {cache_install_path}/
+   ```
+3. Update `installed_plugins.json`: set `version` to `{new_version}` and `gitCommitSha` to the current HEAD commit SHA.
+
+### Step 6 — Commit
 
 Create a git commit with message:
 
@@ -62,18 +73,20 @@ Create a git commit with message:
 chore: bump plugin version to {new_version}
 ```
 
-### Step 6 — Report
+### Step 7 — Report
 
 Print:
 
 ```
 QE Framework {old_version} → {new_version}
+Plugin cache synced — restart Claude Code to load new skills.
 ```
 
 ---
 
 ## Will
 - Read and update version in plugin.json and package.json
+- Sync local repo to plugin cache so new skills are immediately available
 - Create a version bump commit
 
 ## Will Not
