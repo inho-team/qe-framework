@@ -107,6 +107,16 @@ Skip agent triggers if no trigger files exist.
 
 Report: UUID, items completed, verification passed, changed files.
 
+### Next Task Prompt
+
+After completion, check for remaining tasks:
+1. Read CLAUDE.md task table — find tasks with status `진행 전` or `🔲`
+2. Also check `.qe/tasks/pending/` for queued TASK_REQUEST files
+3. If next tasks exist, use `AskUserQuestion` to prompt:
+   - List upcoming tasks (UUID + name)
+   - Ask: "다음 작업을 실행하려면 `/Qrun-task {UUID}`를 실행해주세요."
+4. If no remaining tasks, skip this step
+
 ---
 
 ## Special Situations
