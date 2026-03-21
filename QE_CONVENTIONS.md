@@ -50,6 +50,7 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qupdate` | Update QE Framework to latest |
 | `Qinit` | Initial setup and directory structure |
 | `Qrefresh` | Refresh project analysis data |
+| `Qproject-sync` | Sync project source files with a reference/standard project |
 | `Qcompact` | Save context / session handoff |
 | `Qresume` | Restore saved context |
 | `Qarchive` | Archive completed tasks |
@@ -121,6 +122,7 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qfeature-forge` | Requirements workshop > feature specs |
 | `Qjira-cli` | Jira CLI for issue management |
 | `Qstitch-cli` | Google Stitch MCP setup |
+| `Qstitch-apply` | Convert Stitch HTML designs to React TSX components |
 | `Qagentation` | Visual UI feedback tool setup |
 
 ### Academic
@@ -149,11 +151,13 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qfact-checker` | Verify factual claims |
 | `Qsource-verifier` | Source credibility verification (SIFT) |
 | `Qlesson-learned` | Extract engineering lessons from git history |
+| `Qi18n-audit` | Scan for hardcoded strings, generate translation keys, report i18n coverage |
 
 ### Design & Frontend
 | Skill | Purpose |
 |-------|---------|
 | `Qfrontend-design` | Create new UI from scratch |
+| `Qdesign-audit` | Audit design consistency within the project's own design system |
 | `Qweb-design-guidelines` | Audit existing UI code |
 | `Qweb-design-guidelines-vercel` | Vercel Web Interface Guidelines review |
 | `Qdatabase-schema-designer` | Database schema design |
@@ -162,6 +166,7 @@ These skills replace specific system default behaviors. **Never fall back to the
 | `Qmicroservices-architect` | Distributed system architecture |
 | `Qlegacy-modernizer` | Legacy system migration strategy |
 | `Qagent-browser` | Browser automation CLI |
+| `Qvisual-qa` | Chrome browser visual QA — screenshot compare against reference images |
 
 ### Language & Framework Experts
 | Skill | Purpose |

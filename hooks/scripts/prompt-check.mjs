@@ -59,6 +59,29 @@ if (words.length <= cfg.ambiguous_max_words && userMessage.length <= cfg.ambiguo
   }
 }
 
+// --- Negative Feedback Detection (save-to-memory hint) ---
+if (!isAmbiguous && words.length > 5) {
+  const koreanCorrection = /몇\s*번을?\s*말해|또\s*그러|아까\s*말했|이미\s*말했|반복하지|다시\s*말하|왜\s*안\s|하지\s*마|하지\s*말고|그만|안\s*된다고|몇\s*번이나/.test(userMessage);
+  const englishCorrection = /\b(stop doing|don't do|never do|I already told|how many times|I said don't|stop repeating)\b/i.test(userMessage);
+
+  // Exclude code blocks
+  const hasCodeBlock = /```[\s\S]*```|`[^`]+`/.test(userMessage);
+
+  if ((koreanCorrection || englishCorrection) && !hasCodeBlock) {
+    hints.push('[FEEDBACK] User correction detected. Save this feedback to auto-memory as a feedback type memory so it persists across sessions. Extract the specific rule the user is enforcing.');
+    // Persist feedback for follow-up enforcement
+    try {
+      const stateDir = join(cwd, '.qe', 'state');
+      if (!existsSync(stateDir)) mkdirSync(stateDir, { recursive: true });
+      writeFileSync(join(stateDir, 'pending-feedback.json'), JSON.stringify({
+        message: userMessage,
+        detected_at: new Date().toISOString(),
+        acted: false
+      }, null, 2));
+    } catch {}
+  }
+}
+
 // --- Language Detection (save to .qe/profile/language.md) ---
 try {
   const profileDir = join(cwd, '.qe', 'profile');

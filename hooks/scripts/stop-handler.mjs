@@ -116,16 +116,43 @@ if (!activeMode) {
       } catch {}
     }
 
+    // Read skills_used from session stats
+    let skillsUsed = [];
+    if (existsSync(statsPath)) {
+      try {
+        const stats = JSON.parse(readFileSync(statsPath, 'utf8'));
+        skillsUsed = stats.skills_used || [];
+      } catch {}
+    }
+
     sessionLog.sessions.unshift({
       date: new Date().toISOString(),
       tool_calls: toolCalls,
       commits: commits,
+      skills_used: skillsUsed,
       duration_ms: Date.now() - sessionStart
     });
 
     sessionLog.sessions = sessionLog.sessions.slice(0, cfg.session_log_max);
 
     writeFileSync(logPath, JSON.stringify(sessionLog, null, 2), 'utf8');
+
+    // --- Skill Usage Warnings ---
+    const warnings = [];
+    // Check if code changes exist but Qcommit was not called
+    try {
+      const diffStat = execSync('git diff --stat 2>/dev/null', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+      if (diffStat && !skillsUsed.some(s => s.includes('Qcommit') || s.includes('commit'))) {
+        warnings.push('Code changes exist but Qcommit was not called this session.');
+      }
+    } catch {}
+    // Long session without Qcompact
+    if (toolCalls > 100 && !skillsUsed.some(s => s.includes('Qcompact') || s.includes('compact'))) {
+      warnings.push('Long session (100+ tool calls) without Qcompact — context may have been lost.');
+    }
+    if (warnings.length > 0) {
+      process.stderr.write(`[QE Session Summary] ${warnings.join(' ')}\n`);
+    }
   } catch {
     // Fault tolerance — ignore session log errors
   }

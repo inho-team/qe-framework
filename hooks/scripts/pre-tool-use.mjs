@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { loadConfig } from './lib/config.mjs';
@@ -70,6 +70,36 @@ if (isEarlySession) {
     }
   } catch {
     // Fault-tolerant: ignore intent routing errors
+  }
+}
+
+// --- Pending Feedback Follow-up (2-stage enforcement) ---
+try {
+  const feedbackFile = join(cwd, '.qe', 'state', 'pending-feedback.json');
+  if (existsSync(feedbackFile)) {
+    const fb = JSON.parse(readFileSync(feedbackFile, 'utf8'));
+    const ageMs = Date.now() - new Date(fb.detected_at).getTime();
+    if (fb.acted) {
+      // Already acted — clean up
+      try { unlinkSync(feedbackFile); } catch {}
+    } else if (ageMs > 10 * 60 * 1000) {
+      // Expired (10 min TTL) — clean up
+      try { unlinkSync(feedbackFile); } catch {}
+    } else {
+      hints.push(`[FEEDBACK PENDING] Unresolved user feedback: "${fb.message.slice(0, 100)}". Save to auto-memory as feedback type. Then update .qe/state/pending-feedback.json with acted:true.`);
+    }
+  }
+} catch {}
+
+// --- Skill Usage Tracking ---
+if (toolName === 'Skill') {
+  const skillInput = data.tool_input || data.toolInput || {};
+  const skillName = skillInput.skill || '';
+  if (skillName) {
+    if (!Array.isArray(stats.skills_used)) stats.skills_used = [];
+    if (!stats.skills_used.includes(skillName)) {
+      stats.skills_used.push(skillName);
+    }
   }
 }
 
@@ -154,6 +184,14 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
         msg: 'Direct version editing is blocked. Use /Mbump instead.'
       });
     }
+
+    // sed -i → Edit tool
+    if (/\bsed\s+(?:-[a-zA-Z]*i|--in-place)\b/.test(cmd)) {
+      overrideRules.push({
+        skill: '_edit_tool',
+        msg: 'sed -i is blocked. Use the Edit tool instead.'
+      });
+    }
   }
 
   if (toolName === 'Edit') {
@@ -236,6 +274,30 @@ if (['Write', 'Edit'].includes(toolName)) {
     }
   }
 }
+
+// --- Qutopia QA mode: verify loop reminder (every 10 tool calls) ---
+try {
+  const utopiaFile = join(cwd, '.qe', 'state', 'utopia-state.json');
+  if (existsSync(utopiaFile)) {
+    const utopiaState = JSON.parse(readFileSync(utopiaFile, 'utf8'));
+    if (utopiaState.enabled && utopiaState.mode === 'qa') {
+      const lastReminder = stats._last_verify_reminder || 0;
+      if (currentCalls - lastReminder >= 10) {
+        // Check if in-progress checklists exist
+        const clDir = join(cwd, '.qe', 'checklists', 'in-progress');
+        if (existsSync(clDir)) {
+          try {
+            const clFiles = readdirSync(clDir).filter(f => f.endsWith('.md'));
+            if (clFiles.length > 0) {
+              hints.push('[UTOPIA QA] VERIFY_CHECKLIST item-by-item verification is MANDATORY. Each item needs a concrete check (glob, grep, build, test). "Build passed" alone is NOT sufficient.');
+              stats._last_verify_reminder = currentCalls;
+            }
+          } catch {}
+        }
+      }
+    }
+  }
+} catch {}
 
 // --- Context pressure check (reuse stats and cfg — no duplicate I/O) ---
 try {

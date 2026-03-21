@@ -126,7 +126,7 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 
 ### CLAUDE.md
 - Single Source of Truth; read by AI every session
-- Task list includes UUID, task name, status; completed tasks (✅) need not be referenced
+- **Do NOT write task lists in CLAUDE.md.** Task history lives in `.qe/TASK_LOG.md`. CLAUDE.md only contains a reference pointer: `## Task Log` → `.qe/TASK_LOG.md` 참조
 
 ### TASK_REQUEST
 - Clearly separate "what" from "how"

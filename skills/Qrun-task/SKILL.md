@@ -68,7 +68,27 @@ Execute checklist items in order. Report: `✅ [1/N] desc - done`. Record `- [x]
 
 ## Step 4: Final Verification
 
-Verify all VERIFY_CHECKLIST items. Show pass/fail results. All pass → Step 5. Failures → fix and re-verify (max 2 retries, then escalate to user).
+Verify **each** VERIFY_CHECKLIST item with a concrete action — "build passed" alone is NOT sufficient.
+
+| Item type | Verification action |
+|-----------|-------------------|
+| File exists | `Glob` for the path |
+| Code behavior | `Grep` for expected pattern or run test |
+| Build/compile | `tsc --noEmit` or project build command |
+| No regression | Run existing test suite |
+| Security | Invoke `Esecurity-officer` (see below) |
+| Visual/UI | Screenshot via chrome tools if available |
+
+Report per item: `✅ PASS` or `❌ FAIL (reason)`. All pass → Step 5. Failures → fix and re-verify (max 2 retries, then escalate).
+
+### Security Verification (Mandatory for code + security keywords)
+
+When `type: code` AND TASK_REQUEST contains any of: auth, crypto, payment, JWT, password, secret, token, credential, bcrypt:
+1. Invoke `Esecurity-officer` agent with `git diff HEAD` context
+2. Integrate findings into VERIFY_CHECKLIST security items
+3. FAIL grade from Esecurity-officer blocks Step 5 until resolved
+
+This is **mandatory**, not a recommendation.
 
 ## Step 4.5: Supervision Gate
 

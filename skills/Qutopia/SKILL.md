@@ -55,8 +55,8 @@ Request → Classify complexity → SIMPLE → Execute directly
                               → COMPLEX → Auto-select mode → Spec pipeline
 ```
 
-**SIMPLE** (all true): single file/action, no architecture decisions, 1-2 steps → execute directly, no spec
-**COMPLEX** (any true): 3+ files, new feature, architecture decisions, 3+ steps → enter spec pipeline
+**SIMPLE** (ALL true): target files ≤ 3 AND single action AND no architecture decisions AND checklist items < 3 → execute directly, no spec
+**COMPLEX** (ANY true): target files > 3, new feature, architecture decisions, checklist items ≥ 3 → enter spec pipeline
 
 **Auto mode selection for COMPLEX requests:**
 
@@ -92,8 +92,9 @@ Request → Gate → Qgenerate-spec → Qrun-task → Qcode-run-task → Verify 
 - State file: `"mode": "qa"`, max reinforcements: 80
 - After each task completes:
   - Code tasks: `/Qcode-run-task` (test → review → fix → retest, max 3 cycles)
-  - All tasks: run VERIFY_CHECKLIST (quality/security items embedded)
-- Cross-task audit: verify all checklists, inter-task consistency
+  - **All tasks: VERIFY_CHECKLIST item-by-item verification is MANDATORY** — each item must be verified with a concrete action (file check, grep, build, test). "Build passed" alone does NOT satisfy verification. This step CANNOT be skipped in --qa mode.
+  - Code + security keywords (auth/crypto/payment/JWT/password/secret/token/credential/bcrypt): auto-invoke `Esecurity-officer` before marking verification complete
+- Cross-task audit (after ALL tasks complete): see below
 - Output QA report (per-task results, overall score)
 
 ### Retry Loop (both work and qa)
@@ -176,6 +177,17 @@ Before entering spec pipeline (--work/--qa or COMPLEX routing), check prompt spe
 - Anchor found or word count > 20 → proceed
 - No anchor + ≤ 20 words → redirect to Qgenerate-spec Step 1 for scoping
 - `force:` or `!` prefix → bypass gate
+
+### Cross-task Audit (--qa only)
+
+After ALL tasks in a session complete, run cross-task consistency check:
+
+1. Read all completed VERIFY_CHECKLISTs from current session
+2. Check for:
+   - **File conflicts**: multiple tasks modified the same file — verify final state is consistent
+   - **Translation gaps**: if any task added UI strings, verify ko.ts/en.ts coverage
+   - **Style drift**: if any task modified CSS/styles, verify design token consistency
+3. Report findings in QA report. FAIL items → fix before final completion.
 
 ## Common Rules (all modes)
 - **Skill priority**: Even in autonomous mode, if a registered skill covers the action (e.g., Mcreate-skill for skill creation, Qcommit for git commit, Mcreate-agent for agent creation), invoke the skill instead of raw tool calls. QE_CONVENTIONS.md override map always applies.

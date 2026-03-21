@@ -92,6 +92,32 @@ if (['Write', 'Edit'].includes(toolName)) {
     if (/\.(css|scss|sass|less)$/.test(filePath)) {
       hints.push('Style file changed. Check for visual regression.');
     }
+
+    // Agentation hint for .tsx files (once per session)
+    if (/\.tsx$/.test(filePath) && !isError) {
+      const statsFile = join(cwd, '.qe', 'state', 'session-stats.json');
+      let alreadyHinted = false;
+      if (existsSync(statsFile)) {
+        try {
+          const s = JSON.parse(readFileSync(statsFile, 'utf8'));
+          alreadyHinted = s._agentation_hinted || false;
+        } catch {}
+      }
+      if (!alreadyHinted) {
+        hints.push('Frontend file modified. Use /Qagentation or /Qvisual-qa for visual verification.');
+        try {
+          const s = existsSync(statsFile) ? JSON.parse(readFileSync(statsFile, 'utf8')) : {};
+          s._agentation_hinted = true;
+          atomicWriteJson(statsFile, s);
+        } catch {}
+      }
+    }
+  }
+
+  // Security keyword hint
+  const secContent = toolInput.new_string || toolInput.content || '';
+  if (secContent && /\b(auth|jwt|password|secret|token|credential|bcrypt|encrypt|decrypt)\b/i.test(secContent)) {
+    hints.push('Security-sensitive code detected. Run Esecurity-officer before completing.');
   }
 }
 

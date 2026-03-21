@@ -30,9 +30,18 @@ Follow the priority allocation defined in `core/CONTEXT_BUDGET.md` when deciding
 ## Context Save Procedure
 
 ### Step 1: Collect Current State
-- In-progress tasks: scan `.qe/tasks/pending/`
-- Checklist state: scan `.qe/checklists/pending/`
-- Recently changed files: `git diff --name-only` or tool usage history within the session
+
+**Priority source:** Read `.qe/context/compact-trigger.json` first — it contains pre-collected state from the PreCompact hook:
+- `modified_files`: files changed in the session (already collected via `git diff`)
+- `active_task_uuids`: UUIDs of in-progress tasks
+- `unchecked_items_count`: remaining checklist items
+
+If compact-trigger.json exists, use its data directly (no need to re-run git diff).
+
+**Fallback** (if compact-trigger.json missing):
+- In-progress tasks: scan `.qe/tasks/in-progress/` (primary) and `.qe/tasks/pending/` (secondary)
+- Checklist state: scan `.qe/checklists/in-progress/`
+- Recently changed files: `git diff --name-only`
 - Key decisions: extract decisions explicitly made by the user during the conversation
 
 ### Step 2: Write snapshot.md
@@ -54,9 +63,10 @@ Verify that `.qe/context/snapshot.md` exists.
 
 ### Step 2: Load Context
 Read `snapshot.md` and `decisions.md` and inject context into the current session.
+Also read `compact-trigger.json` if it exists — include `modified_files` and `active_task_uuids` in the restoration summary so the AI knows which files were being edited and which tasks were active before compaction.
 
 ### Step 3: Validate
-- Confirm that task UUIDs in the snapshot actually exist in `.qe/tasks/pending/`
+- Confirm that task UUIDs in the snapshot actually exist in `.qe/tasks/in-progress/` or `.qe/tasks/pending/`
 - If not (already completed/archived), exclude those entries
 - Add "stale context" flag to snapshots older than 24 hours
 
