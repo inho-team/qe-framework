@@ -91,3 +91,42 @@ Trigger conditions:
 | Eprofile-collector | Repeated error pattern | Ecode-debugger |
 
 The orchestrating skill (Qrun-task, Qutopia) checks `.qe/agent-triggers/` after each agent completes and spawns triggered agents automatically.
+
+---
+
+## Effort Parameter Guide
+
+The `effort` parameter controls reasoning depth independently of model selection (tier).
+
+### Effort Levels
+
+| Level | Description | Use Case |
+|-------|-------------|----------|
+| `low` | Minimal reasoning, fast responses | Simple lookups, file copies, format conversions |
+| `medium` | Standard reasoning (default) | Most implementation and review tasks |
+| `high` | Deep reasoning, thorough analysis | Architecture decisions, complex debugging |
+| `max` | Maximum reasoning depth (Claude only) | Critical quality judgments, deep research |
+
+Note: Codex uses `xhigh` instead of `max`. The framework auto-maps between them via `effort-compat.mjs`.
+
+### Tier vs Effort (Orthogonal Concepts)
+
+| Concept | Controls | Values |
+|---------|----------|--------|
+| **Tier** | Which model to use | LOW (haiku), MEDIUM (sonnet), HIGH (opus) |
+| **Effort** | How deeply the model thinks | low, medium, high, max |
+
+These are independent — any combination is valid:
+
+| Combination | Meaning | Example |
+|-------------|---------|---------|
+| `tier=LOW + effort=high` | Cheap model, deep thinking | Cost-optimized analysis |
+| `tier=HIGH + effort=low` | Powerful model, quick response | Fast architectural lookup |
+| `tier=MEDIUM + effort=medium` | Balanced (default) | Standard implementation |
+
+### When to Override Effort
+
+- **Leave default** for most tasks — the framework auto-selects based on task type
+- **Set `high`/`max`** for supervision judgments, architecture decisions, security reviews
+- **Set `low`** for bulk operations, simple file transformations, status checks
+- Configure per-stage in `.qe/sivs-config.json`: `{ "verify": { "effort": "high" } }`

@@ -59,7 +59,18 @@ Request → Classify complexity → SIMPLE → Execute directly
                               → COMPLEX → Auto-select mode → Spec pipeline
 ```
 
-**SIMPLE** (ALL true): target files ≤ 3 AND single action AND no architecture decisions AND checklist items < 3 → execute directly, no spec
+### SIMPLE Classification (Single Source of Truth)
+
+A task is classified as SIMPLE when ALL of the following are true:
+- Target files ≤ 3
+- Single action (one logical operation)
+- No architecture decisions required
+- Checklist items < 3
+
+SIMPLE tasks execute directly without a formal TASK_REQUEST document.
+This is an intentional trade-off for micro-task velocity.
+Other documents (PRINCIPLES.md, Qgenerate-spec) reference this definition — do not duplicate.
+
 **COMPLEX** (ANY true): target files > 3, new feature, architecture decisions, checklist items ≥ 3 → enter spec pipeline
 
 **Auto mode selection for COMPLEX requests:**

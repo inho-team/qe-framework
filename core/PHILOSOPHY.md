@@ -190,6 +190,13 @@ These three documents are the backbone of the framework. Every other component e
 | `Qcode-run-task` | Test → review → fix loop within Stage 3 |
 | All hooks | Support the loop: context management, intent routing, state tracking |
 | `Ttune` | Repairs framework components that deviate from this philosophy |
+| `Qplan` | Phase planning and roadmap design (PSE Step 1) |
+| `Qcommit` | Git commit without AI traces (utility layer) |
+| `Qcompact` / `Qresume` | Context preservation and restoration across sessions |
+| `skill-budget.mjs` | Skill token budget monitoring and overflow detection |
+| `metrics-collector.mjs` | Harness engineering metrics aggregation (6 metrics) |
+| `telemetry.mjs` | Session telemetry JSONL export |
+| `trace-logger.mjs` | Agent decision tracing for observability |
 
 ---
 
@@ -275,6 +282,30 @@ Every skill, agent, and hook in this framework must uphold the following:
 4. **Remediation is a new spec, not a patch.** When verification fails, generate a proper REMEDIATION_REQUEST with a proper checklist. Do not apply ad-hoc fixes without a spec.
 
 5. **The loop is the product.** Features, skills, and agents are means to an end. The end is always: spec defined → implemented → verified → shipped with confidence.
+
+---
+
+## Acknowledged Exceptions
+
+The following are intentional design trade-offs, not violations of the Mandatory Obligations:
+
+### 1. Qutopia SIMPLE Classification
+
+Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may execute without a formal TASK_REQUEST document. This is an intentional trade-off for micro-task velocity. The canonical SIMPLE criteria are defined in `skills/Qutopia/SKILL.md` (Single Source of Truth).
+
+**Rationale**: Requiring a full spec for a one-line fix would add overhead that exceeds the risk of the change itself.
+
+### 2. Qautoresearch Experimental Loop
+
+Experimental optimization loops (Qautoresearch) use metric convergence as verification instead of VERIFY_CHECKLIST. The loop evaluates a single metric per iteration (keep/discard) rather than a document-based checklist.
+
+**Rationale**: In the experimental domain, hypothesis-metric feedback is the natural verification mechanism. Forcing VERIFY_CHECKLIST onto iterative experiments would break the tight feedback loop that makes experimentation effective.
+
+### 3. Qutopia Retry Loop
+
+Retry loops in Qutopia `--work`/`--qa` modes may re-execute failed items up to 3 (work) or 5 (qa) times without generating a REMEDIATION_REQUEST. Full remediation spec generation is required only when retry limits are exceeded and the system escalates to the user.
+
+**Rationale**: For simple failures (test flakiness, minor syntax errors), generating a full remediation spec is disproportionate. The retry limit ensures that persistent failures do escalate properly.
 
 ---
 

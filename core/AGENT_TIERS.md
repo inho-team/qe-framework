@@ -36,6 +36,37 @@ Optimizes cost while maintaining quality.
 - Quality loop final judgment
 - Expected execution time: 5+ minutes
 
+---
+
+## Tier vs Effort
+
+Two independent dimensions control agent behavior:
+
+| Dimension | What it controls | Set by |
+|-----------|-----------------|--------|
+| **Tier** | Model selection (haiku/sonnet/opus) | Agent definition, auto-escalation |
+| **Effort** | Reasoning depth within the model | sivs-config.json, per-invocation |
+
+### Key Distinction
+
+- **Tier** answers: "Which model should run this?"
+- **Effort** answers: "How deeply should it think?"
+
+These are orthogonal — changing one does not affect the other:
+
+```
+tier=LOW  + effort=high  → Haiku thinks deeply (cost-optimized depth)
+tier=HIGH + effort=low   → Opus responds quickly (speed-optimized power)
+tier=LOW  + effort=low   → Haiku responds instantly (minimum cost)
+tier=HIGH + effort=max   → Opus at full power (maximum quality)
+```
+
+### Default Behavior
+
+- Tier defaults are set per agent in `AGENT_BASE.md` and this file
+- Effort defaults to `medium` unless overridden in sivs-config.json
+- Opus 4.7+ defaults to `effort=high` at the API level
+
 ## Agent-to-Tier Mapping
 
 | Agent | Default Tier | Escalation |
