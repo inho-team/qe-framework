@@ -20,3 +20,6 @@ test-framework.js
 results.tsv
 run.log
 .mailmap
+TASK_REQUEST_*.md
+VERIFY_CHECKLIST_*.md
+ANALYSIS_*.md
