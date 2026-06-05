@@ -12,7 +12,7 @@ scope: implementation
 output-format: results.tsv + git branch
 related-skills: Qutopia, Edeep-researcher, Ecode-debugger, Ecode-reviewer, Ecompact-executor, Qdata-analysis, Qlesson-learned
 keywords: autoresearch, experiment, autonomous, loop, metric, optimize, iterate, keep, discard, git branch, results.tsv, multi-file
-invocation_trigger: When framework initialization, maintenance, or audit is required.
+invocation_trigger: When the user wants to run iterative code-modify-evaluate experiments for optimization, ML training, algorithm benchmarks, or performance tuning.
 recommendedModel: haiku
 ---
 

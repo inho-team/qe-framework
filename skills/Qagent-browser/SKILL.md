@@ -6,7 +6,7 @@ source: "https://skills.sh/vercel-labs/agent-browser"
 author: vercel
 allowed-tools: "Bash(npx agent-browser:*), Bash(agent-browser:*)"
 keywords: browser, automation, web test, form fill, screenshot, scrape, navigate
-invocation_trigger: When framework initialization, maintenance, or audit is required.
+invocation_trigger: When the user wants browser automation, web navigation, form filling, clicking, screenshots, data extraction, or web app testing.
 recommendedModel: haiku
 ---
 

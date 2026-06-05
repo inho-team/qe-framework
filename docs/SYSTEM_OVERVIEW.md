@@ -235,3 +235,50 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 - **165 skills** (was 93 in v5.0) — 71 coding expert skills added
 - **Auto-refresh integration** — `/Qrefresh` keeps context files up to date
 - **Claude-first simplicity** — zero external dependencies required
+
+---
+
+## v7.0 Changes (Harness Engineering Upgrade)
+
+### Hook System (Phase 1)
+- Expanded from 9 to **27 lifecycle events** matching full Claude Code coverage
+- 5 functional handlers: PostToolUseFailure, SubagentStart/Stop, FileChanged, SessionEnd
+- 13 stub handlers for remaining events (ready for future extension)
+
+### SIVS & API (Phase 2)
+- `effort` parameter: Claude `max` + Codex `xhigh` with cross-engine mapping
+- `compaction` settings: server/client/auto strategy in sivs-config
+- `effort-compat.mjs`: budget_tokens → effort backward compatibility
+- `managed-agents.mjs`: Managed Agents API compatibility types
+
+### Plugin & Skill Governance (Phase 3)
+- Plugin marketplace v2 metadata alignment
+- **Skill Budget**: Auto-monitoring of skill token usage (1% context window threshold)
+- Skill deduplication audit: 20 merge candidate clusters identified
+
+### Multi-Agent Orchestration (Phase 4)
+- Agent Teams v2: Full `--agents` flag documentation (16 fields)
+- `agent-teams.schema.json`: JSON Schema validation
+- Dynamic Workflows guide (Opus 4.8 Research Preview)
+- `managed-agents-adapter.mjs`: QE agent → Managed Agents API converter
+- Cross-session memory patterns guide
+
+### Observability & Measurement (Phase 5)
+- 6 harness engineering metrics (METRICS_SPEC.md)
+- `metrics-collector.mjs`: Session-scoped metric aggregation
+- `telemetry.mjs`: JSONL telemetry export (.qe/telemetry/)
+- `trace-logger.mjs`: Agent decision tracing (.qe/traces/)
+- HUD metrics panel (`metrics-panel.mjs`)
+- SessionEnd + TaskCompleted hooks wired to metrics/telemetry
+
+### New lib Modules
+| Module | Path | Purpose |
+|--------|------|---------|
+| effort-compat | scripts/lib/ | budget_tokens↔effort mapping |
+| managed-agents | scripts/lib/ | Managed Agents API types |
+| managed-agents-adapter | scripts/lib/ | QE agent → API format converter |
+| skill-budget | hooks/scripts/lib/ | Skill token budget calculator |
+| metrics-collector | hooks/scripts/lib/ | Harness metrics aggregation |
+| telemetry | hooks/scripts/lib/ | JSONL telemetry writer |
+| trace-logger | hooks/scripts/lib/ | Agent decision trace logger |
+| metrics-panel | hooks/scripts/lib/hud/elements/ | HUD metrics display |

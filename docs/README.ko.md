@@ -23,6 +23,17 @@ QE Framework는 Claude Code와 Codex를 함께 지원하는 스펙 기반 작업
 - 멀티모델 설정: [MULTI_MODEL_SETUP.md](MULTI_MODEL_SETUP.md)
 - 시스템 개요: [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)
 
+## v7.0 주요 기능
+
+QE Framework v7.0는 다음의 고급 기능과 확장성을 제공합니다:
+
+- **27개 라이프사이클 Hook** — Claude Code 전체 커버리지로 세션, 작업, 도구 실행의 모든 단계 모니터링
+- **effort 파라미터 및 Compaction API** — 작업 복잡도 관리 및 컨텍스트 자동 최적화
+- **Skill Budget 자동 관리** — 토큰 사용량 추적 및 동적 할당
+- **하네스 엔지니어링 메트릭 6종** — 실행 성능, 품질, 안정성 측정
+- **Agent Teams 및 Dynamic Workflows** — 다중 에이전트 협업 및 동적 작업 흐름
+- **183+ Skill** 및 **25+ Agent** — 확장 가능한 스킬셋과 에이전트 라이브러리
+
 ## 핵심 개념
 
 - `single-model`

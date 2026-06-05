@@ -62,6 +62,8 @@ Optimizes cost while maintaining quality.
 | Esecurity-officer | LOW | HIGH (vulnerability audit) |
 | Esupervision-orchestrator | LOW | HIGH (quality audit) |
 | Qplan | HIGH | — |
+| Etracer | MEDIUM | HIGH (deep investigation) |
+| Econtract-judge | MEDIUM | — |
 
 ## Escalation Rules
 - 2 failures at MEDIUM → auto-escalate to HIGH

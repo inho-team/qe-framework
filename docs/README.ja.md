@@ -4,7 +4,7 @@
 >
 > **他の言語**: [English](https://inho-team.github.io/qe-framework/qe_framework_intro.en.html) · [한국어](https://inho-team.github.io/qe-framework/qe_framework_intro.ko.html) · [中文](https://inho-team.github.io/qe-framework/qe_framework_intro.zh.html)
 
-QE Framework は Claude Code と Codex の両方を対象にしたスペック駆動タスク実行フレームワークです。
+QE Framework は Claude Code と Codex の両方を対象にしたスペック駆動タスク実行フレームワークです。25+ のエージェント、183+ のスキル、27 のライフサイクルフックで、完全にカスタマイズ可能なタスク自動化とワークフロー実行を実現します。
 
 基本フロー:
 
@@ -13,6 +13,14 @@ QE Framework は Claude Code と Codex の両方を対象にしたスペック�
 ```
 
 この文書は日本語のランディングページです。詳細は役割ごとに分割された文書を参照してください。
+
+## v7.0 新機能
+
+- **27 のライフサイクルフック**: Claude Code 完全カバレッジで、セッション、タスク、ツール実行の全フェーズを監視・制御
+- **effort パラメータと Compaction API**: 計算リソースを効率的に管理し、大規模タスク実行を最適化
+- **スキルバジェット自動管理**: デプロイ時にスキル使用量を自動監視し、割り当て超過を防止
+- **ハーネスエンジニアリングメトリクス 6 種**: レイテンシ、トークン消費、成功率、エージェント効率、フック実行時間、タスク完了率を統合トラッキング
+- **Agent Teams と Dynamic Workflows**: 複数のエージェントを動的に組成し、複雑なマルチステップ実行を並列化
 
 ## まず読む文書
 
