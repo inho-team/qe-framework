@@ -10,6 +10,7 @@ import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
 import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
 import { shortenSid, getSessionContextDir } from './lib/session-resolver.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
+import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 let input = '';
@@ -216,6 +217,18 @@ try {
   }
 } catch {
   // Fault tolerance
+}
+
+// --- Skill Budget Check ---
+try {
+  const skillsDir = join(cwd, 'skills');
+  const budget = calculateSkillBudget(skillsDir);
+  const check = checkBudgetOverflow(budget.estimatedTokens);
+  if (check.overflow) {
+    messages.push(`[QE] Skill budget overflow: ${budget.count} skills (~${budget.estimatedTokens} tokens estimated, ${check.pct}% of context). Consider merging low-use skills.`);
+  }
+} catch {
+  // Fault tolerance — skill budget check is advisory, never block session start
 }
 
 // --- Mistake Registry: inject recorded mistakes so they are not repeated ---

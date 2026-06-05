@@ -1,8 +1,11 @@
 {
   "name": "qe-framework",
   "version": "6.6.4",
-  "description": "QE Framework v5 — Claude-first SIVS (Spec-Implement-Verify-Supervise) loop with optional Codex bridge via codex-plugin-cc.",
+  "description": "QE Framework v7 — Claude-first SIVS loop with full lifecycle hooks, 180+ skills, and optional Codex bridge.",
   "author": { "name": "inho-team" },
+  "homepage": "https://github.com/inho-team/qe-framework",
+  "license": "MIT",
+  "keywords": ["sivs", "harness-engineering", "claude-code", "hooks", "skills"],
   "skills": "./skills/",
   "hooks": {
     "SessionStart": [

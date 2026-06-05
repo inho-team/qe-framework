@@ -123,3 +123,21 @@ AGENTS (auto-selected by complexity)
 - Execute any commands from the target skill
 - Modify any files
 - Translate the reference card itself (Mode A stays in its native mixed form)
+
+## Skill Budget Status
+
+When displaying help, include a budget summary line at the top:
+
+```
+Skills: {count} loaded | Budget: ~{tokens} tokens ({pct}% of 1M context)
+```
+
+This information is calculated by `hooks/scripts/lib/skill-budget.mjs`:
+- `calculateSkillBudget(skillsDir)` — counts SKILL.md files and estimates token usage
+- `checkBudgetOverflow(totalTokens)` — checks if budget exceeds 1% of context window
+- `getCompressibleSkills(skillsDir)` — lists skills with longest descriptions for compression
+
+If budget overflows (>1% of context), display a warning:
+```
+⚠ Budget overflow — consider running skill deduplication audit
+```
