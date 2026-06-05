@@ -4,6 +4,8 @@
 import { readFileSync, writeFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
+import { getMetricsSummary } from './lib/metrics-collector.mjs';
+import { appendTelemetry } from './lib/telemetry.mjs';
 
 try {
   const data = readStdinJson();
@@ -20,6 +22,20 @@ try {
 
     // Record session ended timestamp
     unifiedState.sessionEndedAt = new Date().toISOString();
+
+    // Flush session metrics to telemetry
+    try {
+      const harnessMetrics = unifiedState.harnessMetrics || {};
+      appendTelemetry(cwd, {
+        eventType: 'session_end',
+        sessionId: data.session_id || data.sessionId || 'unknown',
+        data: {
+          metrics: harnessMetrics,
+          summary: getMetricsSummary(harnessMetrics),
+          duration: unifiedState.sessionEndedAt ? Date.now() - new Date(unifiedState.sessionStartedAt || unifiedState.sessionEndedAt).getTime() : 0
+        }
+      });
+    } catch {}
 
     // Clean up any residual activeSubagents
     if (unifiedState.activeSubagents && Array.isArray(unifiedState.activeSubagents)) {

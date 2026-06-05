@@ -4,8 +4,10 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
-import { readStdinJson } from './lib/state.mjs';
+import { readStdinJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { runTaskCompletedActions } from './lib/task-completed-actions.mjs';
+import { initMetrics, recordTaskCompletion } from './lib/metrics-collector.mjs';
+import { appendTelemetry } from './lib/telemetry.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -61,6 +63,26 @@ try {
 } catch (err) {
   // Never let bookkeeping bugs block the hook's primary purpose.
   hints.push(`task-completed bookkeeping skipped: ${err?.message || err}`);
+}
+
+// Record harness metrics
+try {
+  const metricsState = readUnifiedState(cwd);
+  if (!metricsState.harnessMetrics) {
+    metricsState.harnessMetrics = initMetrics();
+  }
+  // Check if this is a first-attempt pass (no prior iterations recorded)
+  const isPassAt1 = true; // Default: assume first attempt unless iteration data exists
+  recordTaskCompletion(metricsState.harnessMetrics, isPassAt1);
+  writeUnifiedState(cwd, metricsState);
+
+  appendTelemetry(cwd, {
+    eventType: 'task_completed',
+    sessionId: data.session_id || data.sessionId || 'unknown',
+    data: { passAt1: isPassAt1 }
+  });
+} catch {
+  // Never let metrics bugs block the hook's primary purpose.
 }
 
 // Trigger domain knowledge collection on task completion
