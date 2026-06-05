@@ -156,6 +156,46 @@ echo -n "Agentation:  "; claude mcp list 2>/dev/null | grep -qi agentation && ec
 | `claude mcp add <name> -s project` | Add to project scope only |
 | `claude mcp add <name> -s user` | Add to user scope (default) |
 
+## Agent Teams MCP Configuration
+
+When using Agent Teams (`--agents` flag), each teammate can have its own MCP server configuration.
+
+### Per-Agent MCP Servers
+
+In the `--agents` JSON, use the `mcpServers` field:
+
+```json
+[
+  {
+    "name": "researcher",
+    "mcpServers": [
+      { "name": "brave-search", "command": "npx", "args": ["-y", "@anthropic-ai/mcp-brave-search"] }
+    ]
+  },
+  {
+    "name": "coder",
+    "mcpServers": [
+      { "name": "filesystem", "command": "npx", "args": ["-y", "@anthropic-ai/mcp-filesystem", "/src"] }
+    ]
+  }
+]
+```
+
+### Shared vs Dedicated MCP Servers
+
+| Pattern | Use Case | Setup |
+|---------|----------|-------|
+| **Shared** | All teammates need the same tool | Configure in project `.mcp.json` |
+| **Dedicated** | Only one teammate needs it | Use `mcpServers` in agent definition |
+| **Mixed** | Some shared, some dedicated | Combine both approaches |
+
+### Best Practices
+
+- Give each agent only the MCP servers it needs (principle of least privilege)
+- Shared database MCP servers should use read-only credentials for reviewer agents
+- Use dedicated MCP servers for tools that modify state (avoid race conditions)
+- Agent Teams inherit project-level `.mcp.json` servers unless overridden
+
 ## Scope
 
 | Scope | Config File | Use Case |

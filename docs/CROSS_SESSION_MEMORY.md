@@ -1,0 +1,87 @@
+# Cross-Session Memory Patterns
+
+> How QE Framework persists and restores context across sessions.
+
+---
+
+## Memory Layers
+
+QE uses a layered memory architecture. Each layer has different scope and lifetime:
+
+| Layer | Location | Scope | Lifetime |
+|-------|----------|-------|----------|
+| **Auto Memory** | `~/.claude/projects/{path}/memory/` | Per-project, per-user | Permanent (user-managed) |
+| **CLAUDE.md** | Project root | Per-project, shared | Permanent (git-tracked) |
+| **Unified State** | `.qe/state/unified-state.json` | Per-project | Session-scoped (reset on start) |
+| **Session Context** | `.qe/context/sessions/{sid}/` | Per-session | Until compaction/cleanup |
+| **Handoff Docs** | `.qe/handoffs/` | Per-session | Until consumed |
+| **Task Log** | `.qe/TASK_LOG.md` | Per-project | Permanent (append-only) |
+
+## QE Compaction Flow (Qcompact → Qresume)
+
+### Saving Context (Qcompact)
+
+When context pressure is detected (PreCompact hook) or user requests `/Qcompact`:
+
+1. **PreCompact hook** fires → writes `compact-trigger.json` with:
+   - Modified files list
+   - Active task UUIDs
+   - Unchecked checklist items
+   - Compaction strategy (from sivs-config)
+
+2. **Ecompact-executor** agent saves:
+   - Current task state snapshot
+   - Key decisions and findings
+   - File modification summary
+   - Next steps / TODO items
+
+3. **Ehandoff-executor** generates structured handoff document:
+   - Session summary (what was done)
+   - Active context (what's in progress)
+   - Restoration instructions (how to resume)
+
+### Restoring Context (Qresume)
+
+When starting a new session after compaction:
+
+1. `/Qresume` reads the latest handoff document
+2. Restores task state from `.qe/tasks/in-progress/`
+3. Reloads unified-state with session context
+4. Re-establishes active plan binding
+
+## Auto Memory Directory
+
+Claude Code's built-in auto memory at `~/.claude/projects/{path}/memory/`:
+
+- `MEMORY.md` — always loaded into context (first 200 lines)
+- Topic files (e.g., `patterns.md`, `debugging.md`) — linked from MEMORY.md
+- Best for: stable patterns, user preferences, recurring decisions
+
+**QE vs Auto Memory**:
+- Auto Memory: general project knowledge, user preferences
+- QE State: task-specific state, session continuity, SIVS loop progress
+
+## Best Practices
+
+### What to Persist
+
+- Architectural decisions (with rationale)
+- Recurring error patterns and fixes
+- User preferences (language, style, workflow)
+- Project conventions confirmed across sessions
+- Key file paths and entry points
+
+### What NOT to Persist
+
+- In-progress task details (use TASK_REQUEST instead)
+- Temporary debugging state
+- Speculative conclusions from one file read
+- Information duplicated in CLAUDE.md
+- Session-specific variables or paths
+
+### Memory Hygiene
+
+1. Review `.qe/state/` periodically — remove stale session dirs
+2. Keep Auto Memory `MEMORY.md` under 200 lines
+3. Archive completed handoff docs (Qsweep handles this)
+4. Prune unified-state of obsolete keys on session start

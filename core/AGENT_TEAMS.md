@@ -169,3 +169,60 @@ Each teammate MUST own distinct files within a wave/phase:
 - **Lead is fixed**: The session that creates the team is always the lead
 - **Permissions inherited**: All teammates start with lead's permission mode
 - **tmux required for split panes**: In-process mode is the default (works anywhere)
+
+---
+
+## Agent Definition Fields (--agents flag)
+
+The `--agents` flag accepts a JSON array of agent definitions. Each agent supports these fields:
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| `name` | string | Yes | Unique agent identifier |
+| `description` | string | No | Short description (3-5 words) |
+| `prompt` | string | No | System prompt for the agent |
+| `tools` | string[] | No | Allowed tools (e.g., ["Read", "Write", "Bash"]) |
+| `model` | string | No | Model override: "haiku", "sonnet", "opus" |
+| `permissionMode` | string | No | Permission mode for the agent |
+| `mcpServers` | object[] | No | MCP server configurations per agent |
+| `hooks` | object | No | Agent-specific hook overrides |
+| `maxTurns` | integer | No | Maximum conversation turns |
+| `skills` | string[] | No | Available skills for the agent |
+| `initialPrompt` | string | No | First message sent to the agent on start |
+| `memory` | string | No | Memory/context configuration |
+| `effort` | string | No | Reasoning effort: "low", "medium", "high", "max" |
+| `background` | boolean | No | Run agent in background (default: false) |
+| `isolation` | string | No | "worktree" for git worktree isolation |
+| `color` | string | No | Terminal color identifier for the agent |
+
+## Worktree Isolation Pattern
+
+When `isolation: "worktree"` is set, the agent runs in a temporary git worktree:
+- Separate working directory — no file conflicts with main checkout
+- Changes are isolated until explicitly merged
+- Worktree is auto-cleaned if no changes are made
+- Parent agent's prompt cache is reused for cost efficiency
+
+**Best for**: experimental changes, parallel refactoring, risky operations.
+
+## Writer/Reviewer Pattern
+
+Split implementation and review into separate agents to eliminate self-bias:
+
+```json
+[
+  { "name": "writer", "model": "haiku", "tools": ["Read", "Write", "Edit"], "prompt": "Implement the feature..." },
+  { "name": "reviewer", "model": "sonnet", "tools": ["Read", "Grep", "Bash"], "prompt": "Review writer's changes..." }
+]
+```
+
+**Key**: The reviewer has no Write/Edit tools — it can only report findings.
+
+## Exit Condition Best Practices
+
+Always specify clear exit conditions for teammates:
+- "Complete after processing all 10 files"
+- "Stop after 3 test failures"
+- "Return findings after examining 20 files"
+- Avoid open-ended tasks without termination criteria
+- Set `maxTurns` as a safety ceiling
