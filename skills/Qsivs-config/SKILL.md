@@ -41,7 +41,7 @@ Parse the user's input after `/Qsivs-config` as positional and flag arguments:
 | Flag | Description | Example |
 |------|-------------|---------|
 | `--model <name>` | Set model override | `--model gpt-5.4` |
-| `--effort <level>` | Set effort level (low/medium/high/xhigh) | `--effort high` |
+| `--effort <level>` | Set effort level (low/medium/high/max/xhigh) | `--effort high` |
 | `--all` | Apply to all stages (with `set` or `reset`) | `reset --all` |
 
 ## Execution Procedure
@@ -144,14 +144,24 @@ Examples:
   /Qsivs-config reset --all
   /Qsivs-config spec claude
 
+### Compaction Settings
+
+  /Qsivs-config set spec compaction.enabled true
+  /Qsivs-config set spec compaction.strategy server
+  /Qsivs-config set implement compaction.strategy auto
+
 Config file: .qe/sivs-config.json
 Schema:      core/schemas/svs-config.schema.json
 ```
 
 ## Validation Rules
 - Stage must be one of: `spec`, `implement`, `verify`, `supervise`
+  - **Stage options:** `engine`, `model`, `effort`, `compaction`
 - Engine must be one of: `claude`, `codex`
-- Effort must be one of: `low`, `medium`, `high`, `xhigh`
+- Effort must be one of: `low`, `medium`, `high`, `max`, `xhigh`
+  - `low` / `medium` / `high` — Both Claude and Codex
+  - `max` — Claude only (maps to Codex `xhigh` automatically)
+  - `xhigh` — Codex only (maps to Claude `max` automatically)
 - Model must be a non-empty string
 - On invalid input, show the error and print `--help` output
 - If setting engine to `codex`, check `isCodexPluginAvailable()` and warn if not installed (but still save the config)

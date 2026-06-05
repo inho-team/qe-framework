@@ -15,6 +15,22 @@ if (!data) {
 
 const cwd = getCwd(data);
 
+// Read compaction settings from sivs-config.json
+let compactionStrategy = 'auto';
+try {
+  const sivsPath = join(cwd, '.qe', 'sivs-config.json');
+  if (existsSync(sivsPath)) {
+    const sivsConfig = JSON.parse(readFileSync(sivsPath, 'utf8'));
+    // Check any stage for compaction settings (use first found)
+    for (const stage of ['spec', 'implement', 'verify', 'supervise']) {
+      if (sivsConfig[stage]?.compaction?.strategy) {
+        compactionStrategy = sivsConfig[stage].compaction.strategy;
+        break;
+      }
+    }
+  }
+} catch {}
+
 // Resolve the per-session context directory so the trigger file lands next
 // to this terminal's snapshot/decisions, not in a shared flat path the next
 // session-start would migrate away.
@@ -74,6 +90,7 @@ try {
   trigger.modified_files = modifiedFiles.slice(0, 20);
   trigger.active_task_uuids = activeTasks;
   trigger.unchecked_items_count = uncheckedCount;
+  trigger.compaction_strategy = compactionStrategy;
   writeFileSync(triggerPath, JSON.stringify(trigger, null, 2));
 } catch {}
 
@@ -98,10 +115,14 @@ const modifiedSummary = modifiedFiles.length > 0
   : '0';
 const stateSummary = `Modified files: ${modifiedSummary} | Active tasks: ${activeTasks.join(', ') || 'none'} | Unchecked items: ${uncheckedCount}`;
 
+const compactionHint = compactionStrategy === 'server'
+  ? ' | [QE] Server-side compaction enabled'
+  : '';
+
 console.log(JSON.stringify({
   continue: true,
   hookSpecificOutput: {
     hookEventName: "PreCompact",
-    additionalContext: `[QE] Compaction detected. Call Ecompact-executor to save current context under .qe/context/sessions/{sid}/. ${stateSummary} | ${postCompactRules}`
+    additionalContext: `[QE] Compaction detected. Call Ecompact-executor to save current context under .qe/context/sessions/{sid}/. ${stateSummary} | ${postCompactRules}${compactionHint}`
   }
 }));

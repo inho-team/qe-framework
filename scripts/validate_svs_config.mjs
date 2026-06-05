@@ -14,9 +14,9 @@ const DEFAULTS = {
 };
 
 const ALLOWED_ENGINES = ['claude', 'codex'];
-const ALLOWED_EFFORTS = ['low', 'medium', 'high', 'xhigh'];
+const ALLOWED_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const ALLOWED_TOP_LEVEL_KEYS = new Set(['spec', 'implement', 'verify', 'supervise']);
-const ALLOWED_STAGE_KEYS = new Set(['engine', 'model', 'effort']);
+const ALLOWED_STAGE_KEYS = new Set(['engine', 'model', 'effort', 'compaction']);
 
 /**
  * Validate configuration object against SIVS schema
@@ -67,7 +67,30 @@ function validateConfig(config) {
       // Validate effort
       if (stageConfig.effort !== undefined) {
         if (!ALLOWED_EFFORTS.includes(stageConfig.effort)) {
-          errors.push(`${stage}.effort must be one of [low, medium, high, xhigh], got "${stageConfig.effort}"`);
+          errors.push(`${stage}.effort must be one of [${ALLOWED_EFFORTS.join(', ')}], got "${stageConfig.effort}"`);
+        }
+      }
+
+      // Validate compaction
+      if (stageConfig.compaction !== undefined) {
+        if (typeof stageConfig.compaction !== 'object' || stageConfig.compaction === null || Array.isArray(stageConfig.compaction)) {
+          errors.push(`${stage}.compaction must be an object`);
+        } else {
+          const allowedCompactionKeys = new Set(['enabled', 'strategy']);
+          for (const key of Object.keys(stageConfig.compaction)) {
+            if (!allowedCompactionKeys.has(key)) {
+              errors.push(`${stage}.compaction.${key} is not allowed. Allowed: enabled, strategy`);
+            }
+          }
+          if (stageConfig.compaction.enabled !== undefined && typeof stageConfig.compaction.enabled !== 'boolean') {
+            errors.push(`${stage}.compaction.enabled must be a boolean`);
+          }
+          if (stageConfig.compaction.strategy !== undefined) {
+            const allowedStrategies = ['server', 'client', 'auto'];
+            if (!allowedStrategies.includes(stageConfig.compaction.strategy)) {
+              errors.push(`${stage}.compaction.strategy must be one of [server, client, auto], got "${stageConfig.compaction.strategy}"`);
+            }
+          }
         }
       }
     }

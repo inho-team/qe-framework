@@ -39,8 +39,25 @@
         },
         "effort": {
           "type": "string",
-          "enum": ["low", "medium", "high", "xhigh"],
-          "description": "Optional reasoning effort level for codex engine"
+          "enum": ["low", "medium", "high", "xhigh", "max"],
+          "description": "Reasoning effort level (Claude: low/medium/high/max, Codex: low/medium/high/xhigh)"
+        },
+        "compaction": {
+          "type": "object",
+          "additionalProperties": false,
+          "properties": {
+            "enabled": {
+              "type": "boolean",
+              "default": false,
+              "description": "Enable compaction API integration"
+            },
+            "strategy": {
+              "type": "string",
+              "enum": ["server", "client", "auto"],
+              "default": "auto",
+              "description": "Compaction strategy: server (API-side), client (local), auto (best available)"
+            }
+          }
         }
       }
     }
