@@ -1,6 +1,6 @@
 ---
 name: Qrag-architect
-description: Designs and implements production-grade RAG systems by chunking documents, generating embeddings, configuring vector stores, building hybrid search pipelines, applying reranking, and evaluating retrieval quality. Use when building RAG systems, vector databases, or knowledge-grounded AI applications requiring semantic search, document retrieval, context augmentation, similarity search, or embedding-based indexing.
+description: RAG pipeline architect and system designer. Covers document loading, chunking strategies, embedding models, vector databases (Chroma, pgvector, Pinecone, Qdrant), hybrid search, reranking, and evaluation with RAGAS. Designs and implements production-grade RAG systems by chunking documents, generating embeddings, configuring vector stores, building hybrid search pipelines, applying reranking, and evaluating retrieval quality. Use for RAG setup, vector DB, embedding, chunking, retrieval, semantic search, document retrieval, context augmentation, similarity search, or knowledge-grounded AI applications requiring embedding-based indexing.
 license: MIT
 metadata: 
 author: "https://github.com/Jeffallan"

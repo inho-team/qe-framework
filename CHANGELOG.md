@@ -16,12 +16,48 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
+- PHILOSOPHY.md Obligation 6: Ground truth over self-assessment — prefer external execution over self-review
+- PHILOSOPHY.md Obligation 7: Verify research before planning — test claims against real system
+- Qcode-run-task Step 4.85: Smoke Test Gate — run actual code before declaring PASS
+- Qcode-run-task Step 4.86: Native Verification Alternatives — /goal and ultrareview guidance
+- Qgenerate-spec Step 2.4: Premise Verification — verify external features exist before speccing
+- Qplan Research Validation — test research claims via Bash before incorporating into plans
+- Qplan Workflow scale level — suggest dynamic workflows for massive tasks (10+ files)
+- Adaptive Harness Principle in PHILOSOPHY.md — native features over PSE when appropriate
+- `docs/CLAUDE_CODE_FEATURES.md` — verified feature reference for /goal, /workflows, ultrareview, agents
+- Dynamic Workflow Escalation in Qutopia — auto-suggest workflows for large tasks
+- `Edependency-auditor` agent — dependency security/license/outdated auditing
+- `Eperformance-profiler` agent — build/runtime performance profiling
+- Skill Budget monitoring via `skill-budget.mjs` with SessionStart overflow warning
+- Harness metrics (6 metrics) via `metrics-collector.mjs`, telemetry JSONL, trace logger, HUD panel
+- `effort-compat.mjs` — budget_tokens to effort mapping with Claude/Codex cross-engine translation
+- SIVS config schema: effort `max` value, compaction settings
+- Plugin marketplace metadata v2 alignment (category, tags, compatibility, features)
 
 ### Changed
+- PHILOSOPHY.md: added Acknowledged Exceptions (Qutopia SIMPLE, Qautoresearch, Retry Loop)
+- PHILOSOPHY.md: expanded "Where Every Component Fits" table with v7 components
+- AGENT_BASE.md: added Effort Parameter Guide (tier vs effort orthogonality)
+- AGENT_TIERS.md: added tier-vs-effort section, registered 4 new agents
+- PRINCIPLES.md: unified SIMPLE criteria as pointer to Qutopia SKILL.md
+- Qprompt-engineer (ai/): merged data/ version content (structured outputs, function-calling)
+- Qrag-architect (data/): merged ai/Qrag-pipeline content (pipeline, chunking strategies)
+- Qcsharp-developer: merged backend/Qdotnet-core-expert content (AOT, clean architecture)
+- Qweb-design-guidelines: merged frontend/Qweb-design-guidelines-vercel content
 
 ### Fixed
+- Qagent-browser and Qautoresearch invocation_trigger copy-paste error
+- validate_svs_config.mjs error message now dynamically lists allowed effort values
+- PRINCIPLES.md outdated terminology: ultrawork/ultraqa → --work/--qa
 
 ### Removed
+- `skills/Qrt/` — deprecated pass-through alias for Qrun-task
+- `skills/coding-experts/data/Qprompt-engineer/` — duplicate of ai/ version
+- `skills/coding-experts/ai/Qrag-pipeline/` — merged into data/Qrag-architect
+- `skills/coding-experts/backend/Qdotnet-core-expert/` — merged into languages/Qcsharp-developer
+- `skills/coding-experts/frontend/Qweb-design-guidelines-vercel/` — merged into top-level Qweb-design-guidelines
+- 18 unsupported hook handler files and 6 test files (v7.0.0 → v7.0.1 hotfix)
+- Speculative modules: managed-agents, agent-teams schema, Dynamic Workflows doc (v7.0.1 hotfix)
 
 ### Security
 
