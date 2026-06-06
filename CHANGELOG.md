@@ -20,9 +20,55 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Changed
 
 ### Fixed
-- task-completed hook now auto-appends TASK_LOG, moves pending→completed, and signals archive at ≥10 completed — closes the stale-pending drift gap.
 
 ### Removed
+
+### Security
+
+## [7.0.0] - 2026-06-06
+
+### Added
+- 18 new hook lifecycle events — full Claude Code 27-event coverage (Setup, SessionEnd, PostToolUseFailure, SubagentStart/Stop, FileChanged, TaskCreated, PostToolBatch, PostCompact, and 9 more)
+- 5 functional hook handlers: PostToolUseFailure (error streak tracking), SubagentStart/Stop (lifecycle metrics), FileChanged (ContextMemo invalidation), SessionEnd (cleanup + metrics flush)
+- `effort` parameter support in SIVS config — Claude `max` and Codex `xhigh` with automatic cross-engine mapping via `effort-compat.mjs`
+- Compaction API settings in svs-config.schema.json (enabled, strategy: server/client/auto)
+- Skill Budget auto-management — `skill-budget.mjs` monitors token usage across 183 skills with overflow warnings at session start
+- 6 harness engineering metrics: Task Resolution Rate, Code Churn, Verification Tax, Harness Constraint Effect, Defect Escape Rate, Pass@1 — collected via `metrics-collector.mjs`
+- Session telemetry JSONL export via `telemetry.mjs` — daily `.qe/telemetry/` files
+- Agent decision trace logger via `trace-logger.mjs` — `.qe/traces/` JSONL files
+- HUD metrics summary panel (`metrics-panel.mjs`)
+- Agent Teams v2 config with JSON Schema (`agent-teams.schema.json`) — 16 fields including effort, isolation, color
+- Dynamic Workflows documentation (`docs/DYNAMIC_WORKFLOWS.md`)
+- Cross-session memory patterns guide (`docs/CROSS_SESSION_MEMORY.md`)
+- Managed Agents API adapter (`managed-agents-adapter.mjs`)
+- Import System documentation (`docs/IMPORT_SYSTEM.md`)
+- Upgrade guide v7 (`docs/UPGRADE_GUIDE_v7.md`)
+- `Edependency-auditor` agent — dependency security/license/outdated auditing
+- `Eperformance-profiler` agent — build/runtime performance profiling
+- `user-prompt-expansion.mjs` — macro shortcuts (rt/gs/ar)
+- `stop-failure.mjs` — abnormal termination capture with telemetry
+- `config-change.mjs` — settings change detection with utopia alerting
+- `task-created.mjs` — harness metrics tasksTotal increment (fixes metrics system)
+
+### Changed
+- Plugin marketplace metadata aligned to v2 spec (category, tags, compatibility, features)
+- PHILOSOPHY.md: added Acknowledged Exceptions section (Qutopia SIMPLE, Qautoresearch, Retry Loop)
+- PHILOSOPHY.md: expanded "Where Every Component Fits" table with v7 components
+- AGENT_BASE.md: added Effort Parameter Guide (tier vs effort orthogonality)
+- AGENT_TIERS.md: added tier-vs-effort section, registered Etracer, Econtract-judge, Edependency-auditor, Eperformance-profiler
+- PRINCIPLES.md: unified SIMPLE criteria as pointer to Qutopia SKILL.md
+- SYSTEM_OVERVIEW.md, README.ko.md, README.ja.md: updated to v7 numbers
+- `Qprompt-engineer` (ai/): merged data/ version content (structured outputs, function-calling schemas)
+
+### Fixed
+- task-completed hook now auto-appends TASK_LOG, moves pending→completed, and signals archive at ≥10 completed
+- task-created.mjs was a stub causing harnessMetrics.tasksTotal to always be 0 — metrics system was non-functional
+- Qagent-browser and Qautoresearch had copy-paste error in invocation_trigger ("framework initialization" instead of actual purpose)
+- validate_svs_config.mjs error message now dynamically lists allowed effort values
+- PRINCIPLES.md outdated terminology: ultrawork/ultraqa → --work/--qa
+
+### Removed
+- `skills/coding-experts/data/Qprompt-engineer/` — duplicate of ai/ version (file name identical)
 
 ### Security
 
