@@ -25,6 +25,23 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.0.1] - 2026-06-06
+
+### Fixed
+- Removed 18 unsupported hook events that caused plugin installation failure
+- Removed speculative modules (managed-agents, agent-teams schema, Dynamic Workflows)
+- Corrected all "27 events" references to actual 9 supported events
+
+### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
 ## [7.0.0] - 2026-06-06
 
 ### Added
