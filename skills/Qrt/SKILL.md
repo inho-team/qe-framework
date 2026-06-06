@@ -1,11 +1,14 @@
 ---
 name: Qrt
-description: Pure pass-through alias for /Qrun-task — forwards every argument unchanged. Branch points: this file exists ONLY to preserve the /Qrt typed shortcut; all routing, execution, and semantics come from Qrun-task. Candidate for deprecation in favor of an intent-routes.json hook (see Phase 3 audit recommendation). Do not add behavior here.
+description: '[DEPRECATED] Use /Qrun-task directly. Pass-through alias that forwards all arguments to Qrun-task unchanged.'
+deprecated: true
 user_invocable: true
-invocation_trigger: When framework initialization, maintenance, or audit is required.
+invocation_trigger: When the user types /Qrt as a shortcut for /Qrun-task.
 recommendedModel: haiku
 ---
 
 # Qrt — Shortcut for Qrun-task
+
+> **Deprecated**: This skill is a pass-through alias. Use `/Qrun-task` directly. This file will be removed in v8.0.
 
 Invoke `/Qrun-task` with all provided arguments.

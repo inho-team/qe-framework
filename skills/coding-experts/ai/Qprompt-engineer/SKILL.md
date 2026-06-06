@@ -1,6 +1,6 @@
 ---
 name: Qprompt-engineer
-description: "Prompt engineering patterns and optimization. Covers zero-shot, few-shot, CoT, ReAct, RCCF framework, model-specific tips, A/B testing, and LLM-as-Judge evaluation. Use for prompt design, prompt optimization, few-shot, chain-of-thought, prompt testing, prompt evaluation."
+description: "Writes, refactors, and evaluates prompts for LLMs — generating optimized prompt templates, structured output schemas, evaluation rubrics, and test suites. Covers zero-shot, few-shot, CoT, ReAct, RCCF framework, JSON/function-calling schemas, system prompts with personas and guardrails, A/B testing, and LLM-as-Judge evaluation. Use for prompt design, prompt optimization, few-shot, chain-of-thought, prompt testing, prompt evaluation, structured outputs."
 invocation_trigger: "When designing prompts, optimizing LLM outputs, setting up prompt testing, or evaluating prompt quality."
 recommendedModel: sonnet
 ---
