@@ -200,72 +200,21 @@ These three documents are the backbone of the framework. Every other component e
 
 ---
 
-## Hook Lifecycle Events (27)
+## Hook Lifecycle Events (9)
 
-The QE Framework hooks into all 27 Claude Code lifecycle events for complete harness coverage.
+The QE Framework hooks into 9 Claude Code plugin-supported lifecycle events.
 
-### Session
 | Event | Handler | Purpose |
 |-------|---------|---------|
-| SessionStart | session-start.mjs | Session init, legacy migration, memory load |
-| Setup | setup.mjs | (stub) Early setup before instructions load |
-| SessionEnd | session-end.mjs | Session cleanup, metrics flush, state persistence |
-
-### Prompt
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| UserPromptSubmit | prompt-check.mjs | Help flag parsing, intent routing |
-| UserPromptExpansion | user-prompt-expansion.mjs | (stub) Prompt expansion/macro processing |
-
-### Tool
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| PreToolUse | pre-tool-use.mjs | ContextMemo validation, block emitter |
+| SessionStart | session-start.mjs | Session init, legacy migration, memory load, skill budget check |
+| PreToolUse | pre-tool-use.mjs | ContextMemo validation, SIVS routing, block emitter |
 | PostToolUse | post-tool-use.mjs | ContextMemo update, lint, error detection |
-| PostToolUseFailure | post-tool-use-failure.mjs | Error tracking, failure streak detection |
-| PostToolBatch | post-tool-batch.mjs | (stub) Batch tool execution completion |
-
-### Permission
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| PermissionRequest | permission-request.mjs | (stub) Permission request interception |
-| PermissionDenied | permission-denied.mjs | (stub) Permission denial handling |
-
-### Subagent
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| SubagentStart | subagent-start.mjs | Subagent lifecycle tracking, context injection |
-| SubagentStop | subagent-stop.mjs | Subagent metrics, duration recording |
-| TeammateIdle | teammate-idle.mjs | Teammate task assignment on idle |
-
-### Task
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| TaskCreated | task-created.mjs | (stub) Task creation event |
-| TaskCompleted | task-completed.mjs | VERIFY_CHECKLIST check, TASK_LOG update, archival |
-
-### Context
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| InstructionsLoaded | instructions-loaded.mjs | (stub) Post-instruction load event |
 | PreCompact | pre-compact.mjs | Pre-compaction snapshot, handoff save |
-| PostCompact | post-compact.mjs | (stub) Post-compaction cleanup |
-
-### System
-| Event | Handler | Purpose |
-|-------|---------|---------|
-| ConfigChange | config-change.mjs | (stub) Configuration change detection |
-| CwdChanged | cwd-changed.mjs | (stub) Working directory change |
-| FileChanged | file-changed.mjs | ContextMemo invalidation on file change |
-| WorktreeCreate | worktree-create.mjs | (stub) Git worktree creation |
-| WorktreeRemove | worktree-remove.mjs | (stub) Git worktree removal |
-
-### Interaction
-| Event | Handler | Purpose |
-|-------|---------|---------|
 | Stop | stop-handler.mjs | Session end, sweep, failure capture, rating |
-| StopFailure | stop-failure.mjs | (stub) Stop failure handling |
+| UserPromptSubmit | prompt-check.mjs | Help flag parsing, intent routing |
 | Notification | notification.mjs | Agent completion chaining, persistent mode |
+| TeammateIdle | teammate-idle.mjs | Teammate task assignment on idle |
+| TaskCompleted | task-completed.mjs | VERIFY_CHECKLIST check, TASK_LOG update, archival |
 
 ---
 

@@ -16,7 +16,7 @@
 ## New Features by Phase
 
 ### Phase 1: Hook System Overhaul
-- **27 lifecycle events** (was 9): Full Claude Code coverage
+- effort parameter support, Skill Budget monitoring, harness metrics
 - 5 new functional handlers: PostToolUseFailure (error streak), SubagentStart/Stop (lifecycle tracking), FileChanged (ContextMemo invalidation), SessionEnd (cleanup)
 - 13 stub handlers ready for customization
 

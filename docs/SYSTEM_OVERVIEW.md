@@ -241,7 +241,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 ## v7.0 Changes (Harness Engineering Upgrade)
 
 ### Hook System (Phase 1)
-- Expanded from 9 to **27 lifecycle events** matching full Claude Code coverage
+- Maintains **9 lifecycle events** covering the full plugin-supported hook surface
 - 5 functional handlers: PostToolUseFailure, SubagentStart/Stop, FileChanged, SessionEnd
 - 13 stub handlers for remaining events (ready for future extension)
 
@@ -259,7 +259,6 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 ### Multi-Agent Orchestration (Phase 4)
 - Agent Teams v2: Full `--agents` flag documentation (16 fields)
 - `agent-teams.schema.json`: JSON Schema validation
-- Dynamic Workflows guide (Opus 4.8 Research Preview)
 - `managed-agents-adapter.mjs`: QE agent → Managed Agents API converter
 - Cross-session memory patterns guide
 
