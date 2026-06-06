@@ -330,6 +330,8 @@
     "./agents/Erefresh-executor.md",
     "./agents/Esecurity-officer.md",
     "./agents/Esupervision-orchestrator.md",
-    "./agents/Etask-executor.md"
+    "./agents/Etask-executor.md",
+    "./agents/Edependency-auditor.md",
+    "./agents/Eperformance-profiler.md"
   ]
 }

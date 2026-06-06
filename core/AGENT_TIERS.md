@@ -95,6 +95,8 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 | Qplan | HIGH | — |
 | Etracer | MEDIUM | HIGH (deep investigation) |
 | Econtract-judge | MEDIUM | — |
+| Edependency-auditor | LOW | MEDIUM (deep CVE analysis) |
+| Eperformance-profiler | MEDIUM | HIGH (complex profiling) |
 
 ## Escalation Rules
 - 2 failures at MEDIUM → auto-escalate to HIGH
