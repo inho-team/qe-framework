@@ -16,6 +16,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.0.2] - 2026-06-06
+
+### Added
 - PHILOSOPHY.md Obligation 6: Ground truth over self-assessment — prefer external execution over self-review
 - PHILOSOPHY.md Obligation 7: Verify research before planning — test claims against real system
 - Qcode-run-task Step 4.85: Smoke Test Gate — run actual code before declaring PASS
