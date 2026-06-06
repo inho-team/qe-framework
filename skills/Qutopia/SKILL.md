@@ -18,6 +18,17 @@ recommendedModel: haiku
 | `/Qutopia --ralph` | Ralph loop — auto-repeat PSE Chain until VERIFY_CHECKLIST is fully complete |
 | `/Qutopia --ralph off` | Stop Ralph loop (manual interrupt) |
 | `/Qutopia off` | Disable autonomous mode |
+
+## Dynamic Workflow Escalation
+
+When a task has 10+ checklist items or involves massive multi-file changes, PSE chain may not be the best approach. Consider escalating to a dynamic workflow:
+
+1. **Auto-detect**: If the classified task has ≥10 items or touches ≥10 files, suggest: "This task is large enough for a dynamic workflow. Try: 'Create a workflow for this task' or use ultracode effort."
+2. **Manual trigger**: The user can say "ultracode" or set effort to ultracode to auto-trigger workflow creation.
+3. **Pair with /goal**: For unattended runs, combine `/goal` with the workflow: `/goal all tests pass, or stop after 30 turns`
+4. **Fallback**: If the user prefers PSE, proceed with `--work` or `--qa` as normal.
+
+See `docs/CLAUDE_CODE_FEATURES.md` for full /workflows and /goal reference.
 | `/Qutopia status` | Show current state |
 
 ## What It Does

@@ -215,6 +215,29 @@ After test+review, verify documentation coverage of changed code:
 - After fix, re-run comment checker and return to verification
 - If coverage reaches 80%+, proceed to Step 5
 
+### Step 4.86: Native Verification Alternatives
+
+Before running the self-referential QA loop, consider these Claude Code native alternatives that eliminate self-preferential bias:
+
+**Option A — `/goal` (Recommended for bias-free verification)**
+Set a completion condition evaluated by a separate lightweight model:
+```
+/goal all tests pass and no lint errors, or stop after 10 turns
+```
+The `/goal` evaluator is a different model from the one doing the work, which breaks the self-preferential bias that caused the 27-hook incident. See [/goal docs](https://code.claude.com/docs/en/goal).
+
+**Option B — `claude ultrareview` (External code review)**
+Run a cloud-hosted multi-agent code review:
+```bash
+claude ultrareview --timeout 10
+```
+This is an external review service, not self-review. Use when the changes are substantial enough to warrant independent verification.
+
+**When to use native vs PSE verification:**
+- Simple code changes (≤3 files): PSE Qcode-run-task is sufficient
+- Complex changes with external dependencies: Use `/goal` with measurable condition
+- Large refactors or PR-ready code: Use `ultrareview` for independent review
+
 ### Step 4.9: Adversarial Gate
 
 After all verification passes (Steps 4–4.8), run an adversarial stress-test before final completion.

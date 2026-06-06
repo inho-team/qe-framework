@@ -238,6 +238,21 @@ Every skill, agent, and hook in this framework must uphold the following:
 
 ---
 
+## Adaptive Harness Principle
+
+PSE chain (Qplan → Qgs → Qatomic-run → Qcode-run-task) is the structured default path. However, when Claude Code provides native features that are more suitable, prefer native over PSE:
+
+1. **Verification** → `/goal` sets a completion condition evaluated by a **separate model**, breaking self-preferential bias. Use when the pass criteria are mechanically verifiable (tests pass, build succeeds, lint clean).
+2. **Large-scale orchestration** → `/workflows` writes a JS orchestration script for up to 1,000 subagents. Use when the task has 10+ independent items or requires adversarial multi-agent coordination.
+3. **Code review** → `claude ultrareview` runs a cloud-hosted multi-agent review. Use as an external alternative to self-review via Eqa-orchestrator.
+4. **Background agents** → `claude agents` manages parallel sessions with effort/model control. Use for background processing alongside interactive work.
+
+**Rule**: Skills should wrap or complement native features, not compete with them. If a native feature does the job better, guide the user to it instead of reimplementing it.
+
+See `docs/CLAUDE_CODE_FEATURES.md` for verified feature reference with minimum versions and official documentation links.
+
+---
+
 ## Acknowledged Exceptions
 
 The following are intentional design trade-offs, not violations of the Mandatory Obligations:

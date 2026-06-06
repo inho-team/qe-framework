@@ -77,6 +77,12 @@ Determine the task scale:
 | Single bug fix, small refactor, one function | **Micro** | Skip to Micro Plan |
 | One feature, one component, a few files | **Small** | Skip to Small Plan |
 | Multi-feature, multi-phase, new project | **Full** | Full Planning |
+| Massive refactor, 10+ files, adversarial verification needed | **Workflow** | Suggest `/workflows` |
+
+**Workflow** (dynamic workflow escalation):
+1. Suggest the user create a dynamic workflow instead of PSE chain: "This task is large enough to benefit from a dynamic workflow. Try: 'Create a workflow for this task' or use ultracode effort."
+2. If the user prefers PSE, proceed with Full Planning as normal.
+3. Dynamic workflows handle their own orchestration (up to 1,000 subagents) — QE planning is not needed.
 
 **Micro Plan** (estimated < 30 min of work):
 1. Confirm the task with the user in 1-2 lines.
@@ -124,6 +130,19 @@ Bind this plan to the current terminal session so the HUD and consumer skills (Q
    ```
    If the session file is missing or unreadable, skip silently — the pointer in step 1 is enough for the HUD fallback.
 3. Create the plan directory if absent: `mkdir -p .qe/planning/plans/{slug}/phases` and `mkdir -p .qe/planning/.sessions`.
+
+### Step 3.6: Workflow Alternative (conditional)
+
+**For tasks assessed as Workflow scale**, display the following instead of the standard handoff:
+
+```
+This task may benefit from a dynamic workflow.
+Try: "Create a workflow for {task description}"
+Or use ultracode effort level for automatic workflow creation.
+See: docs/CLAUDE_CODE_FEATURES.md
+```
+
+**If the user confirms they want to proceed with PSE**, continue to Step 4 and display the standard Handoff section.
 
 ### Step 4 (Post-Execution): Verification & Transition
 After execution is complete (by /Qatomic-run + /Qcode-run-task), review the results:
