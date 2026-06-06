@@ -232,6 +232,10 @@ Every skill, agent, and hook in this framework must uphold the following:
 
 5. **The loop is the product.** Features, skills, and agents are means to an end. The end is always: spec defined → implemented → verified → shipped with confidence.
 
+6. **Ground truth over self-assessment.** When verifying work, prefer external execution (Bash, actual tool invocation, real system test) over self-review. Code that compiles is not code that works. A checklist item that passes self-review may still fail in the real system. Always run the actual command, install the actual plugin, execute the actual test before declaring completion.
+
+7. **Verify research before planning.** Web search results, blog posts, and documentation claims must be tested against the actual system before incorporating into plans. Run `--help`, `--version`, or a minimal test to confirm the feature exists. Unverified claims must be tagged `[UNVERIFIED]` in all downstream documents. Never build phases around unverified external capabilities.
+
 ---
 
 ## Acknowledged Exceptions

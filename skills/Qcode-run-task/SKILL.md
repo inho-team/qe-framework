@@ -137,6 +137,28 @@ Before declaring the Phase complete, verify prior phases have not regressed:
 - Phase 1 (no prior phases to regress)
 - Non-code tasks (`type: docs` or `type: analysis`)
 
+### Step 4.85: Smoke Test Gate
+After all review/regression gates pass, verify that the code changes actually work in the real system — not just that they compile or pass self-review.
+
+**Why this gate exists**: Self-referential verification (Claude reviewing Claude's code) suffers from self-preferential bias. Code that looks correct to review may fail when actually executed. This gate requires external ground truth.
+
+**Procedure:**
+
+1. For each changed `.mjs` file, run: `node -c {file}` (syntax check) AND `echo '{}' | node {file}` (execution test for hooks)
+2. For changed JSON files (plugin.json, schema), run: `node -e 'JSON.parse(require("fs").readFileSync("{file}","utf8"))'`
+3. For new modules with exports, run: `node -e 'import("./{file}").then(m => console.log(Object.keys(m)))'`
+4. For plugin changes, verify: `claude plugin install` would accept the manifest (check against known valid fields)
+5. For hook changes, test with sample input: `echo '{"cwd":"/tmp"}' | node hooks/scripts/{handler}.mjs`
+
+**Failure handling:**
+- Any execution error → treat as Step 4 failure, enter fix loop
+- Syntax errors → Critical, must fix before proceeding
+- Runtime errors on sample input → Warning, investigate before proceeding
+
+**Skip conditions:**
+- `type: docs` or `type: analysis` tasks
+- Changes to `.md` files only (no executable code)
+
 ### Step 4.7: Nyquist Audit (Gap Discovery)
 Even if tests pass, perform a **Coverage Gap Audit**:
 1. Review implementation vs. Requirements.

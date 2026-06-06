@@ -96,6 +96,12 @@ Continue to Step 1 below.
 - **Interactive Discovery**: Use the `ask_user` tool (choice/text) to gather initial requirements and constraints. Do not guess; present options.
 - **Requirement Tiering**: Use `ask_user` to let the user select the priority (P0/P1/P2) for each core feature.
 - **Proactive Research**: If the domain is new, run **Edeep-researcher** first. Store findings in `.qe/planning/research/` (global — shared across all plans).
+- **Research Validation (MANDATORY)**: Before incorporating any research finding into the plan, verify key claims against the actual system:
+  1. "Feature X exists" → run `command X --help` or `command --version` via Bash
+  2. "API supports Y" → fetch official docs or run a minimal test
+  3. "File format accepts Z" → create a test file and run the validator
+  4. "Platform has N events/fields" → check against the actual working configuration
+  If verification fails, remove the claim from the plan or tag it `[UNVERIFIED]`. Never build phases around unverified external capabilities. This prevents the class of failure where research hallucinations propagate through the entire PSE chain unchecked.
 
 ### Step 2: Strategic Roadmap Design (Full Planning only)
 Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:

@@ -77,6 +77,26 @@ Required information:
 Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). For CLAUDE.md, reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and include a reference line pointing to it. Replace `{{placeholder}}` with actual content.
 - **Model Preference**: Use **Haiku** for drafting standardized templates to reduce latency.
 
+### Step 2.4: Premise Verification (Mandatory for external dependencies)
+Before drafting specs, verify that any external platform features, APIs, or tools referenced in the task actually exist and work as claimed.
+
+**When to run:** Any task that depends on features outside the project's own codebase — Claude Code CLI features, npm packages, OS commands, API endpoints, plugin.json fields, hook events, etc.
+
+**Procedure:**
+
+1. **CLI feature claims** → Run `command --help` or `command --version` via Bash and check the output
+2. **Plugin.json fields** → Compare against a known working plugin.json (the one before changes)
+3. **Hook events** → Check against the project's existing working `hooks.json` events
+4. **API features** → Fetch official documentation URL or run a minimal test call
+5. **npm packages** → Run `npm info {package} version` to confirm existence
+
+**Outcome:**
+- Verified → proceed normally
+- Unverified → tag the item with `[UNVERIFIED]` in TASK_REQUEST and alert the user via additionalContext: "This task depends on unverified external feature: {feature}. Confirm before proceeding."
+- Disproved → remove the item from the spec and report to user
+
+**Skip conditions:** Tasks with no external dependencies (pure local logic, documentation, analysis).
+
 ### Step 2.5: Spec Verification (Automatic)
 After drafting, verify spec quality. **Skip conditions (fast path):** checklist ≤ 3 items OR `type: docs`/`analysis` → skip entirely, proceed to Step 3.
 
