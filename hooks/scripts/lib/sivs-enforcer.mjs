@@ -1,6 +1,15 @@
 /**
  * @fileoverview SIVS engine routing enforcement module.
  * Pure functions only — no side effects on import.
+ *
+ * Scope: this module enforces which ENGINE handles each SIVS stage (per
+ * `.qe/sivs-config.json`) and audits routing decisions. It is complementary to —
+ * and distinct from — the **stage verification gates** (the self-reference
+ * defense), which are skill-driven (`skills/Qcritical-review/reference/*-gate-protocol.md`),
+ * record their verdicts via `gate-audit.mjs`, and fold agent verdicts via
+ * `gate-verdict.mjs`. Routing enforcement decides *who runs a stage*; the gates
+ * decide *whether the stage's output is trustworthy*.
+ *
  * @module hooks/scripts/lib/sivs-enforcer
  */
 

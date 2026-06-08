@@ -47,6 +47,8 @@ Spec → Implement → Verify → Supervise → (if failed) Remediate → Spec �
 
 This loop — the **SIVS Loop** — is not optional. It is the quality gate that drives every task to completion.
 
+Each stage in this loop runs a **mandatory independent verification gate** (Mandatory Obligation #8): a fresh-context adversarial sub-agent that breaks the self-reference problem of a homogeneous engine certifying its own output. A gate FAIL routes the loop **backward** to the causing stage rather than dead-ending.
+
 ---
 
 ## The Efficiency Philosophy
@@ -235,6 +237,8 @@ Every skill, agent, and hook in this framework must uphold the following:
 6. **Ground truth over self-assessment.** When verifying work, prefer external execution (Bash, actual tool invocation, real system test) over self-review. Code that compiles is not code that works. A checklist item that passes self-review may still fail in the real system. Always run the actual command, install the actual plugin, execute the actual test before declaring completion.
 
 7. **Verify research before planning.** Web search results, blog posts, and documentation claims must be tested against the actual system before incorporating into plans. Run `--help`, `--version`, or a minimal test to confirm the feature exists. Unverified claims must be tagged `[UNVERIFIED]` in all downstream documents. Never build phases around unverified external capabilities.
+
+8. **Independent verification at every stage.** A stage cannot certify its own output — that is the self-reference problem, and it is acute when the SIVS engine is homogeneous (all-Claude or all-Codex), because the verifier shares the author's blind spots. Every SIVS stage therefore runs a **mandatory independent verification gate** with **structural independence** (a fresh-context adversarial sub-agent in a distinct cognitive mode — Spec: Structural+Critical, Verify: Critical, Supervise: Meticulous), auto-upgraded to a cross-model engine (Codex) when reachable. A gate FAIL is **not a dead-end**: it routes **backward** to the stage that caused it (Spec→Spec, Verify→Implement/Spec, Supervise→Verify→Implement→Spec), re-entering the loop until it passes or the 3-round cap escalates to the user. Codex is never a required dependency — the same-engine baseline always runs. See `skills/Qcritical-review/reference/{thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
 
 ---
 

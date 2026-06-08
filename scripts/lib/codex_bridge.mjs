@@ -241,22 +241,58 @@ export function resolveCodexStateDir(cwd) {
 }
 
 /**
- * Check if Codex is reachable (plugin available + no recent errors).
+ * Check if Codex is reachable (plugin available + no recent *relevant* errors).
+ *
+ * Refinement (Phase 2.1): the 5-minute error TTL is scoped to the current stage.
+ * A recent error recorded for a different stage no longer hard-blocks codex for
+ * all gates — instead it returns reachable:true with `degraded:true` so callers
+ * (and the gate audit) can surface the reduced confidence rather than silently
+ * suppressing the cross-model upgrade across unrelated work. A true live ping is
+ * intentionally not attempted: codex is an async companion with no cheap
+ * synchronous liveness probe, so pinging every gate would add latency.
+ *
+ * Backward compatible: still returns `{ reachable, reason }`; callers that pass a
+ * single arg behave as before (the new `degraded` field is additive).
+ *
  * @param {object} [state] - Unified state object containing codex_last_error field
- * @returns {{ reachable: boolean, reason?: string }}
+ * @param {object} [options] - { stage } current SIVS stage for error scoping
+ * @returns {{ reachable: boolean, reason?: string, degraded?: boolean }}
  */
-export function isCodexReachable(state = {}) {
-  if (!isCodexPluginAvailable()) {
-    return { reachable: false, reason: 'plugin_missing' };
+export function isCodexReachable(state = {}, options = {}) {
+  return evaluateCodexReachability(state, options, isCodexPluginAvailable());
+}
+
+/**
+ * Pure reachability decision — separated from environment probing so every branch
+ * is deterministically testable (the install state is injected, not read).
+ * @param {object} state - { codex_last_error?: { timestamp, type?, stage? } }
+ * @param {object} options - { stage? } current SIVS stage for error scoping
+ * @param {boolean} pluginAvailable - result of isCodexPluginAvailable()
+ * @returns {{ reachable: boolean, reason?: string, degraded: boolean }}
+ */
+export function evaluateCodexReachability(state = {}, options = {}, pluginAvailable = false) {
+  if (!pluginAvailable) {
+    return { reachable: false, reason: 'plugin_missing', degraded: false };
   }
   const lastError = state.codex_last_error;
-  if (lastError && lastError.timestamp) {
-    const ageMs = Date.now() - new Date(lastError.timestamp).getTime();
-    if (ageMs < 300000) { // 5 minutes TTL
-      return { reachable: false, reason: `recent_error:${lastError.type || 'unknown'}` };
+  if (lastError) {
+    // An error record exists. Fail-closed on a missing/empty/unparseable
+    // timestamp (NaN age) — treat it as recent rather than silently ignoring it.
+    const ageMs = lastError.timestamp ? Date.now() - new Date(lastError.timestamp).getTime() : NaN;
+    const isRecent = !Number.isFinite(ageMs) || ageMs < 300000; // 5 minutes TTL
+    if (isRecent) {
+      const errStage = lastError.stage;
+      const curStage = options.stage;
+      // Scope the suppression: block only when the recent error is for this stage
+      // (or when no stage context is available on either side — safe default).
+      if (!errStage || !curStage || errStage === curStage) {
+        return { reachable: false, reason: `recent_error:${lastError.type || 'unknown'}`, degraded: false };
+      }
+      // Recent error for a different stage → still reachable, but flag degraded.
+      return { reachable: true, reason: `recent_error_other_stage:${lastError.type || 'unknown'}`, degraded: true };
     }
   }
-  return { reachable: true };
+  return { reachable: true, degraded: false };
 }
 
 /**

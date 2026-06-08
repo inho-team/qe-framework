@@ -240,10 +240,16 @@ This is an external review service, not self-review. Use when the changes are su
 
 ### Step 4.9: Adversarial Gate
 
-After all verification passes (Steps 4–4.8), run an adversarial stress-test before final completion.
+After all verification passes (Steps 4–4.8), run the **mandatory Verify gate** —
+an adversarial stress-test before final completion. This is the SIVS Verify-stage
+self-reference defense; full protocol:
+`skills/Qcritical-review/reference/verify-gate-protocol.md`.
 
-**Skip conditions (fast path):** `type: docs`/`analysis`, checklist items ≤ 3, or Utopia `--work` mode → skip entirely, proceed to Step 5.
-In Utopia `--qa` mode: this step is **MANDATORY** — never skip.
+**Applies to `type:code` AND `type:other`** (R3 — always mandatory; no `≤ N items`
+skip). **Skip only** `type: docs`/`analysis`. Any missing/unrecognized type is
+normalized to gate-running (never silently bypassed). In Utopia `--work` the gate
+still runs for code/other (the `--work` skip applies only to docs/analysis) and
+runs non-interactively; `--qa` is mandatory as before.
 
 **Procedure:**
 
@@ -251,18 +257,21 @@ In Utopia `--qa` mode: this step is **MANDATORY** — never skip.
    - Changed files list (from Step 1)
    - TASK_REQUEST goals and constraints
    - VERIFY_CHECKLIST validation criteria
-2. Qcritical-review spawns adversarial sub-agents (Devil's Advocate, Edge Case Hunter) that stress-test:
+2. Qcritical-review spawns the three Verify-stage agents (Critical mode) —
+   **Devil's Advocate** (cross-model when codex reachable), **Security Auditor**,
+   **Performance Skeptic** — that stress-test:
    - Unhandled edge cases in the implementation
    - Assumptions that were never validated
    - Security implications of the changes
    - Regression risks for adjacent functionality
-3. Results feed back into judgment:
+3. Results feed back into judgment (FAIL routes **backward**, not a dead-end —
+   DECISION_LOG D014/D015):
 
 | Verdict | Action |
 |---------|--------|
 | **PASS** | Proceed to Step 5 (Report) |
-| **WARN** | Show warnings to user via `AskUserQuestion`: "Fix and re-verify" / "Accept warnings" / "Stop" |
-| **FAIL** | Treat as Step 4 failure — enter fix loop (Ecode-debugger), then return to Step 2 |
+| **WARN** | Interactive: ask user "Fix and re-verify" / "Accept warnings" / "Stop". Non-interactive (Utopia `--work`): auto-accept + log. |
+| **FAIL** | **Backward routing.** Per-finding `root_cause_stage`: `spec` → regenerate the spec (Spec gate) and restart; otherwise → **Implement** (fix loop via Ecode-debugger, return to Step 2). Unclear cause → nearest-first (Implement). Honors the 3-round Loop Limit; after 3 rounds still FAIL → escalate to user (Utopia `--work`: leave `needs-attention` with a blocking marker, never silent auto-proceed). |
 
 **Output:**
 ```

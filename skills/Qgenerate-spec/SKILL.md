@@ -124,7 +124,42 @@ When verification runs, perform **both structural and executability checks in a 
 
 Any fail → fix automatically. After max iterations, proceed with best version.
 
+### Step 2.6: Spec Self-Reference Gate (MANDATORY — no skip)
+
+Step 2.5 checks spec *quality* with the same model that drafted it — which cannot
+catch errors rooted in that model's own blind spots (the **self-reference
+problem**, acute when the SIVS engine is homogeneously all-Claude or all-Codex).
+Step 2.6 closes that gap with an **independent adversarial gate**.
+
+**This gate ALWAYS runs.** Unlike Step 2.5, it has **no skip conditions** — it
+runs regardless of item count or task type (DECISION_LOG D011). Spec-stage errors
+are independent of size, so size-based skipping would reopen the exact hole this
+gate exists to close.
+
+**Procedure:**
+
+1. Invoke `/Qcritical-review --stage spec` against the just-drafted TASK_REQUEST
+   (+ VERIFY_CHECKLIST). The gate spawns the Structural Reviewer + Critical
+   Reviewer + Edge Case Finder in parallel and returns a PASS/WARN/FAIL verdict.
+   Engine routing is automatic: same-engine baseline always, with the Critical
+   Reviewer auto-upgraded to codex when reachable — no config required. Full
+   protocol: `skills/Qcritical-review/reference/spec-gate-protocol.md`.
+2. **On FAIL:** the spec contains CRITICAL/HIGH problems. Revise the TASK_REQUEST
+   / VERIFY_CHECKLIST to address them and re-run the gate (max 2 iterations).
+   Then enter Step 3 in **blocked mode** (see below) if still FAIL.
+3. **On WARN/PASS:** proceed to Step 3 normally, carrying any WARN notes forward.
+
+**Skip conditions:** none. (Autonomous mode still runs the gate; on FAIL it
+auto-revises up to the iteration cap, then proceeds Generate-Only.)
+
 ### Step 3: Review, Create, and Execute (The High-Performance Path)
+- **GATE-BLOCKED (Step 2.6 FAIL):** If the Spec self-reference gate returned FAIL
+  after its iteration cap, this is a **hard gate** — do **NOT** offer
+  "Generate & Execute" or "Generate & Atomic-Run". Present only **"Generate Only"**
+  (so the draft is saved) and **"Fix spec & re-run gate"**, and list the
+  CRITICAL/HIGH findings as required fixes. Execution options unlock only after the
+  gate reaches WARN/PASS, or the user explicitly overrides with full awareness of
+  the findings.
 - **MANDATORY**: Use `AskUserQuestion` to present these options.
 - **Recommend Atomic-Run**: If the checklist has 4+ independent items, clearly label **"Generate & Atomic-Run (Wave)"** as the **[Recommended]** path. Explain that it uses multiple parallel Haiku agents for maximum speed.
 - **Auto-Chain**: Once the user selects an execution option, immediately invoke the corresponding skill (`/Qrun-task` or `/Qatomic-run`) with the generated UUIDs.

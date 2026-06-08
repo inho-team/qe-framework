@@ -26,11 +26,19 @@ Expert-level quality supervision orchestrator. Routes tasks to domain-specific a
 ## Supervision Standards
 > Full reference: `agents/references/supervision-scales.md`
 
-### Adversarial Supervisor Skip Condition
-The adversarial supervisor (`Qcritical-review --stage supervise`) is **only invoked for `type: code` tasks**. Skip for `type: docs` and `type: analysis`.
+### Adversarial Supervisor (mandatory Supervise gate)
+The adversarial supervisor (`Qcritical-review --stage supervise`, **Meticulous**
+mode) is invoked for **`type: code` AND `type: other`** tasks (skip only
+`type: docs`/`analysis`; missing/unknown type normalizes to gate-running). It
+runs **always once binary Verify has passed** — there is no "only for FAIL/WARN
+from prior stages" condition (R3). This is consistent with the "Will Not
+supervise tasks that haven't passed binary verification" rule above: if Verify
+FAILed, the loop routes backward (Implement/Spec) and never reaches Supervise, so
+Supervise always sees verified work. Full protocol:
+`skills/Qcritical-review/reference/supervise-gate-protocol.md`.
 
 ### Task Type Routing
-- **Code**: `Ecode-quality-supervisor`, `Esecurity-officer`, `Qcritical-review` (adversarial supervisor for FAIL/WARN from prior stages)
+- **Code**: `Ecode-quality-supervisor`, `Esecurity-officer`, `Qcritical-review` (adversarial Supervise gate — always, after binary verify)
 - **Docs**: `Edocs-supervisor`
 - **Analysis**: `Eanalysis-supervisor`
 
@@ -77,10 +85,16 @@ elif ANY PARTIAL -> PARTIAL
 else PASS
 ```
 
-**Adversarial supervisor grading (code tasks only):**
+**Adversarial supervisor grading (code + other tasks):**
 - If `Qcritical-review` returns **FAIL** → overall supervision grade = **FAIL** (blocks merge)
 - If `Qcritical-review` returns **WARN** → include in report, overall grade = max(existing, **PARTIAL**)
 - If `Qcritical-review` returns **PASS** → no impact on grade
+
+**Backward routing on Supervise FAIL (D014/D015):** a FAIL is not a dead-end —
+route backward to the nearest causing stage using each finding's
+`root_cause_stage`, in order **Verify → Implement → Spec** (unclear → nearest
+first = Verify). The remediation re-enters the loop at that stage. Honors the
+"escalate after 3 iterations" cap; after 3 rounds still FAIL → escalate to user.
 
 ### 4. Reporting & Remediation
 - Return structured summary to **Qrun-task**.

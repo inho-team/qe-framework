@@ -12,6 +12,15 @@ A CLI-style skill for viewing and modifying `.qe/sivs-config.json`.
 Allows quick changes to which engine (claude/codex) handles each SIVS stage,
 with optional model and effort overrides.
 
+> **Note — verification gates are always on.** This config only chooses the
+> *engine* per stage. The mandatory **stage verification gates** (the
+> self-reference defense; PHILOSOPHY.md Mandatory Obligation #8) run regardless of
+> engine configuration — including all-Claude or all-Codex homogeneous setups,
+> which is exactly the case they exist to defend. Setting a stage to one engine
+> does not disable its gate; when Codex is reachable the gate's strongest critic
+> is auto-upgraded to a cross-model engine, otherwise the same-engine baseline
+> runs. See `skills/Qcritical-review/reference/*-gate-protocol.md`.
+
 ## Storage Location
 `.qe/sivs-config.json`
 

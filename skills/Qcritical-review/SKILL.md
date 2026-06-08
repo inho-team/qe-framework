@@ -83,13 +83,30 @@ Spawn **3 sub-agents in parallel** via the Agent tool. Each adopts a distinct cr
 
 #### Spec Stage Agents
 
-| Agent | Role | Key Questions |
-|-------|------|--------------|
-| **Gap Hunter** | Find missing requirements | "What user scenarios are not covered? What error cases are missing? What assumptions are unstated?" |
-| **Scope Critic** | Challenge scope and feasibility | "Is this over-engineered? Under-specified? Can this be built in the stated timeline?" |
-| **Edge Case Finder** | Identify boundary conditions | "What happens at zero? At max? With concurrent access? With malformed input? With network failure?" |
+The Spec stage runs two cognitive **modes** — **Structural** (구조적 사고) and
+**Critical** (비판적 사고) — plus a boundary-focused finder. Full mode
+definitions (posture, key questions, adversarial instruction, must-nots) live in
+[./reference/thinking-modes.md](./reference/thinking-modes.md). These agents
+implement the **mandatory Spec self-reference gate** —
+see [./reference/spec-gate-protocol.md](./reference/spec-gate-protocol.md).
+
+| Agent | Mode | Role | Key Questions |
+|-------|------|------|--------------|
+| **Structural Reviewer** | Structural | Stress-test the spec's structure for completeness & internal consistency | "Does every goal map to an item and vice versa? Any contradictory requirements? Dangling dependencies? Subjective/unverifiable items? Whole sub-problems missing?" |
+| **Critical Reviewer** | Critical | Devil's advocate on the spec's substance | "What false assumption is this built on? What error case / production scenario is absent? Where will this spec lead the implementer wrong?" |
+| **Edge Case Finder** | Critical (boundary) | Identify boundary conditions | "What happens at zero? At max? With concurrent access? With malformed input? With network failure?" |
+
+The **Critical Reviewer** is the designated most-adversarial agent and is the one
+auto-upgraded to a cross-model engine when codex is reachable (see Engine Routing
+per Mode below).
 
 #### Verify Stage Agents
+
+Cognitive mode: **Critical** (비판적 사고) — see
+[./reference/thinking-modes.md](./reference/thinking-modes.md) Mode 2. These three
+agents implement the **mandatory Verify gate** —
+[./reference/verify-gate-protocol.md](./reference/verify-gate-protocol.md).
+**Devil's Advocate** is the cross-model-upgrade target.
 
 | Agent | Role | Key Questions |
 |-------|------|--------------|
@@ -98,6 +115,12 @@ Spawn **3 sub-agents in parallel** via the Agent tool. Each adopts a distinct cr
 | **Performance Skeptic** | Challenge efficiency | "What's the time complexity? Does it scale? Are there N+1 queries? Memory leaks?" |
 
 #### Supervise Stage Agents
+
+Cognitive mode: **Meticulous** (꼼꼼한 사고) — see
+[./reference/thinking-modes.md](./reference/thinking-modes.md) Mode 3. These three
+agents implement the **mandatory Supervise gate** (runs only after binary Verify
+passes) — [./reference/supervise-gate-protocol.md](./reference/supervise-gate-protocol.md).
+**Merge Blocker** is the cross-model-upgrade target.
 
 | Agent | Role | Key Questions |
 |-------|------|--------------|
@@ -201,11 +224,51 @@ Display the full report, then ask:
 
 | Stage | Codex Agent | Why This One |
 |-------|------------|-------------|
-| `spec` | Edge Case Finder | Boundary conditions benefit most from independent reasoning |
+| `spec` | Critical Reviewer | The strongest spec critic should be a genuinely different engine |
 | `verify` | Devil's Advocate | The strongest critic should be a different model |
 | `supervise` | Merge Blocker | Merge opposition must be genuinely independent |
 
 The remaining 2 agents always use Claude sub-agents.
+
+#### Automatic cross-model upgrade (mandatory Spec gate)
+
+The manual `--mode cross-model` above is opt-in. The **mandatory Spec
+self-reference gate** (invoked by Qgenerate-spec Step 2.6) instead upgrades
+**automatically and with zero configuration** (DECISION_LOG D012):
+
+1. **Baseline (always runs):** all Spec agents are same-engine sub-agents
+   (`subagent_type: "general-purpose"`). Fully functional with **no codex
+   installed** — independence comes from fresh context + adversarial role.
+2. **Auto-upgrade (best-effort):** detect codex reachability via
+   `getCodexPluginInfo()` / `isCodexReachable()` from
+   `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer**
+   to `subagent_type: "codex:codex-rescue"` for a truly independent engine.
+3. **Graceful degrade:** if codex is absent or unreachable, silently keep the
+   same-engine baseline. **Codex is never a required dependency.**
+
+This makes the strongest critic genuinely independent when possible, while
+guaranteeing the gate always runs even in an all-Claude (or all-Codex) homogeneous
+setup — which is exactly the self-reference case this gate exists to defend.
+
+The same automatic upgrade applies to the **Verify gate** (cross-model target =
+Devil's Advocate) and the **Supervise gate** (cross-model target = Merge Blocker).
+
+**Cross-model failure fallback (all gates):** a best-effort upgrade must never
+block a mandatory gate or silently pass as if it were cross-model.
+- If the codex sub-agent errors or times out → log `crossmodel=false` + reason,
+  **re-run that one agent on Claude** (`general-purpose`), and mark the gate
+  result **`degraded`** → at least **WARN** (independence was reduced).
+- If the Claude re-run also fails → **WARN-blocked** (NOT PASS), requiring
+  explicit user override, with audit `reason=double-failure`.
+
+#### Bootstrap clause (reviewing Qcritical-review itself)
+
+When a change touches `Qcritical-review` or its `reference/*-gate-protocol.md`
+files, the gate cannot trust its own (possibly-changed) behavior to review that
+change — a self-reference within the self-reference defense. In that case the
+review MUST run against the **pre-change baseline** of these files plus an
+**explicit diff inspection** of the proposed change, rather than the in-tree
+(modified) version. This prevents a broken gate edit from approving itself.
 
 ### Report Labeling
 In cross-model mode, each agent box in the report shows the engine used:
