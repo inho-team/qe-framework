@@ -8,15 +8,21 @@
  * invoke Ecompact-executor when pressure thresholds are crossed.
  *
  * Behavior:
- * - At 140k tokens (WARNING): Emits ACTION REQUIRED directive with Agent tool
- *   invocation instructions for Ecompact-executor.
- * - At 170k tokens (CRITICAL): Emits MANDATORY stop-and-compact directive.
+ * - At 70% of the window (WARNING): Emits ACTION REQUIRED directive with Agent
+ *   tool invocation instructions for Ecompact-executor.
+ * - At 85% of the window (CRITICAL): Emits MANDATORY stop-and-compact directive.
  *   Overrides cooldown.
  *
  * Design notes:
- * - Claude Code does not expose context remaining directly — token counts
- *   from usage stats are used. The threshold mapping is abstracted so it
- *   can be swapped for real metrics when the API supports them.
+ * - Pressure is judged as a RATIO of the live context window, not as an
+ *   absolute token count. The ratio is sourced the same way the HUD and the
+ *   Stop hook (context-guard) source it — via context-meter:
+ *     1. readCachedRatio() — Claude Code's authoritative statusline reading.
+ *     2. estimateUsageRatio() — latest transcript `usage` entry / model limit.
+ *   This makes the monitor model-aware: a 1M-context model (e.g.
+ *   `claude-opus-4-8[1m]`) is no longer falsely flagged "critical" at ~17% of
+ *   its real window, which previously happened because the old code compared an
+ *   ACCUMULATED `input_tokens` sum against a hardcoded 170k / 200k limit.
  * - Debounce: after the first alert, suppress re-alerts for 5 tool calls
  *   unless severity escalates.
  * - Cooldown: after a compaction trigger, suppress re-triggers for 5 minutes
@@ -29,6 +35,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
+import { readCachedRatio, estimateUsageRatio, modelIdToLimit } from './lib/context-meter.mjs';
 
 // Cooldown period: 5 minutes after a compaction trigger
 const COMPACTION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -43,58 +50,62 @@ const SEVERITY = {
 // Severity ordering for escalation comparison
 const SEVERITY_ORDER = { none: 0, warning: 1, critical: 2 };
 
-// --- Default thresholds (token-based metrics) ---
-// These map to approximate context remaining for a 200k context window:
-//   WARNING  (~30% remaining) => 140,000 input tokens
-//   CRITICAL (~15% remaining) => 170,000 input tokens
+// --- Default thresholds (ratio-based metrics) ---
+// Pressure is a fraction of the LIVE context window, independent of model size:
+//   WARNING  => 70% used (~30% remaining)
+//   CRITICAL => 85% used (~15% remaining)
 // Values can be overridden via .qe/config.json hooks section.
 const DEFAULT_THRESHOLDS = {
-  context_warning_tokens: 140000,   // ~30% remaining
-  context_critical_tokens: 170000,  // ~15% remaining
-  context_debounce_count: 5,        // suppress re-alert for N tool calls
+  context_warning_ratio: 0.70,   // ~30% remaining
+  context_critical_ratio: 0.85,  // ~15% remaining
+  context_debounce_count: 5,     // suppress re-alert for N tool calls
 };
 
 /**
- * Build context pressure message with token count.
+ * Build context pressure message with the current usage ratio.
  * Returns a system-instruction-style directive for auto-compaction.
  *
  * @param {string} severity - SEVERITY.WARNING or SEVERITY.CRITICAL
- * @param {number} inputTokens - Current input token count
+ * @param {number} ratio - Live context usage ratio in [0, 1]
+ * @param {number} limit - Model context-window token limit (for labelling)
  * @returns {string} Formatted directive message
  */
-function buildDirectiveMessage(severity, inputTokens) {
-  const currentK = Math.round(inputTokens / 1000);
+function buildDirectiveMessage(severity, ratio, limit) {
+  const pct = Math.round(ratio * 100);
+  const usedK = Math.round((ratio * limit) / 1000);
+  const limitK = Math.round(limit / 1000);
+  const label = `${pct}% (~${usedK}k / ${limitK}k tokens)`;
 
   if (severity === SEVERITY.CRITICAL) {
     return [
-      `\u{1F534} CRITICAL CONTEXT PRESSURE: ${currentK}k / 200k tokens`,
+      `\u{1F534} CRITICAL CONTEXT PRESSURE: ${label}`,
       'MANDATORY: Stop current work. Invoke Ecompact-executor immediately.',
       'Context will be lost if you continue without compaction.',
-      `Run: Agent tool \u2192 subagent_type: "Ecompact-executor", prompt: "Auto-compaction triggered at ${currentK}k tokens"`,
+      `Run: Agent tool \u2192 subagent_type: "Ecompact-executor", prompt: "Auto-compaction triggered at ${pct}% context"`,
     ].join('\n');
   }
 
   // WARNING (Yellow zone)
   return [
-    `\u26A0\uFE0F CONTEXT PRESSURE: ${currentK}k / 200k tokens (Yellow zone)`,
+    `\u26A0\uFE0F CONTEXT PRESSURE: ${label} (Yellow zone)`,
     'ACTION REQUIRED: Invoke Ecompact-executor to save context snapshot before continuing.',
-    `Run: Agent tool \u2192 subagent_type: "Ecompact-executor", prompt: "Auto-compaction triggered at ${currentK}k tokens"`,
+    `Run: Agent tool \u2192 subagent_type: "Ecompact-executor", prompt: "Auto-compaction triggered at ${pct}% context"`,
   ].join('\n');
 }
 
 /**
- * Estimate context severity based on token usage.
+ * Estimate context severity from the live usage ratio.
  *
- * @param {object} usage - Current usage object from stats
- * @param {object} thresholds - Threshold configuration
+ * @param {number} ratio - Live context usage ratio in [0, 1]
+ * @param {object} thresholds - Threshold configuration (ratio-based)
  * @returns {string} Severity level (SEVERITY.NONE | WARNING | CRITICAL)
  */
-export function estimateSeverity(usage, thresholds) {
-  const inputTokens = usage?.input_tokens || 0;
-  if (inputTokens >= thresholds.context_critical_tokens) {
+export function estimateSeverity(ratio, thresholds) {
+  const r = typeof ratio === 'number' ? ratio : 0;
+  if (r >= thresholds.context_critical_ratio) {
     return SEVERITY.CRITICAL;
   }
-  if (inputTokens >= thresholds.context_warning_tokens) {
+  if (r >= thresholds.context_warning_ratio) {
     return SEVERITY.WARNING;
   }
   return SEVERITY.NONE;
@@ -115,17 +126,17 @@ export function estimateSeverity(usage, thresholds) {
  */
 export function shouldDebounce(currentSeverity, stats, thresholds) {
   const lastSeverity = stats.warning_severity || SEVERITY.NONE;
-  const lastWarningAt = stats.last_warning_at || 0;
+  const lastWarningCall = stats.last_warning_call || 0;
   const debounceCount = thresholds.context_debounce_count;
 
   // No previous warning — never suppress
-  if (lastWarningAt === 0) return false;
+  if (lastWarningCall === 0 && lastSeverity === SEVERITY.NONE) return false;
 
   // Severity escalated — bypass debounce
   if (SEVERITY_ORDER[currentSeverity] > SEVERITY_ORDER[lastSeverity]) return false;
 
-  // Within debounce window — suppress
-  const callsSinceWarning = (stats.tool_calls || 0) - lastWarningAt;
+  // Within debounce window — suppress (measured in tool calls since last warning)
+  const callsSinceWarning = (stats.tool_calls || 0) - lastWarningCall;
   return callsSinceWarning < debounceCount;
 }
 
@@ -171,13 +182,16 @@ function recordCompactionTrigger(cwd) {
  * @param {string} cwd - Project working directory
  * @param {object} [preloadedStats] - Pre-read session stats (avoids duplicate file I/O)
  * @param {object} [preloadedCfg] - Pre-read config (avoids duplicate loadConfig call)
+ * @param {{ transcriptPath?: string, modelId?: string }} [opts] - Live-window
+ *   hints. transcriptPath enables the fallback ratio estimate; modelId selects
+ *   the correct window limit (200k vs 1M) for that estimate and for labelling.
  * @returns {{ message: string|null, severity: string, stats: object }}
  */
-export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
+export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {}) {
   const cfg = preloadedCfg || loadConfig(cwd);
   const thresholds = {
-    context_warning_tokens: cfg.context_warning_tokens ?? cfg.context_pressure_warn ?? DEFAULT_THRESHOLDS.context_warning_tokens,
-    context_critical_tokens: cfg.context_critical_tokens ?? DEFAULT_THRESHOLDS.context_critical_tokens,
+    context_warning_ratio: cfg.context_warning_ratio ?? DEFAULT_THRESHOLDS.context_warning_ratio,
+    context_critical_ratio: cfg.context_critical_ratio ?? DEFAULT_THRESHOLDS.context_critical_ratio,
     context_debounce_count: cfg.context_debounce_count ?? DEFAULT_THRESHOLDS.context_debounce_count,
   };
 
@@ -198,7 +212,20 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
     }
   }
 
-  const severity = estimateSeverity(stats.usage, thresholds);
+  // Resolve the LIVE context-usage ratio the same way the HUD / Stop hook do.
+  // Prefer Claude Code's authoritative statusline reading (model-aware); fall
+  // back to the latest transcript usage entry divided by the model limit.
+  // The accumulated stats.usage.input_tokens sum is intentionally NOT used —
+  // it grows unbounded and is not a measure of live window occupancy.
+  let ratio = readCachedRatio(cwd);
+  if (ratio === null) {
+    ratio = opts.transcriptPath
+      ? estimateUsageRatio(opts.transcriptPath, { modelId: opts.modelId })
+      : 0;
+  }
+  const limit = modelIdToLimit(opts.modelId);
+
+  const severity = estimateSeverity(ratio, thresholds);
 
   if (severity === SEVERITY.NONE) {
     return { message: null, severity, stats };
@@ -224,9 +251,9 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
   }
 
   // Update stats with warning metadata
-  stats.last_warning_at = stats.usage?.input_tokens || 0;
   stats.warning_severity = severity;
-  // Also track call count for historical reference
+  stats.last_warning_ratio = ratio;
+  // Debounce is measured in tool calls since the last warning
   stats.last_warning_call = stats.tool_calls || 0;
 
   // Only write to disk when stats were loaded from disk (not preloaded).
@@ -239,9 +266,8 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg) {
     }
   }
 
-  // Build directive message with current token count
-  const inputTokens = stats.usage?.input_tokens || 0;
-  let message = buildDirectiveMessage(severity, inputTokens);
+  // Build directive message from the live usage ratio
+  let message = buildDirectiveMessage(severity, ratio, limit);
 
   // Record compaction trigger in unified-state (sets cooldown)
   recordCompactionTrigger(cwd);

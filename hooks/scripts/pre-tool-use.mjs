@@ -427,7 +427,10 @@ if (utopia && utopia.enabled && utopia.mode === 'qa') {
 // --- Context pressure check ---
 try {
   const { checkContextPressure } = await import('./context-monitor.mjs');
-  const { message: ctxMessage } = checkContextPressure(cwd, stats, cfg);
+  const { message: ctxMessage } = checkContextPressure(cwd, stats, cfg, {
+    transcriptPath: data.transcript_path || data.transcriptPath,
+    modelId: data.model?.id || data.model,
+  });
   if (ctxMessage) hints.push(ctxMessage);
 } catch {}
 
