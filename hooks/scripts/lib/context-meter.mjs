@@ -14,20 +14,75 @@ const TAIL_BYTES = 8192; // read last 8 KB of transcript for efficiency
 /**
  * Write the authoritative ratio reported by Claude Code (statusline payload's
  * `context_window.used_percentage`) to disk so the Stop hook can consume it.
- * Best-effort — silently skips on any error.
+ * Optionally persists the true context-window limit (200k vs 1M) so the
+ * transcript fallback can pick the right denominator even after the cache
+ * goes stale. Best-effort — silently skips on any error.
  *
  * @param {string} projectDir project root
  * @param {number} usedPercentage 0..100 from statusline payload
+ * @param {number} [limit] true context-window token limit (see deriveContextLimit)
  */
-export function writeCachedRatio(projectDir, usedPercentage) {
+export function writeCachedRatio(projectDir, usedPercentage, limit) {
   if (!projectDir || typeof usedPercentage !== 'number') return;
   try {
     const dir = join(projectDir, '.qe', 'state');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const payload = { ratio: usedPercentage / 100, ts: Date.now() };
+    if (typeof limit === 'number' && limit > 0) payload.limit = limit;
     const tmp = join(dir, `.tmp-ctx-${randomBytes(6).toString('hex')}.json`);
-    writeFileSync(tmp, JSON.stringify({ ratio: usedPercentage / 100, ts: Date.now() }), 'utf8');
+    writeFileSync(tmp, JSON.stringify(payload), 'utf8');
     renameSync(tmp, join(dir, CACHE_FILE));
   } catch { /* best-effort */ }
+}
+
+/**
+ * Read the cached true context-window limit (in tokens) persisted by the
+ * statusline alongside the ratio. Unlike {@link readCachedRatio} this does NOT
+ * enforce the staleness TTL: a model's window size is constant for the whole
+ * session, so an "old" limit is still correct. This is what lets the transcript
+ * fallback in context-guard / context-monitor pick the right denominator
+ * (200k vs 1M) even when Claude Code has stripped the `[1m]` marker from the
+ * model id AND token usage is still below 200k — the exact blind spot where the
+ * id-based and observed-tokens heuristics both fail.
+ *
+ * @param {string} projectDir
+ * @returns {number|null} limit in tokens, or null when absent/invalid.
+ */
+export function readCachedLimit(projectDir) {
+  if (!projectDir) return null;
+  try {
+    const p = join(projectDir, '.qe', 'state', CACHE_FILE);
+    if (!existsSync(p)) return null;
+    const obj = JSON.parse(readFileSync(p, 'utf8'));
+    if (typeof obj?.limit !== 'number' || obj.limit <= 0) return null;
+    return obj.limit;
+  } catch { return null; }
+}
+
+/**
+ * Derive the true context-window token limit from a statusline `context_window`
+ * payload by back-solving `limit = total_input_tokens / (used_percentage/100)`
+ * and snapping to the nearest canonical tier.
+ *
+ * Claude Code reports `used_percentage` against the REAL window (1M for `[1m]`
+ * models) but strips the `[1m]` marker from the model id, so this back-solve is
+ * the only reliable in-band signal of which tier is active. The current Claude
+ * lineup has exactly two tiers (200k / 1M) with no middle ground, so we snap to
+ * a tier rather than trust the raw quotient (which carries rounding noise from
+ * the integer percentage). The 400k split sits in the empty gap between tiers,
+ * so even worst-case percentage rounding can't push one tier across it.
+ *
+ * @param {object} cw - the `context_window` object from the statusline payload.
+ * @returns {number|null} 200000 or 1000000, or null when underivable.
+ */
+export function deriveContextLimit(cw) {
+  if (!cw || typeof cw !== 'object') return null;
+  const pct = cw.used_percentage;
+  const input = cw.total_input_tokens;
+  if (typeof pct !== 'number' || pct <= 0) return null;
+  if (typeof input !== 'number' || input <= 0) return null;
+  const raw = input / (pct / 100);
+  return raw > 400000 ? 1000000 : 200000;
 }
 
 /**
@@ -174,6 +229,22 @@ export function estimateUsageRatio(transcriptPath, opts) {
   }
 }
 
+/**
+ * Resolve the context-window token limit for a usage reading, applying the
+ * precedence documented on {@link estimateUsageRatio}: explicit limit →
+ * hinted model id → QE_CONTEXT_LIMIT env → transcript model id → 200k default.
+ * As a last-resort safety net, an observed token count already past the base
+ * limit deterministically upgrades to the 1M tier (the lineup has no middle
+ * tier), but this only fires above 200k — below it, a cached/explicit limit is
+ * the only way to tell a low-fill 1M run from a 200k run.
+ *
+ * @param {object} args
+ * @param {number} [args.explicitLimit] caller-supplied limit (highest priority)
+ * @param {string} [args.hintModelId] model id hint resolved via modelIdToLimit
+ * @param {string} [args.transcriptModelId] model id discovered in the transcript
+ * @param {number} [args.observedTokens] live token count, for the >limit upgrade
+ * @returns {number} resolved token limit
+ */
 function resolveLimit({ explicitLimit, hintModelId, transcriptModelId, observedTokens }) {
   if (typeof explicitLimit === 'number' && explicitLimit > 0) return explicitLimit;
   if (hintModelId) return modelIdToLimit(hintModelId);

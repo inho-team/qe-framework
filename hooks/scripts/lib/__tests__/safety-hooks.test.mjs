@@ -14,7 +14,16 @@ import path from 'node:path';
 
 import { recordFailure, getCount, resetCounter } from '../retry-counter.mjs';
 import { recordIteration, getState, resetSession } from '../iteration-tracker.mjs';
-import { estimateUsageRatio, recordBlock, getBlockCount, resetBlocks } from '../context-meter.mjs';
+import {
+  estimateUsageRatio,
+  recordBlock,
+  getBlockCount,
+  resetBlocks,
+  writeCachedRatio,
+  readCachedLimit,
+  deriveContextLimit,
+  modelIdToLimit,
+} from '../context-meter.mjs';
 
 // ============================================================================
 // retry-counter tests
@@ -252,4 +261,78 @@ test('context-meter: resetBlocks clears the entry', (t) => {
 
   resetBlocks(sessionId, dir);
   assert.strictEqual(getBlockCount(sessionId, dir), 0);
+});
+
+// ============================================================================
+// context-meter: model-aware window limit (200k vs 1M) tests
+// ============================================================================
+
+test('deriveContextLimit: 20% at ~200k input → 1M tier', () => {
+  // The exact field shape Claude Code passes to the statusline on a 1M model.
+  assert.strictEqual(deriveContextLimit({ used_percentage: 20, total_input_tokens: 200000 }), 1000000);
+});
+
+test('deriveContextLimit: 32% at 40k input → 200k tier', () => {
+  assert.strictEqual(deriveContextLimit({ used_percentage: 32, total_input_tokens: 40000 }), 200000);
+});
+
+test('deriveContextLimit: snap survives integer-percent rounding at low fill', () => {
+  // 1M model at ~0.6% reports used_percentage=1 → raw ≈ 600k, still > 400k split.
+  assert.strictEqual(deriveContextLimit({ used_percentage: 1, total_input_tokens: 6000 }), 1000000);
+  // 200k model at ~0.6% reports used_percentage=1 → raw ≈ 120k, stays < 400k split.
+  assert.strictEqual(deriveContextLimit({ used_percentage: 1, total_input_tokens: 1200 }), 200000);
+});
+
+test('deriveContextLimit: returns null when underivable', () => {
+  assert.strictEqual(deriveContextLimit({ used_percentage: 0, total_input_tokens: 100 }), null);
+  assert.strictEqual(deriveContextLimit({ used_percentage: 20 }), null);
+  assert.strictEqual(deriveContextLimit(null), null);
+});
+
+test('readCachedLimit: round-trips the persisted limit', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  writeCachedRatio(dir, 20, 1000000);
+  assert.strictEqual(readCachedLimit(dir), 1000000);
+});
+
+test('readCachedLimit: null when no limit field was written', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  writeCachedRatio(dir, 20); // legacy 2-arg call — no limit persisted
+  assert.strictEqual(readCachedLimit(dir), null);
+});
+
+test('regression: 168k tokens on a 1M model is NOT mis-read as 84%', (t) => {
+  // Reproduces the HUD-20%-vs-warning-84% split: a 1M-context run sitting at
+  // ~168k tokens. Without the true limit, estimateUsageRatio divides by the
+  // 200k default (168k/200k = 0.84 → false CRITICAL). With the cached 1M limit
+  // it reads the true ~17% occupancy that the HUD shows.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const file = path.join(dir, 'transcript.jsonl');
+  // model id has the [1m] marker stripped, exactly as Claude Code delivers it.
+  const turn = JSON.stringify({
+    type: 'assistant',
+    message: { model: 'claude-opus-4-8', usage: { input_tokens: 68000, cache_read_input_tokens: 100000 } },
+  });
+  fs.writeFileSync(file, turn + '\n');
+
+  // Buggy path: id alone (marker stripped) + tokens < 200k → divides by 200k.
+  const naive = estimateUsageRatio(file, { modelId: 'claude-opus-4-8' });
+  assert.strictEqual(naive, 168000 / 200000); // 0.84 — the false reading
+
+  // Fixed path: the statusline-cached true limit overrides the denominator.
+  const corrected = estimateUsageRatio(file, { modelId: 'claude-opus-4-8', modelLimit: 1000000 });
+  assert.strictEqual(corrected, 168000 / 1000000); // 0.168 — matches the HUD
+  assert.ok(corrected < 0.7, 'corrected ratio must be below the WARNING threshold');
+});
+
+test('modelIdToLimit: [1m] marker → 1M, plain id → 200k default', () => {
+  assert.strictEqual(modelIdToLimit('claude-opus-4-8[1m]'), 1000000);
+  assert.strictEqual(modelIdToLimit('claude-opus-4-8'), 200000);
+  assert.strictEqual(modelIdToLimit(null), 200000);
 });

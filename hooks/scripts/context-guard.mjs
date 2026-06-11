@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { estimateUsageRatio, readCachedRatio, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
+import { estimateUsageRatio, readCachedRatio, readCachedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
 
 const MAX_BLOCKS = 2;
 const WARN_RATIO = 0.75;
@@ -45,12 +45,13 @@ try {
   // Prefer the authoritative reading Claude Code passes to the statusline
   // (HUD caches it under .qe/state/context-cache.json). The Stop hook payload
   // doesn't include context_window, and transcript-based estimation can't
-  // distinguish a 200k run from a 1M run when token count is below 200k.
+  // distinguish a 200k run from a 1M run when token count is below 200k —
+  // so we feed it the true window limit the statusline back-solved and cached.
   const cached = readCachedRatio(cwd);
   if (cached !== null) {
     ratio = cached;
   } else {
-    ratio = estimateUsageRatio(transcriptPath, { modelId: data?.model?.id });
+    ratio = estimateUsageRatio(transcriptPath, { modelId: data?.model?.id, modelLimit: readCachedLimit(cwd) ?? undefined });
   }
 } catch {
   process.exit(0);

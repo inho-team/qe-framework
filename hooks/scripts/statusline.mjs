@@ -15,7 +15,7 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { renderHud } from './lib/hud-renderer.mjs';
-import { writeCachedRatio } from './lib/context-meter.mjs';
+import { writeCachedRatio, deriveContextLimit } from './lib/context-meter.mjs';
 
 const SIVS_PATHS = ['.qe/sivs-config.json', '.qe/svs-config.json'];
 const STDIN_TIMEOUT_MS = 500;
@@ -101,9 +101,12 @@ async function main() {
   const preset = parsePresetArg(process.argv);
 
   // Bridge Claude Code's authoritative context reading to the Stop hook —
-  // context-guard prefers this over transcript-based estimation.
-  const pct = data?.context_window?.used_percentage;
-  if (typeof pct === 'number') writeCachedRatio(projectDir, pct);
+  // context-guard prefers this over transcript-based estimation. Also persist
+  // the back-solved true window limit (200k vs 1M) so the transcript fallback
+  // keeps the right denominator once this cache goes stale.
+  const cw = data?.context_window;
+  const pct = cw?.used_percentage;
+  if (typeof pct === 'number') writeCachedRatio(projectDir, pct, deriveContextLimit(cw));
 
   const line = renderHud(data, sivs, { noColor, preset, projectRoot: projectDir });
   if (line) process.stdout.write(line);

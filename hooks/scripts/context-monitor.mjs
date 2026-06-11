@@ -35,7 +35,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
-import { readCachedRatio, estimateUsageRatio, modelIdToLimit } from './lib/context-meter.mjs';
+import { readCachedRatio, readCachedLimit, estimateUsageRatio, modelIdToLimit } from './lib/context-meter.mjs';
 
 // Cooldown period: 5 minutes after a compaction trigger
 const COMPACTION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -217,13 +217,17 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   // back to the latest transcript usage entry divided by the model limit.
   // The accumulated stats.usage.input_tokens sum is intentionally NOT used —
   // it grows unbounded and is not a measure of live window occupancy.
+  // The statusline persists the true window limit (200k vs 1M); prefer it so
+  // the fallback estimate and the label denominator survive a stripped `[1m]`
+  // marker. Falls back to id-based resolution when no statusline has run yet.
+  const cachedLimit = readCachedLimit(cwd);
   let ratio = readCachedRatio(cwd);
   if (ratio === null) {
     ratio = opts.transcriptPath
-      ? estimateUsageRatio(opts.transcriptPath, { modelId: opts.modelId })
+      ? estimateUsageRatio(opts.transcriptPath, { modelId: opts.modelId, modelLimit: cachedLimit ?? undefined })
       : 0;
   }
-  const limit = modelIdToLimit(opts.modelId);
+  const limit = cachedLimit ?? modelIdToLimit(opts.modelId);
 
   const severity = estimateSeverity(ratio, thresholds);
 
