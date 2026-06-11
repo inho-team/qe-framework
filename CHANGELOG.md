@@ -20,11 +20,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Changed
 
 ### Fixed
-- **Context pressure false alarms on 1M-context models** — the HUD (sourced from Claude Code's authoritative reading) correctly showed ~20% while `context-monitor`/`context-guard` warned at ~84% for the same session. When the cached ratio went stale and Claude Code had stripped the `[1m]` marker from the model id, the transcript fallback divided live tokens by the 200k default (e.g. 168k/200k = 84%) instead of the true 1M window. The statusline now back-solves the real window limit (`total_input_tokens / used_percentage`) and persists it alongside the ratio, so the fallback in both hooks keeps the correct denominator (168k/1M ≈ 17%) even after the cache expires. New `deriveContextLimit()` / `readCachedLimit()` helpers in `context-meter.mjs`, plus regression coverage.
 
 ### Removed
 
 ### Security
+
+## [7.1.1] - 2026-06-11
+
+### Fixed
+- **Context pressure false alarms on 1M-context models** — the HUD (sourced from Claude Code's authoritative reading) correctly showed ~20% while `context-monitor`/`context-guard` warned at ~84% for the same session. When the cached ratio went stale and Claude Code had stripped the `[1m]` marker from the model id, the transcript fallback divided live tokens by the 200k default (e.g. 168k/200k = 84%) instead of the true 1M window. The statusline now back-solves the real window limit (`total_input_tokens / used_percentage`) and persists it alongside the ratio, so the fallback in both hooks keeps the correct denominator (168k/1M ≈ 17%) even after the cache expires. New `deriveContextLimit()` / `readCachedLimit()` helpers in `context-meter.mjs`, plus regression coverage.
 
 ## [7.1.0] - 2026-06-11
 
