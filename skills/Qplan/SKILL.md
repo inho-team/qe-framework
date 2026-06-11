@@ -60,11 +60,7 @@ Before any planning writes, derive a **plan slug** — the identifier that scope
 4. **Collision**: if `.qe/planning/plans/{slug}/` already exists, append `-2`, `-3`, …
 5. **Micro/Small tasks** still get a slug. Bug fixes with no obvious keywords → `fix-{4-char-hex}` via `openssl rand -hex 2`.
 
-Examples:
-- "인증 모듈 리팩터링" → `auth-refactor`
-- "JPA Audit 걸어줘" → `jpa-audit`
-- "Dashboard v2 기획" → `dashboard-v2`
-- "로그인 버튼 정렬 버그" → `login-button-align` (Small) or `fix-b4c2` (Micro)
+Examples: "인증 모듈 리팩터링" → `auth-refactor` · "JPA Audit 걸어줘" → `jpa-audit` · "Dashboard v2 기획" → `dashboard-v2` · "로그인 버튼 정렬 버그" → `login-button-align`/`fix-b4c2`.
 
 Record the chosen slug internally; it appears in the handoff `Next Command` so the user sees it but is not asked to approve.
 
@@ -117,6 +113,7 @@ Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:
 
 ### Step 3: Activate Phase & Hand Off (MANDATORY)
 - **Activate Phase**: Write `.qe/planning/plans/{slug}/STATE.md` with the active phase line `- **Active Phase**: Phase {N} — {PhaseName}`.
+- **Materialize goal ledger** (Full Planning — needs ROADMAP Waves): once ROADMAP + STATE exist, run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` then `… render-state --slug {slug}`. This derives an append-only `goals.json` + `ledger.jsonl` from the ROADMAP Waves and regenerates STATE.md's `## Phase Progress` from them — never hand-maintain that block.
 - **STOP HERE**: Do NOT invoke /Qgs or /Qatomic-run. You MUST display the full Handoff section below — including the `Next Command:` block. Without it, the user has no way to proceed.
 
 ### Step 3.5: Session Binding (MANDATORY — all scales)
@@ -157,7 +154,9 @@ After execution is complete (by /Qatomic-run + /Qcode-run-task), review the resu
 | File / Folder | Purpose |
 |------|---------|
 | `ROADMAP.md` | Phased waves, success criteria, and requirement traceability for this plan. |
-| `STATE.md` | Current active phase for this plan. |
+| `STATE.md` | Active phase + `## Phase Progress` (auto-derived from the ledger; do not hand-edit). |
+| `goals.json` | Ordered microgoals (id/objective/status/attempts), derived from ROADMAP Waves. |
+| `ledger.jsonl` | Append-only audit trail of goal events (created/started/checkpoint/blocker/failed). |
 | `REQUIREMENTS.md` | Functional and non-functional requirements (P0/P1/P2) for this plan. |
 | `phases/{X}/` | Phase artifacts (summaries, retros) for this plan. |
 

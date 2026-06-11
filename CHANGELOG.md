@@ -16,6 +16,7 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
+- **Qplan goal ledger** — ports the durable half of oh-my-claudecode's `ultragoal` into Qplan. Each plan now carries an append-only `ledger.jsonl` (created/started/checkpoint/blocker/failed events) plus an ordered `goals.json` (microgoals with attempt counts) under `.qe/planning/plans/{slug}/`, derived from the ROADMAP Waves. `STATE.md`'s progress block is now auto-rendered from the ledger instead of hand-maintained. New helper `hooks/scripts/lib/ledger.mjs` (`create-goals`/`append`/`render-state`/`status`) reuses existing atomic-write and jsonl-append infra — zero new dependencies.
 
 ### Changed
 
