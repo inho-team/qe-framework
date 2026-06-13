@@ -108,7 +108,7 @@ try {
   // Fault tolerance — ignore read errors
 }
 
-const postCompactRules = `[POST-COMPACT RULES] Intent routing is auto-classified by UserPromptSubmit hook.${currentRouteInfo}`;
+const postCompactRules = `[POST-COMPACT RULES] Intent routing is auto-classified by UserPromptSubmit hook.${currentRouteInfo} | [QE OUTPUT STYLE] Keep following core/OUTPUT_STYLE.md: conclusion-first (결론→근거), separate fact/guess (사실/추정), name the recommended option, list source-doc paths under "참고 문서"; apply tables / cause-trees / ★ evidence-level only when triggered.`;
 
 const modifiedSummary = modifiedFiles.length > 0
   ? `${modifiedFiles.length} (${modifiedFiles.slice(0, 5).join(', ')}${modifiedFiles.length > 5 ? '...' : ''})`

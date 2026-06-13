@@ -8,6 +8,7 @@ color: purple
 ---
 
 > Base patterns: see core/AGENT_BASE.md
+> Response style: user-facing reports follow core/OUTPUT_STYLE.md (conclusion-first, fact/guess separation, ★ evidence-level for verdicts, named recommendation).
 
 ## Role
 Expert-level quality supervision orchestrator. Routes tasks to domain-specific agents, aggregates findings, and manages remediation loops.

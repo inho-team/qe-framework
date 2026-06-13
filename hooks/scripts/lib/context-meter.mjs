@@ -36,6 +36,36 @@ export function writeCachedRatio(projectDir, usedPercentage, limit) {
 }
 
 /**
+ * Persist ONLY the true context-window limit, merging into any existing cache
+ * entry without disturbing a fresh ratio/ts. This is the statusline-independent
+ * path: when a transcript reading deterministically proves the 1M tier (observed
+ * tokens past the 200k base), callers record it here so every later reading in
+ * the session — including sub-200k dips after a compaction — uses the right
+ * denominator. The limit is TTL-exempt (constant per session), so a bare
+ * `{ limit }` entry is valid even with no ratio. No-op when unchanged.
+ *
+ * @param {string} projectDir project root
+ * @param {number} limit true context-window token limit (e.g. 1000000)
+ */
+export function writeCachedLimit(projectDir, limit) {
+  if (!projectDir || typeof limit !== 'number' || limit <= 0) return;
+  try {
+    const dir = join(projectDir, '.qe', 'state');
+    if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
+    const p = join(dir, CACHE_FILE);
+    let payload = {};
+    if (existsSync(p)) {
+      try { payload = JSON.parse(readFileSync(p, 'utf8')) || {}; } catch { payload = {}; }
+    }
+    if (payload.limit === limit) return; // already persisted — avoid churn
+    payload.limit = limit;
+    const tmp = join(dir, `.tmp-ctx-${randomBytes(6).toString('hex')}.json`);
+    writeFileSync(tmp, JSON.stringify(payload), 'utf8');
+    renameSync(tmp, p);
+  } catch { /* best-effort */ }
+}
+
+/**
  * Read the cached true context-window limit (in tokens) persisted by the
  * statusline alongside the ratio. Unlike {@link readCachedRatio} this does NOT
  * enforce the staleness TTL: a model's window size is constant for the whole
@@ -180,7 +210,25 @@ export function modelIdToLimit(modelId) {
  * @returns {number} Ratio between 0 and 1. Returns 0 if no usage entry found.
  */
 export function estimateUsageRatio(transcriptPath, opts) {
-  if (!transcriptPath || !existsSync(transcriptPath)) return 0;
+  const u = estimateUsage(transcriptPath, opts);
+  return u ? u.ratio : 0;
+}
+
+/**
+ * Like {@link estimateUsageRatio} but also returns the raw token count and the
+ * resolved context-window limit, so callers can persist a deterministically
+ * detected 1M tier (see {@link writeCachedLimit}). This is what lets a session
+ * that has crossed 200k once stay correctly scored even when a later reading
+ * (e.g. after a compaction) dips back below 200k.
+ *
+ * @param {string} transcriptPath - Path to the Claude Code transcript file.
+ * @param {number|{modelId?: string, modelLimit?: number}} [opts] -
+ *   Back-compat: a bare number is treated as an explicit modelLimit.
+ * @returns {{ ratio: number, tokens: number, limit: number }|null}
+ *   null when the file is missing or no usable usage entry is found.
+ */
+export function estimateUsage(transcriptPath, opts) {
+  if (!transcriptPath || !existsSync(transcriptPath)) return null;
 
   const explicitLimit = typeof opts === 'number'
     ? opts
@@ -221,11 +269,11 @@ export function estimateUsageRatio(transcriptPath, opts) {
         transcriptModelId: entry?.message?.model,
         observedTokens: tokens,
       });
-      return Math.min(tokens / limit, 1);
+      return { ratio: Math.min(tokens / limit, 1), tokens, limit };
     }
-    return 0;
+    return null;
   } catch {
-    return 0;
+    return null;
   }
 }
 
@@ -246,18 +294,23 @@ export function estimateUsageRatio(transcriptPath, opts) {
  * @returns {number} resolved token limit
  */
 function resolveLimit({ explicitLimit, hintModelId, transcriptModelId, observedTokens }) {
+  // 1. Caller-supplied limit (e.g. the statusline-cached true window) is authoritative.
   if (typeof explicitLimit === 'number' && explicitLimit > 0) return explicitLimit;
-  if (hintModelId) return modelIdToLimit(hintModelId);
+  // 2. Explicit user override via env beats any id-based guess.
   const envVal = process.env.QE_CONTEXT_LIMIT;
   if (envVal) {
     const parsed = parseInt(envVal, 10);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
-  let limit = transcriptModelId ? modelIdToLimit(transcriptModelId) : 200000;
-  // Claude Code strips the `[1m]` marker from the transcript's model field,
-  // so the base id alone can't distinguish a 200k run from a 1M run.
-  // If observed tokens already exceed the base limit, we must be on the larger
-  // variant — upgrade deterministically. Current Claude lineup has no middle tier.
+  // 3. Best id-based guess: hint first, then the transcript's model field.
+  let limit = 200000;
+  if (hintModelId) limit = modelIdToLimit(hintModelId);
+  else if (transcriptModelId) limit = modelIdToLimit(transcriptModelId);
+  // 4. Safety net: Claude Code strips the `[1m]` marker from both the hint and
+  // the transcript model field, so a bare id resolves to the 200k base even on
+  // a 1M run. A reading already past that base can only be the larger variant
+  // (the lineup has no middle tier) — upgrade deterministically. This MUST run
+  // even when a hint was given, otherwise the bare-id 200k short-circuits it.
   if (typeof observedTokens === 'number' && observedTokens > limit) {
     limit = 1000000;
   }

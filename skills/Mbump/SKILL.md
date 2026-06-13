@@ -52,9 +52,10 @@ Apply the bump:
 
 ### Step 4 — Update version files
 
-Update the `version` field in both files:
+Update the `version` field in all three files:
 1. `.claude-plugin/plugin.json`
 2. `package.json`
+3. `.claude-plugin/marketplace.json` — the `version` field **inside the `qe-framework` entry** under `plugins[]` (nested, not top-level). This file is the source the marketplace clone reads; if it is skipped the marketplace version drifts behind the others.
 
 ### Step 5 — Sync plugin cache
 
@@ -90,7 +91,7 @@ Plugin cache synced — restart Claude Code to load new skills.
 ---
 
 ## Will
-- Read and update version in plugin.json and package.json
+- Read and update version in plugin.json, package.json, and marketplace.json
 - Sync local repo to plugin cache so new skills are immediately available
 - Create a version bump commit
 

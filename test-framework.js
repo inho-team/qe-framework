@@ -334,6 +334,24 @@ for (const f of coreFiles) {
   }
 }
 
+// ============ 7. Static Guards (check:all) ============
+
+try {
+  const checkAllPath = join(CWD, 'scripts', 'check-all.mjs');
+  if (existsSync(checkAllPath)) {
+    const guardResult = execSync(`node "${checkAllPath}"`, {
+      encoding: 'utf8',
+      timeout: 30000,
+      cwd: CWD,
+    });
+    pass('guards:check-all');
+  } else {
+    fail('guards:check-all', 'scripts/check-all.mjs not found');
+  }
+} catch (e) {
+  fail('guards:check-all', `check-all failed (exit non-zero): ${(e.stdout || e.message || '').slice(0, 120)}`);
+}
+
 // ============ Output ============
 
 const accuracy = total > 0 ? correct / total : 0;

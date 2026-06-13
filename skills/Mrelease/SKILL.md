@@ -1,6 +1,6 @@
 ---
 name: Mrelease
-description: "Cuts a batched release from accumulated [Unreleased] CHANGELOG entries. Determines bump level, updates plugin.json/package.json via Mbump, commits the version bump with the changelog section, creates an annotated tag, and optionally pushes + creates a GitHub Release. Replaces the old pattern of bumping on every fix — use /Mrelease when a batch is ready, not per commit."
+description: "Cuts a batched release from accumulated [Unreleased] CHANGELOG entries. Determines bump level, updates plugin.json/package.json/marketplace.json, commits the version bump with the changelog section, creates an annotated tag, and optionally pushes + creates a GitHub Release. Replaces the old pattern of bumping on every fix — use /Mrelease when a batch is ready, not per commit."
 metadata:
   author: qe-framework
   version: "1.0.0"
@@ -101,6 +101,7 @@ Template for fresh `[Unreleased]`:
 Set the Mbump skill-bypass flag (`.qe/state/skill-bypass.json` with `{active:true, skill:"Mbump", ts:<now>}`), then edit:
 - `.claude-plugin/plugin.json` — `"version"` field
 - `package.json` — `"version"` field
+- `.claude-plugin/marketplace.json` — `"version"` field **inside the `qe-framework` entry** under `plugins[]` (nested, not top-level). This is the source the marketplace clone reads; skipping it makes the marketplace version drift behind the other two.
 
 ### Step 6 — Sync plugin cache
 
@@ -117,7 +118,7 @@ Update `installed_plugins.json` — set `version` to new version and `gitCommitS
 
 Delegate to `Ecommit-executor` agent. Message: `chore: release v{NEW_VERSION}`
 
-Files staged: `CHANGELOG.md`, `.claude-plugin/plugin.json`, `package.json`.
+Files staged: `CHANGELOG.md`, `.claude-plugin/plugin.json`, `package.json`, `.claude-plugin/marketplace.json`.
 
 After commit, update `installed_plugins.json` with the actual commit SHA.
 

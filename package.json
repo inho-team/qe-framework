@@ -1,6 +1,6 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "7.1.1",
+  "version": "7.1.2",
   "description": "Query Execute Framework for Claude Code — SIVS loop, folder-aware context memory, 107 skills and 23 agents",
   "files": [
     ".claude-plugin/",
@@ -27,7 +27,9 @@
     "preuninstall": "sh -c 'cd / && node --input-type=module -e \"try { const p = process.env.npm_package_json; const { uninstallClaudeAssets } = await import(new URL(\\\"./scripts/lib/client_installers.mjs\\\", \\\"file://\\\" + p)); uninstallClaudeAssets(); } catch (err) { console.warn(\\\"[qe-framework] preuninstall skipped:\\\", err?.message || err); }\"'",
     "qe:mcp": "node scripts/qe_mcp.mjs",
     "qe:secret": "node scripts/qe_secret.mjs",
-    "qe:validate": "node scripts/validate_svs_config.mjs"
+    "qe:validate": "node scripts/validate_svs_config.mjs",
+    "check:routing": "node scripts/check-skill-routing.mjs",
+    "check:all": "node scripts/check-all.mjs"
   },
   "repository": {
     "type": "git",

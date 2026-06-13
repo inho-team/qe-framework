@@ -16,10 +16,12 @@ import { recordFailure, getCount, resetCounter } from '../retry-counter.mjs';
 import { recordIteration, getState, resetSession } from '../iteration-tracker.mjs';
 import {
   estimateUsageRatio,
+  estimateUsage,
   recordBlock,
   getBlockCount,
   resetBlocks,
   writeCachedRatio,
+  writeCachedLimit,
   readCachedLimit,
   deriveContextLimit,
   modelIdToLimit,
@@ -335,4 +337,60 @@ test('modelIdToLimit: [1m] marker → 1M, plain id → 200k default', () => {
   assert.strictEqual(modelIdToLimit('claude-opus-4-8[1m]'), 1000000);
   assert.strictEqual(modelIdToLimit('claude-opus-4-8'), 200000);
   assert.strictEqual(modelIdToLimit(null), 200000);
+});
+
+test('regression: a model-id hint must NOT bypass the >200k observed-token upgrade', (t) => {
+  // Bug ①: resolveLimit used to `return modelIdToLimit(hintModelId)` early,
+  // so a bare 1M id (marker stripped) resolved to 200k and the >200k safety
+  // net never ran. A 1M run at 226k then mis-read as 100% instead of ~23%.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const file = path.join(dir, 'transcript.jsonl');
+  const turn = JSON.stringify({
+    type: 'assistant',
+    message: { model: 'claude-opus-4-8', usage: { input_tokens: 26387, cache_read_input_tokens: 200000 } },
+  });
+  fs.writeFileSync(file, turn + '\n'); // 226387 tokens total
+
+  // Even WITH a (stripped) id hint, 226k > 200k base must upgrade to 1M.
+  const u = estimateUsage(file, { modelId: 'claude-opus-4-8' });
+  assert.strictEqual(u.limit, 1000000);
+  assert.strictEqual(u.tokens, 226387);
+  assert.ok(u.ratio < 0.3, `expected ~0.23, got ${u.ratio}`);
+});
+
+test('QE_CONTEXT_LIMIT env override is honored even when a model-id hint is present', (t) => {
+  // Bug ①: the early hintModelId return also shadowed the env override.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const prev = process.env.QE_CONTEXT_LIMIT;
+  process.env.QE_CONTEXT_LIMIT = '1000000';
+  t.after(() => { if (prev === undefined) delete process.env.QE_CONTEXT_LIMIT; else process.env.QE_CONTEXT_LIMIT = prev; });
+
+  const file = path.join(dir, 'transcript.jsonl');
+  const turn = JSON.stringify({
+    type: 'assistant',
+    message: { model: 'claude-opus-4-8', usage: { input_tokens: 150000 } }, // 150k, below 200k
+  });
+  fs.writeFileSync(file, turn + '\n');
+
+  // 150k is in the sub-200k blind spot; only the env override can rescue it.
+  const u = estimateUsage(file, { modelId: 'claude-opus-4-8' });
+  assert.strictEqual(u.limit, 1000000);
+  assert.strictEqual(u.ratio, 150000 / 1000000);
+});
+
+test('writeCachedLimit: persists the limit and survives without a ratio (sticky)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  // No statusline ever ran — write the deterministically detected 1M tier.
+  writeCachedLimit(dir, 1000000);
+  assert.strictEqual(readCachedLimit(dir), 1000000);
+
+  // A later fresh ratio write must not clobber the sticky limit, and a sticky
+  // limit write must not invent a ratio (readCachedLimit-only, TTL-exempt).
+  writeCachedRatio(dir, 5, 1000000);
+  assert.strictEqual(readCachedLimit(dir), 1000000);
 });

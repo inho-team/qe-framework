@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { estimateUsageRatio, readCachedRatio, readCachedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
+import { estimateUsage, readCachedRatio, readCachedLimit, writeCachedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
 
 const MAX_BLOCKS = 2;
 const WARN_RATIO = 0.75;
@@ -51,7 +51,14 @@ try {
   if (cached !== null) {
     ratio = cached;
   } else {
-    ratio = estimateUsageRatio(transcriptPath, { modelId: data?.model?.id, modelLimit: readCachedLimit(cwd) ?? undefined });
+    const cachedLimit = readCachedLimit(cwd);
+    const u = estimateUsage(transcriptPath, { modelId: data?.model?.id, modelLimit: cachedLimit ?? undefined });
+    if (u) {
+      ratio = u.ratio;
+      // Sticky 1M: persist a deterministically detected 1M tier so later
+      // sub-200k readings this session use the right denominator.
+      if (!cachedLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
+    }
   }
 } catch {
   process.exit(0);

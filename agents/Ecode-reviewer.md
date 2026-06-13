@@ -7,6 +7,7 @@ recommendedModel: sonnet
 ---
 
 > Base patterns: see core/AGENT_BASE.md
+> Response style: the review report follows core/OUTPUT_STYLE.md (conclusion-first, fact/guess separation, ★ evidence-level for findings, named recommendation).
 
 ## Will
 ## Minimal I/O Rule (ContextMemo)

@@ -25,6 +25,17 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.1.2] - 2026-06-13
+
+### Added
+- **Response style contract (`core/OUTPUT_STYLE.md`)** — a single source of truth for how every user-facing answer is shaped: conclusion-first (결론→근거), fact/guess separation (사실/추정), a named recommended option with its trade-off, and source-doc paths under "참고 문서". Tier 1 rules always apply; Tier 2 rules (comparison tables, cause trees, ★ evidence-level, worked examples) fire only on explicit triggers. The contract is injected at session start and re-asserted post-compact, and the user-facing report agents (`Ecode-reviewer`, `Edeep-researcher`, `Esupervision-orchestrator`) now reference it.
+- **Override Map injected at session start** — `session-start.mjs` now reads the `## Preferred Skill Map` section out of `QE_CONVENTIONS.md` and injects it in full (framed as a hard requirement) instead of a soft one-line hint. Claude now knows the git-commit→`Qcommit` / version-bump→`Mbump` routing up front, rather than discovering it only when the `PreToolUse` hook hard-blocks a direct attempt.
+- **Routing/safety check scripts** — `scripts/check-all.mjs` and `scripts/check-skill-routing.mjs`, plus new `safety-hooks` regression tests under `hooks/scripts/lib/__tests__/`.
+
+### Changed
+- **`Mbump` / `Mrelease` now update `marketplace.json` too** — the nested `version` field inside the `qe-framework` entry under `plugins[]` is the source the marketplace clone reads. It was previously left out of version bumps, so the marketplace version drifted behind `plugin.json` / `package.json` (it was still on `7.0.0`). Both skills now treat it as the third manifest, and this release re-syncs it.
+- **Model-aware context metering** — `context-monitor` / `context-guard` now read and cache the true context-window limit (`readCachedLimit` / `writeCachedLimit` in `context-meter.mjs`) and pass it through `estimateUsage`, so 1M-context runs keep the correct denominator across hook invocations.
+
 ## [7.1.1] - 2026-06-11
 
 ### Fixed

@@ -2,6 +2,8 @@
 
 > **Toolkit hint:** QE skills tend to produce better outcomes than system defaults for the actions listed below — they encode project-specific patterns, avoid AI traces, and handle edge cases that generic defaults miss.
 
+> **Response style:** All user-facing answers — main session replies, skill summaries, and agent reports — MUST follow the response style contract in `core/OUTPUT_STYLE.md` (conclusion-first, fact/guess separation, named recommendation, source-doc paths, Tier-1 always + Tier-2 conditional forms).
+
 ---
 
 ## Terminology Glossary

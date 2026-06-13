@@ -119,16 +119,51 @@ if (currentSid) {
 
 // --- ALWAYS TIER (continued) ---
 
-// Hint: Surface QE toolkit shortcuts — framed as craft advantages, not mandates
+// Inject the Override Map (Preferred Skill Map) in full so Claude knows the
+// routing rules up front — instead of a soft one-liner that gets ignored and
+// only surfaces as a PreToolUse hard block after a direct git/version attempt.
 const conventionsPath = join(cwd, 'QE_CONVENTIONS.md');
 if (existsSync(conventionsPath)) {
+  let injected = false;
+  try {
+    const conv = readFileSync(conventionsPath, 'utf8');
+    const start = conv.indexOf('## Preferred Skill Map');
+    if (start !== -1) {
+      // Slice from this heading up to the next top-level "## " heading.
+      const rest = conv.slice(start + 2); // skip past "##" so the next "\n## " is found
+      const nextRel = rest.indexOf('\n## ');
+      const section = nextRel !== -1
+        ? conv.slice(start, start + 2 + nextRel)
+        : conv.slice(start);
+      messages.push(
+        '[QE OVERRIDE MAP] For these actions you MUST use the QE skill instead of doing them ' +
+        'manually — direct git commit / version edits are HARD-BLOCKED by the PreToolUse hook:\n' +
+        section.trim()
+      );
+      injected = true;
+    }
+  } catch {
+    // Fault-tolerant: fall back to the summary hint below
+  }
+  if (!injected) {
+    messages.push(
+      '[QE] Specialized tools are loaded for common workflows. ' +
+      'git commit → /Qcommit, version bump → /Mbump, context handoff → /Qcompact.'
+    );
+  }
+}
+
+// Inject a compact digest of core/OUTPUT_STYLE.md so the response style contract
+// applies every session — otherwise the doc is only read on demand and ignored.
+const stylePath = join(cwd, 'core', 'OUTPUT_STYLE.md');
+if (existsSync(stylePath)) {
   messages.push(
-    '[QE] Specialized tools are loaded for common workflows. ' +
-    'They tend to produce cleaner outcomes than doing things manually: ' +
-    'git commit → /Qcommit (human-style, no AI traces), ' +
-    'version bump → /Mbump (updates all manifests atomically), ' +
-    'context handoff → /Qcompact (structured snapshot, not ad-hoc notes). ' +
-    'Worth reaching for when these patterns come up.'
+    '[QE OUTPUT STYLE] All user-facing answers MUST follow core/OUTPUT_STYLE.md. ' +
+    'ALWAYS: (1) conclusion first (결론→근거→상세), (2) separate fact vs guess (사실/추정), ' +
+    '(3) name the recommended option with its trade-off, (4) list source-doc paths under "참고 문서" when a spec/verify doc was used. ' +
+    'WHEN TRIGGERED: table for comparisons (2+ items × 2+ attributes); cause tree (2+ levels); ' +
+    '★ evidence-level for diagnoses/verdicts; example in its own section after the explanation; ' +
+    '3–5 line summary when the answer is 8+ lines. Do NOT force these forms on short or single-point answers.'
   );
 }
 

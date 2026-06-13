@@ -35,7 +35,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
-import { readCachedRatio, readCachedLimit, estimateUsageRatio, modelIdToLimit } from './lib/context-meter.mjs';
+import { readCachedRatio, readCachedLimit, writeCachedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
 
 // Cooldown period: 5 minutes after a compaction trigger
 const COMPACTION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -222,12 +222,21 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   // marker. Falls back to id-based resolution when no statusline has run yet.
   const cachedLimit = readCachedLimit(cwd);
   let ratio = readCachedRatio(cwd);
+  let limit = cachedLimit ?? modelIdToLimit(opts.modelId);
   if (ratio === null) {
-    ratio = opts.transcriptPath
-      ? estimateUsageRatio(opts.transcriptPath, { modelId: opts.modelId, modelLimit: cachedLimit ?? undefined })
-      : 0;
+    const u = opts.transcriptPath
+      ? estimateUsage(opts.transcriptPath, { modelId: opts.modelId, modelLimit: cachedLimit ?? undefined })
+      : null;
+    if (u) {
+      ratio = u.ratio;
+      limit = u.limit;
+      // Sticky 1M: once a reading deterministically proves the 1M tier, persist
+      // it so later sub-200k readings this session aren't mis-scored against 200k.
+      if (!cachedLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
+    } else {
+      ratio = 0;
+    }
   }
-  const limit = cachedLimit ?? modelIdToLimit(opts.modelId);
 
   const severity = estimateSeverity(ratio, thresholds);
 
