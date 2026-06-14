@@ -48,7 +48,10 @@ export function saveMemory(cwd, memory) {
 export function addMemory(cwd, content, type, options = {}) {
   const memory = loadMemory(cwd);
   const priority = options.priority || 'normal';
-  const ttl = TTL_MAP[priority] ?? TTL_MAP.normal;
+  // Use key presence, not `??`: TTL_MAP.permanent is intentionally null (no-expiry
+  // sentinel), and `??` would treat that null as "missing" and fall back to normal,
+  // silently giving permanent memories a 7-day TTL.
+  const ttl = priority in TTL_MAP ? TTL_MAP[priority] : TTL_MAP.normal;
   const now = new Date().toISOString();
   const entry = {
     id: `mem_${randomBytes(4).toString('hex')}`,
