@@ -48,7 +48,7 @@ Ask the user for the minimum required information:
 **Codex Plugin Detection (MANDATORY):** Before presenting engine options, you MUST run the following bash command. Do NOT skip this step. Do NOT guess the result. The output determines what status to display.
 
 ```bash
-node -e "(async()=>{const m=await import('$HOME/.claude/scripts/lib/codex_bridge.mjs');const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
 ```
 
 - If `installed: true`: Display "Codex 플러그인 v{version} 감지됨" before the options.
@@ -91,7 +91,7 @@ Call `AskUserQuestion` with these **exact** parameters (copy verbatim):
 **On option 2 "Claude + Codex Hybrid"**:
 1. **After** the user selects this option, you MUST run this bash command to verify (reuse the result from the detection step above if it was `installed: true`):
    ```bash
-   node -e "(async()=>{const m=await import('$HOME/.claude/scripts/lib/codex_bridge.mjs');console.log(m.isCodexPluginAvailable())})()"
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);console.log(m.isCodexPluginAvailable())})()"
    ```
    - If `false`: Show warning ("codex-plugin-cc가 설치되어 있지 않습니다. `/plugin install codex@openai-codex`로 설치 후 `/Qsivs-config`로 다시 설정해주세요.") → Fallback to Claude Only.
    - If `true`: Continue.

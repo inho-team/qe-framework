@@ -217,7 +217,7 @@ Display the full report, then ask:
 **cross-model:**
 1. First, check Codex availability:
    ```bash
-   node -e "(async()=>{const m=await import('$HOME/.claude/scripts/lib/codex_bridge.mjs');const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
    ```
 2. If `installed: true`: route the designated adversarial agent to Codex via `subagent_type: "codex:codex-rescue"`
 3. If `installed: false`: fall back to claude-only mode with a notice
