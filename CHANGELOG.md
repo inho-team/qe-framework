@@ -20,11 +20,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Changed
 
 ### Fixed
-- **Codex auto-detection no longer fails on plugin installs (Windows especially)** (#8) — the `Qinit` and `Qcritical-review` skills resolved `codex_bridge.mjs` from a hardcoded `$HOME/.claude/scripts/lib/` base and passed the raw path straight to `import()`. On plugin installs the bridge lives under `$CLAUDE_PLUGIN_ROOT/scripts/lib/`, so the `$HOME` fallback was missing (and on Windows `$HOME` is unset / the ESM loader rejects non-`file://` paths), surfacing as `ERR_MODULE_NOT_FOUND` and Codex being reported unavailable even when the `openai-codex` plugin and `codex` CLI were installed. All three detection one-liners now resolve `CLAUDE_PLUGIN_ROOT` first (falling back to `$HOME`/`USERPROFILE`/.claude) and load the module via `pathToFileURL(...).href`.
 
 ### Removed
 
 ### Security
+
+## [7.1.4] - 2026-06-14
+
+### Fixed
+- **Codex auto-detection no longer fails on plugin installs (Windows especially)** (#8) — the `Qinit` and `Qcritical-review` skills resolved `codex_bridge.mjs` from a hardcoded `$HOME/.claude/scripts/lib/` base and passed the raw path straight to `import()`. On plugin installs the bridge lives under `$CLAUDE_PLUGIN_ROOT/scripts/lib/`, so the `$HOME` fallback was missing (and on Windows `$HOME` is unset / the ESM loader rejects non-`file://` paths), surfacing as `ERR_MODULE_NOT_FOUND` and Codex being reported unavailable even when the `openai-codex` plugin and `codex` CLI were installed. All three detection one-liners now resolve `CLAUDE_PLUGIN_ROOT` first (falling back to `$HOME`/`USERPROFILE`/.claude) and load the module via `pathToFileURL(...).href`.
 
 ## [7.1.3] - 2026-06-14
 
