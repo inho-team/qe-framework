@@ -23,6 +23,7 @@ import {
   writeCachedRatio,
   writeCachedLimit,
   readCachedLimit,
+  readConfiguredLimit,
   deriveContextLimit,
   modelIdToLimit,
 } from '../context-meter.mjs';
@@ -305,6 +306,80 @@ test('readCachedLimit: null when no limit field was written', (t) => {
 
   writeCachedRatio(dir, 20); // legacy 2-arg call — no limit persisted
   assert.strictEqual(readCachedLimit(dir), null);
+});
+
+test('writeCachedRatio: a later limit-less redraw does NOT clobber a persisted limit', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  // 1) a redraw back-solves and persists the 1M tier
+  writeCachedRatio(dir, 20, 1000000);
+  assert.strictEqual(readCachedLimit(dir), 1000000);
+  // 2) a later redraw frame can't re-derive (total_input_tokens absent →
+  //    deriveContextLimit → null → limit arg omitted). The TTL-exempt limit
+  //    must survive the full-file overwrite, or the sub-200k blind spot reopens.
+  writeCachedRatio(dir, 18);
+  assert.strictEqual(readCachedLimit(dir), 1000000);
+});
+
+test('readConfiguredLimit: reads hooks.context_window_limit from .qe/config.json', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  fs.mkdirSync(path.join(dir, '.qe'), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, '.qe', 'config.json'),
+    JSON.stringify({ hooks: { context_window_limit: 1000000 } }),
+    'utf8',
+  );
+  assert.strictEqual(readConfiguredLimit(dir), 1000000);
+});
+
+test('readConfiguredLimit: QE_CONTEXT_LIMIT env overrides config', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const prev = process.env.QE_CONTEXT_LIMIT;
+  t.after(() => { if (prev === undefined) delete process.env.QE_CONTEXT_LIMIT; else process.env.QE_CONTEXT_LIMIT = prev; });
+
+  fs.mkdirSync(path.join(dir, '.qe'), { recursive: true });
+  fs.writeFileSync(
+    path.join(dir, '.qe', 'config.json'),
+    JSON.stringify({ hooks: { context_window_limit: 200000 } }),
+    'utf8',
+  );
+  process.env.QE_CONTEXT_LIMIT = '1000000';
+  assert.strictEqual(readConfiguredLimit(dir), 1000000);
+});
+
+test('readConfiguredLimit: null when neither env nor config sets a limit', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const prev = process.env.QE_CONTEXT_LIMIT;
+  delete process.env.QE_CONTEXT_LIMIT;
+  t.after(() => { if (prev !== undefined) process.env.QE_CONTEXT_LIMIT = prev; });
+
+  assert.strictEqual(readConfiguredLimit(dir), null);
+});
+
+test('regression: no-statusline 1M run at 150k tokens is scored against 1M via config', (t) => {
+  // The exact failure this whole change targets: HUD off → cache never written →
+  // transcript model id stripped to "claude-opus-4-8" → would resolve to 200k →
+  // 150k/200k = 0.75 false WARNING. With the config override it's 150k/1M = 0.15.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const transcript = path.join(dir, 't.jsonl');
+  fs.writeFileSync(transcript, JSON.stringify({
+    message: { model: 'claude-opus-4-8', usage: { input_tokens: 150000 } },
+  }) + '\n', 'utf8');
+
+  const u = estimateUsage(transcript, { modelId: 'claude-opus-4-8', modelLimit: 1000000 });
+  assert.strictEqual(u.limit, 1000000);
+  assert.ok(u.ratio < 0.2, `expected ~0.15, got ${u.ratio}`);
+  // and without the override it would have been the false 0.75
+  const naive = estimateUsage(transcript, { modelId: 'claude-opus-4-8' });
+  assert.strictEqual(naive.limit, 200000);
+  assert.strictEqual(naive.ratio, 0.75);
 });
 
 test('regression: 168k tokens on a 1M model is NOT mis-read as 84%', (t) => {

@@ -35,7 +35,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
-import { readCachedRatio, readCachedLimit, writeCachedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
+import { readCachedRatio, readCachedLimit, readConfiguredLimit, writeCachedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
 
 // Cooldown period: 5 minutes after a compaction trigger
 const COMPACTION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -220,19 +220,22 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   // The statusline persists the true window limit (200k vs 1M); prefer it so
   // the fallback estimate and the label denominator survive a stripped `[1m]`
   // marker. Falls back to id-based resolution when no statusline has run yet.
-  const cachedLimit = readCachedLimit(cwd);
+  // Statusline-independent limit: the HUD-cached back-solve OR an explicit
+  // config/env override. Without either, a 1M run with no statusline configured
+  // would resolve to the 200k default and falsely flag "critical" at ~14% fill.
+  const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd);
   let ratio = readCachedRatio(cwd);
-  let limit = cachedLimit ?? modelIdToLimit(opts.modelId);
+  let limit = knownLimit ?? modelIdToLimit(opts.modelId);
   if (ratio === null) {
     const u = opts.transcriptPath
-      ? estimateUsage(opts.transcriptPath, { modelId: opts.modelId, modelLimit: cachedLimit ?? undefined })
+      ? estimateUsage(opts.transcriptPath, { modelId: opts.modelId, modelLimit: knownLimit ?? undefined })
       : null;
     if (u) {
       ratio = u.ratio;
       limit = u.limit;
       // Sticky 1M: once a reading deterministically proves the 1M tier, persist
       // it so later sub-200k readings this session aren't mis-scored against 200k.
-      if (!cachedLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
+      if (!knownLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
     } else {
       ratio = 0;
     }

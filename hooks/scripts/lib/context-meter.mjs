@@ -28,7 +28,17 @@ export function writeCachedRatio(projectDir, usedPercentage, limit) {
     const dir = join(projectDir, '.qe', 'state');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
     const payload = { ratio: usedPercentage / 100, ts: Date.now() };
-    if (typeof limit === 'number' && limit > 0) payload.limit = limit;
+    if (typeof limit === 'number' && limit > 0) {
+      payload.limit = limit;
+    } else {
+      // Preserve any previously persisted TTL-exempt limit. The window size is
+      // constant for the whole session, so a redraw frame that momentarily
+      // can't re-derive it (e.g. total_input_tokens absent → deriveContextLimit
+      // returns null) must NOT clobber the cached limit by overwriting the file
+      // with a bare {ratio, ts}. Dropping it reopens the sub-200k 1M blind spot.
+      const prev = readCachedLimit(projectDir);
+      if (prev) payload.limit = prev;
+    }
     const tmp = join(dir, `.tmp-ctx-${randomBytes(6).toString('hex')}.json`);
     writeFileSync(tmp, JSON.stringify(payload), 'utf8');
     renameSync(tmp, join(dir, CACHE_FILE));
@@ -87,6 +97,35 @@ export function readCachedLimit(projectDir) {
     if (typeof obj?.limit !== 'number' || obj.limit <= 0) return null;
     return obj.limit;
   } catch { return null; }
+}
+
+/**
+ * Read an explicitly configured context-window limit, independent of the
+ * statusline. This is the escape hatch for setups where the HUD statusline is
+ * not wired up: with no statusline, the cache is never populated and the
+ * derive/back-solve path never runs, so a 1M run is silently scored against the
+ * 200k default and over-warns from ~140k tokens. Precedence:
+ *   1. QE_CONTEXT_LIMIT env var (per-shell override)
+ *   2. .qe/config.json → hooks.context_window_limit (committed, project-wide)
+ *
+ * @param {string} projectDir
+ * @returns {number|null} configured limit in tokens, or null when unset/invalid.
+ */
+export function readConfiguredLimit(projectDir) {
+  const envVal = process.env.QE_CONTEXT_LIMIT;
+  if (envVal) {
+    const parsed = parseInt(envVal, 10);
+    if (Number.isFinite(parsed) && parsed > 0) return parsed;
+  }
+  if (!projectDir) return null;
+  try {
+    const p = join(projectDir, '.qe', 'config.json');
+    if (!existsSync(p)) return null;
+    const cfg = JSON.parse(readFileSync(p, 'utf8'));
+    const v = cfg?.hooks?.context_window_limit ?? cfg?.context_window_limit;
+    if (typeof v === 'number' && v > 0) return v;
+  } catch { /* best-effort */ }
+  return null;
 }
 
 /**

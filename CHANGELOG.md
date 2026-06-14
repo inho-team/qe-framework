@@ -20,6 +20,8 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Changed
 
 ### Fixed
+- **False context-pressure warnings on 1M-context runs without the HUD statusline** — the 1M-tier detection added in 7.1.1/7.1.2 (`deriveContextLimit` back-solve) only runs inside `statusline.mjs`, so when the HUD statusline is **not** configured, `.qe/state/context-cache.json` is never written. With no cache, `context-guard` (Stop) and `context-monitor` (PreToolUse) fall back to transcript estimation, where the model id arrives stripped of its `[1m]` marker (e.g. `claude-opus-4-8`) → `modelIdToLimit` → 200k. A 1M session was therefore scored against a 200k denominator and falsely flagged WARNING from ~140k tokens (≈14% of its real window). Fixed by adding a statusline-independent override, `readConfiguredLimit()`, read by both hooks: `QE_CONTEXT_LIMIT` env var, then `.qe/config.json → hooks.context_window_limit`. Set `{ "hooks": { "context_window_limit": 1000000 } }` to score correctly with no HUD.
+- **`writeCachedRatio` clobbered the TTL-exempt window limit** — the function overwrites the whole cache file, so any statusline redraw frame where `deriveContextLimit` returned null (e.g. `total_input_tokens` momentarily absent) dropped a previously persisted `limit`, reopening the sub-200k 1M blind spot. It now reads and preserves the existing limit when a fresh one isn't supplied.
 
 ### Removed
 

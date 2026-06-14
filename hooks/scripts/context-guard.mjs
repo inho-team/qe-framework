@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { estimateUsage, readCachedRatio, readCachedLimit, writeCachedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
+import { estimateUsage, readCachedRatio, readCachedLimit, readConfiguredLimit, writeCachedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
 
 const MAX_BLOCKS = 2;
 const WARN_RATIO = 0.75;
@@ -51,13 +51,16 @@ try {
   if (cached !== null) {
     ratio = cached;
   } else {
-    const cachedLimit = readCachedLimit(cwd);
-    const u = estimateUsage(transcriptPath, { modelId: data?.model?.id, modelLimit: cachedLimit ?? undefined });
+    // Statusline-independent limit: cached (back-solved by the HUD) OR an
+    // explicit config/env override. Without either, a 1M run with no statusline
+    // configured falls back to the 200k default and over-warns from ~140k.
+    const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd);
+    const u = estimateUsage(transcriptPath, { modelId: data?.model?.id, modelLimit: knownLimit ?? undefined });
     if (u) {
       ratio = u.ratio;
       // Sticky 1M: persist a deterministically detected 1M tier so later
       // sub-200k readings this session use the right denominator.
-      if (!cachedLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
+      if (!knownLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
     }
   }
 } catch {
