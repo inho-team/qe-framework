@@ -20,11 +20,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Changed
 
 ### Fixed
-- **`Qupdate` tarball path no longer fails on a hardcoded version** — the preferred update flow installed `./inho-team-qe-framework-3.0.27.tgz`, a stale literal that never matches the real `npm pack` output (e.g. `…-7.1.2.tgz`), so the global install aborted with `ENOENT`. The filename is now derived from `package.json` at runtime (`VER=$(node -p "require('./package.json').version")`). Added a Step 0 pre-flight that compares local vs `origin` versions and falls back to `node install.js` when a freshly cut release hasn't been pushed (the `Mrelease` skip-push case), plus the `git fetch/show/pull` allowed-tools needed to run it.
 
 ### Removed
 
 ### Security
+
+## [7.1.3] - 2026-06-14
+
+### Fixed
+- **`Qupdate` tarball path no longer fails on a hardcoded version** — the preferred update flow installed `./inho-team-qe-framework-3.0.27.tgz`, a stale literal that never matches the real `npm pack` output (e.g. `…-7.1.2.tgz`), so the global install aborted with `ENOENT`. The filename is now derived from `package.json` at runtime (`VER=$(node -p "require('./package.json').version")`). Added a Step 0 pre-flight that compares local vs `origin` versions and falls back to `node install.js` when a freshly cut release hasn't been pushed (the `Mrelease` skip-push case), plus the `git fetch/show/pull` allowed-tools needed to run it.
 
 ## [7.1.2] - 2026-06-13
 
