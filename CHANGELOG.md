@@ -17,17 +17,23 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
-- `coverage-check.mjs`: a TASK_REQUEST→VERIFY_CHECKLIST output-coverage validator. Each TASK_REQUEST checklist item declares its artifacts via a `→ output:` trailer; the validator flags "orphan" outputs that are declared but never referenced in the paired VERIFY_CHECKLIST. Matching is tiered for prose checklists (full path = verified, basename/stem = weak, none = orphan) with generic filenames excluded. Exposes pure functions plus a CLI (`<uuid>` / `--all` / `--task --verify`); `--all` exits non-zero on orphans for CI use.
-
 ### Changed
-
-- `core/OUTPUT_STYLE.md`: added a summary "delta test" — every line of a closing summary must carry a step not already in the body (what to do, what's at risk, what was decided), with `❌`/`✅` examples and a new self-check item. Body-restating summary lines are now explicitly banned.
 
 ### Fixed
 
 ### Removed
 
 ### Security
+
+## [7.2.0] - 2026-06-15
+
+### Added
+
+- `coverage-check.mjs`: a TASK_REQUEST→VERIFY_CHECKLIST output-coverage validator. Each TASK_REQUEST checklist item declares its artifacts via a `→ output:` trailer; the validator flags "orphan" outputs that are declared but never referenced in the paired VERIFY_CHECKLIST. Matching is tiered for prose checklists (full path = verified, basename/stem = weak, none = orphan) with generic filenames excluded. Exposes pure functions plus a CLI (`<uuid>` / `--all` / `--task --verify`); `--all` exits non-zero on orphans for CI use.
+
+### Changed
+
+- `core/OUTPUT_STYLE.md`: added a summary "delta test" — every line of a closing summary must carry a step not already in the body (what to do, what's at risk, what was decided), with `❌`/`✅` examples and a new self-check item. Body-restating summary lines are now explicitly banned.
 
 ## [7.1.6] - 2026-06-15
 
