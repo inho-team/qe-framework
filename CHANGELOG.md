@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.1.6] - 2026-06-15
+
+### Added
+
 - HUD context element now renders a `[███░░░░] N%` gauge bar alongside the percentage, tinted by usage threshold.
 
 ### Changed
@@ -26,10 +38,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Fixed
 
 - False context-pressure warnings after `/clear` or `/compact`. The statusline now reconciles a stale Claude Code payload percentage against the transcript ground truth (deflate-only via `reconcileDisplayPercentage`), and session start invalidates the stale project-global ratio cache (`invalidateCachedRatio`) while preserving the model-constant window limit.
-
-### Removed
-
-### Security
 
 ## [7.1.5] - 2026-06-14
 
