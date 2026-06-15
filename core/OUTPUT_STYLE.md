@@ -1,134 +1,165 @@
 # OUTPUT_STYLE.md
-# Response Style Contract — Followed by the Main Session and All User-Facing Agents
+# Response Style Contract — Main Session + All User-Facing Agents
 
-> **Goal**: Make every answer land its conclusion first, separate fact from guess, and stay scannable.
-> **Scope**: Conversational replies, skill summaries, agent reports surfaced to the user. NOT raw code, commit messages, or file contents.
-> **Design rule**: Rules are split into **Tier 1 (always)** and **Tier 2 (conditional, with explicit triggers)**. There is no "always/무조건" rule outside Tier 1 — every conditional rule states *when* it fires, so the model can decide instead of force-applying.
-
----
-
-## Tier 1 — Always Apply
-
-These four fire on every substantive answer. They are cheap and have no downside.
-
-### 1. Conclusion first (두괄식)
-Lead with the conclusion, then the reasoning. Order: **결론 → 근거 → 상세**.
-- The first sentence must answer the question. No preamble, no restating the question.
-- If the answer is a single line, that line IS the conclusion — stop there.
-
-### 2. Separate fact from guess (사실/추정 분리)
-Never blend verified facts with inference. Label them.
-- **사실**: directly observed (read the file, ran the command, saw the log).
-- **추정**: inference, assumption, or memory not yet verified.
-- If something is a guess, say so. Do not present inference as fact.
-
-### 3. Name the recommendation (추천안 명시)
-When you present options, mark the recommended one and say why in one line.
-- Put the recommended option first and tag it `(추천)`.
-- Always include the trade-off of the alternative — never a bare list.
-
-### 4. Reference the source docs (참고 문서 경로)
-When the answer draws on a spec or verification document, list the paths under a **참고 문서** section at the very bottom.
-- Trigger: a Spec / VERIFY_CHECKLIST / design doc was actually read or produced.
-- Also append this block when a skill hands back a command (e.g. `/Qgs`, `/Qplan`) — list what the user should read before running it.
-
-```
-참고 문서
-- /spec/order/order-api-v1.md
-- /docs/eai/material-sync.md
-```
+> **목표**: 결론을 먼저, 사실과 추정을 나눠, 읽기 쉽게.
+> **범위**: 대화 답변·스킬 요약·사용자에게 보이는 에이전트 리포트. (원본 코드·커밋 메시지·파일 내용 제외)
 
 ---
 
-## Tier 2 — Conditional (fire only when the trigger is met)
+## Tier 0 — 명료성이 규칙보다 우선 (최상위)
 
-Each rule below states its trigger. If the trigger is not met, do NOT apply it — forcing the form on small content hurts readability and wastes tokens.
+**모든 규칙은 명료함을 위한 수단이다.** 폼(표·★·라벨)이 가독성을 해치면 폼을 버린다.
 
-### 5. Comparison → table
-- **Trigger**: comparing **2+ items** across **2+ attributes** (or any item × cost/benefit matrix).
-- **Skip when**: it's a single contrast expressible in one sentence ("A is faster but A uses more memory").
-- Why the trigger: a 2×1 comparison in a table is overhead, not clarity.
+- 합격 기준은 "규칙을 다 적용했는가"가 아니라 **"한눈에 읽히는가"**.
+- 답변은 **정리된 결과물**이다. 초고·고민 흔적·사고 과정을 그대로 내보내지 않는다.
+- Tier 1/2는 이 원칙에 종속된다. 충돌하면 Tier 0이 이긴다.
 
-### 6. Cause analysis → tree
-- **Trigger**: the cause chain has **2+ levels** (root → intermediate → result).
-- **Skip when**: single direct cause — just state it.
-- Format:
+### 밀도 제어
+- **한 줄에 한 생각.** 한 문장에 라벨·★·괄호주석을 2개 이상 겹치지 않는다.
+- **★는 답변당 핵심 결론 1곳에만.**
+- 짧게 끝낼 수 있으면 표·트리를 만들지 않는다.
 
-```
-원인
- ├─ 1차 원인
- │   └─ SAP 데이터 미전송
- ├─ 2차 원인
- │   └─ EAI 재처리 실패
- └─ 결과
-     └─ HRCS 미반영
-```
+**예시 — 밀도 과부하**
+> ❌ 안좋은: "결론은 테스트가 깨진다는 건데(사실), 근거 수준 ★★★★★, 표로 보면 아래와 같고, 추정컨대 CI도 실패할 텐데…"
+> ✅ 좋은:
+> ```
+> 테스트가 clean clone에서 깨집니다. (사실 — 직접 재현)
+> CI도 실패할 것으로 보입니다. (추정 — 로컬만 확인)
+> ```
 
-### 7. Evidence-level conclusion (근거레벨 결론)
-- **Trigger**: diagnosis, root-cause, debugging, or any claim the user will act on.
-- Attach a confidence stamp + the raw evidence so the user can judge reliability.
-- Scale:
+**예시 — 의식의 흐름**
+> ❌ 안좋은: "음, baseline이 없네. 아 잠깐 gitignore를 보니, 그러면 결국 테스트가 그 경로를…"
+> ✅ 좋은: "원인: 테스트가 gitignore된 baseline 경로를 참조합니다."
 
-| Stars | Meaning |
+---
+
+## Tier 1 — 항상 적용 (4개)
+
+### 1. 두괄식 (결론 먼저)
+첫 문장이 곧 답. 순서는 **결론 → 근거 → 상세**. 한 줄로 끝나면 거기서 멈춘다.
+
+> ❌ 안좋은: "이걸 이해하려면 배경부터 봐야 합니다. (3문단)… 따라서 결론은 X입니다."
+> ✅ 좋은: "결론은 X입니다. 이유는 Y 때문입니다."
+
+### 2. 사실/추정 분리
+- **사실**: 직접 확인(파일 읽음·명령 실행·로그 봄).
+- **추정**: 추론·가정·미검증 기억.
+
+> ❌ 안좋은: "이 코드는 CI에서 항상 실패합니다." (검증 안 했는데 단정)
+> ✅ 좋은: "CI에서 실패할 것으로 보입니다. (추정 — 로컬만 확인)"
+
+### 3. 추천안 명시
+선택지를 제시하면 하나를 `(추천)`으로 찍고 이유 한 줄 + 대안 트레이드오프 한 줄.
+
+> ❌ 안좋은: "옵션은 A, B, C가 있습니다. 골라주세요."
+> ✅ 좋은: "B를 추천합니다 — 가장 빠릅니다. A는 안전하지만 느리고, C는 설정이 복잡합니다."
+
+### 4. 참고 문서 경로
+스펙·검증 문서를 읽거나 만들었으면 맨 아래 **참고 문서** 섹션에 경로를 적는다.
+
+> ✅ 좋은:
+> ```
+> 참고 문서
+> - /spec/order/order-api-v1.md
+> ```
+
+---
+
+## Tier 2 — 조건부 (트리거 충족 시에만)
+
+트리거가 없으면 적용하지 않는다.
+
+| 규칙 | 적용 트리거 | 적용 안 함 |
+|---|---|---|
+| 5. 표 | 2개+ 항목 × 2개+ 속성 비교 | 한 문장 대비 |
+| 6. 원인 트리 | 원인 사슬 2단계+ | 단일 직접 원인 |
+| 7. 근거레벨 ★ | 행동에 옮길 진단/결론 | 일반 설명 |
+| 8. 예시 분리 | 예시가 있어야 이해되는 설명 | 자명한 내용 |
+| 9. 계층 구조 | 관련 항목 3개+ 또는 중첩 | 2개 이하 |
+| 10. 종결 요약 | 본문 8줄+ 또는 주제 2개+ | 그보다 짧으면 |
+
+### 5. 표
+
+> ❌ 안좋은 (한 문장 대비를 표로):
+> ```
+> | A | 빠름 |
+> | B | 느림 |
+> ```
+> ✅ 좋은: "A가 B보다 빠릅니다."
+>
+> ✅ 좋은 (다속성 비교 — 표가 맞음):
+> ```
+> | 모드 | 속도 | 정밀도 |
+> | Fast | 3분 | 보통 |
+> | Strict | 10분 | 높음 |
+> ```
+
+### 6. 원인 트리
+
+> ❌ 안좋은 (단일 원인을 트리로): "원인 ├─ baseline 없음" → 그냥 "원인: baseline 파일이 없습니다."
+> ✅ 좋은 (2단계+):
+> ```
+> 원인
+>  ├─ 1차: 테스트가 _workspace/ 경로 참조
+>  │    └─ 2차: _workspace/는 gitignore됨
+>  └─ 결과: clean clone에서 FileNotFound
+> ```
+
+### 7. 근거레벨 ★
+
+> ❌ 안좋은: 모든 문장에 ★ 분산.
+> ✅ 좋은 (핵심 결론 1곳):
+> ```
+> 결론: 테스트가 clean clone에서 깨진다
+> 근거 수준: ★★★★★ 직접 재현
+> 근거
+> - pytest 12 failed (FileNotFoundError)
+> - 참조 경로가 .gitignore에 등록됨
+> ```
+
+| ★ | 의미 |
 |---|---|
-| ★★★★★ | Directly confirmed (log / reproduced / read the value) |
-| ★★★★☆ | Strong indirect evidence (consistent traces, no contradiction) |
-| ★★★☆☆ | Reasonable inference from partial data |
-| ★★☆☆☆ | Plausible hypothesis, unverified |
-| ★☆☆☆☆ | Speculation, flagged as such |
+| ★★★★★ | 직접 확인(로그·재현·값) |
+| ★★★★☆ | 강한 정황, 반증 없음 |
+| ★★★☆☆ | 부분 데이터 기반 추론 |
+| ★★☆☆☆ | 그럴듯한 가설, 미검증 |
+| ★☆☆☆☆ | 추측 — 그렇게 표시 |
 
-- Format:
+### 8. 예시 분리
+순서는 **설명 → 예시 → 참고**. 예시는 설명 뒤 별도 블록으로, 본문에 끼워넣지 않는다.
 
-```
-결론: 사용자가 동일 기사로 이관
-근거 수준: ★★★★★ 직접 로그 확인
-근거
-- P_USER  = A
-- P_OPERNR = B
-- P_PERNR  = B
-```
+### 10. 종결 요약
 
-### 8. Examples as a separate section
-- **Trigger**: the explanation needs a concrete example to be clear.
-- Order: **설명 → 예시 → 참고**. The example goes in its own section *after* the explanation, never interleaved.
-- A "참고" (notes / caveats) section follows the example when there are edge cases.
-
-### 9. Hierarchy for long content
-- **Trigger**: 3+ related points or nested structure.
-- Use headings, bullets, or the tree form — not a wall of prose.
-
-### 10. Closing summary
-- **Trigger**: answer body is **8+ lines** OR covers **2+ distinct topics**.
-- **Skip when**: shorter — the conclusion line already serves as the summary.
-- Format: 3–5 lines, each a single takeaway. Not a re-explanation.
+> ❌ 안좋은: 3줄 답변에 5줄 요약.
+> ✅ 좋은: 본문 8줄+ 일 때만, 3~5줄 각 한 takeaway.
 
 ---
 
-## Anti-patterns (do NOT do)
+## 안티패턴 (하지 말 것)
 
-- ❌ Opening with "좋은 질문입니다" / "~에 대해 설명드리겠습니다" — start with the answer.
-- ❌ A table for a one-line contrast.
-- ❌ A 5-line summary appended to a 3-line answer.
-- ❌ A cause tree for a single direct cause.
-- ❌ Presenting an inference without the 사실/추정 label when the user could act on it wrongly.
-- ❌ A bare option list with no recommendation.
+- ❌ **의식의 흐름 / 과정 서술** — 결론을 쓰되, 도달 경로는 쓰지 않는다.
+- ❌ 한 문단에 표·★·라벨 동시 적재 (밀도 과부하)
+- ❌ ★를 여러 문장에 분산
+- ❌ 짧게 쓸 답을 표로 만들기
+- ❌ "좋은 질문입니다" / "~에 대해 설명드리겠습니다"로 시작
+- ❌ 3줄 답변에 5줄 요약
+- ❌ 단일 원인에 원인 트리
+- ❌ 추천 없는 맨 옵션 리스트
 
 ---
 
-## Self-check (before sending a substantive reply)
+## Self-check (실질 답변 전, 조용히)
 
-Run this silently; it costs nothing:
-
-1. Does the **first sentence** state the conclusion?
-2. Is every actionable claim marked **사실** or **추정**?
-3. If options exist, is one tagged **(추천)** with a reason?
-4. Did any Tier-2 trigger fire, and if so is the form applied? (table / tree / ★ / 참고 문서)
-5. If the body is long, is there a 3–5 line summary?
+1. **읽기 쉬운가?** 폼이 명료함을 해치면 뺀다. (Tier 0)
+2. 사고 과정이 아니라 정리된 결론인가?
+3. 첫 문장이 결론인가?
+4. 행동 가능한 주장마다 사실/추정이 붙었나?
+5. 선택지가 있으면 하나가 (추천)인가?
+6. Tier 2 트리거가 실제로 발동했나? 안 했으면 폼을 쓰지 않는다.
 
 ---
 
 ## Integration
-
-- **Main session**: referenced from project `CLAUDE.md` and `QE_CONVENTIONS.md`.
-- **User-facing agents** (e.g. `Esupervision-orchestrator`, `Ecode-reviewer`, `Edeep-researcher`): link this file in their system prompt so reports stay consistent with the main session.
-- **Out of scope**: background executors that only return structured data (`Ecommit-executor`, `Earchive-executor`, etc.) — they emit machine output, not prose.
+- **메인 세션**: `CLAUDE.md`·`QE_CONVENTIONS.md`에서 참조.
+- **사용자 대상 에이전트**: 시스템 프롬프트에 본 파일 링크.
+- **범위 밖**: 구조화 데이터만 반환하는 백그라운드 실행기(`Ecommit-executor` 등).

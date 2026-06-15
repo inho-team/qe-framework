@@ -17,9 +17,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- HUD context element now renders a `[███░░░░] N%` gauge bar alongside the percentage, tinted by usage threshold.
+
 ### Changed
 
+- `core/OUTPUT_STYLE.md` reworked for clarity: added a top-priority **Tier 0 (clarity over rule-compliance)** principle, density-control rules (one idea per line, single ★ per answer), a stream-of-consciousness ban, and good/bad (`❌`/`✅`) examples for every rule.
+
 ### Fixed
+
+- False context-pressure warnings after `/clear` or `/compact`. The statusline now reconciles a stale Claude Code payload percentage against the transcript ground truth (deflate-only via `reconcileDisplayPercentage`), and session start invalidates the stale project-global ratio cache (`invalidateCachedRatio`) while preserving the model-constant window limit.
 
 ### Removed
 
