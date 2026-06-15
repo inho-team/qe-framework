@@ -1,10 +1,14 @@
 /**
  * hud/elements/context.mjs
  * Context-window usage element. Reads `context_window.used_percentage`
- * from the statusLine payload and renders a colored "ctx N%" chunk.
+ * from the statusLine payload and renders a colored "ctx [███░░░░] N%"
+ * gauge chunk.
  */
 
 import { usedColor } from '../colors.mjs';
+
+// Number of cells in the context gauge bar.
+const GAUGE_CELLS = 7;
 
 /**
  * Extract the context used percentage from the payload.
@@ -25,13 +29,18 @@ export function pickContextUsed(data) {
 }
 
 /**
- * Element render: returns a colored "ctx 32%" chunk, or null to skip.
+ * Element render: returns a colored "ctx [██░░░░░] 32%" gauge chunk, or null
+ * to skip. The filled portion is tinted by usage threshold; the brackets and
+ * empty cells are dimmed so the bar stays legible without stealing focus.
  * @param {{ data: object }} ctx
- * @param {{ paint: Function }} painter
+ * @param {{ paint: Function, dim: Function }} painter
  * @returns {string|null}
  */
 export function render(ctx, painter) {
   const pct = pickContextUsed(ctx.data);
   if (pct === null) return null;
-  return painter.paint(usedColor(pct), `ctx ${pct}%`);
+  const filled = Math.max(0, Math.min(GAUGE_CELLS, Math.round((pct / 100) * GAUGE_CELLS)));
+  const bar = painter.paint(usedColor(pct), '█'.repeat(filled));
+  const empty = painter.dim('░'.repeat(GAUGE_CELLS - filled));
+  return `ctx ${painter.dim('[')}${bar}${empty}${painter.dim(']')} ${pct}%`;
 }

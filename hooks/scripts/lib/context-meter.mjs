@@ -154,6 +154,35 @@ export function deriveContextLimit(cw) {
   return raw > 400000 ? 1000000 : 200000;
 }
 
+// Points by which the statusline payload must exceed the transcript reading
+// before we treat the payload as stale (the post-/clear / post-compact case).
+// Normal sessions track within a few points, so a 15-point gap is well clear of
+// rounding/timing noise yet small enough to catch a real reset.
+export const STALE_DISPLAY_MARGIN = 15;
+
+/**
+ * Reconcile the percentage the statusline should DISPLAY from two sources: the
+ * Claude Code payload reading and a transcript-derived reading.
+ *
+ * After `/clear` (or `/compact`) Claude Code can keep reporting the pre-reset
+ * percentage for a while, while the fresh transcript already reflects the real,
+ * lower fill. This is deflate-only: when the payload sits `margin`+ points ABOVE
+ * the transcript, the payload is stale → return the transcript value; otherwise
+ * the payload wins (it is normally the more authoritative, model-aware reading).
+ * It never inflates a payload reading, so a healthy high-context session is left
+ * untouched.
+ *
+ * @param {number} payloadPct integer 0–100 from the statusline payload, or null
+ * @param {number} transcriptPct integer 0–100 derived from the transcript, or null
+ * @param {number} [margin] override the staleness threshold (points)
+ * @returns {number|null} the percentage to display
+ */
+export function reconcileDisplayPercentage(payloadPct, transcriptPct, margin = STALE_DISPLAY_MARGIN) {
+  if (typeof payloadPct !== 'number') return (typeof transcriptPct === 'number') ? transcriptPct : null;
+  if (typeof transcriptPct !== 'number') return payloadPct;
+  return (payloadPct - transcriptPct >= margin) ? transcriptPct : payloadPct;
+}
+
 /**
  * Read the cached ratio if present and fresh. Returns null when absent/stale/invalid.
  * @param {string} projectDir
@@ -169,6 +198,45 @@ export function readCachedRatio(projectDir) {
     if (Date.now() - obj.ts > CACHE_TTL_MS) return null;
     return Math.max(0, Math.min(1, obj.ratio));
   } catch { return null; }
+}
+
+/**
+ * Drop the cached usage ratio while preserving the TTL-exempt window limit.
+ *
+ * The ratio cache is project-global (not per-session) and exists only as a
+ * <60s bridge of the statusline's *current* authoritative reading to the Stop
+ * hook / auto-compaction monitor. At a session boundary — most importantly
+ * `/clear`, which resets the conversation to ~0 while Claude Code keeps
+ * reporting the pre-clear percentage for one more frame — that cached ratio is
+ * stale-high and would make context-guard / context-monitor raise false
+ * context-pressure warnings or blocks. Removing it forces those consumers to
+ * fall back to transcript-based estimation, which reflects the real (cleared)
+ * state. The `limit` field is kept because the model's window size is constant
+ * across a `/clear` and still serves as the transcript-fallback denominator.
+ *
+ * Best-effort: silently no-ops when the cache is absent or unreadable.
+ *
+ * @param {string} projectDir project root
+ */
+export function invalidateCachedRatio(projectDir) {
+  if (!projectDir) return;
+  try {
+    const p = join(projectDir, '.qe', 'state', CACHE_FILE);
+    if (!existsSync(p)) return;
+    let obj;
+    try { obj = JSON.parse(readFileSync(p, 'utf8')); } catch { obj = null; }
+    const limit = (obj && typeof obj.limit === 'number' && obj.limit > 0) ? obj.limit : null;
+    if (limit === null) {
+      // Nothing worth keeping — remove the whole file so no stale ratio survives.
+      try { unlinkSync(p); } catch { /* best-effort */ }
+      return;
+    }
+    // Preserve only the session-constant limit; drop ratio/ts.
+    const dir = join(projectDir, '.qe', 'state');
+    const tmp = join(dir, `.tmp-ctx-${randomBytes(6).toString('hex')}.json`);
+    writeFileSync(tmp, JSON.stringify({ limit }), 'utf8');
+    renameSync(tmp, p);
+  } catch { /* best-effort */ }
 }
 
 /**

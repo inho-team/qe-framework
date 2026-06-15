@@ -200,7 +200,7 @@ test('renderHud: full payload renders ctx · quotas · model · tokens · SIVS',
     model: { display_name: 'Opus' },
   };
   const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx 32% │ 5h 23%·7d 12% │ Opus │ 42k tok │ SIVS C/C/C/C');
+  assert.equal(line, 'ctx [██░░░░░] 32% │ 5h 23%·7d 12% │ Opus │ 42k tok │ SIVS C/C/C/C');
 });
 
 test('renderHud: single rate limit renders without separator', () => {
@@ -209,13 +209,13 @@ test('renderHud: single rate limit renders without separator', () => {
     rate_limits: { five_hour: { used_percentage: 45 } },
   };
   const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx 30% │ 5h 45% │ SIVS C/C/C/C');
+  assert.equal(line, 'ctx [██░░░░░] 30% │ 5h 45% │ SIVS C/C/C/C');
 });
 
 test('renderHud: missing model and quotas skips those segments', () => {
   const data = { context_window: { used_percentage: 40 } };
   const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx 40% │ SIVS C/C/C/C');
+  assert.equal(line, 'ctx [███░░░░] 40% │ SIVS C/C/C/C');
 });
 
 test('renderHud: missing tokens skips the token segment', () => {
@@ -224,7 +224,7 @@ test('renderHud: missing tokens skips the token segment', () => {
     model: { display_name: 'Sonnet' },
   };
   const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx 58% │ Sonnet │ SIVS C/C/C/C');
+  assert.equal(line, 'ctx [████░░░] 58% │ Sonnet │ SIVS C/C/C/C');
 });
 
 test('renderHud: missing context still shows SIVS segment', () => {
@@ -236,7 +236,7 @@ test('renderHud: mixed SIVS keeps "SIVS" prefix with slash letters', () => {
   const data = { context_window: { used_percentage: 20 } };
   const sivs = { implement: { engine: 'codex' } };
   const line = renderHud(data, sivs, { noColor: true });
-  assert.equal(line, 'ctx 20% │ SIVS C/X/C/C');
+  assert.equal(line, 'ctx [█░░░░░░] 20% │ SIVS C/X/C/C');
 });
 
 test('renderHud: low-usage context paints green', () => {

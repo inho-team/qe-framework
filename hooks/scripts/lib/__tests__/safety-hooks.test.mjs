@@ -22,10 +22,14 @@ import {
   resetBlocks,
   writeCachedRatio,
   writeCachedLimit,
+  readCachedRatio,
   readCachedLimit,
+  invalidateCachedRatio,
   readConfiguredLimit,
   deriveContextLimit,
   modelIdToLimit,
+  reconcileDisplayPercentage,
+  STALE_DISPLAY_MARGIN,
 } from '../context-meter.mjs';
 
 // ============================================================================
@@ -320,6 +324,68 @@ test('writeCachedRatio: a later limit-less redraw does NOT clobber a persisted l
   //    must survive the full-file overwrite, or the sub-200k blind spot reopens.
   writeCachedRatio(dir, 18);
   assert.strictEqual(readCachedLimit(dir), 1000000);
+});
+
+test('reconcileDisplayPercentage: stale-high payload defers to the transcript', () => {
+  // Post-/clear: Claude Code still reports 84% while the fresh transcript is ~4%.
+  assert.strictEqual(reconcileDisplayPercentage(84, 4), 4);
+});
+
+test('reconcileDisplayPercentage: a healthy high-context session is left alone', () => {
+  // Payload and transcript agree within noise → keep the (authoritative) payload.
+  assert.strictEqual(reconcileDisplayPercentage(84, 82), 84);
+});
+
+test('reconcileDisplayPercentage: gap exactly at the margin flips to transcript', () => {
+  assert.strictEqual(reconcileDisplayPercentage(20, 20 - STALE_DISPLAY_MARGIN), 5);
+  // One point under the margin keeps the payload.
+  assert.strictEqual(reconcileDisplayPercentage(20, 20 - STALE_DISPLAY_MARGIN + 1), 20);
+});
+
+test('reconcileDisplayPercentage: never inflates (transcript higher → keep payload)', () => {
+  assert.strictEqual(reconcileDisplayPercentage(30, 90), 30);
+});
+
+test('reconcileDisplayPercentage: null handling', () => {
+  assert.strictEqual(reconcileDisplayPercentage(50, null), 50);   // no transcript → payload
+  assert.strictEqual(reconcileDisplayPercentage(null, 7), 7);     // no payload → transcript
+  assert.strictEqual(reconcileDisplayPercentage(null, null), null);
+});
+
+test('invalidateCachedRatio: drops the ratio but preserves the window limit', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  // A statusline frame caches a high ratio plus the back-solved 1M limit.
+  writeCachedRatio(dir, 84, 1000000);
+  assert.ok(readCachedRatio(dir) !== null, 'ratio should be present before invalidate');
+
+  // Session start (e.g. /clear) drops the stale ratio so consumers fall back to
+  // transcript estimation, while the model-constant limit must survive.
+  invalidateCachedRatio(dir);
+  assert.strictEqual(readCachedRatio(dir), null, 'ratio must be gone after invalidate');
+  assert.strictEqual(readCachedLimit(dir), 1000000, 'limit must survive invalidate');
+});
+
+test('invalidateCachedRatio: removes the cache file when no limit was persisted', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  writeCachedRatio(dir, 84); // legacy 2-arg call — no limit field
+  assert.ok(readCachedRatio(dir) !== null, 'ratio should be present before invalidate');
+
+  invalidateCachedRatio(dir);
+  assert.strictEqual(readCachedRatio(dir), null, 'ratio must be gone after invalidate');
+  assert.strictEqual(readCachedLimit(dir), null, 'no limit to preserve → none returned');
+});
+
+test('invalidateCachedRatio: no-op when the cache is absent', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  // Must not throw on a project with no cache file yet.
+  assert.doesNotThrow(() => invalidateCachedRatio(dir));
+  assert.strictEqual(readCachedRatio(dir), null);
 });
 
 test('readConfiguredLimit: reads hooks.context_window_limit from .qe/config.json', (t) => {

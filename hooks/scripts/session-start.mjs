@@ -11,6 +11,7 @@ import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './
 import { shortenSid, getSessionContextDir } from './lib/session-resolver.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
+import { invalidateCachedRatio } from './lib/context-meter.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 let input = '';
@@ -32,6 +33,19 @@ try {
 const cwd = data.cwd || data.directory || process.cwd();
 const cfg = loadConfig(cwd);
 const messages = [];
+
+// Drop any stale context-usage ratio cached by the statusline before this
+// session began. The cache is project-global with a 60s TTL; after a `/clear`
+// (or resume/startup) it can still hold the previous conversation's high
+// percentage, which would make context-guard / context-monitor raise false
+// context-pressure on the fresh, near-empty session. Removing it forces those
+// hooks to fall back to transcript-based estimation (the real state). The
+// window limit (200k vs 1M) is preserved — it's model-constant across /clear.
+try {
+  invalidateCachedRatio(cwd);
+} catch {
+  // Fault tolerance — never block session start on cache housekeeping.
+}
 
 // Compute this Claude session's short sid up front so per-session paths
 // (snapshot, handoff, decisions) and the additionalContext announcement all

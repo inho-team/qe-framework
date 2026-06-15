@@ -15,7 +15,14 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { renderHud } from './lib/hud-renderer.mjs';
-import { writeCachedRatio, deriveContextLimit } from './lib/context-meter.mjs';
+import {
+  writeCachedRatio,
+  deriveContextLimit,
+  estimateUsage,
+  readCachedLimit,
+  readConfiguredLimit,
+  reconcileDisplayPercentage,
+} from './lib/context-meter.mjs';
 
 const SIVS_PATHS = ['.qe/sivs-config.json', '.qe/svs-config.json'];
 const STDIN_TIMEOUT_MS = 500;
@@ -105,8 +112,31 @@ async function main() {
   // the back-solved true window limit (200k vs 1M) so the transcript fallback
   // keeps the right denominator once this cache goes stale.
   const cw = data?.context_window;
-  const pct = cw?.used_percentage;
-  if (typeof pct === 'number') writeCachedRatio(projectDir, pct, deriveContextLimit(cw));
+  let pct = cw?.used_percentage;
+
+  // Reconcile a stale payload against the transcript ground truth. After /clear
+  // (or /compact) Claude Code can keep reporting the pre-reset percentage while
+  // the fresh transcript already reflects the real, lower fill. Resolve the true
+  // window limit BEFORE any mutation (deriving it from the original payload), so
+  // the back-solve isn't poisoned by the reconciled value we may write below.
+  const trueLimit = readCachedLimit(projectDir) ?? deriveContextLimit(cw) ?? readConfiguredLimit(projectDir);
+  if (typeof pct === 'number' && data?.transcript_path) {
+    try {
+      const u = estimateUsage(data.transcript_path, {
+        modelId: data?.model?.id,
+        modelLimit: trueLimit ?? undefined,
+      });
+      if (u) {
+        const reconciled = reconcileDisplayPercentage(pct, Math.round(u.ratio * 100));
+        if (reconciled !== pct) {
+          pct = reconciled;
+          if (cw) cw.used_percentage = reconciled; // so the HUD gauge renders the corrected value
+        }
+      }
+    } catch { /* best-effort: keep the payload reading */ }
+  }
+
+  if (typeof pct === 'number') writeCachedRatio(projectDir, pct, trueLimit ?? undefined);
 
   const line = renderHud(data, sivs, { noColor, preset, projectRoot: projectDir });
   if (line) process.stdout.write(line);
