@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code**
 
-> 165 skills | 21 agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->178<!--/qe:skills--> skills | <!--qe:agents-->25<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -50,7 +50,7 @@ You only say **what you want**. How to ask the right question, how to verify the
 │                  QE Framework                   │
 │                                                 │
 │  ┌───────────┐  ┌───────────┐  ┌─────────────┐ │
-│  │  Context   │  │   SIVS    │  │   165+      │ │
+│  │  Context   │  │   SIVS    │  │   178+      │ │
 │  │  Memory    │  │   Loop    │  │   Skills    │ │
 │  │  Manager   │  │   Engine  │  │   Library   │ │
 │  └─────┬─────┘  └─────┬─────┘  └──────┬──────┘ │
@@ -85,7 +85,7 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-That's it. All 165 skills, 21 agents, and hooks are active immediately.
+That's it. All <!--qe:skills-->178<!--/qe:skills--> skills, <!--qe:agents-->25<!--/qe:agents--> agents, and hooks are active immediately.
 
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
@@ -253,7 +253,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (165 skills)
+## Skill Library (<!--qe:skills-->178<!--/qe:skills--> skills)
 
 ### Core Skills
 
@@ -421,7 +421,7 @@ coding-experts/
 
 ---
 
-## Agent Fleet (21 agents)
+## Agent Fleet (<!--qe:agents-->25<!--/qe:agents--> agents)
 
 | Agent | Role |
 |-------|------|
@@ -477,7 +477,7 @@ Config file: `.qe/sivs-config.json`
 
 ```
 qe-framework/
-├── skills/                  # 165 skill definitions
+├── skills/                  # 178 skill definitions
 │   ├── Q*/                  # 87 user-facing skills
 │   ├── M*/                  # 7 maintenance skills
 │   └── coding-experts/      # 71 domain expert skills

@@ -8,6 +8,29 @@ import { loadConfig } from './lib/config.mjs';
 import { checkComments, isCheckableFile } from './lib/comment-checker.mjs';
 import { runLint, isLintableFile } from './lib/lint-runner.mjs';
 
+// --- Fail-open safety net ---
+// A PostToolUse error must never wedge the session. PostToolUse only emits soft hints
+// (continue:true), so failing open means simply allowing the flow to proceed.
+function failOpen() {
+  try { process.stdout.write(JSON.stringify({ continue: true })); } catch {}
+  process.exit(0);
+}
+process.on('uncaughtException', failOpen);
+process.on('unhandledRejection', failOpen);
+
+/**
+ * True for files where a security-keyword hint is meaningful: source code
+ * (isCheckableFile) plus shell/IaC/secret-bearing configs that handle credentials
+ * without a literal value. Deliberately excludes docs (.md/.txt) and data (.json)
+ * so a plan or checklist mentioning "secret"/"token" never forces a security review.
+ */
+function isSecuritySensitiveFile(filePath) {
+  if (!filePath) return false;
+  if (isCheckableFile(filePath)) return true;
+  return /(?:\.sh|\.bash|\.zsh|\.ya?ml|\.tf|\.env|\.sql)$/i.test(filePath) ||
+         /(?:^|\/)Dockerfile(?:\.[\w-]+)?$/.test(filePath);
+}
+
 let input = '';
 try {
   input = readFileSync('/dev/stdin', 'utf8');
@@ -141,9 +164,13 @@ if (['Write', 'Edit'].includes(toolName)) {
     }
   }
 
-  // Security keyword hint
+  // Security keyword hint — security-sensitive files only. Docs/markdown/json/txt that
+  // merely contain a word like "secret"/"token" (a plan, checklist, or README) must not
+  // trigger a mandatory review. The set is source code (isCheckableFile) PLUS shell/IaC
+  // files that handle secrets without a literal credential (.sh, .yaml, .tf, .env,
+  // Dockerfile) — those are decoupled from the comment-coverage set on purpose.
   const secContent = toolInput.new_string || toolInput.content || '';
-  if (secContent && /\b(auth|jwt|password|secret|token|credential|bcrypt|encrypt|decrypt|api_key|private_key|ssh|certificate)\b/i.test(secContent)) {
+  if (secContent && isSecuritySensitiveFile(filePath) && /\b(auth|jwt|password|secret|token|credential|bcrypt|encrypt|decrypt|api_key|private_key|ssh|certificate)\b/i.test(secContent)) {
     hints.push('MANDATORY SECURITY REVIEW: Security-sensitive code detected (auth/crypto/secrets). You MUST invoke Esecurity-officer agent before completing this task. Do NOT skip this step.');
   }
 

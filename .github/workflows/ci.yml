@@ -1,0 +1,19 @@
+name: CI
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      # Guards use only Node builtins and the repo has zero dependencies,
+      # so no `npm install` is needed — run the guard runner directly.
+      - name: Run all guards (includes metadata drift)
+        run: node scripts/check-all.mjs
