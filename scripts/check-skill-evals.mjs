@@ -127,7 +127,13 @@ if (fails.length === 0) {
 // ─── (b) cross-ref integrity (WARN) ──────────────────────────────────────────
 
 console.log('\n=== CHECK (b): SKILL.md repo-path cross-references (WARN) ===');
-const PATH_RE = /\b(skills\/[\w.-]+\/SKILL\.md|core\/[\w.\/-]+\.md|docs\/[\w.\/-]+\.md|scripts\/[\w.-]+\.mjs|agents\/[\w.-]+\.md)\b/g;
+// The leading (?<![\w/.:-]) negative lookbehind rejects two false-positive classes:
+//   - sub-paths of a longer path  (e.g. "scripts/x.mjs" inside "hooks/scripts/x.mjs")
+//   - paths embedded in a URL      (e.g. ".../docs/install_linux.md" in a github URL)
+// so a ref only matches when it starts at a real boundary (space, backtick, quote, ( ).
+const PATH_RE = /(?<![\w/.:-])(skills\/[\w.-]+\/SKILL\.md|core\/[\w.\/-]+\.md|docs\/[\w.\/-]+\.md|scripts\/[\w.-]+\.mjs|agents\/[\w.-]+\.md)\b/g;
+// Known template/example placeholders that intentionally name non-existent files.
+const PLACEHOLDER_RE = /\b(Qname|Ename|Enew-agent|Qfoo|foo|bar|example|template|XXX|YYY|ZZZ)\b/i;
 let refCount = 0;
 const warnStart = warns.length;
 for (const dir of skillNames) {
@@ -139,6 +145,7 @@ for (const dir of skillNames) {
     const ref = mm[1];
     if (seen.has(ref)) continue;
     seen.add(ref);
+    if (PLACEHOLDER_RE.test(ref)) continue; // skip documented placeholders
     refCount++;
     if (!existsSync(join(ROOT, ref))) {
       warns.push(`WARN [cross-ref] ${dir}: references '${ref}' which does not exist`);
