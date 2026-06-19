@@ -33,7 +33,9 @@ function isSecuritySensitiveFile(filePath) {
 
 let input = '';
 try {
-  input = readFileSync('/dev/stdin', 'utf8');
+  // Read fd 0 directly (portable across macOS and Linux CI); `/dev/stdin` can read
+  // empty when stdin is a pipe on some Linux runners.
+  input = readFileSync(0, 'utf8');
 } catch {
   process.exit(0);
 }
