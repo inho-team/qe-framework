@@ -98,3 +98,4 @@ PermissionRequest, SessionEnd, SubagentStop
 | `ultrareview` | Eqa-orchestrator | Use ultrareview for external code review |
 | `claude agents` | Agent tool subagents | Use agents CLI for background parallelism |
 | `--effort` | SIVS effort config | Use CLI flag for per-session override |
+| `--worktree` | `Qatomic-run --worktree` | Run wave items in isolated git worktrees when same-file editing or experimental changes need isolation (opt-in; see Qatomic-run "Worktree Isolation") |

@@ -14,11 +14,17 @@ invocation_trigger: When framework initialization, maintenance, or audit is requ
 recommendedModel: haiku
 ---
 
-# Skill Tester — Automated Routing Verification
+# Skill Tester — Routing + Behavior Verification
 
-Verifies that all skill/agent triggers route correctly, identifies misroutes, and suggests fixes.
+Verifies skills across **three dimensions**: (1) **routing** — triggers route correctly
+(Steps 1-6 below); (2) **structural** — deterministic eval gate over all skills and eval
+cases (`scripts/check-skill-evals.mjs`); (3) **behavioral** — opt-in LLM-judge regression
+over `evals/cases/*.eval.md`. Identifies misroutes/regressions and suggests fixes.
 
-## Workflow
+The structural + behavioral layers are the **skill eval harness** (see `evals/README.md`,
+`D020`). Routing is verified here; it is **not** duplicated in the harness scripts.
+
+## Workflow (routing dimension)
 
 ```
 1. Collect skills → 2. Generate test cases → 3. Simulate routing → 4. Verdict → 5. Suggest fixes → 6. Re-verify
@@ -117,6 +123,43 @@ Criteria: `score >= threshold*2` = PASS (strong); `score >= threshold` = PASS + 
 
 **Re-verify:** After applying fixes, re-run the same tests to confirm PASS.
 
+## Behavior Eval Layers (D020)
+
+Beyond routing, run the skill eval harness. See `evals/README.md` for the case format.
+
+### Structural layer (deterministic, all skills)
+
+```bash
+node scripts/check-skill-evals.mjs   # also auto-run by scripts/check-all.mjs
+```
+
+Checks every `evals/cases/*.eval.md` against the schema (required fields, `skill` exists)
+and flags dangling repo-path cross-references inside each `SKILL.md` (WARN). Exit non-zero
+on any schema FAIL. This layer is **mandatory for all skills** and CI-safe (no model calls).
+
+### Behavioral layer (opt-in, LLM-judged)
+
+1. Build the run manifest (deterministic, no model calls):
+   ```bash
+   npm run eval:skills        # → node scripts/eval-skills-behavioral.mjs → evals/.manifest.json
+   ```
+2. For each case in `evals/.manifest.json`, this skill (as the LLM):
+   - Executes the case `prompt` against the target `skill`.
+   - **Deterministic gate**: response MUST contain every `must_include` string and NONE
+     of the `must_not_include` strings. Any violation → `FAIL` immediately.
+   - **LLM judgment**: if the substring gate passes, judge the response against `rubric`
+     and emit PASS / FAIL with a one-line reason.
+3. Write a behavioral report:
+   ```markdown
+   # Skill Behavior Eval Report
+   **Cases:** N | **PASS:** N | **FAIL:** N
+   | Skill | Case | Substring Gate | Rubric Verdict | Reason |
+   ```
+
+Behavioral evals are opt-in: only skills with an `evals/cases/{Skill}.eval.md` are judged.
+Seed cases currently cover the PSE core (Qplan, Qgs, Qatomic-run); extend coverage by
+adding more case files.
+
 ## Execution Modes
 
 | Mode | Command | Scope |
@@ -125,6 +168,8 @@ Criteria: `score >= threshold*2` = PASS (strong); `score >= threshold` = PASS + 
 | Full | `/Mtest-skill --full` | All skills/agents, 5 prompts each, full report + fixes |
 | Specific | `/Mtest-skill Qfoo` | Single skill by name |
 | Batch | `/Mtest-skill --batch 'skills/Q*'` | All SKILL.md files matching a glob, cache-aware |
+| Structural eval | `node scripts/check-skill-evals.mjs` | Deterministic schema + cross-ref gate, all skills |
+| Behavioral eval | `npm run eval:skills` then judge manifest | opt-in LLM-judge over `evals/cases/*.eval.md` |
 
 ### Batch mode — `--batch <glob>`
 

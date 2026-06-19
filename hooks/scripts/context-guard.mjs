@@ -5,7 +5,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { estimateUsage, readCachedRatio, readCachedLimit, readConfiguredLimit, writeCachedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
+import { estimateUsage, readCachedRatio, readCachedLimit, readConfiguredLimit, readDetectedLimit, writeCachedLimit, writeDetectedLimit, recordBlock, resetBlocks, getBlockCount } from './lib/context-meter.mjs';
 
 const MAX_BLOCKS = 2;
 const WARN_RATIO = 0.75;
@@ -41,6 +41,11 @@ const stateDir = process.env.QE_STATE_DIR || join(cwd, '.qe', 'state');
 const transcriptPath = data.transcript_path || '';
 
 let ratio = 0;
+// Trustworthy only when the denominator is PROVEN (authoritative statusline
+// reading, a known/configured/detected window, or a transcript reading that
+// passed the 200k base). A guessed 200k default on a 1M run over-states fill,
+// so we must never hard-BLOCK the Stop hook on it.
+let limitVerified = false;
 try {
   // Prefer the authoritative reading Claude Code passes to the statusline
   // (HUD caches it under .qe/state/context-cache.json). The Stop hook payload
@@ -50,17 +55,28 @@ try {
   const cached = readCachedRatio(cwd);
   if (cached !== null) {
     ratio = cached;
+    limitVerified = true;
   } else {
-    // Statusline-independent limit: cached (back-solved by the HUD) OR an
-    // explicit config/env override. Without either, a 1M run with no statusline
-    // configured falls back to the 200k default and over-warns from ~140k.
-    const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd);
+    // Statusline-independent limit: cached (back-solved by the HUD), an explicit
+    // config/env override, OR a durable model-keyed detection from a prior
+    // session (survives a state-folder wipe). Without any of these, a 1M run
+    // with no statusline configured falls back to the 200k default and
+    // over-warns from ~140k.
+    const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd) ?? readDetectedLimit(cwd, data?.model?.id);
+    if (knownLimit !== null) limitVerified = true;
     const u = estimateUsage(transcriptPath, { modelId: data?.model?.id, modelLimit: knownLimit ?? undefined });
     if (u) {
       ratio = u.ratio;
       // Sticky 1M: persist a deterministically detected 1M tier so later
-      // sub-200k readings this session use the right denominator.
-      if (!knownLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
+      // sub-200k readings this session use the right denominator — both in the
+      // volatile cache and durably (model-keyed) for future sessions.
+      if (u.limit === 1000000) {
+        limitVerified = true;
+        if (!knownLimit) {
+          writeCachedLimit(cwd, 1000000);
+          writeDetectedLimit(cwd, data?.model?.id, 1000000);
+        }
+      }
     }
   }
 } catch {
@@ -75,15 +91,17 @@ if (ratio < RESET_RATIO) {
 
 const currentBlocks = getBlockCount(sessionId, stateDir);
 
-if (ratio >= CRITICAL_RATIO && currentBlocks < MAX_BLOCKS) {
-  // Block and increment counter
+if (ratio >= CRITICAL_RATIO && currentBlocks < MAX_BLOCKS && limitVerified) {
+  // Block and increment counter — only on a PROVEN denominator. On a guessed
+  // 200k default we fall through to the soft-warn branch instead of blocking,
+  // so a 1M run is never halted on a false "critical" reading.
   let newCount = currentBlocks;
   try { newCount = recordBlock(sessionId, stateDir); } catch {}
   console.log(JSON.stringify({
     decision: 'block',
     reason: `context-guard: critical ${Math.round(ratio * 100)}% — consider /Qcompact then resume`,
   }));
-} else if (ratio >= WARN_RATIO && currentBlocks < MAX_BLOCKS) {
+} else if (ratio >= WARN_RATIO && currentBlocks < MAX_BLOCKS && limitVerified) {
   // Warn only — do not block. Stop hook schema only allows systemMessage,
   // not hookSpecificOutput (that field is for PreToolUse/UserPromptSubmit/PostToolUse).
   console.log(JSON.stringify({

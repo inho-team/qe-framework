@@ -1,13 +1,14 @@
 {
   "name": "@inho-team/qe-framework",
   "version": "7.2.0",
-  "description": "Query Execute Framework for Claude Code — SIVS loop, folder-aware context memory, 107 skills and 23 agents",
+  "description": "Query Execute Framework for Claude Code — SIVS loop, folder-aware context memory, 178 skills and 25 agents",
   "files": [
     ".claude-plugin/",
     "agents/",
     "bin/",
     "core/",
     "docs/",
+    "evals/",
     "hooks/",
     "install.js",
     "LICENSE",
@@ -29,7 +30,11 @@
     "qe:secret": "node scripts/qe_secret.mjs",
     "qe:validate": "node scripts/validate_svs_config.mjs",
     "check:routing": "node scripts/check-skill-routing.mjs",
-    "check:all": "node scripts/check-all.mjs"
+    "check:all": "node scripts/check-all.mjs",
+    "check:evals": "node scripts/check-skill-evals.mjs",
+    "eval:skills": "node scripts/eval-skills-behavioral.mjs",
+    "learn:failures": "node scripts/learn-from-failures.mjs",
+    "sync:metadata": "node scripts/sync-metadata.mjs"
   },
   "repository": {
     "type": "git",

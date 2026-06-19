@@ -1,6 +1,6 @@
 # QE Framework System Overview
 
-QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loop system for Claude Code. It provides a structured AI-driven workflow with **folder-aware context memory**, **165 skills**, and **21 agents**, using Claude as the default provider with optional Codex support via `codex-plugin-cc`.
+QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loop system for Claude Code. It provides a structured AI-driven workflow with **folder-aware context memory**, **<!--qe:skills-->178<!--/qe:skills--> skills**, and **<!--qe:agents-->25<!--/qe:agents--> agents**, using Claude as the default provider with optional Codex support via `codex-plugin-cc`.
 
 ---
 
@@ -8,12 +8,12 @@ QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loo
 
 ```
 ┌──────────────────────────────────────────────────────────┐
-│                     QE Framework v6.x                    │
+│                     QE Framework v7.x                    │
 │                                                          │
 │  ┌──────────────┐  ┌──────────────┐  ┌───────────────┐  │
 │  │   Context     │  │    SIVS      │  │    Skill      │  │
 │  │   Memory      │  │    Engine    │  │    Library    │  │
-│  │   Manager     │  │    Router    │  │    (165)      │  │
+│  │   Manager     │  │    Router    │  │    (178)      │  │
 │  └──────┬───────┘  └──────┬───────┘  └───────┬───────┘  │
 │         │                 │                   │          │
 │  ┌──────┴─────────────────┴───────────────────┴───────┐  │
@@ -22,7 +22,7 @@ QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loo
 │  └──────────────────────┬─────────────────────────────┘  │
 │                         │                                │
 │  ┌──────────────────────┴─────────────────────────────┐  │
-│  │                 Agent Fleet (21)                    │  │
+│  │                 Agent Fleet (25)                    │  │
 │  │    Etask-executor  Eqa-orchestrator  Edeep-researcher │
 │  │    Ecode-reviewer  Esecurity-officer  Ecommit-executor│
 │  └────────────────────────────────────────────────────┘  │
@@ -126,9 +126,10 @@ The context memory system optimizes Claude's context window by loading only rele
 
 ```
 Traditional:  Load full CLAUDE.md (all domain rules)    → 100% tokens
-QE Context:   Load root.md + matched folder context     → ~40% tokens
+QE Context:   Load root.md + matched folder context     → only the matched subset
 
-Savings: ~60% context token reduction per session
+Savings: fewer context tokens per session — the magnitude depends on project size and
+how domain rules split across folders. Measure it for your repo: see docs/BENCHMARK.md.
 ```
 
 ### Management
@@ -184,7 +185,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (165 skills)
+## Skill Library (<!--qe:skills-->178<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
@@ -198,7 +199,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Agent Fleet (21 agents)
+## Agent Fleet (<!--qe:agents-->25<!--/qe:agents--> agents)
 
 | Agent | Responsibility |
 |-------|---------------|

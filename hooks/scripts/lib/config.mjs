@@ -74,6 +74,13 @@ const DEFAULTS = {
   // before reaching the hard limit at 200.
   context_pressure_warn: 150,          // tool calls before token-saving hint
 
+  // [why this value]: hook_profile gates how aggressively PreToolUse hard-blocks
+  // override actions (raw git commit, version edits, sed -i). "safe" (default) keeps
+  // the guards on; "minimal" downgrades them to soft hints (escape hatch when a guard
+  // misfires or the user wants a friction-free session); "full" reserved for future
+  // stricter policy. ContextMemo dedup and analysis hints are independent of this.
+  hook_profile: 'safe',                // minimal | safe | full
+
   // prompt-check.mjs
   // [why this value]: Score of 3 requires at least one strong keyword match (weight≥3)
   // or multiple weaker matches. Lower values produce false-positive routing on common

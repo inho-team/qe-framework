@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code**
 
-> 165 skills | 21 agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->178<!--/qe:skills--> skills | <!--qe:agents-->25<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -50,7 +50,7 @@ You only say **what you want**. How to ask the right question, how to verify the
 │                  QE Framework                   │
 │                                                 │
 │  ┌───────────┐  ┌───────────┐  ┌─────────────┐ │
-│  │  Context   │  │   SIVS    │  │   165+      │ │
+│  │  Context   │  │   SIVS    │  │   178+      │ │
 │  │  Memory    │  │   Loop    │  │   Skills    │ │
 │  │  Manager   │  │   Engine  │  │   Library   │ │
 │  └─────┬─────┘  └─────┬─────┘  └──────┬──────┘ │
@@ -85,7 +85,7 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-That's it. All 165 skills, 21 agents, and hooks are active immediately.
+That's it. All <!--qe:skills-->178<!--/qe:skills--> skills, <!--qe:agents-->25<!--/qe:agents--> agents, and hooks are active immediately.
 
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
@@ -218,7 +218,8 @@ No Codex? No problem. All stages default to Claude and everything works out of t
 Working in src/frontend/components/Button.tsx
   → Loads: root.md + frontend.md
   → Skips: backend.md, scripts.md, infra.md
-  → Result: ~60% less context token usage
+  → Result: loads only matched context — fewer tokens per turn
+            (savings vary by project; measure with docs/BENCHMARK.md)
 ```
 
 | Command | Description |
@@ -253,13 +254,21 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (165 skills)
+## Skill Library (<!--qe:skills-->178<!--/qe:skills--> skills)
+
+> **Start here.** You only need **7 core skills** to use the framework end-to-end. The
+> other 170+ are an opt-in library that ships in the *same package* — no extra installs,
+> no separate plugins. New here? Learn these and ignore the rest until you need them:
+>
+> `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qatomic-run` · `/Qcode-run-task` · `/Qsivs-config`
+>
+> *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The breadth is a curated library, not a packaging burden — one install, progressive disclosure.)*
 
 ### Core Skills
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| **Core PSE** | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
+| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
 | **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` | 5 |
 | **Project** | `Qmap-codebase` `Qcommit` `Qbranch` `Qarchive` `Qproject-sync` | 5 |
@@ -421,7 +430,7 @@ coding-experts/
 
 ---
 
-## Agent Fleet (21 agents)
+## Agent Fleet (<!--qe:agents-->25<!--/qe:agents--> agents)
 
 | Agent | Role |
 |-------|------|
@@ -477,7 +486,7 @@ Config file: `.qe/sivs-config.json`
 
 ```
 qe-framework/
-├── skills/                  # 165 skill definitions
+├── skills/                  # 178 skill definitions
 │   ├── Q*/                  # 87 user-facing skills
 │   ├── M*/                  # 7 maintenance skills
 │   └── coding-experts/      # 71 domain expert skills

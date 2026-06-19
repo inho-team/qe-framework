@@ -3,6 +3,7 @@ name: Qatomic-run
 description: "Parallel Haiku-wave engine — partitions a TASK_REQUEST into independent atomic items and dispatches them concurrently to multiple Haiku teammates, merging results through a Lead session. Branch points: use THIS when the checklist has MANY (>=5) independent atomic items with non-overlapping file ownership and low complexity; use Qrun-task for sequential execution of non-atomic or order-dependent items; use Qcode-run-task after code lands to run the test-review-fix loop. Canonical PSE path: /Qplan → /Qgs → /Qatomic-run → /Qcode-run-task."
 invocation_trigger: "When a TASK_REQUEST contains many atomic items that can be executed in parallel by low-reasoning agents."
 recommendedModel: sonnet
+tier: core
 ---
 
 # Qatomic-run — Haiku Wave Execution Engine
@@ -41,6 +42,23 @@ After all atomic items are done, determine the next step based on task type:
 - **File Ownership**: No two teammates can modify the same file within the same wave. Lead (Sonnet) must partition files before spawning.
 - **Haiku-First**: Always use `haiku` for teammates. If an item requires Sonnet, it's not "Atomic" and should be handled by standard `/Qrt`.
 - **Context Integrity**: Use `ContextMemo` to ensure teammates have current state without redundant I/O.
+
+## Worktree Isolation (`--worktree`, opt-in)
+
+By default Qatomic-run executes waves **in-place** on the current working tree. When invoked with `--worktree`, each wave item is dispatched with the Agent tool's `isolation: "worktree"` parameter, so every teammate works on its own throwaway git worktree instead of the live tree. (Source: adopted from Superpowers' worktree stage — see `D018` in `.qe/planning/DECISION_LOG.md`.)
+
+- **No new runtime code** — this reuses the existing `Agent(..., { isolation: "worktree" })` capability. `--worktree` only flips that flag on per-item dispatch.
+- **opt-in**: in-place is always the default. Isolation engages only when `--worktree` is passed explicitly.
+- Worktrees are auto-removed if a teammate leaves them unchanged; merge surviving changes back through the Lead session at Step 3 (Result Synthesis).
+
+### worktree vs in-place — selection guide
+
+| Situation | Mode | Why |
+|-----------|------|-----|
+| Two+ items must touch the **same file** in one wave | `--worktree` | Isolation removes the file-ownership constraint that otherwise forces serialization |
+| **Experimental / risky** changes that may be discarded | `--worktree` | Keeps the live working tree clean; discard = drop the worktree |
+| Wave items have **non-overlapping file ownership** (the normal case) | in-place (default) | No isolation overhead; simpler merge |
+| Single-file or trivial doc edits | in-place (default) | Worktree setup cost (~disk + setup latency) not worth it |
 
 ## SIVS Engine Routing
 

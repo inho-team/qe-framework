@@ -35,7 +35,7 @@ import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
-import { readCachedRatio, readCachedLimit, readConfiguredLimit, writeCachedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
+import { readCachedRatio, readCachedLimit, readConfiguredLimit, readDetectedLimit, writeCachedLimit, writeDetectedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
 
 // Cooldown period: 5 minutes after a compaction trigger
 const COMPACTION_COOLDOWN_MS = 5 * 60 * 1000;
@@ -70,11 +70,25 @@ const DEFAULT_THRESHOLDS = {
  * @param {number} limit - Model context-window token limit (for labelling)
  * @returns {string} Formatted directive message
  */
-function buildDirectiveMessage(severity, ratio, limit) {
+function buildDirectiveMessage(severity, ratio, limit, verified = true) {
   const pct = Math.round(ratio * 100);
   const usedK = Math.round((ratio * limit) / 1000);
   const limitK = Math.round(limit / 1000);
   const label = `${pct}% (~${usedK}k / ${limitK}k tokens)`;
+
+  // Unverified denominator: the true window tier was never proven this session
+  // (no statusline reading, no cached/configured/detected limit, token count
+  // still below the 200k base). The percentage is computed against a GUESSED
+  // 200k default and may be wildly high on a 1M run \u2014 so we never hard-stop on
+  // it; we surface a soft, clearly-flagged note instead.
+  if (!verified) {
+    return [
+      `\u26A0\uFE0F CONTEXT PRESSURE (estimated): ${label}`,
+      'NOTE: window size is unverified (no statusline reading yet) \u2014 this % may be',
+      'over-stated on a 1M-context model. Confirm real usage in the HUD before compacting.',
+      'No forced compaction.',
+    ].join('\n');
+  }
 
   if (severity === SEVERITY.CRITICAL) {
     return [
@@ -223,9 +237,16 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   // Statusline-independent limit: the HUD-cached back-solve OR an explicit
   // config/env override. Without either, a 1M run with no statusline configured
   // would resolve to the 200k default and falsely flag "critical" at ~14% fill.
-  const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd);
-  let ratio = readCachedRatio(cwd);
+  const cachedRatio = readCachedRatio(cwd);
+  const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd) ?? readDetectedLimit(cwd, opts.modelId);
+  let ratio = cachedRatio;
   let limit = knownLimit ?? modelIdToLimit(opts.modelId);
+  // A reading is trustworthy only when its denominator is PROVEN, not guessed:
+  //   - cachedRatio: Claude Code's authoritative, model-aware statusline %, or
+  //   - knownLimit: a back-solved / configured / previously-detected window, or
+  //   - a transcript reading whose tokens passed the 200k base (deterministic 1M).
+  // Otherwise the limit is the bare 200k default — a guess that over-states a 1M run.
+  let limitVerified = (cachedRatio !== null) || (knownLimit !== null);
   if (ratio === null) {
     const u = opts.transcriptPath
       ? estimateUsage(opts.transcriptPath, { modelId: opts.modelId, modelLimit: knownLimit ?? undefined })
@@ -235,13 +256,27 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
       limit = u.limit;
       // Sticky 1M: once a reading deterministically proves the 1M tier, persist
       // it so later sub-200k readings this session aren't mis-scored against 200k.
-      if (!knownLimit && u.limit === 1000000) writeCachedLimit(cwd, 1000000);
+      // Also persist DURABLY (model-keyed, survives a state-folder wipe) so the
+      // detection holds across sessions — the backbone of self-correction.
+      if (u.limit === 1000000) {
+        limitVerified = true;
+        if (!knownLimit) {
+          writeCachedLimit(cwd, 1000000);
+          writeDetectedLimit(cwd, opts.modelId, 1000000);
+        }
+      }
     } else {
       ratio = 0;
     }
   }
 
-  const severity = estimateSeverity(ratio, thresholds);
+  let severity = estimateSeverity(ratio, thresholds);
+  // Safety net: never escalate to a MANDATORY stop-and-compact on an unverified
+  // (guessed-200k) denominator. A 1M run whose tier isn't yet proven would
+  // otherwise be flagged "critical" near ~17% real fill and falsely told to halt.
+  if (!limitVerified && severity === SEVERITY.CRITICAL) {
+    severity = SEVERITY.WARNING;
+  }
 
   if (severity === SEVERITY.NONE) {
     return { message: null, severity, stats };
@@ -283,7 +318,7 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   }
 
   // Build directive message from the live usage ratio
-  let message = buildDirectiveMessage(severity, ratio, limit);
+  let message = buildDirectiveMessage(severity, ratio, limit, limitVerified);
 
   // Record compaction trigger in unified-state (sets cooldown)
   recordCompactionTrigger(cwd);

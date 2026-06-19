@@ -31,6 +31,27 @@ When invoked, detect the following types of ambiguous requirements:
 
 **Do not activate when**: there are specific file paths, code snippets, references to existing functions/classes, or bug fixes with clear reproduction steps.
 
+## Pre-Spec Gate Mode
+
+This skill can be invoked as a **conditional gate** by `Qgenerate-spec` (Step 1.5) before spec drafting, in addition to its standalone use. In gate mode the goal is not a full PRD but a fast PASS/CLARIFY verdict.
+
+**Entry point:** `Qgenerate-spec` calls this skill when `ambiguous(requirement) AND scale ≥ Small` (Micro always skips — see `D019` in `.qe/planning/DECISION_LOG.md`). The caller passes the raw requirement and the resolved Phase Success Criteria (if any).
+
+**Behavior in gate mode:**
+1. Run Step 1 (scoring). Treat the gate threshold as the existing **clarity score ≥ 90** bar, scoped to the single incoming requirement.
+2. If already ≥ 90 → return `PASS` immediately with the sharpened one-line requirement. **No questions, no friction.**
+3. If < 90 → run at most **one** focused clarification round (Step 3, 2–3 questions). Re-score.
+4. Do **not** generate the full PRD document in gate mode — that is reserved for standalone invocation.
+
+**Return contract (to `Qgenerate-spec`):**
+
+| Verdict | Meaning | Caller action |
+|---------|---------|---------------|
+| `PASS` | Clarity ≥ 90 (immediately or after one round) | Proceed to spec drafting with the sharpened requirement |
+| `CLARIFY` | Clarity still < 90 after one round | Surface the open questions to the user; do **not** draft specs yet |
+
+The gate is a **clarification prompt, not a hard block**: a `PASS` returns control with zero added friction. This is the deliberate, scale-aware contrast with Superpowers' blanket-mandatory brainstorming.
+
 ## Core Principles
 
 1. **Systematic questioning** — focused and specific, one category at a time (2–3 per round), building on previous answers

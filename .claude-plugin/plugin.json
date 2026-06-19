@@ -1,7 +1,7 @@
 {
   "name": "qe-framework",
   "version": "7.2.0",
-  "description": "QE Framework v7 — Claude-first SIVS loop with full lifecycle hooks, 180+ skills, and optional Codex bridge.",
+  "description": "QE Framework v7 — Claude-first SIVS loop with full lifecycle hooks, 178 skills, and optional Codex bridge.",
   "author": {
     "name": "inho-team"
   },
@@ -119,6 +119,7 @@
     ]
   },
   "agents": [
+    "./agents/Eanalysis-supervisor.md",
     "./agents/Earchive-executor.md",
     "./agents/Ecode-debugger.md",
     "./agents/Ecode-doc-writer.md",
@@ -127,12 +128,14 @@
     "./agents/Ecode-test-engineer.md",
     "./agents/Ecommit-executor.md",
     "./agents/Ecompact-executor.md",
+    "./agents/Econtract-judge.md",
     "./agents/Edeep-researcher.md",
+    "./agents/Edependency-auditor.md",
     "./agents/Edoc-generator.md",
     "./agents/Edocs-supervisor.md",
-    "./agents/Eanalysis-supervisor.md",
     "./agents/Egrad-writer.md",
     "./agents/Ehandoff-executor.md",
+    "./agents/Eperformance-profiler.md",
     "./agents/Epm-planner.md",
     "./agents/Eprofile-collector.md",
     "./agents/Eqa-orchestrator.md",
@@ -140,7 +143,6 @@
     "./agents/Esecurity-officer.md",
     "./agents/Esupervision-orchestrator.md",
     "./agents/Etask-executor.md",
-    "./agents/Edependency-auditor.md",
-    "./agents/Eperformance-profiler.md"
+    "./agents/Etracer.md"
   ]
 }

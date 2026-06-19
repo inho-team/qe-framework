@@ -1796,7 +1796,7 @@
         <div class="kind">PILLAR 01</div>
         <h4>Context Memory Manager</h4>
         <p>按文件夹分割上下文，仅加载与工作目录匹配的内容。分散在 .qe/context/ 下而非单一 CLAUDE.md。</p>
-        <div class="stat">~60% 节省 token</div>
+        <div class="stat">节省上下文 token</div>
       </div>
       <div class="pillar c2">
         <div class="kind">PILLAR 02</div>
@@ -1924,7 +1924,7 @@
     <span class="tag">.qe/context/</span>
   </div>
 
-  <div class="tldr">项目上下文按文件夹分割存储。仅自动加载与工作目录匹配的文件——相比单一 CLAUDE.md 方式节省约 60% token。</div>
+  <div class="tldr">项目上下文按文件夹分割存储。仅自动加载与工作目录匹配的文件——相比单一 CLAUDE.md 方式节省上下文 token（因项目而异，见 BENCHMARK.md）。</div>
 
   <div class="ctx-demo">
 <span class="cmt"># 工作位置: src/frontend/components/Button.tsx</span><br>
@@ -1934,7 +1934,7 @@
 ├── <span class="hl-on">frontend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✔ src/frontend/** 匹配 → 加载</span><br>
 ├── <span class="hl-off">backend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ 跳过</span><br>
 └── <span class="hl-off">scripts.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ 跳过</span><br>
-<span class="save">结果 → ~60% 上下文 token 使用减少</span>
+<span class="save">结果 → 减少上下文 token 使用（因项目而异）</span>
   </div>
 
   <!-- SECTION 7: Skill Taxonomy -->
@@ -2430,7 +2430,7 @@ flowchart TD
     H_STOP["Stop 钩子"]:::hook
     H_END["SessionEnd 钩子"]:::hook
 
-    C_CTX["文件夹上下文<br/>root.md + folder.md<br/>约 60% 节省"]:::ctx
+    C_CTX["文件夹上下文<br/>root.md + folder.md<br/>仅加载匹配的上下文"]:::ctx
     C_MEMO["读取文件缓存"]:::ctx
     C_TOKEN["Token 使用监控"]:::ctx
 

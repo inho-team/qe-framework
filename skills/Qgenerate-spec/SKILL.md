@@ -65,6 +65,26 @@ Before collecting user info, identify the strategic context:
 3. **Identify Phase**: If an active Phase exists in the resolved STATE.md, use its **Success Criteria** and **Requirement IDs** as the primary source of truth for the spec.
 4. **Missing Roadmap**: If no plan is resolvable and no flat roadmap exists either, **STOP** and suggest running `/Qplan` first to maintain the PSE Chain integrity.
 
+### Step 1.5: Brainstorming Gate (conditional, scale-aware)
+
+Before gathering spec details, run a lightweight ambiguity check. If the incoming requirement is **ambiguous AND the task scale is Small or larger**, route through the Socratic clarification gate (`Qrequirements-clarity` in pre-spec gate mode) first. (Source: adapted from Superpowers' brainstorming stage — but **scale-aware, not mandatory**; see `D019` in `.qe/planning/DECISION_LOG.md`.)
+
+**This is our deliberate differentiator from Superpowers' blanket-mandatory brainstorming**: a one-line bug fix must never be forced through a clarification round.
+
+**Gate condition** = `ambiguous(requirement) AND scale ≥ Small`.
+
+- **Scale** is judged with the same heuristic as `/Qplan` Step 0.7 (Micro / Small / Full / Workflow). **Micro tasks always skip this gate.**
+- **Ambiguity** is true when **any 2 of these 3 objective signals** hold:
+  1. **Core verb/noun unspecified** — the action or the target object is vague ("개선해", "정리해", "make it better") with no concrete subject.
+  2. **No acceptance criteria** — nothing in the request or the resolved Phase Success Criteria states how "done" is verified.
+  3. **Alternatives unconsidered** — the request fixes a solution without stating the problem, so no design choice was weighed.
+
+**On gate trigger:** invoke `Qrequirements-clarity` in pre-spec gate mode. It returns one of:
+- `PASS` → ambiguity resolved (or never present); continue to Step 2 with the sharpened requirement.
+- `CLARIFY` → unresolved gaps remain; surface its questions to the user before drafting. Do **not** draft specs from an unclarified `CLARIFY` requirement.
+
+**Skip the gate entirely** when: scale is Micro, the requirement already cites specific file paths / functions / reproduction steps, or the task `type` is `docs`/`analysis` with a clear target. The gate is a **clarification prompt, not a hard block** — a `PASS` proceeds immediately with no added friction.
+
 ### Step 2: Information Gathering
 ... (omitted) ...
 

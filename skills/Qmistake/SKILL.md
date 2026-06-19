@@ -92,6 +92,25 @@ Show all entries from `.qe/MISTAKE.md`.
 ### `/Qmistake resolve M{NNN}`
 Mark a mistake as resolved (add `[RESOLVED]` prefix). Resolved mistakes stay in the file for reference but are de-prioritized in session injection.
 
+### `/Qmistake learn`
+Promote **auto-extracted** recurring failure patterns into the registry (Phase 4, D021).
+
+1. Run the extractor (deterministic, zero-dep, no model calls):
+   ```bash
+   npm run learn:failures   # → node scripts/learn-from-failures.mjs
+   ```
+   It scans `.qe/learning/failures/**` (auto-captured on Stop by `failure-capture.mjs`),
+   counts each pattern by **distinct task_uuid**, and writes recurring ones
+   (≥ 2 distinct tasks) to `.qe/learning/mistake-candidates.md`.
+2. Read `.qe/learning/mistake-candidates.md`. For each candidate, present it via
+   `AskUserQuestion` exactly as in **Step 2** above — the user decides whether it is a
+   genuine systemic mistake worth recording.
+3. On confirmation, write it through the normal **Step 3** path (M{NNN} entry in
+   `.qe/MISTAKE.md`). Skip candidates the user rejects.
+
+This is candidate-suggestion only: the extractor never writes to `.qe/MISTAKE.md`, and
+promotion always passes through user confirmation (D011 user-in-the-loop).
+
 ## Session Integration
 
 The `session-start.mjs` hook reads `.qe/MISTAKE.md` and injects its content into the session context. This ensures every new conversation starts with awareness of past mistakes.
@@ -111,8 +130,9 @@ Only unresolved entries are injected. If there are more than 10, show only criti
 - Record user-identified mistakes with confirmation
 - Auto-number entries
 - Integrate with session-start hook for cross-session persistence
+- Surface auto-extracted recurring-failure **candidates** (`/Qmistake learn`) for user-confirmed promotion
 
 ## Will Not
-- Auto-detect mistakes without user pointing them out
+- Auto-**record** mistakes without user confirmation (auto-extraction produces candidates only; promotion is always user-confirmed)
 - Delete entries (only resolve)
 - Modify project code or framework files

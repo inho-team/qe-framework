@@ -7,6 +7,7 @@ import { execSync } from 'child_process';
 import { readState, readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { captureFailureQuietly } from './lib/failure-capture.mjs';
+import { notify } from './lib/notify.mjs';
 import { appendRating } from './lib/rating-capture.mjs';
 import { isPersistentModeActiveFromState } from './lib/persistent-mode.mjs';
 import {
@@ -172,6 +173,17 @@ if (!activeMode) {
     captureFailureQuietly(cwd);
   } catch {
     // Fault tolerance — never let failure capture crash the stop handler
+  }
+}
+
+// --- Completion webhook (opt-in, D022) — best-effort, never blocks the hook ---
+// Fires only when stop is actually being allowed (no active mode). No-op unless
+// QE_NOTIFY_WEBHOOK is set; failures are swallowed inside notify().
+if (!activeMode) {
+  try {
+    await notify({ event: 'stop', summary: sweepAnnouncement || 'Session stopped.', cwd });
+  } catch {
+    // Fault tolerance — a notification must never crash the stop handler
   }
 }
 

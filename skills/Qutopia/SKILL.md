@@ -275,21 +275,41 @@ After ALL tasks in a session complete, run cross-task consistency check:
 ## Execution Procedure
 
 ### Enable
-1. Create `.qe/state/utopia-state.json` with mode
-2. Read `.claude/settings.json` (create if not exists)
-3. Merge `permissions.allow` (preserve existing)
-4. Report: `Utopia mode ON ({mode}) — autonomous pipeline active`
+1. **Pre-flight safety (MANDATORY — do before anything else):**
+   - **Clean tree**: require `git status --porcelain` to be empty. If dirty, STOP: "Commit or stash your changes before starting autonomous mode."
+   - **Branch**: refuse to run on a protected branch (`main`/`master`). Auto-create and switch to a sandbox branch `utopia/<timestamp>` and record the pre-run SHA for rollback.
+   - **Scope summary**: print what the task is expected to touch (files/dirs) before any change is made.
+2. Create `.qe/state/utopia-state.json` with `{ enabled, mode, allowUnsafe: false }`.
+3. Read `.claude/settings.json` (create if not exists); merge `permissions.allow` (preserve existing).
+4. Report: `Utopia mode ON ({mode}) on branch utopia/<ts> — autonomous pipeline active`
+
+### After a run
+- Print a **diff report**: `git diff --stat <pre-run-sha>..HEAD`.
+- Print the **rollback command**: `git reset --hard <pre-run-sha>` (and `git branch -D utopia/<ts>` to drop the sandbox).
 
 ### Disable (`/Qutopia off`)
 1. Update state file: `enabled: false`
 2. Remove `permissions.allow` from settings
 3. Report: `Utopia mode OFF — confirmations restored`
 
-## Safety
-- Does NOT skip destructive git operations (force push, reset --hard)
-- Does NOT skip file deletion outside .qe/
-- Spec pipeline creates audit trail even in autonomous mode
+## Safety — enforced rails (not just guidance)
+While Utopia is active, the PreToolUse hook (`hooks/scripts/lib/utopia-guard.mjs`)
+**hard-blocks** these, regardless of what the autonomous loop tries:
+- **Remote push** — `git push` / `--force` (autonomous runs never push)
+- **Destructive git** — `reset --hard`, `clean -f`, `checkout/restore .`, `branch -D`, `stash drop/clear`
+- **Destructive shell** — `rm -r`, redirect-clobber (`> file`), `find -delete`, `truncate`, `dd of=`
+- **Sensitive files** — Write/Edit to `.env`, migrations, `*.tf`, `Dockerfile`, `secrets/`, keys/certs, k8s manifests
+- **Protected branch** — modifying non-`.qe/` files on `main`/`master`
+
+The rails are **completely inert** in normal (non-autonomous) sessions.
+
+**Escape hatch:** setting `allowUnsafe: true` in `.qe/state/utopia-state.json` disables
+all rails. This is **dangerous — never use it in a shared/company repo.**
+
+- Spec pipeline creates an audit trail even in autonomous mode
 - User can always `/Qutopia off`
+
+See `docs/HOOKS.md` → "Utopia safety rails" for the full enforcement reference.
 
 ## How Skills Check Utopia Mode
 ```

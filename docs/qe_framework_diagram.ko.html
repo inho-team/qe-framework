@@ -1796,7 +1796,7 @@
         <div class="kind">PILLAR 01</div>
         <h4>Context Memory Manager</h4>
         <p>폴더별로 컨텍스트를 분할해 작업 디렉토리와 매칭되는 것만 로드. 단일 CLAUDE.md 대신 .qe/context/ 아래 분산.</p>
-        <div class="stat">~60% 토큰 절약</div>
+        <div class="stat">컨텍스트 토큰 절약</div>
       </div>
       <div class="pillar c2">
         <div class="kind">PILLAR 02</div>
@@ -1924,7 +1924,7 @@
     <span class="tag">.qe/context/</span>
   </div>
 
-  <div class="tldr">프로젝트 컨텍스트를 폴더별로 분할 저장. 작업 디렉토리와 매칭되는 파일만 자동 로드 — 단일 CLAUDE.md 방식 대비 약 60% 토큰 절약.</div>
+  <div class="tldr">프로젝트 컨텍스트를 폴더별로 분할 저장. 작업 디렉토리와 매칭되는 파일만 자동 로드 — 단일 CLAUDE.md 방식 대비 컨텍스트 토큰 절약(프로젝트별 상이, docs/BENCHMARK.md로 측정).</div>
 
   <div class="ctx-demo">
 <span class="cmt"># 작업 위치: src/frontend/components/Button.tsx</span><br>
@@ -1934,7 +1934,7 @@
 ├── <span class="hl-on">frontend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✔ src/frontend/** 매칭 → 로드</span><br>
 ├── <span class="hl-off">backend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ 스킵</span><br>
 └── <span class="hl-off">scripts.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ 스킵</span><br>
-<span class="save">RESULT → ~60% less context token usage</span>
+<span class="save">RESULT → fewer context tokens (varies by project)</span>
   </div>
 
   <!-- SECTION 7: Skill Taxonomy -->
@@ -2430,7 +2430,7 @@ flowchart TD
     H_STOP["Stop 훅"]:::hook
     H_END["SessionEnd 훅"]:::hook
 
-    C_CTX["폴더 컨텍스트<br/>root.md + folder.md<br/>약 60% 절감"]:::ctx
+    C_CTX["폴더 컨텍스트<br/>root.md + folder.md<br/>매칭 컨텍스트만 로드"]:::ctx
     C_MEMO["읽은 파일 캐시"]:::ctx
     C_TOKEN["토큰 사용량 모니터"]:::ctx
 

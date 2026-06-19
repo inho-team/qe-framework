@@ -10,6 +10,17 @@ import { emitBlock } from './lib/block-emitter.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
+// --- Fail-open safety net ---
+// Any unexpected error in this hook must NOT block the user's tool call. Intentional
+// hard-blocks go through emitBlock() → process.exit(2), which bypasses these handlers
+// (process.exit is not a throw). Only genuine bugs land here, and they fail open (allow).
+function failOpen() {
+  try { process.stdout.write(JSON.stringify({ continue: true })); } catch {}
+  process.exit(0);
+}
+process.on('uncaughtException', failOpen);
+process.on('unhandledRejection', failOpen);
+
 let input = '';
 try {
   input = readFileSync('/dev/stdin', 'utf8');
@@ -225,19 +236,27 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       });
     }
 
-    // version bump (editing plugin.json version via sed/echo) → Mbump
-    if (/plugin\.json/.test(cmd) && /version/.test(cmd) && /sed|echo|printf/.test(cmd)) {
+    // version bump: only a real WRITE SINK into plugin.json — redirect (`> plugin.json`
+    // / `>> plugin.json`), `tee plugin.json`, or `dd of=…plugin.json` — that also
+    // mentions version → Mbump. Read-only commands that merely mention plugin.json +
+    // version (grep, cat, node -e reads, `echo "...version..."` log headers) have no
+    // write sink and pass through. (sed/perl/ruby -i caught separately below. cp/mv and
+    // arbitrary interpreter writes are not shell-detectable without re-introducing
+    // read false-positives; the Edit-tool rule below covers the agent's normal path.)
+    const writesPluginJson =
+      /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(cmd);
+    if (writesPluginJson && /version/.test(cmd)) {
       overrideRules.push({
         skill: 'Mbump',
         msg: 'Direct version editing is blocked. Use /Mbump instead.'
       });
     }
 
-    // sed -i → Edit tool
-    if (/\bsed\s+(?:-[a-zA-Z]*i|--in-place)\b/.test(cmd)) {
+    // in-place edit (sed/perl/ruby -i) → Edit tool
+    if (/\b(?:sed|perl|ruby)\s+(?:-[a-zA-Z]*i|--in-place)\b/.test(cmd)) {
       overrideRules.push({
         skill: '_edit_tool',
-        msg: 'sed -i is blocked. Use the Edit tool instead.'
+        msg: 'In-place edit (sed/perl/ruby -i) is blocked. Use the Edit tool instead.'
       });
     }
   }
@@ -255,10 +274,15 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     }
   }
 
-  // Block if any rule matched and not bypassed by the corresponding skill
+  // Block if any rule matched and not bypassed by the corresponding skill.
   // Uses exit code 2 = hard block. The harness refuses the tool call — no negotiation.
+  // hook_profile gates enforcement: "minimal" downgrades to a soft hint (escape hatch
+  // when a guard misfires); "safe" (default) and "full" enforce.
   for (const rule of overrideRules) {
-    if (bypassSkill !== rule.skill) {
+    if (bypassSkill === rule.skill) continue;
+    if (cfg.hook_profile === 'minimal') {
+      hints.push(`[guard:${rule.skill}] ${rule.msg} (hook_profile=minimal — not enforced)`);
+    } else {
       emitBlock({
         skill: rule.skill,
         reason: rule.msg,
@@ -421,6 +445,28 @@ if (utopia && utopia.enabled && utopia.mode === 'qa') {
         }
       } catch {}
     }
+  }
+}
+
+// --- Qutopia safety rails (hard block while autonomous mode is active) ---
+// Inert in normal sessions: only runs when utopia_state.enabled and not overridden.
+if (utopia && utopia.enabled && !utopia.allowUnsafe && ['Bash', 'Write', 'Edit'].includes(toolName)) {
+  try {
+    const { evaluateUtopiaAction } = await import('./lib/utopia-guard.mjs');
+    const verdict = evaluateUtopiaAction({
+      toolName,
+      toolInput: data.tool_input || data.toolInput || {},
+      cwd,
+    });
+    if (verdict.block) {
+      emitBlock({
+        skill: '_utopia_guard',
+        reason: `Utopia rail: ${verdict.reason}`,
+        action: 'Use a sandbox branch / avoid this action, or set allowUnsafe:true in .qe/state/utopia-state.json to override (NOT for shared repos)',
+      });
+    }
+  } catch {
+    // fail-open: a guard error must never block the tool
   }
 }
 

@@ -1796,7 +1796,7 @@
         <div class="kind">PILLAR 01</div>
         <h4>Context Memory Manager</h4>
         <p>フォルダ別にコンテキストを分割して作業ディレクトリとマッチするものだけをロード。単一 CLAUDE.md の代わりに .qe/context/ 下に分散。</p>
-        <div class="stat">~60% トークン節約</div>
+        <div class="stat">コンテキストトークン節約</div>
       </div>
       <div class="pillar c2">
         <div class="kind">PILLAR 02</div>
@@ -1924,7 +1924,7 @@
     <span class="tag">.qe/context/</span>
   </div>
 
-  <div class="tldr">プロジェクトコンテキストをフォルダ別に分割保存。作業ディレクトリとマッチするファイルのみ自動ロード — 単一 CLAUDE.md 方式対比で約 60% トークン節約。</div>
+  <div class="tldr">プロジェクトコンテキストをフォルダ別に分割保存。作業ディレクトリとマッチするファイルのみ自動ロード — 単一 CLAUDE.md 方式対比でコンテキストトークン節約（プロジェクトにより異なる、docs/BENCHMARK.md で測定）。</div>
 
   <div class="ctx-demo">
 <span class="cmt"># 作業位置: src/frontend/components/Button.tsx</span><br>
@@ -1934,7 +1934,7 @@
 ├── <span class="hl-on">frontend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✔ src/frontend/** マッチ → ロード</span><br>
 ├── <span class="hl-off">backend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ スキップ</span><br>
 └── <span class="hl-off">scripts.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ スキップ</span><br>
-<span class="save">RESULT → ~60% less context token usage</span>
+<span class="save">RESULT → fewer context tokens (varies by project)</span>
   </div>
 
   <!-- SECTION 7: Skill Taxonomy -->
@@ -2430,7 +2430,7 @@ flowchart TD
     H_STOP["Stop フック"]:::hook
     H_END["SessionEnd フック"]:::hook
 
-    C_CTX["フォルダコンテキスト<br/>root.md + folder.md<br/>約 60% 削減"]:::ctx
+    C_CTX["フォルダコンテキスト<br/>root.md + folder.md<br/>マッチしたコンテキストのみ"]:::ctx
     C_MEMO["読んだファイルキャッシュ"]:::ctx
     C_TOKEN["トークン使用量モニター"]:::ctx
 

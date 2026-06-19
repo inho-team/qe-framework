@@ -1796,7 +1796,7 @@
         <div class="kind">PILLAR 01</div>
         <h4>Context Memory Manager</h4>
         <p>Partition context by folder—load only what matches your working directory. Context distributed under .qe/context/ instead of a single CLAUDE.md.</p>
-        <div class="stat">~60% token savings</div>
+        <div class="stat">context token savings</div>
       </div>
       <div class="pillar c2">
         <div class="kind">PILLAR 02</div>
@@ -1924,7 +1924,7 @@
     <span class="tag">.qe/context/</span>
   </div>
 
-  <div class="tldr">Split project context by folder. Auto-load only files matching your working directory—about 60% token savings vs. single CLAUDE.md approach.</div>
+  <div class="tldr">Split project context by folder. Auto-load only files matching your working directory—context token savings vs. a single CLAUDE.md (varies by project; see BENCHMARK.md).</div>
 
   <div class="ctx-demo">
 <span class="cmt"># Work location: src/frontend/components/Button.tsx</span><br>
@@ -1934,7 +1934,7 @@
 ├── <span class="hl-on">frontend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✔ matches src/frontend/** → load</span><br>
 ├── <span class="hl-off">backend.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ skip</span><br>
 └── <span class="hl-off">scripts.md</span>&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;<span class="cmt"># ✘ skip</span><br>
-<span class="save">RESULT → ~60% less context token usage</span>
+<span class="save">RESULT → fewer context tokens (varies by project)</span>
   </div>
 
   <!-- SECTION 7: Skill Taxonomy -->
@@ -2430,7 +2430,7 @@ flowchart TD
     H_STOP["Stop hook"]:::hook
     H_END["SessionEnd hook"]:::hook
 
-    C_CTX["Folder Context<br/>root.md + folder.md<br/>~60% savings"]:::ctx
+    C_CTX["Folder Context<br/>root.md + folder.md<br/>matched context only"]:::ctx
     C_MEMO["File read cache"]:::ctx
     C_TOKEN["Token usage monitor"]:::ctx
 
