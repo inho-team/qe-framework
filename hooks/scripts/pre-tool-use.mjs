@@ -448,6 +448,28 @@ if (utopia && utopia.enabled && utopia.mode === 'qa') {
   }
 }
 
+// --- Qutopia safety rails (hard block while autonomous mode is active) ---
+// Inert in normal sessions: only runs when utopia_state.enabled and not overridden.
+if (utopia && utopia.enabled && !utopia.allowUnsafe && ['Bash', 'Write', 'Edit'].includes(toolName)) {
+  try {
+    const { evaluateUtopiaAction } = await import('./lib/utopia-guard.mjs');
+    const verdict = evaluateUtopiaAction({
+      toolName,
+      toolInput: data.tool_input || data.toolInput || {},
+      cwd,
+    });
+    if (verdict.block) {
+      emitBlock({
+        skill: '_utopia_guard',
+        reason: `Utopia rail: ${verdict.reason}`,
+        action: 'Use a sandbox branch / avoid this action, or set allowUnsafe:true in .qe/state/utopia-state.json to override (NOT for shared repos)',
+      });
+    }
+  } catch {
+    // fail-open: a guard error must never block the tool
+  }
+}
+
 // --- Context pressure check ---
 try {
   const { checkContextPressure } = await import('./context-monitor.mjs');
