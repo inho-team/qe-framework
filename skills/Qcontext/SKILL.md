@@ -3,6 +3,7 @@ name: Qcontext
 description: 'Folder-aware context memory manager. Creates, views, updates, and refreshes per-folder context files in .qe/context/. Use when the user wants to manage folder-level context, optimize Claude memory, or set up context partitioning.'
 invocation_trigger: When the user wants to create, view, update, or refresh folder-aware context files.
 recommendedModel: sonnet
+tier: core
 ---
 
 # Qcontext — Folder-Aware Context Manager

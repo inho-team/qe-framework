@@ -4,6 +4,7 @@ description: "Generate spec documents (TASK_REQUEST + VERIFY_CHECKLIST). Shortcu
 user_invocable: true
 invocation_trigger: "When the user wants to generate a spec, create a task, or types /Qgs. Also triggered from PSE Chain handoffs after /Qplan."
 recommendedModel: haiku
+tier: core
 ---
 
 # Qgs — Spec Generation (PSE Chain Step 2)

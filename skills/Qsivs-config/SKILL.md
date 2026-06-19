@@ -3,6 +3,7 @@ name: Qsivs-config
 description: 'View and modify SIVS engine routing configuration. Change which engine (claude/codex) handles each stage (spec/implement/verify/supervise). Use when the user wants to check or change SIVS routing, engine config, model assignment, or effort level.'
 invocation_trigger: When the user wants to view, modify, or reset SIVS engine routing configuration.
 recommendedModel: haiku
+tier: core
 ---
 
 # Qsivs-config — SIVS Engine Routing Manager

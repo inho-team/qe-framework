@@ -3,6 +3,7 @@ name: Qinit
 description: QE framework (Query Executor) initial setup. Creates CLAUDE.md, settings.json, directory structure, and .gitignore in a new project, then auto-analyzes the project. Use when the user wants to initialize a project or set up the framework.
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku
+tier: core
 ---
 
 # Qinit — QE Framework Initialization

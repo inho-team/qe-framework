@@ -3,6 +3,7 @@ name: Qplan
 description: "Planning skill for any task — from a single bug fix to a full project. Assesses scale automatically and creates the right level of plan. Does NOT implement code — hand off to /Qgs for spec generation."
 invocation_trigger: "When the user wants to plan any work — small fixes, single features, or full projects. Also when moving to the next phase."
 recommendedModel: opus
+tier: core
 ---
 
 # Qplan — Task Planning (PSE Step 1: PLAN)

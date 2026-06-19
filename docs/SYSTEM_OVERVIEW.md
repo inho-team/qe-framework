@@ -126,9 +126,10 @@ The context memory system optimizes Claude's context window by loading only rele
 
 ```
 Traditional:  Load full CLAUDE.md (all domain rules)    → 100% tokens
-QE Context:   Load root.md + matched folder context     → ~40% tokens
+QE Context:   Load root.md + matched folder context     → only the matched subset
 
-Savings: ~60% context token reduction per session
+Savings: fewer context tokens per session — the magnitude depends on project size and
+how domain rules split across folders. Measure it for your repo: see docs/BENCHMARK.md.
 ```
 
 ### Management

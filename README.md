@@ -218,7 +218,8 @@ No Codex? No problem. All stages default to Claude and everything works out of t
 Working in src/frontend/components/Button.tsx
   → Loads: root.md + frontend.md
   → Skips: backend.md, scripts.md, infra.md
-  → Result: ~60% less context token usage
+  → Result: loads only matched context — fewer tokens per turn
+            (savings vary by project; measure with docs/BENCHMARK.md)
 ```
 
 | Command | Description |
@@ -255,11 +256,19 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ## Skill Library (<!--qe:skills-->178<!--/qe:skills--> skills)
 
+> **Start here.** You only need **7 core skills** to use the framework end-to-end. The
+> other 170+ are an opt-in library that ships in the *same package* — no extra installs,
+> no separate plugins. New here? Learn these and ignore the rest until you need them:
+>
+> `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qatomic-run` · `/Qcode-run-task` · `/Qsivs-config`
+>
+> *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The breadth is a curated library, not a packaging burden — one install, progressive disclosure.)*
+
 ### Core Skills
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| **Core PSE** | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
+| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
 | **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` | 5 |
 | **Project** | `Qmap-codebase` `Qcommit` `Qbranch` `Qarchive` `Qproject-sync` | 5 |
