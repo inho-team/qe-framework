@@ -11,7 +11,7 @@ import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './
 import { shortenSid, getSessionContextDir } from './lib/session-resolver.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
-import { invalidateCachedRatio } from './lib/context-meter.mjs';
+import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 let input = '';
@@ -45,6 +45,19 @@ try {
   invalidateCachedRatio(cwd);
 } catch {
   // Fault tolerance — never block session start on cache housekeeping.
+}
+
+// Seed the volatile window limit from the DURABLE, model-keyed detection (if any)
+// recorded in a prior session. This closes the cold-start window: after a
+// state-folder wipe the cache has no limit, and before the first statusline
+// render nothing has re-derived it, so a 1M run would momentarily score against
+// the 200k default and could raise false context-pressure on the very first
+// tool calls. Seeding from .qe/config.json (which survives the wipe) prevents it.
+try {
+  const detected = readDetectedLimit(cwd, data.model?.id || data.model);
+  if (detected) writeCachedLimit(cwd, detected);
+} catch {
+  // Fault tolerance — seeding is best-effort.
 }
 
 // Compute this Claude session's short sid up front so per-session paths

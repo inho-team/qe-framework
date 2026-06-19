@@ -129,6 +129,86 @@ export function readConfiguredLimit(projectDir) {
 }
 
 /**
+ * Whether a model id is concrete enough to key a durable limit on. Rejects
+ * empty/absent ids and Claude Code's `<synthetic>` placeholder (used for
+ * injected non-model messages), which must never be persisted as a real tier.
+ *
+ * @param {string|undefined|null} id
+ * @returns {boolean}
+ */
+function isUsableModelId(id) {
+  return typeof id === 'string' && id.length > 0 && id !== '<synthetic>';
+}
+
+/**
+ * Read a DURABLE, model-keyed context-window limit auto-detected in a prior
+ * session. Unlike {@link readCachedRatio}/{@link readCachedLimit}, this lives in
+ * the committed-style `.qe/config.json` (not the volatile `.qe/state/` cache),
+ * so it survives a full state-folder wipe (`/Qsweep`, manual cleanup) — the
+ * exact event that otherwise forces re-detection from scratch and reopens the
+ * "1M run scored against 200k" false-pressure window.
+ *
+ * Keyed by model id so a later switch to a genuinely 200k model does NOT inherit
+ * a stale 1M limit. The model id from the hooks payload is already `[1m]`-stripped
+ * (e.g. `claude-opus-4-8`), so the key is the stripped form on both write and read.
+ *
+ * Precedence note for callers: this sits BELOW the manual `context_window_limit`
+ * override (see {@link readConfiguredLimit}) — a human-set value always wins.
+ *
+ * @param {string} projectDir
+ * @param {string} modelId hooks-payload model id (stripped form)
+ * @returns {number|null} detected limit in tokens, or null when absent/invalid.
+ */
+export function readDetectedLimit(projectDir, modelId) {
+  if (!projectDir || !isUsableModelId(modelId)) return null;
+  try {
+    const p = join(projectDir, '.qe', 'config.json');
+    if (!existsSync(p)) return null;
+    const cfg = JSON.parse(readFileSync(p, 'utf8'));
+    const v = cfg?.hooks?.context_window_limits?.[modelId];
+    if (typeof v === 'number' && v > 0) return v;
+  } catch { /* best-effort */ }
+  return null;
+}
+
+/**
+ * Persist a DETERMINISTICALLY detected context-window limit to the durable,
+ * model-keyed `.qe/config.json` store read by {@link readDetectedLimit}. This is
+ * the backbone of self-correction: once any consumer proves the true tier
+ * (statusline back-solve, or an observed token count past the 200k base), it is
+ * remembered across sessions AND across state-folder wipes, so the detection
+ * happens once rather than every cold start.
+ *
+ * Merge-safe (preserves other `hooks` keys and top-level config), atomic, and a
+ * no-op when the value is unchanged (avoids write churn on every statusline
+ * frame). Callers pass only the confidently-resolved tier (e.g. 1000000) — never
+ * a guessed default. Best-effort: silently skips on any error or unusable id.
+ *
+ * @param {string} projectDir
+ * @param {string} modelId hooks-payload model id (stripped form)
+ * @param {number} limit detected limit in tokens (e.g. 1000000)
+ */
+export function writeDetectedLimit(projectDir, modelId, limit) {
+  if (!projectDir || !isUsableModelId(modelId)) return;
+  if (typeof limit !== 'number' || limit <= 0) return;
+  try {
+    const p = join(projectDir, '.qe', 'config.json');
+    let cfg = {};
+    if (existsSync(p)) {
+      try { cfg = JSON.parse(readFileSync(p, 'utf8')) || {}; } catch { cfg = {}; }
+    }
+    if (!cfg.hooks || typeof cfg.hooks !== 'object') cfg.hooks = {};
+    const map = (cfg.hooks.context_window_limits && typeof cfg.hooks.context_window_limits === 'object')
+      ? cfg.hooks.context_window_limits
+      : {};
+    if (map[modelId] === limit) return; // already persisted — avoid churn
+    map[modelId] = limit;
+    cfg.hooks.context_window_limits = map;
+    atomicWrite(p, cfg);
+  } catch { /* best-effort */ }
+}
+
+/**
  * Derive the true context-window token limit from a statusline `context_window`
  * payload by back-solving `limit = total_input_tokens / (used_percentage/100)`
  * and snapping to the nearest canonical tier.

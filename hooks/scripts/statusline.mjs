@@ -21,6 +21,7 @@ import {
   estimateUsage,
   readCachedLimit,
   readConfiguredLimit,
+  writeDetectedLimit,
   reconcileDisplayPercentage,
 } from './lib/context-meter.mjs';
 
@@ -120,6 +121,12 @@ async function main() {
   // window limit BEFORE any mutation (deriving it from the original payload), so
   // the back-solve isn't poisoned by the reconciled value we may write below.
   const trueLimit = readCachedLimit(projectDir) ?? deriveContextLimit(cw) ?? readConfiguredLimit(projectDir);
+  // Backbone of self-correction: the statusline back-solve is the one reliable
+  // tier detector that works at ANY fill (tokens ÷ used_percentage). When it
+  // proves the 1M tier, remember it DURABLY (model-keyed, in .qe/config.json) so
+  // the detection survives a state-folder wipe and seeds future cold starts —
+  // no-op when already persisted.
+  if (trueLimit === 1000000) writeDetectedLimit(projectDir, data?.model?.id, 1000000);
   if (typeof pct === 'number' && data?.transcript_path) {
     try {
       const u = estimateUsage(data.transcript_path, {
