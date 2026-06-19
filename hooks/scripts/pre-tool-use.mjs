@@ -23,7 +23,9 @@ process.on('unhandledRejection', failOpen);
 
 let input = '';
 try {
-  input = readFileSync('/dev/stdin', 'utf8');
+  // Read fd 0 directly. `/dev/stdin` re-opens the pipe and can read empty on Linux CI
+  // (a known gotcha); reading the fd is portable across macOS and Linux runners.
+  input = readFileSync(0, 'utf8');
 } catch {
   process.exit(0);
 }
