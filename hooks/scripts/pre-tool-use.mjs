@@ -212,7 +212,10 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     }
   }
   let bypassSkill = null;
-  if (bypass && bypass.active && (Date.now() - (bypass.ts || 0)) < 60000) {
+  // 120s TTL: the flag is written by a skill's executor right before its gated command.
+  // Wider than the action itself but short enough that a stale flag (skipped cleanup)
+  // self-expires. Gives slow executors (status/diff/log analysis) margin before the commit.
+  if (bypass && bypass.active && (Date.now() - (bypass.ts || 0)) < 120000) {
     bypassSkill = bypass.skill || null;
   }
 

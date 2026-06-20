@@ -7,7 +7,8 @@
  * Strategy (by signal reliability, not mtime-first):
  *   - tasks/completed, checklists/completed   → archive immediately (already marked done)
  *   - tasks/pending w/ matching all-complete checklist → archive both
- *   - tasks/pending w/ old mtime && not complete → staleReports (no mutation)
+ *   - tasks/pending incomplete, mtime > archiveDays (60) → archive pair (recoverable)
+ *   - tasks/pending incomplete, archiveDays >= mtime > staleDays (30) → staleReports (warn, grace window)
  *   - handoffs/HANDOFF_YYYYMMDD_*             → archive if filename date > N days
  *   - security-reports/SECURITY_REPORT_YYYYMMDD_* → archive if > N days
  *   - learning/failures/YYYY-MM/              → archive whole month dir if > N days
@@ -29,7 +30,8 @@ const DEFAULTS = {
   securityReportsDays: 14,
   learningFailuresDays: 30,
   agentResultsDays: 7,
-  tasksPendingStaleDays: 30,
+  tasksPendingStaleDays: 30,    // incomplete pending older than this → warn (staleReports)
+  tasksPendingArchiveDays: 60,  // incomplete pending older than this → archive (recoverable)
 };
 
 /**
@@ -114,6 +116,7 @@ function sweepPendingCompletedPairs(qeDir, plan, config) {
   if (!existsSync(tasksPending)) return;
   const now = Date.now();
   const staleMs = config.tasksPendingStaleDays * 24 * 60 * 60 * 1000;
+  const archiveMs = config.tasksPendingArchiveDays * 24 * 60 * 60 * 1000;
 
   for (const f of safeReaddir(tasksPending)) {
     const m = f.match(/^TASK_REQUEST_([a-f0-9]+)\.md$/i);
@@ -128,13 +131,21 @@ function sweepPendingCompletedPairs(qeDir, plan, config) {
       continue;
     }
 
-    // Not complete — check stale age (report only)
+    // Not complete — two-tier age policy:
+    //   age > archiveMs           → archive the pair (recoverable; clears stale accumulation)
+    //   archiveMs >= age > staleMs → warn only (grace window before archival)
     try {
       const age = now - statSync(taskPath).mtimeMs;
-      if (age > staleMs) {
+      const ageDays = Math.floor(age / (24 * 60 * 60 * 1000));
+      if (age > archiveMs) {
+        plan.archive.push({ src: taskPath, category: 'tasks', reason: 'pending-stale-archive' });
+        if (existsSync(checklistPath)) {
+          plan.archive.push({ src: checklistPath, category: 'checklists', reason: 'pending-stale-archive' });
+        }
+      } else if (age > staleMs) {
         plan.staleReports.push({
           path: taskPath,
-          ageDays: Math.floor(age / (24 * 60 * 60 * 1000)),
+          ageDays,
           reason: 'pending-stale',
         });
       }

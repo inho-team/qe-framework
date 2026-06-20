@@ -22,12 +22,17 @@ Never leaves AI traces (e.g., Co-Authored-By).
 4. **Validate conventional commit format** (see below)
 5. Selectively `git add` only relevant files
 6. Exclude sensitive files such as `.env`, credentials, etc.
-7. **Set skill bypass flag** (required — PreToolUse hook blocks raw `git commit`):
+7. **Set the skill bypass flag — in its OWN bash call, immediately before the commit** (required — the PreToolUse hook hard-blocks raw `git commit`):
    ```bash
    mkdir -p .qe/state && echo '{"active":true,"skill":"Qcommit","ts":'$(date +%s000)'}' > .qe/state/skill-bypass.json
    ```
-8. Execute the commit
-9. Remove bypass flag: `rm -f .qe/state/skill-bypass.json`
+   > ❌ **Never combine flag-creation and `git commit` in one bash command.** The PreToolUse hook reads the flag from disk *before* the command executes, so a flag written in the same command is not yet on disk and the commit is blocked. Flag-write and commit MUST be **separate Bash tool calls, flag first.**
+   > The flag has a **120-second TTL** (`ts` must be within 120s of the commit). Write it right before committing — not at the start of your status/diff analysis — or it expires.
+8. **Execute the commit in the NEXT bash call.** Staging may share this call, and cleanup may be appended after the commit (only `git commit` is gated, so `git add` and `rm` run freely once the flag is in place):
+   ```bash
+   git add <relevant files> && git commit -m "..." ; rm -f .qe/state/skill-bypass.json
+   ```
+9. Confirm the flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
 
 ## Conventional Commit Validation (Step 4)
 
