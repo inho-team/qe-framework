@@ -49,6 +49,8 @@ Ask the user which external service they want to connect. Common MCP servers:
 | Memory | `@modelcontextprotocol/server-memory` | stdio |
 | Brave Search | `@modelcontextprotocol/server-brave-search` | stdio |
 | Puppeteer | `@modelcontextprotocol/server-puppeteer` | stdio |
+| Playwright (browser) | `@playwright/mcp@latest` | stdio |
+| Chrome DevTools (browser, real session) | `chrome-devtools-mcp@latest` | stdio |
 | Redis | `@modelcontextprotocol/server-redis` | stdio |
 | SQLite | `@modelcontextprotocol/server-sqlite` | stdio |
 | Sentry | `@modelcontextprotocol/server-sentry` | stdio |

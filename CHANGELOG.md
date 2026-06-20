@@ -17,6 +17,8 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- `Qmcp-setup`: added Playwright (`@playwright/mcp`) and Chrome DevTools (`chrome-devtools-mcp`) browser servers to the recommended-MCP catalog, fixing the previously dangling `/Qmcp-setup playwright` reference in `Qvisual-redesign`.
+
 ### Changed
 
 ### Fixed
