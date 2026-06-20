@@ -1,6 +1,6 @@
 {
   "name": "qe-framework",
-  "version": "7.2.0",
+  "version": "7.2.1",
   "description": "QE Framework v7 — Claude-first SIVS loop with full lifecycle hooks, 178 skills, and optional Codex bridge.",
   "author": {
     "name": "inho-team"

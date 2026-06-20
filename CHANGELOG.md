@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.2.1] - 2026-06-20
+
+### Added
+
 - `Qatomic-run`: opt-in `--worktree` flag runs each parallel Haiku teammate in an isolated git worktree, plus a scale-aware brainstorming gate at `Qgs` Step 1.5 and a skill eval harness (structure-deterministic checks with opt-in behavioral LLM-judge).
 - Metadata drift gate with hardened lifecycle hooks: a single source of truth for skill/agent metadata, validated by `sync:metadata` and enforced in CI.
 - Enforced safety rails for autonomous (`Qutopia`) mode at the hook level — push and sensitive-write actions stay gated even with confirmations skipped; inactive mode has no effect.
