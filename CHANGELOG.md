@@ -17,9 +17,24 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- `Qatomic-run`: opt-in `--worktree` flag runs each parallel Haiku teammate in an isolated git worktree, plus a scale-aware brainstorming gate at `Qgs` Step 1.5 and a skill eval harness (structure-deterministic checks with opt-in behavioral LLM-judge).
+- Metadata drift gate with hardened lifecycle hooks: a single source of truth for skill/agent metadata, validated by `sync:metadata` and enforced in CI.
+- Enforced safety rails for autonomous (`Qutopia`) mode at the hook level — push and sensitive-write actions stay gated even with confirmations skipped; inactive mode has no effect.
+- Previewable, reversible plugin install: `--dry-run`, automatic backups, `restore`, and a `doctor` self-check.
+- Skill tiering — 7 core skills tagged with tier metadata for progressive disclosure.
+
 ### Changed
 
+- `sweep-analyzer`: two-tier age policy for incomplete pending tasks — warn (stale report) after 30 days, auto-archive the task/checklist pair (recoverable) after 60 days, so stale pending no longer accumulates indefinitely.
+- Commit bypass flag hardened: TTL widened 60s → 120s and the flag must be written in its own Bash call immediately before the gated `git commit` (the PreToolUse hook reads it from disk before the command runs, so a same-call flag is blocked). `Ecommit-executor` docs updated to match.
+- `core/OUTPUT_STYLE.md`: answer skeleton corrected and rendered consistently; prefer plain words over uncommon English transliterations.
+- Dropped an unverified token-savings claim from the skill-tiering docs.
+
 ### Fixed
+
+- Hooks now read stdin from fd 0 for CI portability.
+- Stopped false context-pressure alarms on 1M-window models.
+- Hardened the cross-reference regex against sub-path and URL false positives.
 
 ### Removed
 
