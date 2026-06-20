@@ -24,3 +24,11 @@ TASK_REQUEST_*.md
 VERIFY_CHECKLIST_*.md
 ANALYSIS_*.md
 evals/.manifest.json
+
+# Local artifacts and notes (not part of the framework)
+dist/
+GEMINI.md
+.planning
+*.pdf
+harness-engineering-talk*.md
+gbrain-분석.md
