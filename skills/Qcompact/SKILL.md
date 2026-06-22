@@ -107,7 +107,7 @@ Call the Ehandoff-executor sub-agent to generate the handoff document.
 ### RESUME Workflow
 
 #### Step 1: Look Up Handoff
-Scan `.qe/handoffs/sessions/{sid}/` for the active sid first. If empty, fall back to `_legacy/` and other sessions (oldest sessions are stalest).
+Use the shared resolver — `resolveResumeContext(projectRoot, overrideSid)` in `hooks/scripts/lib/session-resolver.mjs` — the **same function `/Qresume` uses**, so handoff lookup here and restore there cannot diverge. It scans the active sid across both `.qe/context/` and `.qe/handoffs/` first, and when the active sid is empty in both, falls back to the newest other bucket (durable handoffs are unioned in, so a handoff saved under a prior sid is reachable). Read `latestHandoff` from the returned descriptor; when `source: 'fallback'`, tell the user which bucket was loaded.
 
 #### Step 2: Check Freshness
 | Level | Meaning |

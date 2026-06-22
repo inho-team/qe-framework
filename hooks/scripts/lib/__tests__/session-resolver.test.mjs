@@ -18,6 +18,8 @@ import {
   getSessionHandoffDir,
   ensureSessionDirs,
   listSessionBuckets,
+  latestHandoffIn,
+  resolveResumeContext,
 } from '../session-resolver.mjs';
 
 /**
@@ -225,6 +227,184 @@ test('listSessionBuckets: returns empty array when sessions dir absent', () => {
   const root = mkroot();
   try {
     assert.deepEqual(listSessionBuckets(root), []);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('listSessionBuckets: surfaces a handoff-only bucket (the root-cause case)', () => {
+  const root = mkroot();
+  try {
+    // Bucket exists ONLY in the handoff domain — no auto-snapshot at all.
+    const hof = join(root, '.qe/handoffs/sessions/7eaa0d54');
+    mkdirSync(hof, { recursive: true });
+    writeFileSync(join(hof, 'HANDOFF_20260622.md'), 'handoff');
+
+    const list = listSessionBuckets(root);
+    assert.equal(list.length, 1);
+    assert.equal(list[0].sid, '7eaa0d54');
+    assert.equal(list[0].hasHandoff, true);
+    assert.equal(list[0].hasSnapshot, false);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('listSessionBuckets: merges a bucket present in both domains into one entry', () => {
+  const root = mkroot();
+  try {
+    const ctx = join(root, '.qe/context/sessions/a1b2c3d4');
+    const hof = join(root, '.qe/handoffs/sessions/a1b2c3d4');
+    mkdirSync(ctx, { recursive: true });
+    mkdirSync(hof, { recursive: true });
+    writeFileSync(join(ctx, 'snapshot.md'), 'snap');
+    writeFileSync(join(hof, 'HANDOFF_20260622.md'), 'handoff');
+
+    const list = listSessionBuckets(root);
+    assert.equal(list.length, 1);
+    assert.equal(list[0].sid, 'a1b2c3d4');
+    assert.equal(list[0].hasSnapshot, true);
+    assert.equal(list[0].hasHandoff, true);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// latestHandoffIn
+// ---------------------------------------------------------------------------
+
+test('latestHandoffIn: returns null for missing dir and non-handoff files', () => {
+  const root = mkroot();
+  try {
+    assert.equal(latestHandoffIn(join(root, 'nope')), null);
+    const dir = join(root, 'h');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'notes.md'), 'x');
+    writeFileSync(join(dir, 'HANDOFF_20260101.txt'), 'x'); // wrong ext
+    assert.equal(latestHandoffIn(dir), null);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('latestHandoffIn: picks the newest HANDOFF_*.md by mtime', async () => {
+  const root = mkroot();
+  try {
+    const dir = join(root, 'h');
+    mkdirSync(dir, { recursive: true });
+    writeFileSync(join(dir, 'HANDOFF_20260101.md'), 'old');
+    await new Promise((r) => setTimeout(r, 10));
+    writeFileSync(join(dir, 'HANDOFF_20260622.md'), 'new');
+
+    const latest = latestHandoffIn(dir);
+    assert.ok(latest);
+    assert.equal(latest.path, join(dir, 'HANDOFF_20260622.md'));
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// resolveResumeContext (single source of truth)
+// ---------------------------------------------------------------------------
+
+/** Point the state file at a session id so resolveSid picks up `sid`. */
+function setActiveSid(root, rawSessionId) {
+  mkdirSync(join(root, '.qe/state'), { recursive: true });
+  writeFileSync(
+    join(root, '.qe/state/current-session.json'),
+    JSON.stringify({ session_id: rawSessionId })
+  );
+}
+
+test('resolveResumeContext: loads active sid context when present', () => {
+  const root = mkroot();
+  try {
+    setActiveSid(root, 'a1b2c3d4-0000-0000-0000-000000000000');
+    const ctx = join(root, '.qe/context/sessions/a1b2c3d4');
+    mkdirSync(ctx, { recursive: true });
+    writeFileSync(join(ctx, 'snapshot.md'), 'snap');
+
+    const r = resolveResumeContext(root, null);
+    assert.equal(r.sid, 'a1b2c3d4');
+    assert.equal(r.source, 'active');
+    assert.equal(r.fellBackFrom, null);
+    assert.equal(r.contextFiles.length, 1);
+    assert.equal(r.isEmpty, false);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('resolveResumeContext: falls back to a handoff-only bucket when active sid empty', () => {
+  const root = mkroot();
+  try {
+    // Active session has NOTHING; a prior session left a durable handoff.
+    setActiveSid(root, '8ec5fe50-0000-0000-0000-000000000000');
+    const hof = join(root, '.qe/handoffs/sessions/7eaa0d54');
+    mkdirSync(hof, { recursive: true });
+    writeFileSync(join(hof, 'HANDOFF_20260622.md'), 'handoff');
+
+    const r = resolveResumeContext(root, null);
+    assert.equal(r.source, 'fallback');
+    assert.equal(r.sid, '7eaa0d54');
+    assert.equal(r.fellBackFrom, '8ec5fe50');
+    assert.equal(r.latestHandoff, join(hof, 'HANDOFF_20260622.md'));
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('resolveResumeContext: explicit --from is honored even when empty (no fallback)', () => {
+  const root = mkroot();
+  try {
+    // A newer bucket exists, but the user explicitly asked for an empty one.
+    const hof = join(root, '.qe/handoffs/sessions/7eaa0d54');
+    mkdirSync(hof, { recursive: true });
+    writeFileSync(join(hof, 'HANDOFF_20260622.md'), 'handoff');
+
+    const r = resolveResumeContext(root, 'deadbeef');
+    assert.equal(r.sid, 'deadbeef');
+    assert.equal(r.source, 'empty');
+    assert.equal(r.fellBackFrom, null);
+    assert.equal(r.isEmpty, true);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('resolveResumeContext: a lone compact-trigger.json does not block fallback (the real bug)', () => {
+  const root = mkroot();
+  try {
+    // Active bucket holds ONLY a compact-trigger.json — the exact state that
+    // made the original /Qresume report "no snapshot" while a real handoff
+    // sat under a prior sid.
+    setActiveSid(root, '8ec5fe50-0000-0000-0000-000000000000');
+    const ctx = join(root, '.qe/context/sessions/8ec5fe50');
+    mkdirSync(ctx, { recursive: true });
+    writeFileSync(join(ctx, 'compact-trigger.json'), '{}');
+    const hof = join(root, '.qe/handoffs/sessions/7eaa0d54');
+    mkdirSync(hof, { recursive: true });
+    writeFileSync(join(hof, 'HANDOFF_20260622.md'), 'handoff');
+
+    const r = resolveResumeContext(root, null);
+    assert.equal(r.source, 'fallback');
+    assert.equal(r.sid, '7eaa0d54');
+    assert.equal(r.fellBackFrom, '8ec5fe50');
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('resolveResumeContext: source empty when nothing exists anywhere', () => {
+  const root = mkroot();
+  try {
+    setActiveSid(root, 'a1b2c3d4-0000-0000-0000-000000000000');
+    const r = resolveResumeContext(root, null);
+    assert.equal(r.source, 'empty');
+    assert.equal(r.isEmpty, true);
+    assert.equal(r.fellBackFrom, null);
   } finally {
     rmSync(root, { recursive: true });
   }

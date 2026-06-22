@@ -33,6 +33,11 @@ const SESSIONS_SUBDIR = 'sessions';
 const LEGACY_BUCKET = '_legacy';
 const UNKNOWN_BUCKET = '_unknown';
 
+// Manual `/Qcompact` handoffs are written as HANDOFF_{date}_{time}.md inside
+// the handoff bucket. The prefix lets the resolver recognize them generically
+// without parsing the date — newest-by-mtime is sufficient for "resume latest".
+const HANDOFF_PREFIX = 'HANDOFF_';
+
 // Files we look for inside each session bucket when listing snapshots.
 // Migration of pre-partition flat copies of these files lives in
 // `lib/legacy-migrator.mjs` so the registry stays in one place.
@@ -41,6 +46,17 @@ const SESSION_CONTEXT_FILES = [
   'SNAPSHOT_SUMMARY.md',
   'decisions.md',
   'compact-trigger.json'
+];
+
+// Subset of the above that represents actually-restorable context. A bucket
+// holding ONLY `compact-trigger.json` (a pre-compact marker, not a restore
+// payload) has nothing meaningful to resume — so the trigger alone must not
+// suppress fallback to a real handoff saved under another sid. This is the
+// exact case that broke the original /Qcompact → /Qresume handoff.
+const SESSION_RESTORABLE_FILES = [
+  'snapshot.md',
+  'SNAPSHOT_SUMMARY.md',
+  'decisions.md'
 ];
 
 /**
@@ -153,42 +169,169 @@ export function ensureSessionDirs(projectRoot, sid) {
 }
 
 /**
- * Enumerate available session buckets for `/Qresume --list`. Each entry
- * carries the bucket name plus the latest mtime found among its context
- * files, so the caller can sort newest-first and flag stale snapshots.
+ * List directory entries without throwing — returns [] for missing or
+ * unreadable directories so callers can union multiple roots unconditionally.
  *
- * @param {string} projectRoot
- * @returns {Array<{ sid: string, mtimeMs: number, hasSnapshot: boolean }>}
+ * @param {string} dir
+ * @returns {string[]}
  */
-export function listSessionBuckets(projectRoot) {
-  if (!projectRoot) return [];
-  const root = join(projectRoot, CONTEXT_BASE, SESSIONS_SUBDIR);
-  if (!existsSync(root)) return [];
-  let names = [];
+function safeReaddir(dir) {
+  if (!existsSync(dir)) return [];
   try {
-    names = readdirSync(root);
+    return readdirSync(dir);
   } catch {
     return [];
   }
-  const out = [];
-  for (const name of names) {
+}
+
+/**
+ * Find the most recent `HANDOFF_*.md` inside a handoff bucket directory.
+ * Manual `/Qcompact` handoffs land in `.qe/handoffs/sessions/{sid}/`, NOT in
+ * the context domain, so resume must look here too — this is the helper that
+ * makes a handoff-only bucket discoverable.
+ *
+ * @param {string} dir absolute path to a handoff session dir
+ * @returns {{ path: string, mtimeMs: number } | null}
+ */
+export function latestHandoffIn(dir) {
+  let best = null;
+  for (const name of safeReaddir(dir)) {
+    if (!name.startsWith(HANDOFF_PREFIX) || !name.endsWith('.md')) continue;
+    const p = join(dir, name);
+    try {
+      const st = statSync(p);
+      if (!st.isFile()) continue;
+      if (!best || st.mtimeMs > best.mtimeMs) best = { path: p, mtimeMs: st.mtimeMs };
+    } catch {
+      // skip unreadable file
+    }
+  }
+  return best;
+}
+
+/**
+ * Enumerate available session buckets for `/Qresume --list`, unioned across
+ * BOTH domains — `.qe/context/sessions/` (automatic snapshots) and
+ * `.qe/handoffs/sessions/` (manual handoffs). A bucket surfaced purely by a
+ * durable handoff (no auto-snapshot) is a valid restore target, so it must
+ * appear here; the previous context-only scan hid exactly those buckets and
+ * was the root cause of `/Qcompact` → `/Qresume` missing each other.
+ *
+ * @param {string} projectRoot
+ * @returns {Array<{ sid: string, mtimeMs: number, hasSnapshot: boolean, hasHandoff: boolean }>}
+ */
+export function listSessionBuckets(projectRoot) {
+  if (!projectRoot) return [];
+  const contextRoot = join(projectRoot, CONTEXT_BASE, SESSIONS_SUBDIR);
+  const handoffRoot = join(projectRoot, HANDOFF_BASE, SESSIONS_SUBDIR);
+
+  /** @type {Map<string, { sid: string, mtimeMs: number, hasSnapshot: boolean, hasHandoff: boolean }>} */
+  const buckets = new Map();
+  const ensure = (sid) => {
+    let b = buckets.get(sid);
+    if (!b) {
+      b = { sid, mtimeMs: 0, hasSnapshot: false, hasHandoff: false };
+      buckets.set(sid, b);
+    }
+    return b;
+  };
+
+  // Context domain: a valid-named bucket counts even when empty (mtime 0).
+  for (const name of safeReaddir(contextRoot)) {
     if (!normalizeSidBucket(name)) continue;
-    const dir = join(root, name);
-    let latest = 0;
-    let hasSnapshot = false;
+    const dir = join(contextRoot, name);
+    const b = ensure(name);
     for (const f of SESSION_CONTEXT_FILES) {
       const p = join(dir, f);
       if (!existsSync(p)) continue;
       try {
         const st = statSync(p);
-        if (st.mtimeMs > latest) latest = st.mtimeMs;
-        if (f === 'snapshot.md') hasSnapshot = true;
+        if (st.mtimeMs > b.mtimeMs) b.mtimeMs = st.mtimeMs;
+        if (f === 'snapshot.md') b.hasSnapshot = true;
       } catch {
         // skip unreadable file
       }
     }
-    out.push({ sid: name, mtimeMs: latest, hasSnapshot });
   }
+
+  // Handoff domain: only counts a bucket that actually holds a handoff file.
+  for (const name of safeReaddir(handoffRoot)) {
+    if (!normalizeSidBucket(name)) continue;
+    const latest = latestHandoffIn(join(handoffRoot, name));
+    if (!latest) continue;
+    const b = ensure(name);
+    b.hasHandoff = true;
+    if (latest.mtimeMs > b.mtimeMs) b.mtimeMs = latest.mtimeMs;
+  }
+
+  const out = [...buckets.values()];
   out.sort((a, b) => b.mtimeMs - a.mtimeMs);
   return out;
+}
+
+/**
+ * Single source of truth for what a resume should load — used by BOTH the
+ * Qresume skill and Qcompact's RESUME workflow so their behavior cannot
+ * diverge again. Resolves the active sid, gathers its context files and latest
+ * handoff across both domains, and — only when the active sid is empty in both
+ * AND no explicit `--from` was given — falls back to the newest other bucket.
+ *
+ * @param {string} projectRoot
+ * @param {string|null} [overrideSid] explicit `--from {sid}` target
+ * @returns {{
+ *   sid: string,
+ *   requestedSid: string,
+ *   source: 'active' | 'fallback' | 'empty',
+ *   fellBackFrom: string | null,
+ *   contextDir: string,
+ *   contextFiles: string[],
+ *   handoffDir: string,
+ *   latestHandoff: string | null,
+ *   isEmpty: boolean
+ * }}
+ */
+export function resolveResumeContext(projectRoot, overrideSid) {
+  const requestedSid = resolveSid(projectRoot, overrideSid);
+  const explicit = normalizeSidBucket(overrideSid) != null;
+
+  const describe = (sid) => {
+    const contextDir = join(projectRoot, CONTEXT_BASE, SESSIONS_SUBDIR, sid);
+    const handoffDir = join(projectRoot, HANDOFF_BASE, SESSIONS_SUBDIR, sid);
+    const contextFiles = SESSION_CONTEXT_FILES
+      .map((f) => join(contextDir, f))
+      .filter((p) => existsSync(p));
+    const hasRestorable = SESSION_RESTORABLE_FILES
+      .some((f) => existsSync(join(contextDir, f)));
+    const latest = latestHandoffIn(handoffDir);
+    return {
+      sid,
+      contextDir,
+      handoffDir,
+      contextFiles, // includes compact-trigger.json so the caller can still read it
+      latestHandoff: latest ? latest.path : null,
+      // ...but a lone compact-trigger.json does NOT count as restorable.
+      isEmpty: !hasRestorable && !latest,
+    };
+  };
+
+  const active = describe(requestedSid);
+  // Honor an explicit --from even when empty: the user asked for that bucket.
+  if (!active.isEmpty || explicit) {
+    return {
+      ...active,
+      requestedSid,
+      source: active.isEmpty ? 'empty' : 'active',
+      fellBackFrom: null,
+    };
+  }
+
+  // Active sid empty in both domains — fall back to the newest other bucket.
+  // listSessionBuckets unions handoff-only buckets, so a durable handoff saved
+  // under a prior sid (the exact failure that motivated this) is reachable.
+  const candidates = listSessionBuckets(projectRoot).filter((b) => b.sid !== requestedSid);
+  if (candidates.length === 0) {
+    return { ...active, requestedSid, source: 'empty', fellBackFrom: null };
+  }
+  const fallback = describe(candidates[0].sid);
+  return { ...fallback, requestedSid, source: 'fallback', fellBackFrom: requestedSid };
 }

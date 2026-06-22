@@ -9,8 +9,11 @@ recommendedModel: haiku
 # Qresume — Context Restoration
 
 ## Role
-A skill that restores context saved under `.qe/context/sessions/{sid}/` after compaction.
-Loads the previous session's task state, decisions, and pending items to resume work seamlessly.
+A skill that restores context after compaction from **two domains**:
+- `.qe/context/sessions/{sid}/` — automatic snapshots (volatile, latest-only)
+- `.qe/handoffs/sessions/{sid}/` — manual `/Qcompact` handoff documents (durable)
+
+Loads the previous session's task state, decisions, and pending items to resume work seamlessly. Both domains are partitioned by sid, so a `/Qcompact` handoff and a `/Qresume` must read the same domains or they will miss each other.
 
 ## Per-Session Layout (Auto-Named)
 Snapshots are partitioned by Claude session id so each terminal sees its own context, not the latest sibling's. The 8-char `sid` is auto-derived by the SessionStart hook and surfaced as `[Session] sid:XXXXXXXX` in additionalContext — read it from there. There is no manual naming.
@@ -30,12 +33,19 @@ Integrated with the pre-check in PRINCIPLES.md:
 
 ## Restoration Procedure
 
-### Step 1: Read Context Files
-Load files from `.qe/context/sessions/{sid}/`:
-- `snapshot.md` — last task state
-- `decisions.md` — accumulated decisions
-- `SNAPSHOT_SUMMARY.md` — semantic summary
-- `compact-trigger.json` — pre-compact state (if present)
+### Step 1: Locate & Read Context (single resolver, both domains)
+**Do not reimplement path/fallback logic in prose** — the authoritative resolution lives in one place: `resolveResumeContext(projectRoot, overrideSid)` in `hooks/scripts/lib/session-resolver.mjs`. Qcompact's RESUME workflow calls the same function, so the two can no longer diverge. Run it to get the descriptor:
+
+```bash
+node -e "import('./hooks/scripts/lib/session-resolver.mjs').then(m=>console.log(JSON.stringify(m.resolveResumeContext(process.cwd(), process.argv[1]||null),null,2)))" [sid-from---from]
+```
+
+It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[], handoffDir, latestHandoff, isEmpty }`. Then:
+
+- Read every path in `contextFiles[]` (`snapshot.md`, `decisions.md`, `SNAPSHOT_SUMMARY.md`, `compact-trigger.json`) **and** `latestHandoff` if non-null — a `/Qcompact` handoff lands in `handoffDir`, NOT in `context/`, so both domains are covered.
+- **`source: 'fallback'`** → the active sid was empty in both domains and the resolver loaded the newest other bucket. **Tell the user**: "active sid `{fellBackFrom}` was empty — restored from `{sid}`."
+- **`source: 'empty'`** → nothing to restore anywhere; say so and offer `/Qresume --list`.
+- An explicit `/Qresume --from {sid}` is passed as `overrideSid` and is honored even when empty (no fallback).
 
 ### Step 2: Restore State
 - Check in-progress tasks (cross-reference with .qe/tasks/pending/)
@@ -53,7 +63,8 @@ When restoring context, also read `.qe/analysis/` files to understand the latest
 This allows starting work immediately without re-scanning the project with Glob/Grep, saving tokens.
 
 ## Will
-- Load `.qe/context/sessions/{sid}/` context files for the active sid
+- Load BOTH `.qe/context/sessions/{sid}/` snapshots AND `.qe/handoffs/sessions/{sid}/` handoffs for the active sid
+- Fall back to the most recent other bucket (handoffs first) when the active sid is empty in both domains, and tell the user which bucket was used
 - Support `--list` and `--from {sid}` for cross-terminal pickup
 - Restore previous task state
 - Suggest next actions
@@ -61,6 +72,6 @@ This allows starting work immediately without re-scanning the project with Glob/
 
 ## Will Not
 - Error when context files are missing (silently ignore if not found)
-- Cross-load another terminal's snapshot without explicit `--from`
+- Cross-load another terminal's context when the active sid HAS its own context (fallback only triggers when the active sid is empty in both domains)
 - Blindly follow restored context (user can change direction)
 - Force-apply stale context (notify "Context is stale" when 24+ hours have passed)
