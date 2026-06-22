@@ -96,6 +96,11 @@ Determine the task scale:
 Continue to Step 1 below.
 
 ### Step 1: Deep Discovery & Research (Full Planning only)
+- **Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만)**: `test -d .qe/wiki`가 참이면, 계획 전
+  누적 프로젝트 지식을 회수한다 — QE 플러그인의 `scripts/lib/wiki-retrieve.mjs`를 cwd=현재 프로젝트로
+  실행(`node <plugin>/scripts/lib/wiki-retrieve.mjs "<계획 의도>"`) → 반환된 provenance-기반 페이지를
+  discovery 컨텍스트·과거 결정 근거로 반영한다(`tier: reviewed` 우선). **`.qe/wiki/`가 없으면 명령을
+  실행하지 말고 조용히 skip** — 비-wiki 프로젝트는 무비용·무영향.
 - **Interactive Discovery**: Use the `ask_user` tool (choice/text) to gather initial requirements and constraints. Do not guess; present options.
 - **Requirement Tiering**: Use `ask_user` to let the user select the priority (P0/P1/P2) for each core feature.
 - **Proactive Research**: If the domain is new, run **Edeep-researcher** first. Store findings in `.qe/planning/research/` (global — shared across all plans).

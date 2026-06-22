@@ -251,3 +251,33 @@ test('renderHud: high-usage context paints red', () => {
   const line = renderHud(data, {});
   assert.match(line, /\x1b\[31m/);
 });
+
+// ============================================================================
+// Preset regression — adding the `wiki` preset must NOT alter existing presets
+// (Phase 3 zero-regression gate). Frozen element-order snapshots.
+// ============================================================================
+
+import { PRESETS, resolvePreset } from '../hud/presets.mjs';
+
+test('presets: existing 5 presets have frozen element order (no regression)', () => {
+  assert.deepEqual(PRESETS.session, ['context', 'rateLimits', 'model', 'tokens', 'sivs']);
+  assert.deepEqual(PRESETS.focused, ['context', 'phase', 'task', 'sivs']);
+  assert.deepEqual(PRESETS.qe, ['sivs', 'phase', 'task']);
+  assert.deepEqual(PRESETS.mix, ['context', 'modelRatio', 'sivs']);
+  assert.deepEqual(PRESETS.full, ['context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs']);
+});
+
+test('presets: none of the existing presets reference the wiki element', () => {
+  for (const key of ['session', 'focused', 'qe', 'mix', 'full']) {
+    assert.equal(PRESETS[key].includes('wiki'), false, `${key} must not include wiki`);
+  }
+});
+
+test('presets: new wiki preset exists and contains the wiki element (opt-in)', () => {
+  assert.deepEqual(PRESETS.wiki, ['context', 'phase', 'wiki', 'sivs']);
+});
+
+test('presets: unknown name still falls back to session', () => {
+  assert.deepEqual(resolvePreset('nonexistent'), PRESETS.session);
+  assert.deepEqual(resolvePreset(undefined), PRESETS.session);
+});

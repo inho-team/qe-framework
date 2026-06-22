@@ -21,6 +21,11 @@ export const PRESETS = {
 
   // Full — every element we know about. Use when you have a wide terminal.
   full: ['context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs'],
+
+  // Wiki — Qwiki knowledge-layer focus: planning phase + `.qe/wiki/` status.
+  // Opt-in only; existing presets are intentionally left unchanged so the
+  // default HUD never surfaces wiki state on non-wiki projects.
+  wiki: ['context', 'phase', 'wiki', 'sivs'],
 };
 
 export const DEFAULT_PRESET = 'session';

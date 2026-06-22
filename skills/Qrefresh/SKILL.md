@@ -22,6 +22,12 @@ Actual refresh work is delegated to the `Erefresh-executor` sub-agent.
 ### Step 1: Call Erefresh-executor
 Run the `Erefresh-executor` sub-agent to perform the analysis refresh.
 
+### Step 1.6: Wiki Freshness Hint (조건부 — `.qe/wiki/`가 있을 때만)
+`existsSync('.qe/wiki')`가 참일 때만(아니면 skip — 비-wiki 프로젝트 무영향): analysis 갱신은 코드 변경을
+뜻하므로 관련 wiki 페이지가 stale일 수 있다. `node <plugin>/scripts/lib/wiki-freshness.mjs`를 실행해
+stale 후보를 **안내만** 한다(자동 수정 안 함) — "코드가 바뀌었습니다. `/Qwiki-lint`로 wiki 신선도를
+점검하거나 `/Qwiki-compile`로 갱신을 고려하세요." analysis/wiki 없으면 graceful skip.
+
 ### Step 1.5: Refresh Folder Contexts
 If `.qe/context/_registry.json` exists:
 1. For each registered context, check if files matching its glob pattern have been modified after `updatedAt`

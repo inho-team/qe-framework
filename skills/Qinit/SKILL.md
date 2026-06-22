@@ -244,6 +244,16 @@ VERIFY_CHECKLIST_*.md
 ANALYSIS_*.md
 ```
 
+### Step 3.5: Wiki Bootstrap (Opt-in — `.qe/` 구조 생성 후)
+디렉터리 구조가 만들어진 뒤에만 실행하는 **선택 단계**. `AskUserQuestion`으로 "프로젝트 지식 wiki를
+부트스트랩할까요? (기존 DECISION_LOG·MISTAKE·RETROSPECTIVE를 `.qe/wiki/`로 시드 → Qwiki 생태계 시작)"를
+묻는다.
+- **예**: `.qe/wiki/{inbox,raw,pages,templates,queries,archive}` 스켈레톤 생성 →
+  `node <QE plugin>/scripts/lib/wiki-seed.mjs --seed-self` 실행 → "N개 inbox 적재됨. **다음: /Qwiki-compile**
+  로 위키 페이지로 합성하세요(self-seed는 게이트 필수, `--batch` 금지)" 안내.
+- **아니요/생략**: 아무것도 만들지 않는다. **기존 Qinit 동작과 완전히 동일**(wiki는 순수 opt-in).
+- `.qe/analysis`는 시드 대상이 아니다(D-WIKI-02). wiki가 비면 이후 모든 소비 경로는 무영향(Phase 5).
+
 ### Step 4: Completion Notice
 Show the list of created files and guide the next steps.
 - Show a brief summary of analysis results (tech stack, file count, main entry points).

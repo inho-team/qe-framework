@@ -48,6 +48,11 @@ When `enabled: true`, ALL skills/agents:
 - Auto-approve in Qrun-task, auto-generate in Qgenerate-spec
 - Auto-commit via Qcommit after task completion
 
+**Wiki Knowledge Pull (조건부, 상속):** 자율 루프는 위임하는 Qgs/Qrun-task/Qcode-run-task의 wiki pull을
+그대로 **상속**한다(별도 호출 불필요) — `.qe/wiki/`가 있으면 각 단계가 누적 지식을 회수하고, 없으면 skip.
+자율 루프에서 가치 있는 query 결과는 `.qe/wiki/queries/`로 파일백해 다음 사이클이 더 똑똑해지게 한다
+(플라이휠; Milestone 2 적재는 Phase 6).
+
 ### 2. Auto-allow Tool Permissions
 Merge into `.claude/settings.json`:
 ```json

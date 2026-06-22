@@ -19,6 +19,7 @@ import * as sivs from './elements/sivs.mjs';
 import * as phase from './elements/phase.mjs';
 import * as task from './elements/task.mjs';
 import * as modelRatio from './elements/model-ratio.mjs';
+import * as wiki from './elements/wiki.mjs';
 
 const ELEMENTS = {
   context,
@@ -29,6 +30,7 @@ const ELEMENTS = {
   phase,
   task,
   modelRatio,
+  wiki,
 };
 
 /**

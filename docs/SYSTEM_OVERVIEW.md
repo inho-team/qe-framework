@@ -1,6 +1,6 @@
 # QE Framework System Overview
 
-QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loop system for Claude Code. It provides a structured AI-driven workflow with **folder-aware context memory**, **<!--qe:skills-->178<!--/qe:skills--> skills**, and **<!--qe:agents-->25<!--/qe:agents--> agents**, using Claude as the default provider with optional Codex support via `codex-plugin-cc`.
+QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loop system for Claude Code. It provides a structured AI-driven workflow with **folder-aware context memory**, **<!--qe:skills-->182<!--/qe:skills--> skills**, and **<!--qe:agents-->25<!--/qe:agents--> agents**, using Claude as the default provider with optional Codex support via `codex-plugin-cc`.
 
 ---
 
@@ -185,7 +185,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->178<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->182<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|

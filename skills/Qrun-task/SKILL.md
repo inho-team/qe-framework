@@ -96,6 +96,11 @@ Pass the selected model as the `model` parameter when spawning `Etask-executor`.
 ---
 ## Step 1: Document Discovery
 
+**Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만):** `test -d .qe/wiki`가 참이면, 실행할 task의
+변경 대상/주제 관련 누적 지식(conventions·gotcha·과거 결정)을 회수한다 — `node <QE plugin>/scripts/lib/wiki-retrieve.mjs "<task 의도>"`
+(cwd=현재 프로젝트) → 중복 구현·결정 위반을 피하도록 실행 컨텍스트에 반영(`tier: reviewed` 우선).
+**`.qe/wiki/`가 없으면 명령 실행 없이 조용히 skip**(비-wiki 무영향).
+
 1. **Use State Utility**: Call `parseClaudeTaskTable(cwd)` from `hooks/scripts/lib/state.mjs`. It now prefers `.qe/TASK_LOG.md` and falls back to the legacy `CLAUDE.md` task table.
 2. Glob `.qe/tasks/{pending,in-progress,on-hold}/*.md` for TASK_REQUEST files
 3. Backward compat: check project root if `.qe/tasks/` missing
