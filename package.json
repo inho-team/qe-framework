@@ -1,6 +1,6 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "7.2.1",
+  "version": "7.2.2",
   "description": "Query Execute Framework for Claude Code — SIVS loop, folder-aware context memory, 182 skills and 25 agents",
   "files": [
     ".claude-plugin/",
