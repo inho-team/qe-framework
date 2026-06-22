@@ -21,7 +21,10 @@ import * as task from './elements/task.mjs';
 import * as modelRatio from './elements/model-ratio.mjs';
 import * as wiki from './elements/wiki.mjs';
 
-const ELEMENTS = {
+// Single source of truth for the element registry. Exported so tests can
+// validate presets against it without re-listing names by hand (a hand-kept
+// list silently goes stale the moment a new element lands, e.g. `wiki`).
+export const ELEMENTS = {
   context,
   rateLimits,
   model,

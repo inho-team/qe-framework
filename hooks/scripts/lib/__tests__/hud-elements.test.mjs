@@ -14,7 +14,7 @@ import { pickActivePhase } from '../hud/elements/phase.mjs';
 import { pickActiveTask } from '../hud/elements/task.mjs';
 import { bucketTokens, normalizePercents } from '../hud/elements/model-ratio.mjs';
 import { resolvePreset, PRESETS, DEFAULT_PRESET } from '../hud/presets.mjs';
-import { render as composeRender } from '../hud/renderer.mjs';
+import { render as composeRender, ELEMENTS } from '../hud/renderer.mjs';
 
 // ============================================================================
 // phase element
@@ -267,7 +267,9 @@ test('presets: unknown name falls back to default (session)', () => {
 });
 
 test('presets: all named presets reference known elements only', () => {
-  const known = new Set(['context', 'rateLimits', 'model', 'tokens', 'sivs', 'phase', 'task', 'modelRatio']);
+  // Derive the known set from the renderer's registry so adding a new element
+  // (e.g. `wiki`) never silently leaves this guard stale.
+  const known = new Set(Object.keys(ELEMENTS));
   for (const [name, list] of Object.entries(PRESETS)) {
     for (const el of list) {
       assert.ok(known.has(el), `preset "${name}" references unknown element "${el}"`);
@@ -281,8 +283,11 @@ test('presets: all named presets reference known elements only', () => {
 
 test('renderer: session preset matches v6.6.3 element order', () => {
   const out = composeRender({ context_window: { used_percentage: 40 } }, {}, { noColor: true, preset: 'session' });
-  // session: ctx, rateLimits, model, tokens, sivs — only ctx + sivs surface with minimal payload
-  assert.ok(out.startsWith('ctx 40%'));
+  // session: ctx, rateLimits, model, tokens, sivs — only ctx + sivs surface with minimal payload.
+  // The context element leads (now with a progress bar) and sivs trails; assert order + content,
+  // not the exact bar glyphs, so cosmetic bar changes don't break the order guard.
+  assert.ok(out.startsWith('ctx '));
+  assert.ok(out.includes('40%'));
   assert.ok(out.endsWith('SIVS C/C/C/C'));
 });
 
