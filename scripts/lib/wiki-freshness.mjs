@@ -13,7 +13,7 @@
  */
 
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
-import { join } from 'path';
+import { join, relative } from 'path';
 
 /** 디렉터리 내 최신 mtime(ms). 없으면 0. (얕게 — analysis는 평평한 폴더) */
 function newestMtime(dir) {
@@ -76,7 +76,7 @@ export function wikiFreshness(projectRoot) {
     const pageMs = updated ? Date.parse(updated) : NaN;
     // 페이지가 analysis 갱신(코드 변경)보다 오래됐으면 stale 후보
     if (!Number.isFinite(pageMs) || pageMs < analysisMtime) {
-      stale.push({ page: page.replace(root + '/', ''), updated });
+      stale.push({ page: relative(root, page), updated });
     }
   }
   return { stale, analysisMtime, checked };

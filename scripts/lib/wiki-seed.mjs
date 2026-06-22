@@ -101,7 +101,8 @@ export function wikiSeedSelf(projectRoot) {
     state[key] = hash;
     seeded.push(slug);
   }
-  writeFileSync(statePath, JSON.stringify(state, null, 2));
+  // 시드 0건이면 state는 무변경 → 불필요한 write(및 mtime 갱신) 생략.
+  if (seeded.length) writeFileSync(statePath, JSON.stringify(state, null, 2));
   return { seeded, skipped };
 }
 

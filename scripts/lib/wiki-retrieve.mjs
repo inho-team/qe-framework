@@ -10,7 +10,7 @@
  *   - 전체 페이지 read·재귀 walk 금지(라우터·인덱스 줄만).
  *   - MIN_SCORE 미만 → [] (sparse wiki·무관 프롬프트 노이즈 차단).
  *   - tier-aware(Phase 7): 인덱스 줄의 `(tier:X[,flag:contradiction])`만 파싱(본문 미독) →
- *     reviewed>auto 다운랭크 + flag:contradiction hard-exclude.
+ *     reviewed>auto 업랭크 + flag:contradiction hard-exclude.
  *
  * Node 내장만 정적 import. zero external deps.
  */
@@ -127,7 +127,7 @@ export async function wikiRetrieve(intent, projectRoot) {
       let score = 0;
       for (const t of normTokens) if (t && hay.includes(t)) score += 1;
       if (score < MIN_SCORE) continue;         // 관련성 플로어는 토큰 점수로만 판정
-      // tier 다운랭크: reviewed는 검증본이라 가중(+2), auto/미표기는 중립.
+      // tier 업랭크: reviewed는 검증본이라 가중(+2), auto/미표기는 중립.
       const ranked = score + (tier === 'reviewed' ? 2 : 0);
       candidates.push({ pageRef, summary, tier, score: ranked, topic });
     }

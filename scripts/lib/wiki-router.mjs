@@ -199,7 +199,9 @@ export function parseAliasFile(text) {
       [alias, canonical] = cells;
     } else {
       const m = line.split(/\s*(?:→|->)\s*/);
-      if (m.length < 2) continue;
+      // 정확히 2조각만 허용 — 구분자 없는 줄(<2)과 다중 화살표 모호 줄(>2, 예 `a → b → c`)을
+      // 모두 거부해 조용한 오매핑을 막는다.
+      if (m.length !== 2) continue;
       [alias, canonical] = m;
     }
 
@@ -271,12 +273,14 @@ function selfTest() {
     '| --- | --- |',
     '| AI | 인공지능 |',
     'garbage-line-no-separator',
+    'a → b → c',
   ].join('\n');
   const parsed = parseAliasFile(aliasText);
   assert(parsed.get('Parasite') === '기생충', 'arrow → parse');
   assert(parsed.get('샬라메') === 'Timothée Chalamet', 'ascii -> parse');
   assert(parsed.get('AI') === '인공지능', 'markdown table row parse');
   assert(!parsed.has('garbage-line-no-separator'), 'separator-less line ignored');
+  assert(!parsed.has('a'), 'ambiguous multi-arrow line rejected');
   assert(!parsed.has('별칭'), 'table header skipped');
   // parseAliasFile → normalizeAlias 엔드투엔드
   assert(normalizeAlias('Parasite', parsed) === '기생충', 'parseAliasFile→normalizeAlias e2e');
