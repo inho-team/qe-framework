@@ -25,6 +25,14 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.2.3] - 2026-06-22
+
+### Fixed
+
+- **Qcompact ↔ Qresume resume path unified**: a manual `/Qcompact` handoff saves under `.qe/handoffs/sessions/{sid}/`, but `/Qresume` only scanned `.qe/context/sessions/{sid}/`, so a later session could not find the handoff it had just written. Resume now resolves through a single shared `resolveResumeContext()` (`hooks/scripts/lib/session-resolver.mjs`) that both skills cite; `listSessionBuckets()` unions the context and handoff domains so handoff-only buckets surface in `--list`; and a lone `compact-trigger.json` no longer suppresses fallback to a real handoff stored under a prior sid.
+- **Qwiki library hardened** against path-traversal and routing edge cases in `scripts/lib/wiki-router.mjs` and related wiki paths.
+- Stale HUD tests repaired after the `wiki` element landed: the renderer `ELEMENTS` registry is now exported and the preset guard derives its known-element set from it (so a new element can no longer silently break the guard), and the session-render assertion checks element order and content rather than exact progress-bar glyphs.
+
 ## [7.2.2] - 2026-06-22
 
 ### Added
