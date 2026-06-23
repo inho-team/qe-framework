@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>QE 프레임워크 — AI 코딩을 신뢰 가능한 엔지니어링으로</title>
+  <title>QE 프레임워크 — AI에게 코딩을 믿고 맡기는 법</title>
 
   <!-- reveal.js core (CDN). CDN 차단 시에도 아래 본문 텍스트는 그대로 읽힙니다. -->
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/reveal.js@5.1.0/dist/reveal.css">
@@ -29,42 +29,47 @@
     .reveal h1,.reveal h2,.reveal h3{ color:var(--ink); text-transform:none;
       letter-spacing:-.01em; font-weight:800; }
     .reveal h1{ font-size:2.0em; }
-    .reveal h2{ font-size:1.45em; margin-bottom:.5em; }
-    .reveal h3{ font-size:1.05em; color:var(--accent); }
+    .reveal h2{ font-size:1.4em; margin-bottom:.4em; }
+    .reveal h3{ font-size:1.02em; color:var(--accent); }
     .reveal strong{ color:var(--accent); }
     .reveal em{ color:var(--accent2); font-style:normal; }
     .reveal a{ color:var(--accent2); }
-    .kicker{ color:var(--accent); font-weight:700; font-size:.62em;
-      letter-spacing:.18em; text-transform:uppercase; margin-bottom:.4em; }
+    .kicker{ color:var(--accent); font-weight:700; font-size:.6em;
+      letter-spacing:.16em; text-transform:uppercase; margin-bottom:.35em; }
     .lead{ color:var(--muted); font-size:.78em; }
     .reveal ul{ margin-left:1.1em; }
-    .reveal li{ margin:.32em 0; }
+    .reveal li{ margin:.28em 0; }
     .small{ font-size:.66em; color:var(--muted); }
+
+    /* "쉽게 말하면" 풀이 박스 */
+    .def{ background:var(--panel2); border-left:3px solid var(--accent2);
+      border-radius:8px; padding:.45em .8em; font-size:.62em; color:var(--muted);
+      margin:.45em 0; line-height:1.5; }
+    .def b{ color:var(--accent2); }
+
     .src{ position:absolute; bottom:14px; left:24px; font-size:13px;
       color:#5b6677; letter-spacing:.02em; }
     .pageno{ position:absolute; bottom:14px; right:24px; font-size:13px; color:#5b6677; }
 
     /* cards / grids */
-    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:18px; }
+    .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:16px; }
     .grid3{ display:grid; grid-template-columns:repeat(3,1fr); gap:14px; }
     .card{ background:var(--panel); border:1px solid var(--line);
-      border-radius:14px; padding:16px 18px; }
-    .card h3{ margin:0 0 .25em; font-size:.92em; }
-    .card p{ margin:0; font-size:.72em; color:var(--muted); line-height:1.45; }
-    .pill{ display:inline-block; background:var(--panel2); border:1px solid var(--line);
-      border-radius:999px; padding:.12em .7em; font-size:.6em; color:var(--accent);
-      margin:0 .3em .3em 0; }
+      border-radius:14px; padding:14px 16px; }
+    .card h3{ margin:0 0 .25em; font-size:.9em; }
+    .card p{ margin:0; font-size:.7em; color:var(--muted); line-height:1.45; }
+    .card .hk{ color:var(--accent); font-weight:700; }
 
     /* pipeline */
-    .flow{ display:flex; align-items:stretch; gap:10px; flex-wrap:wrap; }
-    .step{ flex:1; min-width:120px; background:var(--panel); border:1px solid var(--line);
-      border-radius:12px; padding:12px 12px; text-align:center; }
-    .step .t{ font-weight:800; color:var(--accent); font-size:.8em; }
-    .step .d{ font-size:.56em; color:var(--muted); margin-top:.2em; }
-    .arrow{ align-self:center; color:#46546a; font-size:1.2em; }
+    .flow{ display:flex; align-items:stretch; gap:9px; flex-wrap:wrap; }
+    .step{ flex:1; min-width:104px; background:var(--panel); border:1px solid var(--line);
+      border-radius:12px; padding:11px 10px; text-align:center; }
+    .step .t{ font-weight:800; color:var(--accent); font-size:.74em; }
+    .step .d{ font-size:.54em; color:var(--muted); margin-top:.2em; }
+    .arrow{ align-self:center; color:#46546a; font-size:1.1em; }
 
     /* table */
-    .reveal table{ font-size:.62em; width:100%; border-collapse:collapse; }
+    .reveal table{ font-size:.6em; width:100%; border-collapse:collapse; }
     .reveal table th{ color:var(--accent); border-bottom:2px solid var(--line);
       text-align:left; padding:.5em .6em; }
     .reveal table td{ border-bottom:1px solid var(--line); padding:.5em .6em; color:var(--ink); }
@@ -72,10 +77,10 @@
     .reveal table td.warn{ color:var(--warn); white-space:nowrap; }
 
     .quoteblock{ border-left:3px solid var(--accent); padding:.2em 0 .2em 1em;
-      color:var(--ink); font-size:.82em; }
+      color:var(--ink); font-size:.8em; }
     .quoteblock span{ color:var(--muted); }
 
-    .twocol{ display:grid; grid-template-columns:1fr 1fr; gap:26px; }
+    .twocol{ display:grid; grid-template-columns:1fr 1fr; gap:24px; }
     .pro h3{ color:var(--ok); }
     .con h3{ color:var(--warn); }
     .pro li::marker{ color:var(--ok); }
@@ -83,16 +88,13 @@
 
     .titlewrap{ text-align:center; }
     .titlewrap .badge{ display:inline-block; border:1px solid var(--line);
-      border-radius:999px; padding:.3em 1em; color:var(--muted); font-size:.6em;
+      border-radius:999px; padding:.3em 1em; color:var(--muted); font-size:.58em;
       letter-spacing:.1em; margin-bottom:1em; }
     .titlewrap h1{ line-height:1.15; }
-    .titlewrap .sub{ color:var(--muted); font-size:.8em; margin-top:.6em; }
-    .titlewrap .meta{ color:#5b6677; font-size:.6em; margin-top:2em; }
+    .titlewrap .sub{ color:var(--muted); font-size:.78em; margin-top:.6em; line-height:1.5; }
+    .titlewrap .meta{ color:#5b6677; font-size:.58em; margin-top:2em; }
 
-    /* graceful no-CDN fallback: if reveal.css didn't load, .reveal stays unset.
-       We make plain sections at least legible. */
     body{ background:var(--bg); }
-    .nocdn-note{ display:none; }
   </style>
 </head>
 <body>
@@ -103,230 +105,272 @@
     <section data-auto-animate>
       <div class="titlewrap">
         <div class="badge">QE FRAMEWORK · 내부 발표</div>
-        <h1>AI 코딩을<br><strong>신뢰 가능한 엔지니어링</strong>으로</h1>
-        <div class="sub">Query · Execute Framework for Claude Code<br>
-          — SIVS 품질 루프 · 9개 라이프사이클 훅 · 하네스 엔지니어링</div>
+        <h1>AI에게 코딩을<br><strong>믿고 맡기는</strong> 법</h1>
+        <div class="sub">QE 프레임워크 — AI에게 일을 시키되,<br>
+          매 단계를 자동으로 확인하고 기록하는 "작업 틀"</div>
         <div class="meta">발표자: 김진성 · 2026-06-24</div>
       </div>
       <aside class="notes">
-        한 줄로 시작합니다 — "오늘 말씀드릴 건, AI에게 코딩을 맡길 때 '운'이 아니라
-        '엔지니어링'으로 만드는 방법입니다." QE는 Query(질문)와 Execute(실행) 두 글자에서 왔고,
-        그 사이에 구조를 넣은 프레임워크라는 점을 예고합니다. 4개 챕터: 왜 CLI → 왜 프레임워크 →
-        어떻게(하네스) → 이점과 한계.
+        시작 한 줄 — "AI에게 코딩을 맡길 때, 결과가 '운'에 좌우되지 않게 만드는 방법을 만들었습니다."
+        QE는 Query(질문)·Execute(실행)에서 따온 이름. 오늘 순서: ①왜 터미널(CLI)로 쓰나
+        ②그냥 AI로는 왜 부족한가 ③일하는 순서를 어떻게 정해뒀나 ④그걸 자동으로 강제하는 '훅'
+        ⑤그 외 자동 장치 ⑥숫자로 본 효과 ⑦장단점. 용어는 나올 때마다 풀어 설명하겠다고 예고.
       </aside>
     </section>
 
     <!-- ===== S2 왜 Claude CLI ===== -->
     <section>
       <div class="kicker">01 · 출발점</div>
-      <h2>왜 GUI 챗이 아니라 <strong>Claude CLI</strong>인가</h2>
-      <p class="lead">자동화·계측이 가능한 "표면"이 있느냐의 차이입니다.</p>
-      <div class="grid3" style="margin-top:.4em;">
-        <div class="card"><h3>9개 라이프사이클 훅</h3>
-          <p>SessionStart·PreToolUse·PostToolUse·PreCompact·Stop·UserPromptSubmit·
-          Notification·TeammateIdle·TaskCompleted — 매 단계에 코드를 끼워 넣을 수 있다.</p></div>
-        <div class="card"><h3>플러그인 표면</h3>
-          <p>스킬·에이전트·MCP를 정식 플러그인으로 확장. 워크플로우가 재사용·버전관리된다.</p></div>
-        <div class="card"><h3>모델 라우팅</h3>
-          <p>단계별로 Opus/Sonnet/Haiku, 필요 시 Codex까지 라우팅. 비용·정확도를 설계한다.</p></div>
+      <h2>왜 채팅창이 아니라 <strong>터미널(CLI)</strong>인가</h2>
+      <div class="def">
+        <b>CLI</b> = 터미널(검은 명령어 창)에서 명령어로 쓰는 방식.
+        한마디로 <b>AI를 채팅 상대가 아니라 "프로그램처럼" 다룰 수 있게</b> 됩니다.
       </div>
-      <p style="margin-top:.7em;font-size:.78em;">
-        GUI 챗에는 이 <em>훅·플러그인·라우팅 표면</em>이 없습니다.
-        터미널 CLI라서 비로소 "사람의 개입 없이도 매 단계가 강제·기록되는" 하네스를 얹을 수 있습니다.</p>
-      <div class="src">근거: core/PHILOSOPHY.md (9 Hook Lifecycle Events), README.md</div>
-      <div class="pageno">2 / 8</div>
+      <div class="grid3" style="margin-top:.3em;">
+        <div class="card"><h3>자동으로 끼어들 자리가 있다</h3>
+          <p>AI가 일하는 중간중간에 "자동 검사·기록"을 끼워 넣을 수 있습니다.
+          (이 장치가 바로 <span class="hk">훅</span> — 뒤에서 자세히)</p></div>
+        <div class="card"><h3>기능을 부품처럼 추가</h3>
+          <p>자주 쓰는 작업을 명령어 하나로 만들어 재사용·공유합니다.
+          (지금 183개 기능이 부품으로 들어 있음)</p></div>
+        <div class="card"><h3>작업마다 다른 AI 배정</h3>
+          <p>어려운 판단엔 똑똑한 모델, 단순 작업엔 빠른 모델 — 일에 맞춰 골라 씁니다.</p></div>
+      </div>
+      <p style="margin-top:.6em;font-size:.76em;">
+        채팅창에는 이 세 가지를 걸 자리가 없습니다.
+        터미널이라서 비로소 <em>"사람이 매번 챙기지 않아도 알아서 돌아가는 틀"</em>을 얹을 수 있습니다.</p>
+      <div class="src">근거: README.md · core/PHILOSOPHY.md</div>
+      <div class="pageno">2 / 9</div>
       <aside class="notes">
-        핵심 메시지: 우리가 CLI를 고른 건 취향이 아니라 "끼워 넣을 자리(훅)"가 있기 때문.
-        9개 훅은 PHILOSOPHY.md에 명시된 사실. "GUI엔 이 표면이 없다"는 부분은 근거: 추론
-        (CLI 플러그인 훅 표면의 존재로부터 도출). 상급자가 "ChatGPT 창에서 하면 안 되나?"라고
-        물으면 → "매 단계 자동 검증·기록·모델 라우팅을 걸 자리가 없습니다"가 답.
+        핵심: CLI를 고른 건 취향이 아니라 "끼워 넣을 자리"가 있어서다. 세 가지(훅·부품·모델배정)는
+        뒤 슬라이드에서 하나씩 푼다 — 여기선 "채팅창엔 이게 없다"만 각인. "ChatGPT 창에서 하면
+        안 되나?" 질문이 나오면 → "거긴 자동 검사·기록을 걸 자리가 없습니다"가 답.
+        ('채팅창엔 없다'는 부분은 근거: 추론.)
       </aside>
     </section>
 
-    <!-- ===== S3 왜 프레임워크 ===== -->
+    <!-- ===== S3 왜 틀이 필요한가 ===== -->
     <section>
-      <div class="kicker">02 · 문제 정의</div>
-      <h2>raw AI는 <strong>네 지점</strong>에서 무너진다</h2>
-      <div class="grid2" style="margin-top:.3em;">
-        <div class="card"><h3>① No Spec</h3>
-          <p>AI가 추측한다 → 사용자는 예상 밖 결과를 받는다.</p></div>
-        <div class="card"><h3>② No Implementation Discipline</h3>
-          <p>코드 변경과 검증이 뒤섞여, 무엇을 했고 무엇을 확인했는지 불분명.</p></div>
-        <div class="card"><h3>③ No Verification</h3>
-          <p>AI가 "끝났다"고 말한다. 아무도 확인하지 않는다. 버그가 출시된다.</p></div>
-        <div class="card"><h3>④ No Supervision</h3>
-          <p>로컬 체크는 통과하지만 실제 환경에서 실패한다.</p></div>
+      <div class="kicker">02 · 문제</div>
+      <h2>그냥 AI에게 맡기면 <strong>네 군데</strong>서 새어 나간다</h2>
+      <div class="grid2" style="margin-top:.2em;">
+        <div class="card"><h3>① 뭘 할지 안 정하고 시작</h3>
+          <p>AI가 알아서 추측 → 엉뚱한 결과가 나옵니다.</p></div>
+        <div class="card"><h3>② 만들기와 확인이 뒤섞임</h3>
+          <p>무엇을 했고 무엇을 확인했는지 구분이 안 됩니다.</p></div>
+        <div class="card"><h3>③ 끝났는지 아무도 확인 안 함</h3>
+          <p>AI가 "다 됐어요" 하고, 그대로 믿고 넘어가 버그가 남습니다.</p></div>
+        <div class="card"><h3>④ 진짜 환경에서 안 돌려봄</h3>
+          <p>내 컴퓨터에선 되는데 실제로는 깨집니다.</p></div>
       </div>
-      <div class="quoteblock" style="margin-top:.7em;">
-        스펙 없는 작업은 <em>추측</em>이고, 구현 없는 스펙은 <em>의도</em>일 뿐이며,<br>
-        검증 없는 구현은 <em>희망</em>이고, 감독 없는 검증은 <em>확증편향</em>이다.
-        <span> — 핵심 원칙</span>
+      <div class="def" style="margin-top:.5em;">
+        "프롬프트를 잘 쓰면 되잖아?" — 됩니다. 단, <b>매번 그 수준을 유지하는 게 사람에겐 지치는 일</b>입니다.
+        틀(프레임워크)은 그 피로를 대신 떠안습니다.
       </div>
-      <div class="src">근거: core/PHILOSOPHY.md ("Why This Matters", "The Core Principle")</div>
-      <div class="pageno">3 / 8</div>
+      <div class="src">근거: core/PHILOSOPHY.md ("Why This Matters")</div>
+      <div class="pageno">3 / 9</div>
       <aside class="notes">
-        이 네 가지는 PHILOSOPHY.md "Why This Matters"에 그대로 있는 사실.
-        "프롬프트를 잘 쓰면 되지 않냐"는 반론에 대한 답: 매번 그 정밀도를 유지하는 게 사람에겐
-        지치는 일이다(README의 문제 정의). 프레임워크는 그 피로를 구조로 흡수한다.
-        다음 장에서 "그럼 어떻게 막느냐"로 자연스럽게 넘어갑니다.
+        이 네 가지는 PHILOSOPHY.md에 그대로 있는 사실. 영어 원문(No Spec / No Verification 등)을
+        한국어로 풀어 옮긴 것. 청중이 "우리 팀도 겪는 일"이라고 공감하게 만드는 슬라이드.
+        다음 장에서 "그래서 일하는 순서를 이렇게 정해뒀다"로 연결.
       </aside>
     </section>
 
-    <!-- ===== S4 QE의 답: PSE + SIVS ===== -->
+    <!-- ===== S4 일하는 순서 (PSE + SIVS) ===== -->
     <section>
-      <div class="kicker">03 · 해법의 골격</div>
-      <h2>QE의 답: <strong>PSE 체인</strong> + <strong>SIVS 루프</strong></h2>
-      <p class="lead">바깥은 사용자 워크플로우(PSE), 안쪽은 품질 게이트(SIVS).</p>
-      <h3 style="margin-top:.3em;">PSE 체인 — 사용자가 보는 흐름</h3>
+      <div class="kicker">03 · 해법 — 일하는 순서를 못 박는다</div>
+      <h2>큰 순서 하나, 그 안에 <strong>자동 점검 루프</strong> 하나</h2>
+      <h3 style="margin-top:.2em;">① 사람이 부르는 큰 순서</h3>
       <div class="flow">
-        <div class="step"><div class="t">Plan</div><div class="d">/Qplan</div></div>
+        <div class="step"><div class="t">계획</div><div class="d">무엇을 할까</div></div>
         <div class="arrow">→</div>
-        <div class="step"><div class="t">Spec</div><div class="d">/Qgs</div></div>
+        <div class="step"><div class="t">설계서</div><div class="d">어떻게·완료기준</div></div>
         <div class="arrow">→</div>
-        <div class="step"><div class="t">Execute</div><div class="d">/Qatomic-run</div></div>
+        <div class="step"><div class="t">실행</div><div class="d">실제 작업</div></div>
         <div class="arrow">→</div>
-        <div class="step"><div class="t">Verify</div><div class="d">/Qcode-run-task</div></div>
+        <div class="step"><div class="t">검증</div><div class="d">됐는지 확인</div></div>
       </div>
-      <h3 style="margin-top:.6em;">SIVS 루프 — 매 작업 내부에서 도는 품질 게이트</h3>
+      <h3 style="margin-top:.5em;">② 그 안에서 자동으로 도는 점검 루프</h3>
       <div class="flow">
-        <div class="step"><div class="t">Spec</div><div class="d">무엇을·어떻게</div></div>
+        <div class="step"><div class="t">설계</div><div class="d">무엇을·어떻게</div></div>
         <div class="arrow">→</div>
-        <div class="step"><div class="t">Implement</div><div class="d">실제 코딩</div></div>
+        <div class="step"><div class="t">구현</div><div class="d">실제 코딩</div></div>
         <div class="arrow">→</div>
-        <div class="step"><div class="t">Verify</div><div class="d">됐는지 확인</div></div>
+        <div class="step"><div class="t">확인</div><div class="d">됐는지</div></div>
         <div class="arrow">→</div>
-        <div class="step"><div class="t">Supervise</div><div class="d">잘 됐는지 감독</div></div>
+        <div class="step"><div class="t">감독</div><div class="d">잘 됐는지</div></div>
         <div class="arrow">↺</div>
-        <div class="step" style="border-color:#5a3a3a;"><div class="t" style="color:var(--warn)">Remediate</div><div class="d">FAIL 시 재작업</div></div>
+        <div class="step" style="border-color:#5a3a3a;"><div class="t" style="color:var(--warn)">재작업</div><div class="d">안 되면 되돌림</div></div>
       </div>
-      <p style="margin-top:.6em;font-size:.74em;">FAIL은 막다른 길이 아니라 <em>원인 단계로 역방향</em> 라우팅 (최대 3라운드).</p>
-      <div class="src">근거: docs/SYSTEM_OVERVIEW.md, core/PHILOSOPHY.md (The SIVS Loop)</div>
-      <div class="pageno">4 / 8</div>
+      <div class="def" style="margin-top:.5em;">
+        앞 슬라이드의 <b>네 군데 누수</b>를, 이 순서가 하나씩 막습니다.
+        실패하면 버리지 않고 <b>원인 단계로 되돌아가</b> 다시 돕니다(최대 3번).
+      </div>
+      <div class="src">근거: docs/SYSTEM_OVERVIEW.md · core/PHILOSOPHY.md</div>
+      <div class="pageno">4 / 9</div>
       <aside class="notes">
-        PSE는 사용자가 직접 호출하는 4개 슬래시 명령. SIVS는 그 Execute/Verify 안에서 자동으로
-        도는 내부 루프. 둘을 구분해서 설명하는 게 중요 — 청중이 "명령이 4개냐 8개냐" 헷갈리지
-        않도록. Remediate는 새 스펙으로 다시 도는 것이지 즉석 패치가 아니라는 점(Mandatory
-        Obligation #4)을 한 문장 덧붙이면 깊이가 산다.
+        두 줄을 구분하는 게 핵심: 위는 '사람이 직접 부르는' 큰 순서(원래 이름 PSE: Plan·Spec·
+        Execute·Verify), 아래는 그 안에서 '자동으로 도는' 점검 루프(원래 이름 SIVS: Spec·Implement·
+        Verify·Supervise). 약어는 일부러 화면에서 뺐다 — 물어보면 알려주되 본문은 한국어로.
+        '감독'은 '확인'과 다르다: 확인=됐나?, 감독=잘 됐나(품질). 되돌림은 즉석 패치가 아니라
+        새 설계서로 다시 도는 것.
       </aside>
     </section>
 
-    <!-- ===== S5 하네스 엔지니어링 ===== -->
+    <!-- ===== S5 훅(Hook) 소개 (신설) ===== -->
     <section>
-      <div class="kicker">03 · 어떻게 — 하네스 엔지니어링</div>
-      <h2>왜 이렇게까지 <strong>하네스</strong>를 짜는가</h2>
-      <div class="quoteblock" style="margin:.2em 0 .5em;">
-        <em>Efficiency is Accuracy.</em>
-        <span> — 컨텍스트 제약 환경에서 불필요한 토큰 하나가 곧 드리프트의 원인이다.</span>
+      <div class="kicker">03 · 자동을 가능케 하는 것 — 훅</div>
+      <h2><strong>훅(Hook)</strong>이란 무엇인가</h2>
+      <div class="def">
+        <b>훅</b> = AI가 일하는 흐름의 <b>특정 순간마다 자동으로 끼어드는 장치</b>.
+        사람이 매번 챙기지 않아도, 정해둔 검사·기록·정리가 그 순간에 알아서 실행됩니다.
+        <br><span style="color:#788294">비유: 자동차처럼 — 시동 켤 때, 주행 중, 시동 끌 때마다 자동 점검이 도는 것.</span>
       </div>
+      <p style="font-size:.7em;margin:.3em 0 .35em;">QE는 9개의 순간에 훅을 걸어 둡니다:</p>
       <div class="grid2">
-        <div class="card"><h3>독립 검증 게이트</h3>
-          <p>한 단계는 자기 출력을 스스로 인증할 수 없다(self-reference 문제).
-          fresh-context 적대적 sub-agent가 별도로 검증한다.</p></div>
-        <div class="card"><h3>모델 티어링</h3>
-          <p>전략=Opus · 구현=Sonnet · 병렬작업=Haiku. 단계 난도에 맞춰 비용·속도를 배분.</p></div>
-        <div class="card"><h3>폴더 인지 컨텍스트 메모리</h3>
-          <p>작업 디렉터리에 매칭되는 컨텍스트만 로드(root + glob). 무관한 토큰을 안 싣는다.</p></div>
-        <div class="card"><h3>9개 훅 + 토큰 효율 계층</h3>
-          <p>중복 읽기 차단, 140k 자동·170k 강제 압축, 250줄 스킬 캡 — 매 단계가 자동 강제된다.</p></div>
+        <div class="card"><h3>세션(작업) 시작·끝</h3>
+          <p><span class="hk">시작</span> 기억·설정을 불러오고 ·
+          <span class="hk">종료</span> 마무리 정리하고 실패를 기록</p></div>
+        <div class="card"><h3>도구를 쓰기 직전·직후</h3>
+          <p><span class="hk">직전</span> 위험한 동작을 미리 검사·차단 ·
+          <span class="hk">직후</span> 결과 정리하고 오류 감지</p></div>
+        <div class="card"><h3>질문이 들어올 때 · 알림</h3>
+          <p><span class="hk">질문</span> 무슨 의도인지 자동 분류 ·
+          <span class="hk">알림</span> 끝난 작업을 다음 작업으로 연결</p></div>
+        <div class="card"><h3>기억·작업 관리</h3>
+          <p><span class="hk">기억 꽉 차기 전</span> 스냅샷 저장 · 노는 작업자에 일 배정 ·
+          <span class="hk">작업 완료 시</span> 점검·기록·보관</p></div>
       </div>
-      <div class="src">근거: core/PHILOSOPHY.md (Efficiency, Obligation #8), docs/SYSTEM_OVERVIEW.md</div>
-      <div class="pageno">5 / 8</div>
+      <p style="margin-top:.45em;font-size:.7em;">
+        핵심은 — <em>사람이 깜빡해도 검증과 기록이 빠지지 않는다</em>는 점입니다.</p>
+      <div class="src">근거: core/PHILOSOPHY.md (9 Hook Lifecycle Events)</div>
+      <div class="pageno">5 / 9</div>
       <aside class="notes">
-        하네스 엔지니어링 = "AI를 어떻게 잘 묶어두느냐"의 공학. 핵심 논리:
-        효율은 비용 절감이 아니라 신뢰성 요건이다(토큰=드리프트). 독립 검증 게이트는 가장
-        설득력 있는 포인트 — "같은 모델이 자기 답을 채점하면 같은 맹점을 공유한다"를 강조.
-        모델 티어링은 비용 질문에 대한 선제 답변(전부 Opus로 안 돌린다).
+        이 슬라이드가 이번 개정의 핵심 추가. 9개 훅의 원래 영어 이름(괄호로만 참고):
+        시작=SessionStart, 종료=Stop, 직전=PreToolUse, 직후=PostToolUse, 질문=UserPromptSubmit,
+        알림=Notification, 기억 꽉 차기 전=PreCompact, 노는 작업자=TeammateIdle, 작업 완료=TaskCompleted.
+        가장 와닿는 예: '직전' 훅이 위험한 명령(예: 강제 커밋)을 실제로 막는다. 메시지는 하나 —
+        "자동화의 비결이 곧 이 9개 자리다."
       </aside>
     </section>
 
-    <!-- ===== S6 이점: 메트릭 ===== -->
+    <!-- ===== S6 그 외 자동 장치 ===== -->
     <section>
-      <div class="kicker">04 · 이점</div>
-      <h2>주관이 아니라 <strong>6개 정량 메트릭</strong>으로 본다</h2>
+      <div class="kicker">03 · 그 외 자동 장치</div>
+      <h2>낭비를 줄이는 게 곧 <strong>정확도</strong>를 높이는 것</h2>
+      <div class="def">
+        <b>토큰</b> = AI가 한 번에 머릿속에 담을 수 있는 "글자 예산". 한정돼 있습니다.
+        예산을 군더더기로 채우면 AI가 처음 목표에서 점점 벗어납니다(이걸 <b>드리프트</b>라 함).
+        그래서 <b>낭비를 줄이는 일 = 정확도를 지키는 일</b>입니다.
+      </div>
+      <div class="grid2" style="margin-top:.2em;">
+        <div class="card"><h3>작업에 맞춰 모델 배정</h3>
+          <p>어려운 판단=똑똑한 모델 · 일반=중간 · 단순·대량=빠른 모델.
+          전부 비싼 모델로 안 돌려 <b>비용을 아낍니다</b>.</p></div>
+        <div class="card"><h3>필요한 배경지식만 읽기</h3>
+          <p>지금 작업하는 폴더에 해당하는 설명만 불러옵니다. 무관한 내용으로 머리를 안 채웁니다.</p></div>
+        <div class="card"><h3>자기 검증은 따로 시킨다</h3>
+          <p>자기가 한 일을 자기가 채점하면 같은 실수를 못 잡습니다.
+          그래서 <b>새 시선의 검사자</b>가 별도로 봅니다.</p></div>
+        <div class="card"><h3>기억이 차면 자동 압축</h3>
+          <p>중복 읽기를 막고, 기억이 꽉 차기 전에 핵심만 요약해 이어갑니다.</p></div>
+      </div>
+      <div class="src">근거: docs/SYSTEM_OVERVIEW.md · core/PHILOSOPHY.md (Efficiency)</div>
+      <div class="pageno">6 / 9</div>
+      <aside class="notes">
+        '하네스 엔지니어링'이라는 말을 일부러 안 썼다 — 풀어서 "낭비를 줄이는 자동 장치들"로 제시.
+        모델 배정(원래: 모델 티어링, Opus/Sonnet/Haiku)은 비용 질문 선제 답변. '자기 검증 따로'는
+        가장 설득력 있는 포인트: 같은 모델이 자기 답을 채점하면 같은 맹점을 공유한다.
+        토큰·드리프트는 def 박스로 풀었으니 말로 한 번 더 풀어줄 것.
+      </aside>
+    </section>
+
+    <!-- ===== S7 이점: 메트릭 ===== -->
+    <section>
+      <div class="kicker">04 · 효과</div>
+      <h2>느낌이 아니라 <strong>숫자</strong>로 본다</h2>
       <table>
-        <thead><tr><th>메트릭</th><th>의미</th><th>정상 범위</th><th>경고 임계</th></tr></thead>
+        <thead><tr><th>지표</th><th>쉽게 말하면</th><th>정상</th><th>경고</th></tr></thead>
         <tbody>
-          <tr><td>Task Resolution Rate</td><td>작업 완료율</td><td class="range">85–100%</td><td class="warn">&lt;70%</td></tr>
-          <tr><td>Pass@1 Rate</td><td>첫 시도 전체 통과율</td><td class="range">60–80%</td><td class="warn">&lt;40%</td></tr>
-          <tr><td>Defect Escape Rate</td><td>검증 통과 후 재수정률</td><td class="range">0–5%</td><td class="warn">&gt;15%</td></tr>
-          <tr><td>Code Churn Rate</td><td>작업당 변경 라인(낮을수록 ↑)</td><td class="range">50–200 라인</td><td class="warn">&gt;500 라인</td></tr>
-          <tr><td>Verification Tax</td><td>검증/구현 시간비</td><td class="range">0.1–0.5</td><td class="warn">&gt;1.0</td></tr>
-          <tr><td>Harness Constraint Effect</td><td>훅 on/off 품질차</td><td class="range">+10–30%</td><td class="warn">음수</td></tr>
+          <tr><td>작업 완료율</td><td>맡긴 일 중 끝까지 간 비율</td><td class="range">85–100%</td><td class="warn">&lt;70%</td></tr>
+          <tr><td>한 번에 성공률</td><td>처음 시도에 통과한 비율</td><td class="range">60–80%</td><td class="warn">&lt;40%</td></tr>
+          <tr><td>검증 후 재수정률</td><td>"됐다" 한 뒤 다시 고친 비율</td><td class="range">0–5%</td><td class="warn">&gt;15%</td></tr>
+          <tr><td>작업당 코드 변경량</td><td>적을수록 깔끔하게 한 것</td><td class="range">50–200 줄</td><td class="warn">&gt;500 줄</td></tr>
+          <tr><td>검증 비용 비율</td><td>확인에 든 시간 ÷ 작업 시간</td><td class="range">0.1–0.5</td><td class="warn">&gt;1.0</td></tr>
+          <tr><td>틀의 효과</td><td>훅 켰을 때 vs 껐을 때 품질 차이</td><td class="range">+10–30%</td><td class="warn">음수</td></tr>
         </tbody>
       </table>
-      <p style="margin-top:.6em;font-size:.72em;">
-        "좋아 보인다"가 아니라 <em>측정값</em>으로 말합니다. 메트릭이 경고 임계를 넘으면
-        스펙 품질·검증 강도를 어디서 손봐야 하는지 곧장 지목됩니다.</p>
+      <p style="margin-top:.5em;font-size:.7em;">
+        숫자가 경고선을 넘으면, <em>어디를 손봐야 하는지</em>(설계서 품질? 검증 강도?)가 곧장 드러납니다.</p>
       <div class="src">근거: core/METRICS_SPEC.md (6 Harness Engineering Metrics)</div>
-      <div class="pageno">6 / 8</div>
+      <div class="pageno">7 / 9</div>
       <aside class="notes">
-        이 장이 상급자 설득의 정점. 모든 수치는 METRICS_SPEC.md와 일치(확인함).
-        포인트: 프레임워크의 효과를 "느낌"이 아니라 숫자로 추적한다. 특히 Harness Constraint
-        Effect(+10~30%)는 "훅을 켜면 품질이 실제로 오른다"는 A/B 측정. Verification Tax는
-        "검증이 과하지 않은지"를 스스로 감시하는 장치 — 즉 우리는 비용도 계측한다.
+        설득의 정점. 모든 수치는 METRICS_SPEC.md와 일치(확인함). 원래 영어 이름:
+        작업 완료율=Task Resolution, 한 번에 성공률=Pass@1, 검증 후 재수정률=Defect Escape,
+        작업당 코드 변경량=Code Churn, 검증 비용 비율=Verification Tax, 틀의 효과=Harness
+        Constraint Effect. 메시지: 우리는 효과도, 그 효과에 든 비용(검증 비용 비율)도 숫자로 본다.
       </aside>
     </section>
 
-    <!-- ===== S7 장점 vs 단점 ===== -->
+    <!-- ===== S8 장점 vs 단점 ===== -->
     <section>
       <div class="kicker">04 · 솔직한 평가</div>
       <h2>장점 <span style="color:var(--muted)">vs</span> 단점</h2>
       <div class="twocol">
         <div class="pro">
           <h3>장점</h3>
-          <ul style="font-size:.74em;">
-            <li>raw AI의 4대 실패점을 구조적으로 봉합</li>
-            <li>효과를 6개 메트릭으로 정량 추적</li>
-            <li>효율=정확성 → 토큰 절감이 곧 드리프트 감소</li>
-            <li>병렬 우선(Haiku Wave)으로 처리량 확보</li>
-            <li>모델 티어링으로 비용·정확도 동시 최적화</li>
-            <li>폴더 인지 컨텍스트로 불필요 토큰 차단</li>
+          <ul style="font-size:.72em;">
+            <li>앞의 네 가지 누수를 순서로 막는다</li>
+            <li>효과를 숫자로 추적한다</li>
+            <li>군더더기를 줄여 정확도가 오른다</li>
+            <li>여러 작업을 동시에 처리해 빠르다</li>
+            <li>일에 맞춰 모델을 배정해 비용을 아낀다</li>
+            <li>필요한 배경지식만 읽어 낭비를 줄인다</li>
           </ul>
         </div>
         <div class="con">
           <h3>단점 / 비용</h3>
-          <ul style="font-size:.74em;">
-            <li>마이크로 작업엔 오버헤드 — <span class="small">완화: Qutopia SIMPLE 예외(스펙 생략)</span></li>
-            <li>학습 곡선 (PSE 규율 · 183+ 스킬)</li>
-            <li>검증·감독의 토큰/시간 비용 — <span class="small">Verification Tax로 감시</span></li>
-            <li>선택적 Codex 브리지의 구성 복잡성</li>
-            <li>하네스 자체의 유지보수 부담</li>
+          <ul style="font-size:.72em;">
+            <li>아주 작은 일엔 절차가 과하다 <span class="small">(→ 작은 일은 절차를 건너뛰는 예외가 있음)</span></li>
+            <li>익히는 데 시간이 든다 <span class="small">(기능 183개)</span></li>
+            <li>검증·감독에 시간·비용이 더 든다 <span class="small">(→ 그 비용도 숫자로 감시)</span></li>
+            <li>외부 AI 엔진을 붙이면 설정이 복잡해진다</li>
+            <li>틀 자체도 유지보수해야 한다</li>
           </ul>
         </div>
       </div>
-      <p class="small" style="margin-top:.5em;">
-        단점 항목은 명시 문서가 없어 트레이드오프에서 추론 — 각 완화책은 프레임워크에 실재.</p>
+      <p class="small" style="margin-top:.45em;">
+        ※ 단점은 문서에 따로 정리된 항목이 없어 트레이드오프에서 추론 — 각 완화책은 실제로 존재합니다.</p>
       <div class="src">근거: core/PHILOSOPHY.md (Acknowledged Exceptions) · 단점=추론</div>
-      <div class="pageno">7 / 8</div>
+      <div class="pageno">8 / 9</div>
       <aside class="notes">
-        솔직함이 신뢰를 만든다 — 단점을 먼저 인정하고 각각에 완화책을 붙이는 구성.
-        단점 목록은 근거: 추론(문서에 "단점" 절은 없음). 다만 완화책(Qutopia SIMPLE 예외,
-        Verification Tax 메트릭)은 실재하는 사실. 예상 반론 "도입 비용이 크지 않나?" →
-        "마이크로 작업은 SIMPLE로 우회하고, 검증 비용은 메트릭으로 상한을 본다"가 답.
+        솔직함이 신뢰를 만든다 — 단점을 먼저 인정하고 완화책을 붙인다. 단점 목록은 근거: 추론
+        (문서에 '단점' 절은 없음). 완화책은 사실: 작은 일 절차 생략(원래 이름 Qutopia SIMPLE 예외),
+        검증 비용 숫자 감시(원래 이름 Verification Tax). "도입 비용 크지 않냐?" →
+        "작은 일은 건너뛰고, 검증 비용은 숫자로 상한을 본다"가 답.
       </aside>
     </section>
 
-    <!-- ===== S8 결론 ===== -->
+    <!-- ===== S9 결론 ===== -->
     <section data-auto-animate>
       <div class="kicker">결론</div>
       <h2>요약하면</h2>
-      <ul style="font-size:.92em;line-height:1.7;">
-        <li><strong>1.</strong> 모든 AI 작업은 결국 <em>Query · Execute</em>로 환원된다.</li>
-        <li><strong>2.</strong> raw AI는 스펙·구현규율·검증·감독 <em>네 지점</em>에서 무너진다.</li>
-        <li><strong>3.</strong> SIVS 루프가 그 네 구멍을 닫고, <em>하네스</em>가 그걸 강제·계측한다.</li>
+      <ul style="font-size:.9em;line-height:1.7;">
+        <li><strong>1.</strong> AI에게 맡긴 일은 <em>네 군데</em>에서 새기 쉽다.</li>
+        <li><strong>2.</strong> 그래서 <em>일하는 순서</em>를 못 박고, 빠지면 안 되는 검사를 <em>훅</em>으로 자동화했다.</li>
+        <li><strong>3.</strong> 효과도, 비용도 <em>숫자</em>로 본다.</li>
       </ul>
       <div class="flow" style="margin-top:1em;">
         <div class="step"><div class="t">제안</div>
-          <div class="d">파일럿 1개 모듈에 PSE 체인 적용 → 6개 메트릭으로 효과 측정</div></div>
+          <div class="d">작은 모듈 1개에 먼저 적용 → 6개 지표로 적용 전후를 비교해 보여드리겠습니다</div></div>
       </div>
-      <p style="margin-top:1.2em;color:var(--muted);font-size:.7em;">감사합니다 · Q&amp;A</p>
+      <p style="margin-top:1.1em;color:var(--muted);font-size:.7em;">감사합니다 · 질문 환영합니다</p>
       <div class="src">전체 근거: core/PHILOSOPHY.md · docs/SYSTEM_OVERVIEW.md · core/METRICS_SPEC.md · README.md</div>
-      <div class="pageno">8 / 8</div>
+      <div class="pageno">9 / 9</div>
       <aside class="notes">
-        세 줄로 닫습니다. 마지막에 구체적 다음 단계를 던지는 게 중요 — "파일럿 한 모듈에
-        적용해보고 6개 메트릭으로 before/after를 보여드리겠다." 결정권자가 'yes'라고 말하기
-        쉬운 작은 요청으로 끝냅니다. 예상 질문: 도입 기간, 기존 워크플로우와의 충돌, 비용.
-        모두 "측정 가능한 파일럿"으로 수렴시키세요.
+        세 줄로 닫는다. 마지막은 결정권자가 'yes' 하기 쉬운 작은 요청으로 — "파일럿 한 모듈,
+        6개 지표 before/after". 예상 질문(도입 기간·기존 흐름과 충돌·비용)은 모두
+        "측정 가능한 작은 파일럿"으로 수렴시킨다.
       </aside>
     </section>
 
