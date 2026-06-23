@@ -5,7 +5,7 @@ import { spawn, spawnSync } from 'child_process';
 import { createHash } from 'crypto';
 import os from 'os';
 import { dirname, join, resolve } from 'path';
-import { readJsonFile, writeJsonFile } from './ai_team_config.mjs';
+import { readJsonFile, writeJsonFile } from './json-io.mjs';
 
 const REGISTRY_VERSION = 1;
 const SUPPORTED_SCOPES = new Set(['project', 'global', 'all']);

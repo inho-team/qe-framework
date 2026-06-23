@@ -21,6 +21,9 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- **`npm run qe:mcp` and `npm run qe:secret` no longer crash on load.** `qe_mcp_registry.mjs` and `qe_secrets.mjs` still imported `readJsonFile`/`writeJsonFile` from `ai_team_config.mjs`, which was removed in the v4.0.0 Claude-only refactor — so both CLIs (and the `Qmcp-sync` / `Qsecret` skills behind them) died with `ERR_MODULE_NOT_FOUND` before doing anything. Restored the two helpers in a new `scripts/lib/json-io.mjs` (byte-identical to the originals) and repointed both imports. Added a `check-entrypoints` guard (run by `check:all`) that loads every CLI entrypoint and lib so a dangling import can never ship green again — the gap that let this regress unnoticed.
+- **Qcron daemon now actually runs.** `qcron-daemon.sh` invoked `claude "$MISSION"` with no `-p`, so in a TTY-less detached tmux pane it opened an interactive REPL and hung forever — the mission never ran and the loop never slept. The daemon now runs `claude -p --dangerously-skip-permissions`, resolves the `claude` binary to an absolute path (detached tmux PATH differs from the shell's), generates a dedicated per-job script under `scripts/qcron-jobs/` (correct per-cycle timestamps + no nested-quote breakage), reads the mission from a file (quote-safe, written owner-only `chmod 600`), captures output to the job log, and writes a heartbeat each cycle. Generated job/mission artifacts are gitignored.
+
 ### Removed
 
 ### Security

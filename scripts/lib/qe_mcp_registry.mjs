@@ -4,7 +4,7 @@ import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
 import os from 'os';
 import { dirname, resolve } from 'path';
 import { fileURLToPath } from 'url';
-import { readJsonFile, writeJsonFile } from './ai_team_config.mjs';
+import { readJsonFile, writeJsonFile } from './json-io.mjs';
 
 const MODULE_DIR = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = resolve(MODULE_DIR, '..', '..');
