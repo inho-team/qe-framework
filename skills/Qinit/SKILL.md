@@ -126,7 +126,10 @@ Call `AskUserQuestion` with these **exact** parameters (copy verbatim):
 4. If Codex is selected for any stage, ask additional questions:
    - **Model** (Optional): Specify Codex model (default: not set → use codex-plugin-cc default)
    - **Effort** (Optional): Reasoning effort level (`low` / `medium` / `high` / `xhigh`, default: not set)
-5. Validate generated configuration with `npm run qe:validate`.
+5. Validate the generated configuration by running the framework validator from the plugin root (the `qe:validate` npm script only exists inside the framework repo, **not** in the target project — invoking it via the plugin path validates the project's `.qe/sivs-config.json` from any cwd):
+   ```bash
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
+   ```
 
 **On option 3 "나중에 설정"**: Skip — Show guidance message: "`.qe/sivs-config.json`은 나중에 수동 생성하거나 `/Qsivs-config`로 설정할 수 있습니다."
 

@@ -29,22 +29,22 @@ Detects artifacts from previous QE structures and relocates them into the curren
 
 ### Step 1: Read the registry
 ```bash
-node -e "import('./hooks/scripts/lib/legacy-migrator.mjs').then(m => console.log(JSON.stringify(m.listMigrations(), null, 2)))"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.listMigrations(), null, 2))})()"
 ```
 
 ### Step 2: Dry-run scan
 ```bash
-node -e "import('./hooks/scripts/lib/legacy-migrator.mjs').then(m => console.log(JSON.stringify(m.dryRunAll(process.cwd()), null, 2)))"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.dryRunAll(process.cwd()), null, 2))})()"
 ```
 Show the user every `{id, description, candidates[]}` entry so they can decide whether to apply.
 
 ### Step 3: Apply (only when user confirms or passes `--apply`)
 ```bash
 # All migrations:
-node -e "import('./hooks/scripts/lib/legacy-migrator.mjs').then(async m => { for (const e of m.listMigrations()) { const r = m.applyById(process.cwd(), e.id); if (r) console.log(e.id, JSON.stringify(r)); } })"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);for (const e of m.listMigrations()) { const r = m.applyById(process.cwd(), e.id); if (r) console.log(e.id, JSON.stringify(r)); }})()"
 
 # Single migration:
-node -e "import('./hooks/scripts/lib/legacy-migrator.mjs').then(m => console.log(JSON.stringify(m.applyById(process.cwd(), '<id>'), null, 2)))"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.applyById(process.cwd(), '<id>'), null, 2))})()"
 ```
 
 ### Step 4: Report

@@ -56,7 +56,10 @@ Use `AskUserQuestion` to confirm before proceeding.
 
 After install/update:
 1. Re-read `installed_plugins.json` to confirm new version.
-2. Run `npm run qe:validate` to verify SIVS config is valid.
+2. Verify SIVS config is valid by running the framework validator from the plugin root (the `qe:validate` npm script lives only in the framework repo, not the target project):
+   ```bash
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
+   ```
 3. Report result.
 
 ## Will

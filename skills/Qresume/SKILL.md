@@ -37,7 +37,7 @@ Integrated with the pre-check in PRINCIPLES.md:
 **Do not reimplement path/fallback logic in prose** — the authoritative resolution lives in one place: `resolveResumeContext(projectRoot, overrideSid)` in `hooks/scripts/lib/session-resolver.mjs`. Qcompact's RESUME workflow calls the same function, so the two can no longer diverge. Run it to get the descriptor:
 
 ```bash
-node -e "import('./hooks/scripts/lib/session-resolver.mjs').then(m=>console.log(JSON.stringify(m.resolveResumeContext(process.cwd(), process.argv[1]||null),null,2)))" [sid-from---from]
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','session-resolver.mjs')).href);console.log(JSON.stringify(m.resolveResumeContext(process.cwd(), process.argv[1]||null),null,2))})()" [sid-from---from]
 ```
 
 It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[], handoffDir, latestHandoff, isEmpty }`. Then:
