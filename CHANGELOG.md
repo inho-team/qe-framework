@@ -21,11 +21,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
-- Skills now resolve framework-only scripts from the plugin root (`CLAUDE_PLUGIN_ROOT`) instead of the project cwd. `Qinit` and `QCodexUpdate` no longer call `npm run qe:validate` (which only exists in the framework repo and fails in every target project); `Qresume` and `Qmigrate-legacy` no longer import `./hooks/...` via project-relative paths. These ran correctly only inside the framework repo and broke in installed user projects.
-
 ### Removed
 
 ### Security
+
+## [7.2.5] - 2026-06-23
+
+### Fixed
+
+- Skills now resolve framework-only scripts from the plugin root (`CLAUDE_PLUGIN_ROOT`) instead of the project cwd. `Qinit` and `QCodexUpdate` no longer call `npm run qe:validate` (which only exists in the framework repo and fails in every target project); `Qresume` and `Qmigrate-legacy` no longer import `./hooks/...` via project-relative paths. These ran correctly only inside the framework repo and broke in installed user projects.
 
 ## [7.2.4] - 2026-06-23
 
