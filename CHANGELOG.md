@@ -21,6 +21,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- `Mrelease` Step 6 (plugin cache sync) now mandates a destination guard before the
+  `rsync --delete`. The cache `installPath` lives nested under `.plugins[...]` in
+  `installed_plugins.json`, not at the root; a wrong extraction yielded an empty
+  variable, so `rsync -a --delete ./ "$CACHE/"` expanded to `rsync ... ./ /` and
+  tried to mirror the repo onto the filesystem root (blocked here only by macOS
+  read-only-system-volume + non-root permissions). Step 6 now spells out the full
+  lookup path and requires three checks — non-empty, expected `~/.claude/plugins/
+  cache/...` prefix, and directory-exists — aborting the release if any fail.
+
 ### Removed
 
 ### Security

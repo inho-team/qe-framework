@@ -105,14 +105,37 @@ Set the Mbump skill-bypass flag (`.qe/state/skill-bypass.json` with `{active:tru
 
 ### Step 6 — Sync plugin cache
 
-Find the plugin cache path from `~/.claude/plugins/installed_plugins.json` → `plugins["qe-framework@inho-team-qe-framework"][0].installPath`.
+Find the plugin cache path in `~/.claude/plugins/installed_plugins.json`. The file's
+top level is `{ "version": ..., "plugins": { ... } }` — the install records are nested
+**under `plugins`**, NOT at the root. The full lookup path is:
 
-Rsync local repo to cache, excluding `.git/`:
 ```
-rsync -a --delete --exclude='.git/' {repo_root}/ {cache_install_path}/
+installed_plugins.json → .plugins["qe-framework@inho-team-qe-framework"][0].installPath
 ```
 
-Update `installed_plugins.json` — set `version` to new version and `gitCommitSha` to `null` (will be updated post-commit in step 7).
+Extract it safely (verify the structure first; do not assume the key sits at the root):
+```bash
+CACHE="$(python3 -c "import json;print(json.load(open('$HOME/.claude/plugins/installed_plugins.json'))['plugins']['qe-framework@inho-team-qe-framework'][0]['installPath'])")"
+```
+
+> ⚠️ **MANDATORY destination guard — never skip (see MISTAKE M002).** A bad/empty
+> `installPath` extraction makes `"$CACHE/"` expand to `/`, and `rsync --delete ./ /`
+> then tries to mirror your repo onto the filesystem root. Validate the destination
+> with all three checks and **abort** if any fails — never run the rsync with an
+> unvalidated variable:
+
+```bash
+set -euo pipefail
+PREFIX="$HOME/.claude/plugins/cache/inho-team-qe-framework/"
+[ -n "$CACHE" ]                || { echo "ABORT: empty cache path"; exit 1; }
+[[ "$CACHE" == "$PREFIX"* ]]   || { echo "ABORT: cache path outside expected prefix: $CACHE"; exit 1; }
+[ -d "$CACHE" ]                || { echo "ABORT: cache path is not a directory: $CACHE"; exit 1; }
+
+rsync -a --delete --exclude='.git/' "{repo_root}/" "$CACHE/"
+```
+
+Update `installed_plugins.json` — set the nested entry's `version` to the new version
+and `gitCommitSha` to `null` (updated post-commit in step 7).
 
 ### Step 7 — Commit via Ecommit-executor
 
