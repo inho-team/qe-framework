@@ -21,7 +21,35 @@ export ANTHROPIC_API_KEY=sk-ant-...
 
 # Build + interactive shell inside the clean-room (QE repo mounted read-only)
 ./run.sh --shell
+
+# Full bench: install QE in the container, then bench skills one by one
+./run.sh --bench              # functional checks run if ANTHROPIC_API_KEY is set
+./run.sh --bench --smoke-only # force no-API mode (load/route checks only)
 ```
+
+## Bench harness (Phase 2)
+`--bench` installs QE in the container (`qe-install.sh`) then runs `bench-runner.mjs`,
+which exercises each skill in `scenarios.json` at two depths:
+
+- **smoke** — loads `skills/<skill>/SKILL.md` and validates its frontmatter (no API).
+  A one-time `npm run check:routing` baseline is recorded too.
+- **functional** — runs headless `claude -p "<invocation>"` and asserts the `expect`
+  substring (needs `ANTHROPIC_API_KEY`; skipped as `na` without a key).
+
+### Results
+- `bench/RESULTS.md` — human-readable table + a Failures section (committed summary).
+- `bench/bench-results/<date>.jsonl` — one row per skill:
+  `{skill, tier, smoke, functional, durationMs, notes, repro}` (key-redacted).
+  This dir is generated output and is gitignored; `RESULTS.md` is the kept summary.
+
+### Add a skill to the bench
+Append an entry to `bench/scenarios.json`:
+```json
+{ "skill": "Qfoo", "tier": "backbone", "mode": "smoke", "invocation": "/Qfoo", "expect": "" }
+```
+Use `"mode": "functional"` + a non-empty `"expect"` to actually run it via `claude -p`.
+
+Run a single skill: `node bench/bench-runner.mjs --skills Qfoo`.
 
 ## API key hygiene (NFR1 — non-negotiable)
 - The key is passed **only** at runtime via `docker run -e ANTHROPIC_API_KEY`.

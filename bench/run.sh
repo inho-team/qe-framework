@@ -57,9 +57,29 @@ smoke() {
   fi
 }
 
+# Full bench: install QE in the clean-room, then run the per-skill bench runner.
+# Works without a key (smoke-only); pass the key in env to also run functional checks.
+# Pass --smoke-only to force no-API mode.
+bench() {
+  build
+  local smoke_only=""
+  [ "${2:-}" = "--smoke-only" ] && smoke_only="--smoke-only"
+  [ -z "${ANTHROPIC_API_KEY:-}" ] && smoke_only="--smoke-only"  # no key → smoke-only
+  mkdir -p "$HERE/bench-results"
+  docker run --rm \
+    ${ANTHROPIC_API_KEY:+-e ANTHROPIC_API_KEY} \
+    -v "$REPO_ROOT":/home/bench/qe-framework:ro \
+    -v "$HERE/bench-results":/home/bench/bench-results \
+    -e BENCH_OUT=/home/bench/bench-results \
+    "$IMAGE" bash -c "bash /home/bench/qe-framework/bench/qe-install.sh \
+      && (cd /home/bench/qe-framework && npm run --silent check:all || echo 'check:all: non-zero (baseline recorded)') \
+      && node /home/bench/qe-framework/bench/bench-runner.mjs $smoke_only"
+}
+
 case "${1:-}" in
   --build|build) build ;;
   --smoke|smoke) build; smoke ;;
+  --bench|bench) bench "$@" ;;
   --shell|shell|"") build; shell ;;
-  *) echo "usage: run.sh [--build|--smoke|--shell]" >&2; exit 2 ;;
+  *) echo "usage: run.sh [--build|--smoke|--bench [--smoke-only]|--shell]" >&2; exit 2 ;;
 esac
