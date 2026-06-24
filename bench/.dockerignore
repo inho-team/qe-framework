@@ -1,0 +1,8 @@
+# Build context is this bench/ dir; nothing is COPYed into the image, but keep
+# the context minimal and never ship logs/secrets.
+.git
+node_modules
+.qe
+*.log
+.last-smoke.log
+.key-hygiene.log

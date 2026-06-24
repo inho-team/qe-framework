@@ -36,3 +36,4 @@ GEMINI.md
 *.pdf
 harness-engineering-talk*.md
 gbrain-분석.md
+bench/*.log

@@ -1,6 +1,6 @@
 ---
 name: Qhud
-description: 'Toggles the QE HUD statusline (context %, session tokens, SIVS engine routing) by writing the statusLine entry into .claude/settings.json. Use for /Qhud, HUD on, HUD off, statusline show, turn HUD on, enable HUD.'
+description: 'Toggles the QE HUD statusline (context %, session tokens, SIVS engine routing) by writing the statusLine entry into settings.json — global ~/.claude by default, per-project with --project. Use for /Qhud, HUD on, HUD off, statusline show, turn HUD on, enable HUD.'
 invocation_trigger: When the user wants to turn the QE HUD statusline on or off, or check its current state.
 recommendedModel: haiku
 ---
@@ -11,17 +11,18 @@ recommendedModel: haiku
 CLI-style skill that wires the QE HUD statusline into Claude Code by adding/removing a `statusLine` entry in `.claude/settings.json`. The HUD itself lives at `hooks/scripts/statusline.mjs`; this skill only manages activation.
 
 ## Scope
-- **Default:** project scope → `<PROJECT_ROOT>/.claude/settings.json`
-- **`--user` flag:** user scope → `~/.claude/settings.json`
+- **Default:** user/global scope → `~/.claude/settings.json`. Turn the HUD on once and it appears in every project; per-project context (SIVS routing, current phase, active task) is resolved at runtime by `statusline.mjs` from `process.cwd()`, so no per-project install is needed.
+- **`--project` flag:** project scope → `<PROJECT_ROOT>/.claude/settings.json`, for the rare case a single project needs a different statusLine (e.g. a different preset) than the global one.
+- **`--user` flag:** explicit user/global scope — identical to the default. Kept as a backward-compatible alias so existing `/Qhud on --user` muscle memory and docs keep working.
 - Never touches `settings.local.json` (that is the user's private override slot).
 
-**Project root detection** (when `--user` is not set):
+**Project root detection** (only when `--project` is set):
 Walk upward from `$PWD` until one of these markers is found:
 `.git/` directory, `package.json`, `pyproject.toml`, `.qe/`, or an existing `.claude/` directory.
 The first match becomes `PROJECT_ROOT`. If no marker is found before `$HOME` (or filesystem root), abort with:
 ```
 [!] Could not detect a project root from $PWD. Run from a project directory,
-    or use --user to install at ~/.claude/settings.json.
+    or drop --project to install globally at ~/.claude/settings.json.
 ```
 This prevents `.claude/settings.json` from being written to a subdirectory where Claude Code will not pick it up.
 
@@ -40,17 +41,20 @@ This prevents `.claude/settings.json` from being written to a subdirectory where
 
 | Flag | Description |
 |------|-------------|
-| `--user` | Operate on `~/.claude/settings.json` instead of project scope |
+| `--project` | Install into project scope `<PROJECT_ROOT>/.claude/settings.json` instead of the global default (per-project override) |
+| `--user` | Force user/global scope `~/.claude/settings.json` — same as the default; kept as a backward-compatible alias |
 | `--preset <name>` | Pick an element preset: `session` (default), `focused`, `qe`, `mix`, `full` |
 
 ## Execution Procedure
 
 ### Step 0: Parse
-Extract subcommand (`show` | `on` | `off`), the `--user` flag, and an optional `--preset <name>` value. Valid preset names: `session`, `focused`, `qe`, `mix`, `full`. Anything else → fall back to `session`. On `--help` or invalid input, jump to **Step HELP**.
+Extract subcommand (`show` | `on` | `off`), the scope flags `--project` and `--user`, and an optional `--preset <name>` value. Valid preset names: `session`, `focused`, `qe`, `mix`, `full`. Anything else → fall back to `session`. On `--help` or invalid input, jump to **Step HELP**.
+
+**Scope resolution:** default = user/global. `--project` selects project scope; `--user` is an explicit alias for the global default. If both `--project` and `--user` are passed, `--project` wins (the narrower, explicitly-requested override) and a one-line warning is printed: `[!] --project and --user both given; using --project (project scope).`
 
 ### Step 1: Resolve paths
-1. **Script path** — Resolve the absolute path of `hooks/scripts/statusline.mjs` relative to this plugin (walk up from the skill directory until `hooks/scripts/statusline.mjs` exists). Store as `SCRIPT_ABS`.
-2. **Settings path** — `--user` → `$HOME/.claude/settings.json`; otherwise → `$PWD/.claude/settings.json`.
+1. **Script path** — Resolve the absolute path of `hooks/scripts/statusline.mjs` relative to this plugin (walk up from the skill directory until `hooks/scripts/statusline.mjs` exists). Store as `SCRIPT_ABS`. Because `SCRIPT_ABS` is absolute, a single global install runs correctly from any project directory.
+2. **Settings path** — `--project` → `<PROJECT_ROOT>/.claude/settings.json` (project root resolved via the detection walk above); otherwise (default, or `--user`) → `$HOME/.claude/settings.json`.
 
 ### Step 2: Route by subcommand
 
@@ -93,12 +97,13 @@ Print:
 Qhud — QE HUD statusline toggle
 
 Usage:
-  /Qhud                     Show current state and preview
-  /Qhud on                  Install into .claude/settings.json (project scope)
-  /Qhud off                 Remove from .claude/settings.json
-  /Qhud on --user           Install into ~/.claude/settings.json (user scope)
-  /Qhud on --preset focused Install with the "focused" element preset
-  /Qhud --help              Show this help
+  /Qhud                       Show current state and preview
+  /Qhud on                    Install globally into ~/.claude/settings.json (default)
+  /Qhud off                   Remove the statusLine entry
+  /Qhud on --project          Install into <PROJECT_ROOT>/.claude/settings.json (per-project override)
+  /Qhud on --user             Same as the default (global); backward-compatible alias
+  /Qhud on --preset focused   Install with the "focused" element preset
+  /Qhud --help                Show this help
 
 Presets:
   session  ctx · 5h/7d · model · tokens · SIVS   (default, v6.6.3 shape)
@@ -130,4 +135,4 @@ Phase 2 (not yet in MVP): 5h / 7d rate limit %, model name, session cost.
 ## Will Not
 - Modify any file other than the chosen settings.json.
 - Touch plugin.json, hooks.json, or the script itself.
-- Install globally without the `--user` flag.
+- Install into project scope without the `--project` flag (the default is always global).
