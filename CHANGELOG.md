@@ -21,6 +21,14 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+### Removed
+
+### Security
+
+## [7.2.6] - 2026-06-24
+
+### Fixed
+
 - Context pressure false alarm on 1M-context models: the durable detected-limit
   store now matches model-id keys marker-insensitively. Claude Code strips the
   `[1m]` window marker from both the hooks payload and the transcript model
@@ -43,10 +51,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   in order (`CLAUDE_PLUGIN_ROOT` → marketplace checkout → newest version cache →
   legacy `~/.claude`) and picks the first that actually contains
   `session-resolver.mjs`, so the stale copy is skipped.
-
-### Removed
-
-### Security
 
 ## [7.2.5] - 2026-06-23
 
