@@ -186,9 +186,3 @@ Save to `docs/architecture/`:
 | Architects | Context + containers + key components |
 | Developers | All levels as needed |
 | DevOps | Containers + deployment |
-
-## References
-
-- [references/c4-syntax.md](references/c4-syntax.md) — Complete Mermaid C4 syntax
-- [references/common-mistakes.md](references/common-mistakes.md) — Anti-patterns to avoid
-- [references/advanced-patterns.md](references/advanced-patterns.md) — Microservices, event-driven, deployment patterns

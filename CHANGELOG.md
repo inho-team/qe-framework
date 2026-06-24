@@ -30,6 +30,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   lookup path and requires three checks — non-empty, expected `~/.claude/plugins/
   cache/...` prefix, and directory-exists — aborting the release if any fail.
 
+- `Qmermaid-diagrams` and `Qc4-architecture` no longer link to a `references/`
+  directory that was never shipped. Both SKILL.md files pointed to deep-dive docs
+  (`references/class-diagrams.md`, `references/c4-syntax.md`, … 10 links total) that
+  did not exist, so the "Detailed References" / "References" sections were entirely
+  dead links. The mermaid section is now an inline link-free topic quick-reference
+  (its descriptions stand on their own); the C4 section, whose entries were too thin
+  to keep without the linked files, was removed. A full skill/agent audit (182 skills
+  + 25 agents) found these were the only broken local references.
+
 ### Removed
 
 ### Security

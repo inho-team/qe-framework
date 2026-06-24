@@ -111,15 +111,15 @@ erDiagram
     }
 ```
 
-## Detailed References
+## Diagram Type Quick Reference
 
-- **[references/class-diagrams.md](references/class-diagrams.md)** - Domain modeling, relationships, multiplicity, methods/attributes
-- **[references/sequence-diagrams.md](references/sequence-diagrams.md)** - Actors, participants, messages, activations, loops, alt/opt/par blocks
-- **[references/flowcharts.md](references/flowcharts.md)** - Node shapes, connections, decisions, subgraphs, styling
-- **[references/erd-diagrams.md](references/erd-diagrams.md)** - Entities, relationships, cardinality, keys, attributes
-- **[references/c4-diagrams.md](references/c4-diagrams.md)** - System context, containers, components, boundaries
-- **[references/architecture-diagrams.md](references/architecture-diagrams.md)** - Cloud services, infrastructure, CI/CD deployment
-- **[references/advanced-features.md](references/advanced-features.md)** - Themes, styling, configuration, layouts
+- **Class diagrams** - Domain modeling, relationships, multiplicity, methods/attributes
+- **Sequence diagrams** - Actors, participants, messages, activations, loops, alt/opt/par blocks
+- **Flowcharts** - Node shapes, connections, decisions, subgraphs, styling
+- **ER diagrams** - Entities, relationships, cardinality, keys, attributes
+- **C4 diagrams** - System context, containers, components, boundaries
+- **Architecture diagrams** - Cloud services, infrastructure, CI/CD deployment
+- **Advanced features** - Themes, styling, configuration, layouts
 
 ## Best Practices
 
