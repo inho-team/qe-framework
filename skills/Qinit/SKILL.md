@@ -49,7 +49,7 @@ Ask the user for the minimum required information:
 **Codex Plugin Detection (MANDATORY):** Before presenting engine options, you MUST run the following bash command. Do NOT skip this step. Do NOT guess the result. The output determines what status to display.
 
 ```bash
-node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
 ```
 
 - If `installed: true`: Display "Codex 플러그인 v{version} 감지됨" before the options.
@@ -92,7 +92,7 @@ Call `AskUserQuestion` with these **exact** parameters (copy verbatim):
 **On option 2 "Claude + Codex Hybrid"**:
 1. **After** the user selects this option, you MUST run this bash command to verify (reuse the result from the detection step above if it was `installed: true`):
    ```bash
-   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);console.log(m.isCodexPluginAvailable())})()"
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);console.log(m.isCodexPluginAvailable())})()"
    ```
    - If `false`: Show warning ("codex-plugin-cc가 설치되어 있지 않습니다. `/plugin install codex@openai-codex`로 설치 후 `/Qsivs-config`로 다시 설정해주세요.") → Fallback to Claude Only.
    - If `true`: Continue.
@@ -128,7 +128,7 @@ Call `AskUserQuestion` with these **exact** parameters (copy verbatim):
    - **Effort** (Optional): Reasoning effort level (`low` / `medium` / `high` / `xhigh`, default: not set)
 5. Validate the generated configuration by running the framework validator from the plugin root (the `qe:validate` npm script only exists inside the framework repo, **not** in the target project — invoking it via the plugin path validates the project's `.qe/sivs-config.json` from any cwd):
    ```bash
-   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
    ```
 
 **On option 3 "나중에 설정"**: Skip — Show guidance message: "`.qe/sivs-config.json`은 나중에 수동 생성하거나 `/Qsivs-config`로 설정할 수 있습니다."

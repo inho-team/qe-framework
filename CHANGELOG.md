@@ -32,6 +32,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   larger of the hook-hint and transcript model ids so a stripped id can no longer
   shadow a marked sibling source. New `normalizeModelId()` helper + tests.
 
+- Skill bootstrap snippets no longer crash when `CLAUDE_PLUGIN_ROOT` is unset.
+  v7.2.5 switched the inline `node -e` resolvers in `Qresume`, `Qmigrate-legacy`,
+  `Qinit`, `QCodexUpdate`, and `Qcritical-review` to
+  `CLAUDE_PLUGIN_ROOT || ~/.claude`, but in any session where the env var is
+  absent the fallback resolved `~/.claude/hooks/scripts/lib/...` — a stale partial
+  copy from an old global install that lacks `session-resolver.mjs` and 40+ other
+  lib files — so every one of those skills died with `ERR_MODULE_NOT_FOUND` in
+  installed user projects. The fallback now probes real plugin install locations
+  in order (`CLAUDE_PLUGIN_ROOT` → marketplace checkout → newest version cache →
+  legacy `~/.claude`) and picks the first that actually contains
+  `session-resolver.mjs`, so the stale copy is skipped.
+
 ### Removed
 
 ### Security

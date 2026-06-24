@@ -58,7 +58,7 @@ After install/update:
 1. Re-read `installed_plugins.json` to confirm new version.
 2. Verify SIVS config is valid by running the framework validator from the plugin root (the `qe:validate` npm script lives only in the framework repo, not the target project):
    ```bash
-   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
    ```
 3. Report result.
 

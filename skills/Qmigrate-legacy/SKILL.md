@@ -29,22 +29,22 @@ Detects artifacts from previous QE structures and relocates them into the curren
 
 ### Step 1: Read the registry
 ```bash
-node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.listMigrations(), null, 2))})()"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.listMigrations(), null, 2))})()"
 ```
 
 ### Step 2: Dry-run scan
 ```bash
-node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.dryRunAll(process.cwd()), null, 2))})()"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.dryRunAll(process.cwd()), null, 2))})()"
 ```
 Show the user every `{id, description, candidates[]}` entry so they can decide whether to apply.
 
 ### Step 3: Apply (only when user confirms or passes `--apply`)
 ```bash
 # All migrations:
-node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);for (const e of m.listMigrations()) { const r = m.applyById(process.cwd(), e.id); if (r) console.log(e.id, JSON.stringify(r)); }})()"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);for (const e of m.listMigrations()) { const r = m.applyById(process.cwd(), e.id); if (r) console.log(e.id, JSON.stringify(r)); }})()"
 
 # Single migration:
-node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.applyById(process.cwd(), '<id>'), null, 2))})()"
+node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','legacy-migrator.mjs')).href);console.log(JSON.stringify(m.applyById(process.cwd(), '<id>'), null, 2))})()"
 ```
 
 ### Step 4: Report

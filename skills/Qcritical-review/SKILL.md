@@ -217,7 +217,7 @@ Display the full report, then ask:
 **cross-model:**
 1. First, check Codex availability:
    ```bash
-   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const base=process.env.CLAUDE_PLUGIN_ROOT||join(process.env.HOME||process.env.USERPROFILE||'','.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
+   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
    ```
 2. If `installed: true`: route the designated adversarial agent to Codex via `subagent_type: "codex:codex-rescue"`
 3. If `installed: false`: fall back to claude-only mode with a notice
