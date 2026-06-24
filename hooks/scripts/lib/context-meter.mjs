@@ -165,8 +165,17 @@ export function readDetectedLimit(projectDir, modelId) {
     const p = join(projectDir, '.qe', 'config.json');
     if (!existsSync(p)) return null;
     const cfg = JSON.parse(readFileSync(p, 'utf8'));
-    const v = cfg?.hooks?.context_window_limits?.[modelId];
-    if (typeof v === 'number' && v > 0) return v;
+    const map = cfg?.hooks?.context_window_limits;
+    if (!map || typeof map !== 'object') return null;
+    // Fast path: exact key. Otherwise match marker-insensitively so a key set
+    // from the env-visible `[1m]` form (e.g. `claude-opus-4-8[1m]`) still resolves
+    // the `[1m]`-stripped lookup the hooks payload actually carries.
+    const direct = map[modelId];
+    if (typeof direct === 'number' && direct > 0) return direct;
+    const want = normalizeModelId(modelId);
+    for (const [k, v] of Object.entries(map)) {
+      if (normalizeModelId(k) === want && typeof v === 'number' && v > 0) return v;
+    }
   } catch { /* best-effort */ }
   return null;
 }
@@ -201,8 +210,16 @@ export function writeDetectedLimit(projectDir, modelId, limit) {
     const map = (cfg.hooks.context_window_limits && typeof cfg.hooks.context_window_limits === 'object')
       ? cfg.hooks.context_window_limits
       : {};
-    if (map[modelId] === limit) return; // already persisted — avoid churn
-    map[modelId] = limit;
+    // Canonicalize the key: store under the marker-stripped form so a value set
+    // from any source (hooks payload, transcript, or a human copying the
+    // env-visible `[1m]` id) collapses to ONE entry — never a silent mismatch.
+    const key = normalizeModelId(modelId);
+    let changed = false;
+    for (const k of Object.keys(map)) {
+      if (k !== key && normalizeModelId(k) === key) { delete map[k]; changed = true; }
+    }
+    if (map[key] === limit && !changed) return; // already canonical — avoid churn
+    map[key] = limit;
     cfg.hooks.context_window_limits = map;
     atomicWrite(p, cfg);
   } catch { /* best-effort */ }
@@ -376,13 +393,31 @@ export function modelIdToLimit(modelId) {
 }
 
 /**
+ * Canonicalize a model id for keying the durable limit store. Claude Code strips
+ * the 1M window marker from BOTH the hooks payload and the transcript model
+ * field, but humans (and the model-facing env string) keep it — so a key set
+ * from one source must still match a lookup from another, or the detection
+ * silently mismatches and a 1M run over-warns forever. Drops a trailing
+ * `[1m]` / `-1m` / `1m` marker; passes other ids (and non-strings) through.
+ *
+ * @param {string|undefined|null} modelId
+ * @returns {string|undefined|null} marker-stripped id
+ */
+export function normalizeModelId(modelId) {
+  if (!modelId || typeof modelId !== 'string') return modelId;
+  return modelId.replace(/\s*(?:\[1m\]|-1m|1m)$/i, '').trim();
+}
+
+/**
  * Estimate the context usage ratio (0..1) by reading the transcript file.
  *
  * Walks tail JSONL lines in reverse and returns the ratio from the most
  * recent assistant `message.usage` entry. While walking, also picks up the
- * `message.model` so the limit can be auto-adjusted for 1M-context models
- * (e.g. `claude-opus-4-7[1m]`) — otherwise the reading is 5× too high on
- * 1M models and context-guard blocks early on false "critical" signals.
+ * `message.model` as a secondary limit hint. NOTE: Claude Code strips the
+ * `[1m]` marker from the transcript model field too (it records the bare
+ * `claude-opus-4-8`), so below 200k the marker is NOT recoverable from the
+ * transcript — the >200k deterministic upgrade and the cached/configured limit
+ * are the real signals for telling a low-fill 1M run from a 200k run.
  *
  * Limit precedence:
  *   1. explicit `modelLimit` argument (number)
@@ -489,10 +524,14 @@ function resolveLimit({ explicitLimit, hintModelId, transcriptModelId, observedT
     const parsed = parseInt(envVal, 10);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
-  // 3. Best id-based guess: hint first, then the transcript's model field.
-  let limit = 200000;
-  if (hintModelId) limit = modelIdToLimit(hintModelId);
-  else if (transcriptModelId) limit = modelIdToLimit(transcriptModelId);
+  // 3. Best id-based guess: take the LARGER of the hook hint and the transcript
+  // model id. A stripped id (200k) from one source must not shadow a sibling
+  // source that still carries the `[1m]` marker (1M). Claude Code currently
+  // strips both, so this resolves to 200k today — but it future-proofs the day
+  // either source keeps the marker, instead of letting a stripped hint win.
+  const hintLimit = hintModelId ? modelIdToLimit(hintModelId) : 0;
+  const txLimit = transcriptModelId ? modelIdToLimit(transcriptModelId) : 0;
+  let limit = Math.max(hintLimit, txLimit, 200000);
   // 4. Safety net: Claude Code strips the `[1m]` marker from both the hint and
   // the transcript model field, so a bare id resolves to the 200k base even on
   // a 1M run. A reading already past that base can only be the larger variant

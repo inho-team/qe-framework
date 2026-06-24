@@ -4,7 +4,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync
 import { tmpdir } from 'os';
 import { join } from 'path';
 
-import { readDetectedLimit, writeDetectedLimit } from '../context-meter.mjs';
+import { readDetectedLimit, writeDetectedLimit, normalizeModelId } from '../context-meter.mjs';
 import { checkContextPressure } from '../../context-monitor.mjs';
 
 // ---------------------------------------------------------------------------
@@ -85,6 +85,60 @@ test('writeDetectedLimit: merge-preserves existing config + is a no-op when unch
     writeDetectedLimit(dir, 'claude-opus-4-8', 1000000);
     const after = readFileSync(join(dir, '.qe', 'config.json'), 'utf8');
     assert.equal(before, after, 'unchanged write is a no-op');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// #2b — marker-insensitive keys (the [1m] mismatch class)
+// ---------------------------------------------------------------------------
+
+test('normalizeModelId: strips [1m] / -1m / 1m markers, passes others through', () => {
+  assert.equal(normalizeModelId('claude-opus-4-8[1m]'), 'claude-opus-4-8');
+  assert.equal(normalizeModelId('claude-opus-4-8-1m'), 'claude-opus-4-8');
+  assert.equal(normalizeModelId('claude-opus-4-8'), 'claude-opus-4-8', 'no marker — unchanged');
+  assert.equal(normalizeModelId('claude-sonnet-4-6'), 'claude-sonnet-4-6');
+  assert.equal(normalizeModelId(null), null, 'non-strings pass through');
+});
+
+test('readDetectedLimit: a [1m]-marked config key resolves the stripped lookup', () => {
+  const dir = tmpProject();
+  try {
+    // Human copies the env-visible id (with [1m]) into config; hooks look up the
+    // stripped form. Pre-fix this silently missed → 1M run over-warned forever.
+    writeConfig(dir, { context_window_limits: { 'claude-opus-4-8[1m]': 1000000 } });
+    assert.equal(readDetectedLimit(dir, 'claude-opus-4-8'), 1000000, 'marker-insensitive match');
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('writeDetectedLimit: collapses a marker-variant key into the canonical stripped key', () => {
+  const dir = tmpProject();
+  try {
+    writeConfig(dir, { context_window_limits: { 'claude-opus-4-8[1m]': 1000000 } });
+    writeDetectedLimit(dir, 'claude-opus-4-8', 1000000);
+    const cfg = JSON.parse(readFileSync(join(dir, '.qe', 'config.json'), 'utf8'));
+    const keys = Object.keys(cfg.hooks.context_window_limits);
+    assert.deepEqual(keys, ['claude-opus-4-8'], 'variant pruned, single canonical key');
+    assert.equal(cfg.hooks.context_window_limits['claude-opus-4-8'], 1000000);
+  } finally {
+    rmSync(dir, { recursive: true, force: true });
+  }
+});
+
+test('checkContextPressure: [1m]-marked config key → 180k scores NONE (the real-world bug)', () => {
+  const dir = tmpProject();
+  try {
+    writeConfig(dir, { context_window_limits: { 'claude-opus-4-8[1m]': 1000000 } });
+    const transcriptPath = writeTranscript(dir, 180000, 'claude-opus-4-8');
+    const res = checkContextPressure(dir, { tool_calls: 0 }, {}, {
+      transcriptPath,
+      modelId: 'claude-opus-4-8',
+    });
+    assert.equal(res.severity, 'none', 'marked key now verifies the 1M tier → no false alarm');
+    assert.equal(res.message, null, 'no estimate warning');
   } finally {
     rmSync(dir, { recursive: true, force: true });
   }

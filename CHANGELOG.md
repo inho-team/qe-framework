@@ -21,6 +21,17 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- Context pressure false alarm on 1M-context models: the durable detected-limit
+  store now matches model-id keys marker-insensitively. Claude Code strips the
+  `[1m]` window marker from both the hooks payload and the transcript model
+  field, but a human (or the env-visible id) keeps it — so a `context_window_limits`
+  key set as `claude-opus-4-8[1m]` silently failed the stripped `claude-opus-4-8`
+  lookup, leaving a 1M run scored against the 200k default and over-warning at
+  ~90%+. `readDetectedLimit`/`writeDetectedLimit` now normalize keys (and collapse
+  marker variants into the canonical stripped key), and `resolveLimit` takes the
+  larger of the hook-hint and transcript model ids so a stripped id can no longer
+  shadow a marked sibling source. New `normalizeModelId()` helper + tests.
+
 ### Removed
 
 ### Security
