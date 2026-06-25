@@ -147,51 +147,36 @@ if (currentSid) {
 
 // --- ALWAYS TIER (continued) ---
 
-// Inject the Override Map (Preferred Skill Map) in full so Claude knows the
-// routing rules up front — instead of a soft one-liner that gets ignored and
-// only surfaces as a PreToolUse hard block after a direct git/version attempt.
+// Inject the Override Map as a COMPACT POINTER (ADR-025 R1). Previously this
+// sliced the entire "## Preferred Skill Map" section out of QE_CONVENTIONS.md
+// and injected it verbatim every session — hundreds of tokens. The enforcement
+// is the PreToolUse hard-block; the injection only needs to (a) name the routing
+// cues so Claude reaches for the skill first, and (b) point at the full doc. The
+// required cues are kept INLINE so they survive even when QE_CONVENTIONS.md is
+// missing/moved (the silent-drop case): we gate on `.qe/` presence, not the doc.
 const conventionsPath = join(cwd, 'QE_CONVENTIONS.md');
-if (existsSync(conventionsPath)) {
-  let injected = false;
-  try {
-    const conv = readFileSync(conventionsPath, 'utf8');
-    const start = conv.indexOf('## Preferred Skill Map');
-    if (start !== -1) {
-      // Slice from this heading up to the next top-level "## " heading.
-      const rest = conv.slice(start + 2); // skip past "##" so the next "\n## " is found
-      const nextRel = rest.indexOf('\n## ');
-      const section = nextRel !== -1
-        ? conv.slice(start, start + 2 + nextRel)
-        : conv.slice(start);
-      messages.push(
-        '[QE OVERRIDE MAP] For these actions you MUST use the QE skill instead of doing them ' +
-        'manually — direct git commit / version edits are HARD-BLOCKED by the PreToolUse hook:\n' +
-        section.trim()
-      );
-      injected = true;
-    }
-  } catch {
-    // Fault-tolerant: fall back to the summary hint below
-  }
-  if (!injected) {
-    messages.push(
-      '[QE] Specialized tools are loaded for common workflows. ' +
-      'git commit → /Qcommit, version bump → /Mbump, context handoff → /Qcompact.'
-    );
-  }
+const qeDir = join(cwd, '.qe');
+if (existsSync(conventionsPath) || existsSync(qeDir)) {
+  const fullMapPointer = existsSync(conventionsPath) ? ' Full map: QE_CONVENTIONS.md.' : '';
+  messages.push(
+    '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
+    'direct git commit / version edits. manual commit → /Qcommit · version bump → /Mbump · ' +
+    'show version → /Qversion · context save → /Qcompact · restore → /Qresume · ' +
+    'archive tasks → /Qarchive · refresh analysis → /Qrefresh.' + fullMapPointer
+  );
 }
 
-// Inject a compact digest of core/OUTPUT_STYLE.md so the response style contract
-// applies every session — otherwise the doc is only read on demand and ignored.
+// Inject the OUTPUT_STYLE contract as a COMPACT POINTER (ADR-025 R1). The full
+// digest was ~10 lines every session; the rules live in core/OUTPUT_STYLE.md.
+// Fallback: if that doc is missing/moved but this is a QE project (.qe/ present),
+// still inject the minimal contract so the style rule is never silently dropped.
 const stylePath = join(cwd, 'core', 'OUTPUT_STYLE.md');
-if (existsSync(stylePath)) {
+if (existsSync(stylePath) || existsSync(qeDir)) {
+  const styleSrc = existsSync(stylePath) ? 'core/OUTPUT_STYLE.md' : 'the QE output style';
   messages.push(
-    '[QE OUTPUT STYLE] All user-facing answers MUST follow core/OUTPUT_STYLE.md. ' +
-    'ALWAYS: (1) conclusion first (결론→근거→상세), (2) separate fact vs guess (사실/추정), ' +
-    '(3) name the recommended option with its trade-off, (4) list source-doc paths under "참고 문서" when a spec/verify doc was used. ' +
-    'WHEN TRIGGERED: table for comparisons (2+ items × 2+ attributes); cause tree (2+ levels); ' +
-    '★ evidence-level for diagnoses/verdicts; example in its own section after the explanation; ' +
-    '3–5 line summary when the answer is 8+ lines. Do NOT force these forms on short or single-point answers.'
+    `[QE OUTPUT STYLE] Follow ${styleSrc}: conclusion-first (결론→근거), separate 사실/추정, ` +
+    'name the recommended option, cite 참고 문서. Tables for comparisons, ★ evidence-level for ' +
+    'verdicts, 3–5 line summary when long. Skip these forms for short/single-point answers.'
   );
 }
 
@@ -328,7 +313,11 @@ try {
           wrongLines.push(line.replace('- **Wrong**:', '').trim());
         }
       }
-      const topMistakes = wrongLines.slice(0, 5).map((m, i) => `  ${i + 1}. ${m}`).join('\n');
+      // Truncate each entry — full text lives in .qe/MISTAKE.md (pointer below).
+      // The injection only needs enough to recognize the pattern, not the full
+      // postmortem; the long verbatim "Wrong" lines were a large per-session cost.
+      const clip = (m) => (m.length > 140 ? m.slice(0, 139) + '…' : m);
+      const topMistakes = wrongLines.slice(0, 5).map((m, i) => `  ${i + 1}. ${clip(m)}`).join('\n');
       messages.push(
         `[MISTAKES] ${active} active mistake(s) recorded (critical: ${critical}, important: ${important}). ` +
         `DO NOT repeat these:\n${topMistakes}\n  Full list: .qe/MISTAKE.md`

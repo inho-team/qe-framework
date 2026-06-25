@@ -7,6 +7,7 @@ import { fileURLToPath, pathToFileURL } from 'url';
 import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState, getContextMemo, isMemoValid, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
+import { executableView, matchesExecutable } from './lib/shell-scanner.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -225,13 +226,20 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   if (toolName === 'Bash') {
     const cmd = toolInput.command || '';
 
-    // git commit → Qcommit
-    // Match an ACTUAL git commit invocation only — at command start or right after a
-    // shell separator (; && || | newline ( `). A bare substring match also fired on
-    // commands that merely *mention* "git commit" inside an echo string, grep pattern,
-    // or comment (e.g. `echo "use git commit"`, `grep "git commit" log`), hard-blocking
-    // harmless diagnostics. The separator-anchored form lets those through.
-    if (/(?:^|[;&|(\n`])\s*git\s+commit\b/.test(cmd)) {
+    // Region-aware matching (ADR-025 R2). The block regexes used to run against the
+    // RAW command, so a blocked phrase inside a quoted string, heredoc body, or
+    // comment hard-blocked harmless commands (e.g. `codex exec "$(cat prompt.txt)"`
+    // where the prompt mentions git commit, or `echo "use gh pr create"`). They also
+    // missed real commits hidden in `bash -lc "git commit"`. matchesExecutable() /
+    // executableView() classify the command into EXECUTABLE vs DATA regions so the
+    // guards only fire on genuine invocations — including inside `$(...)`, backticks,
+    // shell-owned heredocs, and `bash -c`/`eval` arguments — while staying
+    // conservative (ambiguity → executable, never under-block). See lib/shell-scanner.mjs.
+    const view = executableView(cmd);
+
+    // git commit → Qcommit. Anchored to command-start/separator. The negative
+    // lookahead lets legitimate plumbing through (`git commit-tree`, `git commit-graph`).
+    if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
       overrideRules.push({
         skill: 'Qcommit',
         msg: 'Raw git commit is blocked. Use /Qcommit instead.'
@@ -239,7 +247,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     }
 
     // gh pr create → Qbranch
-    if (/\bgh\s+pr\s+create\b/.test(cmd)) {
+    if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
       overrideRules.push({
         skill: 'Qbranch',
         msg: 'Raw gh pr create is blocked. Use /Qbranch instead.'
@@ -247,14 +255,12 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     }
 
     // version bump: only a real WRITE SINK into plugin.json — redirect (`> plugin.json`
-    // / `>> plugin.json`), `tee plugin.json`, or `dd of=…plugin.json` — that also
-    // mentions version → Mbump. Read-only commands that merely mention plugin.json +
-    // version (grep, cat, node -e reads, `echo "...version..."` log headers) have no
-    // write sink and pass through. (sed/perl/ruby -i caught separately below. cp/mv and
-    // arbitrary interpreter writes are not shell-detectable without re-introducing
-    // read false-positives; the Edit-tool rule below covers the agent's normal path.)
+    // / `>> plugin.json`), `tee plugin.json`, or `dd of=…plugin.json` — counts. The
+    // write sink must live in an EXECUTABLE region (so `echo "...plugin.json..."` text
+    // passes), but the `version` mention is matched against the RAW command because the
+    // version string being written legitimately sits inside the quoted JSON payload.
     const writesPluginJson =
-      /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(cmd);
+      /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
     if (writesPluginJson && /version/.test(cmd)) {
       overrideRules.push({
         skill: 'Mbump',
@@ -263,7 +269,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     }
 
     // in-place edit (sed/perl/ruby -i) → Edit tool
-    if (/\b(?:sed|perl|ruby)\s+(?:-[a-zA-Z]*i|--in-place)\b/.test(cmd)) {
+    if (matchesExecutable(cmd, /\b(?:sed|perl|ruby)\s+(?:-[a-zA-Z]*i|--in-place)\b/)) {
       overrideRules.push({
         skill: '_edit_tool',
         msg: 'In-place edit (sed/perl/ruby -i) is blocked. Use the Edit tool instead.'

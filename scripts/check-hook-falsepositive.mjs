@@ -26,6 +26,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const PRE = join(ROOT, 'hooks/scripts/pre-tool-use.mjs');
 const POST = join(ROOT, 'hooks/scripts/post-tool-use.mjs');
+const SESSION = join(ROOT, 'hooks/scripts/session-start.mjs');
 
 /** Run a hook script with `payload` piped to its stdin; return {code, stdout, stderr}. */
 function runHook(hookPath, payload) {
@@ -95,9 +96,81 @@ const EXIT_BLOCK = 2; // emitBlock() convention
   }
 }
 
+// ── ADR-025 R2: region-aware block oracle matrix ──────────────────────────────
+// Drives the REAL pre-tool-use hook. BLOCK = exit 2 + the expected skill in stderr;
+// PASS = not exit 2. Same token in DATA (quote/heredoc/comment) vs EXECUTABLE must
+// yield opposite verdicts — the only way to satisfy all rows is real region
+// classification (lib/shell-scanner.mjs), not substring matching.
+const EXEC_ORACLE = [
+  // [command, 'block:<Skill>' | 'pass', label]
+  ['git commit -m "x"', 'block:Qcommit', 'O001 top-level commit'],
+  ['true && git commit -m x', 'block:Qcommit', 'O002 chained commit'],
+  ['bash -lc "git commit -m x"', 'block:Qcommit', 'O003 bash -lc arg'],
+  ['sh -c "git commit -m x"', 'block:Qcommit', 'O004 sh -c arg'],
+  ['git commit-tree HEAD^{tree}', 'pass', 'O005 commit-tree plumbing'],
+  ['git commit-graph write --reachable', 'pass', 'O006 commit-graph plumbing'],
+  ['cat <<EOF\n# git commit -m x\nEOF', 'pass', 'O007 non-shell heredoc data'],
+  ['bash <<EOF\ngit commit -m x\nEOF', 'block:Qcommit', 'O008 shell heredoc exec'],
+  ['ssh host <<EOF\ngit commit -m x\nEOF', 'block:Qcommit', 'O009 remote shell heredoc'],
+  ['echo "gh pr create"', 'pass', 'O010 quoted pr-create'],
+  ['gh pr create --fill', 'block:Qbranch', 'O011 real pr-create'],
+  ['echo "edit .claude-plugin/plugin.json version"', 'pass', 'O012 quoted plugin.json mention'],
+  ['echo \'{"version":"9.9.9"}\' > .claude-plugin/plugin.json', 'block:Mbump', 'O013 real version write'],
+  ['', 'pass', 'O015 empty command (fail-open)'],
+  // carried-forward (iter-2 WARN): substitution / continuation / ANSI-C are EXECUTABLE
+  ['msg=$(git commit -m x)', 'block:Qcommit', 'O021 command substitution'],
+  ['`git commit -m x`', 'block:Qcommit', 'O022 backtick substitution'],
+  ['git \\\n commit -m x', 'block:Qcommit', 'O023 line-continuation split'],
+  ["bash -c $'git commit -m x'", 'block:Qcommit', 'O024 ANSI-C -c arg'],
+  ['codex exec "$(cat prompt.txt)"\ngit status', 'pass', 'O025 quoted subproc arg + benign'],
+  ['echo hi # git commit', 'pass', 'O026 inline comment'],
+];
+for (const [cmd, expected, label] of EXEC_ORACLE) {
+  const r = runHook(PRE, { cwd: ROOT, tool_name: 'Bash', tool_input: { command: cmd } });
+  if (expected === 'pass') {
+    expect(r.code !== EXIT_BLOCK, `[ORACLE ${label}] expected PASS but was blocked (exit ${r.code}): ${r.stderr.trim()}`);
+  } else {
+    const skill = expected.split(':')[1];
+    expect(r.code === EXIT_BLOCK && new RegExp(skill).test(r.stderr),
+      `[ORACLE ${label}] expected BLOCK→${skill} but was not (exit ${r.code})`);
+  }
+}
+
+// O027 (security regression): pathological deep `$(` nesting must NOT crash the
+// scanner into fail-open. A real commit buried in ~8000 levels of substitution
+// must still BLOCK (scanner fails closed via depth cap). Was a stack-overflow bypass.
+{
+  const deep = '$('.repeat(8000) + 'git commit -m x' + ')'.repeat(8000);
+  const r = runHook(PRE, { cwd: ROOT, tool_name: 'Bash', tool_input: { command: deep } });
+  expect(r.code === EXIT_BLOCK && /Qcommit/.test(r.stderr),
+    `[ORACLE O027 deep-nesting bypass] expected BLOCK→Qcommit but was not (exit ${r.code})`);
+}
+
+// ── ADR-025 R1: SessionStart injection diet — fallback + grep oracle ───────────
+// Run the real session-start hook against an isolated temp cwd and assert the
+// enforcement mapping survives the pointer-form shrink (G002 grep oracle) and the
+// OUTPUT_STYLE contract is not silently dropped when the doc is missing (fallback).
+{
+  const tmp = mkdtempSync(join(tmpdir(), 'qe-r1-'));
+  try {
+    mkdirSync(join(tmp, '.qe'), { recursive: true });      // marks this as a QE project
+    writeFileSync(join(tmp, 'CLAUDE.md'), '# proj');         // avoid "not initialized" noise
+    // NOTE: deliberately NO QE_CONVENTIONS.md and NO core/OUTPUT_STYLE.md → exercises fallback
+    const r = runHook(SESSION, { cwd: tmp, session_id: '00000000-0000-0000-0000-000000000000' });
+    let ctx = '';
+    try { ctx = (JSON.parse(r.stdout).hookSpecificOutput || {}).additionalContext || ''; } catch {}
+    expect(/Qcommit/.test(ctx), '[R1 O017] injected context lost the Qcommit routing cue');
+    expect(/Mbump/.test(ctx), '[R1 O018] injected context lost the Mbump routing cue');
+    expect(/→/.test(ctx), '[R1 O019] injected context lost the mapping verb');
+    expect(/OUTPUT STYLE/.test(ctx), '[R1 O016] OUTPUT_STYLE contract dropped when doc missing (no fallback)');
+  } finally {
+    rmSync(tmp, { recursive: true, force: true });
+  }
+}
+
 if (failures.length) {
   console.error('check-hook-falsepositive: FAIL');
   for (const f of failures) console.error(`  ✗ ${f}`);
   process.exit(1);
 }
-console.log('check-hook-falsepositive: PASS (8 assertions: 2 false-positive, 5 guard-intact, 1 profile)');
+console.log(`check-hook-falsepositive: PASS (${8 + EXEC_ORACLE.length + 1 + 4} assertions: 2 false-positive, 5 guard-intact, 1 profile, ${EXEC_ORACLE.length + 1} region-oracle, 4 R1-injection)`);

@@ -535,3 +535,63 @@ test('writeCachedLimit: persists the limit and survives without a ratio (sticky)
   writeCachedRatio(dir, 5, 1000000);
   assert.strictEqual(readCachedLimit(dir), 1000000);
 });
+
+// ============================================================================
+// shell-scanner tests (ADR-025 R2 — region-aware block matching)
+// ============================================================================
+
+import { executableView, shellDashCArgs, matchesExecutable } from '../shell-scanner.mjs';
+
+const COMMIT = /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/;
+
+test('shell-scanner: real top-level git commit is executable', () => {
+  assert.ok(matchesExecutable('git commit -m "x"', COMMIT));
+  assert.ok(matchesExecutable('true && git commit -m x', COMMIT));
+});
+
+test('shell-scanner: quoted / heredoc-data / comment mentions are NOT executable', () => {
+  assert.ok(!matchesExecutable('echo "git commit"', COMMIT));
+  assert.ok(!matchesExecutable('cat <<EOF\ngit commit -m x\nEOF', COMMIT));
+  assert.ok(!matchesExecutable('echo hi # git commit', COMMIT));
+  assert.ok(!matchesExecutable('codex exec "$(cat p.txt)"\ngit status', COMMIT));
+});
+
+test('shell-scanner: bash -c / sh -c / eval args are executable (closes the bypass)', () => {
+  assert.ok(matchesExecutable('bash -lc "git commit -m x"', COMMIT));
+  assert.ok(matchesExecutable('sh -c "git commit -m x"', COMMIT));
+  assert.ok(matchesExecutable("bash -c $'git commit -m x'", COMMIT));
+  assert.deepStrictEqual(shellDashCArgs('bash -lc "git commit"'), ['git commit']);
+});
+
+test('shell-scanner: command substitution / backtick / line-continuation are executable', () => {
+  assert.ok(matchesExecutable('msg=$(git commit -m x)', COMMIT));
+  assert.ok(matchesExecutable('`git commit -m x`', COMMIT));
+  assert.ok(matchesExecutable('git \\\n commit -m x', COMMIT));
+});
+
+test('shell-scanner: shell-owned heredoc body IS executable, non-shell is data', () => {
+  assert.ok(matchesExecutable('bash <<EOF\ngit commit -m x\nEOF', COMMIT));
+  assert.ok(matchesExecutable('ssh host <<EOF\ngit commit -m x\nEOF', COMMIT));
+  assert.ok(!matchesExecutable('cat <<EOF\ngit commit -m x\nEOF', COMMIT));
+});
+
+test('shell-scanner: legitimate plumbing subcommands pass (negative lookahead)', () => {
+  assert.ok(!matchesExecutable('git commit-tree HEAD^{tree}', COMMIT));
+  assert.ok(!matchesExecutable('git commit-graph write', COMMIT));
+});
+
+test('shell-scanner: empty / malformed input fails open (no match)', () => {
+  assert.ok(!matchesExecutable('', COMMIT));
+  assert.ok(!matchesExecutable(undefined, COMMIT));
+  assert.strictEqual(executableView(''), '');
+});
+
+test('shell-scanner: pathological deep $( nesting fails CLOSED (no stack overflow bypass)', () => {
+  // ~8000-level nesting would overflow naive recursion → RangeError → fail-open.
+  // Depth cap keeps the buried real commit visible, so the guard still matches.
+  const deep = '$('.repeat(8000) + 'git commit -m x' + ')'.repeat(8000);
+  assert.ok(matchesExecutable(deep, COMMIT));
+  // Oversized input falls back to raw (conservative), never throws.
+  const huge = 'echo ' + 'a'.repeat(200000);
+  assert.doesNotThrow(() => executableView(huge));
+});
