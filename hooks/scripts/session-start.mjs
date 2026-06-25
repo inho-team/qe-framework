@@ -189,10 +189,11 @@ if (existsSync(aiTeamConfigPath)) {
 const languagePath = join(cwd, '.qe', 'profile', 'language.md');
 if (existsSync(languagePath)) {
   const langContent = readFileSync(languagePath, 'utf8');
-  const langMatch = langContent.match(/Primary language:\s*(\w+)/);
+  const langMatch = langContent.match(/Primary language:\s*(\w+)\s*(?:\(([^)]+)\))?/);
   const userLang = langMatch ? langMatch[1] : null;
+  const langName = langMatch && langMatch[2] ? langMatch[2] : userLang;
   if (userLang && userLang !== 'en') {
-    messages.push(`[Language] User language: ${userLang}. Respond in the user's language.`);
+    messages.push(`[Language] Respond in ${langName} (the user's language), using only that language plus English/Latin where natural. English is fine for technical terms, code, and identifiers. Do NOT mix in other scripts — no Chinese (中文) or Japanese (かな/漢字) characters unless ${langName} is that language.`);
   }
 }
 

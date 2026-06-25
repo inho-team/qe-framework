@@ -137,7 +137,7 @@ try {
 
 ## Settings
 - Primary language: ${detected} (${langName})
-- Response language: ${detected} (same as user's language)
+- Response language: ${detected} + English for technical terms (no other scripts; no Chinese/Japanese unless that is the user's language)
 - Internal processing language: en (always English)
 
 ## Detection History
