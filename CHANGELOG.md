@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.2.7] - 2026-06-25
+
+### Added
+
 - `Qqa-council` — multi-agent QA orchestrator skill. Runs a role-separated, bounded-agent
   QA loop over a live web app: Planner designs scenarios, Explorer black-box explores for
   bugs (browser-only, no source access), Generator codifies stable flows into Playwright
