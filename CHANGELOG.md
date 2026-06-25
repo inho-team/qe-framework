@@ -21,6 +21,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- `Qqa-council` keyword routing — the new skill was absent from
+  `hooks/scripts/lib/intent-routes.json`, so QA-council intent prompts ("run an AI QA
+  council", "set up a PR QA bot", "exploratory + regression QA") produced HIGH-confidence
+  hints pointing at the wrong skills (Qcode-run-task / Qqa-test-planner / Qissue). Added a
+  dedicated route `qa-council/exploratory-qa/pr-qa-bot → Qqa-council` with keywords chosen
+  not to collide with Qqa-test-planner's `QA-plan/regression-test`. Mtest-skill routing
+  sim: 5/5 council prompts now route correctly, Qqa-test-planner regression-test prompts
+  unchanged (score 139–151 ≫ council).
+
 ### Removed
 
 ### Security

@@ -46,6 +46,7 @@
     "command-patterns/my-profile": "Qprofile",
     "alias/shortcut/create-alias": "Qalias",
     "test-plan/regression-test/QA-plan": "Qqa-test-planner",
+    "qa-council/exploratory-qa/pr-qa-bot": "Qqa-council",
     "spring-security/authentication/CSRF": "Qspringboot-security",
     "UI-review/accessibility-check": "Qweb-design-guidelines",
     "MCP-server/MCP-build": "Qmcp-setup",
