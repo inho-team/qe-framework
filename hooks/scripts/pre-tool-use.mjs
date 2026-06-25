@@ -125,6 +125,24 @@ if (toolName === 'Skill') {
       stats.skills_used.push(skillName);
     }
 
+    // Forward per-skill invocation counter (ADR-025 qe-diet Phase 2, Part A).
+    // skills_used above stays a RAW deduped binary set (unchanged). This adds a
+    // separate frequency counter keyed by the RAW skill name — all normalization
+    // (qe-framework: prefix strip + alias collapse) happens at report read-time,
+    // not here, so the hook stays light and fail-open. Reuses the single
+    // hook-end writeUnifiedState; no second write. Wrapped so a counter error can
+    // never block the Skill call (serial +1; concurrent multi-terminal calls may
+    // last-write-wins under-count — acceptable for a coarse candidate signal).
+    try {
+      if (!stats.skill_usage_counts || typeof stats.skill_usage_counts !== 'object') {
+        stats.skill_usage_counts = {};
+      }
+      const prev = stats.skill_usage_counts[skillName];
+      stats.skill_usage_counts[skillName] = (Number.isInteger(prev) && prev >= 0 ? prev : 0) + 1;
+    } catch {
+      // Fault-tolerant: never let the usage counter break the hook.
+    }
+
     // SIVS Skill Entry Guard: inject mandatory engine hint before skill loads
     const SKILL_STAGE_MAP = {
       'Qgenerate-spec': 'spec', 'qe-framework:Qgenerate-spec': 'spec',
