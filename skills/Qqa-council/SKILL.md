@@ -3,7 +3,7 @@ name: Qqa-council
 description: "Orchestrates a multi-agent QA council (Planner → Explorer → Generator → Healer → Reporter) over a running web app: exploratory black-box testing finds bugs, core flows get codified into Playwright regression tests, failures get self-healed, and findings post back as a PR comment. Use for 'QA council', 'run AI QA', 'exploratory + regression QA', 'PR QA bot', 'set up automated UI QA'. Distinct from Qscenario-test (single-pass scenario gen+run) and Qqa-test-planner (writes test docs, no execution) — this skill runs a role-separated, bounded-agent QA loop end to end and can scaffold a PR-triggered GitHub Actions runner."
 metadata:
   author: inho
-  version: "1.0.0"
+  version: "1.1.0"
   invocation_trigger: "When the user wants a role-separated multi-agent QA loop (explore → codify → heal → report) over a live web app, or a PR-triggered QA bot."
   recommendedModel: sonnet
 ---
@@ -32,13 +32,20 @@ regression tests, heals failures, and reports findings.
 | Role | Responsibility | Tool boundary | Backed by |
 |------|---------------|---------------|-----------|
 | **Planner** | Design scenarios → review-ready Markdown | read code + browser | `Qqa-test-planner` / `Qscenario-test` |
-| **Explorer** | Black-box explore, bad input, responsive checks | **browser only, NO source** | `Eqa-explorer` (new) |
+| **Explorer** | Black-box explore, bad input, event/interaction + responsive checks | **browser only, NO source** | `Eqa-explorer` (new) |
+| **Auditor** _(optional)_ | Visual pixel-diff + a11y/UX + design-token outliers | read source + browser, **read-only, never writes** | `Qvisual-qa` + `Qweb-design-guidelines` + `Qdesign-audit` |
 | **Generator** | Markdown → Playwright regression code | read/write code + browser | `Qplaywright-expert` |
 | **Healer** | Reproduce failures, patch selectors | read/write code + browser | `Eqa-orchestrator` (test→fix loop) |
 | **Reporter** | Findings → PR comment | write comment only | `Eqa-reporter` (new) |
 
 Pattern: **explore expensive once (MCP), regress cheap every time (CLI).** Explorer uses Playwright
 MCP for live adaptation; Generator emits CLI-runnable `.spec` files for low-cost CI reruns.
+
+> **Why an Auditor?** Explorer reasons over the accessibility tree, which does **not** encode pixels
+> or motion — so spacing/alignment outliers, low-level layout breakage, and CSS animations are blind
+> spots. The optional Auditor closes them by delegating to existing visual/a11y skills. It is a
+> **white-box, read-only** role (it reads source) and therefore must stay *separate* from the
+> black-box Explorer — never merge the two.
 
 ## Prerequisites (Step 0 — verify, never assume)
 
@@ -61,6 +68,9 @@ git rev-parse --is-inside-work-tree 2>/dev/null    # in a repo
 Use `AskUserQuestion` to fix scope. Required answers:
 1. **Target URL** + environment (must be a non-production, synthetic-data env — see guardrails).
 2. **Mode** — `explore` (find new bugs), `regress` (run existing suite), or `full` (both).
+   Add **`+visual`** (e.g. `explore+visual`, `full+visual`) to also run the optional **Auditor** pass
+   (Step 3.5). Default is OFF to keep the fast ~10-min explore path; turn it on when spacing/layout,
+   accessibility, or design-consistency matter.
 3. **Critical flows** to prioritize (e.g. login, member management, sending).
 4. **Project guardrails** — multitenancy / RBAC / audit-log to verify? (see `reference/guardrails.md`).
 
@@ -76,6 +86,21 @@ For `explore`/`full`: spawn `Eqa-explorer` (browser-only, no source). It probes 
 bad input, edge cases, responsive breakpoints, and — if requested — the guardrail scenarios. It
 returns a findings list (each: title, repro steps, severity, screenshot path). It MUST NOT read repo
 source.
+
+### Step 3.5 — Visual & A11y pass (Auditor, optional — only when `+visual`)
+Runs **after** Explore and is **read-only** (the Auditor never writes source). It covers Explorer's
+pixel/motion/heuristic blind spots by composing three existing skills:
+- **Visual diff** → `Qvisual-qa` — screenshots the live URL and diffs vs a baseline to catch spacing,
+  alignment, color, font, and layout-shift regressions. _First run has no baseline → it captures the
+  baseline only; regression value starts on the 2nd run. Note this in the report._
+- **A11y / UX heuristics** → `Qweb-design-guidelines` — audits the UI against the Vercel Web Interface
+  Guidelines: keyboard reachability, focus states, contrast, `prefers-reduced-motion`, etc.
+- **Design-token outliers** → `Qdesign-audit` — static source scan for font-size / spacing / color
+  outliers that signal inconsistent styling.
+
+Merge the Auditor findings into the same findings list the Explorer produced (tag `source: auditor`).
+**Bounded-role rule:** the Auditor reads source and runs in its own step — it must NOT feed white-box
+knowledge back into the black-box Explorer, and it never edits code (fixes belong to Generator/Healer).
 
 ### Step 4 — Codify (Generator)
 For each confirmed exploratory finding worth a regression test, delegate to `Qplaywright-expert` to
@@ -102,6 +127,8 @@ browser-only via `--allowedTools`). Confirm before writing the workflow file.
 3. Auto-merged or pushed without human approval → **FAIL**.
 4. Reported "done" but VERIFY items unchecked / no findings artifact written → **FAIL**.
 5. Reused an existing skill's job done manually instead of delegating → **FAIL**.
+6. Auditor (`+visual`) wrote/edited source, or its white-box findings were fed back into the
+   black-box Explorer → **FAIL** (role-boundary violation).
 
 ## Roadmap (don't build all 5 roles day one)
 1. Playwright MCP self-QA (Explorer only) — ~10 min, immediate value.
@@ -121,7 +148,8 @@ browser-only via `--allowedTools`). Confirm before writing the workflow file.
 - Pure test-doc generation with no execution → `Qqa-test-planner`.
 - A single scenario gen+run pass → `Qscenario-test`.
 - Writing Playwright code only → `Qplaywright-expert`.
-- Visual screenshot diffing only → `Qvisual-qa`.
+- Visual screenshot diffing only → `Qvisual-qa` standalone. (The council can invoke it as the
+  optional Auditor pass via `+visual`; reach for it directly when a pixel diff is *all* you need.)
 
 ## References
 - `reference/agents.md` — full role specs and tool boundaries

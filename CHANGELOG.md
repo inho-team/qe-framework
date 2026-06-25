@@ -17,6 +17,9 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- **Qqa-council**: optional `+visual` Auditor pass — a white-box, read-only role that composes `Qvisual-qa`, `Qweb-design-guidelines`, and `Qdesign-audit` to catch the Explorer's blind spots (spacing/alignment outliers, layout breakage, contrast, keyboard/focus, design-token drift). Adds Step 3.5, a Mode flag (`explore+visual` / `full+visual`), and a role-boundary validation gate.
+- **Eqa-explorer**: new interaction/event pass — exercises every control for dead/no-op buttons, panel open/close via overlay + `Escape`, keyboard reachability (Tab/Enter), hover feedback, and counter/total state consistency.
+
 ### Changed
 
 ### Fixed

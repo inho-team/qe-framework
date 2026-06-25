@@ -36,10 +36,21 @@ color: orange
 2. **Bad input pass** — empty, oversized, special chars, injection-looking strings, type mismatches
    on every form field; observe validation + error handling.
 3. **Boundary/edge pass** — min/max, pagination ends, empty states, rapid double-submit.
-4. **Auth/permission edges** — direct URL access, id tampering, role/tenant crossing (per guardrail
+4. **Interaction/event pass** — exercise EVERY interactive control and confirm it actually does
+   something (no dead/no-op buttons): clicks, toggles, dropdown `change`, open/close panels, modal
+   dismissal via overlay click AND `Escape`, hover-state feedback. Keyboard reachability: `Tab` focus
+   order, `Enter`/`Space` activation, focus-trap in modals. Watch the console for errors thrown by any
+   handler, and verify state stays consistent (e.g. a counter/badge increments by exactly the right
+   amount, totals recompute correctly).
+5. **Auth/permission edges** — direct URL access, id tampering, role/tenant crossing (per guardrail
    templates). Observe denied vs leaked.
-5. **Responsive pass** — re-run key screens at mobile/tablet/desktop widths; note layout breakage.
-6. **Recovery pass** — interrupt a flow midway, refresh, back-button; observe state consistency.
+6. **Responsive pass** — re-run key screens at mobile/tablet/desktop widths; note layout breakage.
+7. **Recovery pass** — interrupt a flow midway, refresh, back-button; observe state consistency.
+
+> **Blind spots (hand to the Auditor, not yourself):** pixel-level spacing/alignment outliers and CSS
+> animations don't surface in the accessibility tree. If you suspect one but can't confirm via the
+> tree, log it as `INCONCLUSIVE` — the optional `+visual` Auditor pass (`Qvisual-qa` / `Qdesign-audit`)
+> owns those. Do NOT start reading source to chase them.
 
 ## Data Safety (FAIL if violated)
 - Refuse to proceed if the URL looks like production or may contain real PII. MCP/browser content is
