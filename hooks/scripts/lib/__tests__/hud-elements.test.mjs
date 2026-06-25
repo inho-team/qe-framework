@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 import { pickActivePhase } from '../hud/elements/phase.mjs';
 import { pickActiveTask } from '../hud/elements/task.mjs';
+import { pickSessionSummary } from '../hud/elements/summary.mjs';
 import { bucketTokens, normalizePercents } from '../hud/elements/model-ratio.mjs';
 import { resolvePreset, PRESETS, DEFAULT_PRESET } from '../hud/presets.mjs';
 import { render as composeRender, ELEMENTS } from '../hud/renderer.mjs';
@@ -167,6 +168,64 @@ test('task: missing pending dir yields null, no throw', () => {
   const root = mkdtempSync(join(tmpdir(), 'hud-task-'));
   try {
     assert.equal(pickActiveTask(root), null);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+// ============================================================================
+// summary element
+// ============================================================================
+
+const SID = 'aaaaaaaa-bbbb-cccc-dddd-eeeeeeeeeeee';
+
+function seedSummary(root, sessionId, json) {
+  mkdirSync(join(root, '.qe/planning/.sessions'), { recursive: true });
+  writeFileSync(join(root, `.qe/planning/.sessions/${sessionId}.json`), JSON.stringify(json));
+}
+
+test('summary: reads summary field from session binding file', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hud-sum-'));
+  try {
+    seedSummary(root, SID, { activePlanSlug: 'x', summary: 'Refactoring auth flow' });
+    assert.equal(pickSessionSummary(root, SID), 'Refactoring auth flow');
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('summary: null when no sessionId, no file, or empty summary', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hud-sum-'));
+  try {
+    assert.equal(pickSessionSummary(root, null), null);
+    assert.equal(pickSessionSummary(root, SID), null); // no file
+    seedSummary(root, SID, { activePlanSlug: 'x' }); // no summary field
+    assert.equal(pickSessionSummary(root, SID), null);
+    seedSummary(root, SID, { summary: '   ' }); // whitespace-only
+    assert.equal(pickSessionSummary(root, SID), null);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('summary: truncates long text with ellipsis', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hud-sum-'));
+  try {
+    seedSummary(root, SID, { summary: 'Z'.repeat(80) });
+    const label = pickSessionSummary(root, SID);
+    assert.ok(label.length <= 48);
+    assert.ok(label.endsWith('…'));
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('summary: rejects non-UUID sessionId (path-traversal guard)', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hud-sum-'));
+  try {
+    // A hostile id must not resolve a path outside .sessions/.
+    assert.equal(pickSessionSummary(root, '../../../etc/passwd'), null);
+    assert.equal(pickSessionSummary(root, 'not-a-uuid'), null);
   } finally {
     rmSync(root, { recursive: true });
   }

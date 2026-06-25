@@ -37,6 +37,7 @@ This prevents `.claude/settings.json` from being written to a subdirectory where
 | (none) / `show` | Print current state (installed? where? preview output) |
 | `on`   | Install statusLine entry |
 | `off`  | Remove statusLine entry |
+| `summary "<text>"` | Set this session's one-line summary ("what am I working on") shown by the `summary` element. `summary --clear` removes it. |
 | `--help` | Usage guide |
 
 | Flag | Description |
@@ -48,7 +49,7 @@ This prevents `.claude/settings.json` from being written to a subdirectory where
 ## Execution Procedure
 
 ### Step 0: Parse
-Extract subcommand (`show` | `on` | `off`), the scope flags `--project` and `--user`, and an optional `--preset <name>` value. Valid preset names: `session`, `focused`, `qe`, `mix`, `full`. Anything else → fall back to `session`. On `--help` or invalid input, jump to **Step HELP**.
+Extract subcommand (`show` | `on` | `off` | `summary`), the scope flags `--project` and `--user`, and an optional `--preset <name>` value. For `summary`, capture the quoted `<text>` argument (or the `--clear` flag) and jump straight to the **`summary`** procedure — scope/preset flags do not apply. Valid preset names: `session`, `focused`, `qe`, `mix`, `full`. Anything else → fall back to `session`. On `--help` or invalid input, jump to **Step HELP**.
 
 **Scope resolution:** default = user/global. `--project` selects project scope; `--user` is an explicit alias for the global default. If both `--project` and `--user` are passed, `--project` wins (the narrower, explicitly-requested override) and a one-line warning is printed: `[!] --project and --user both given; using --project (project scope).`
 
@@ -91,6 +92,24 @@ Extract subcommand (`show` | `on` | `off`), the scope flags `--project` and `--u
 3. Delete the `statusLine` key and write back.
 4. Print confirmation.
 
+#### `summary "<text>"`
+Sets a free-form, one-line description of what the current session is working
+on. The `summary` HUD element (in the `focused`, `qe`, and `full` presets) reads
+it so a user juggling several terminals can tell sessions apart. This writes to
+**project scope only** — the per-session binding file under the current
+project's `.qe/`, never settings.json.
+
+1. **Resolve the session id.** Read `.qe/state/current-session.json` → `session_id` (the SessionStart hook writes this every session). If the file is missing or has no `session_id`, abort with: `[!] No active session id found (.qe/state/current-session.json). The summary element needs it to key the HUD; re-open the session or run from a project where SessionStart has run.`
+2. **Resolve the project root** via the same upward marker walk used by `--project` (`.git/`, `package.json`, `pyproject.toml`, `.qe/`, `.claude/`).
+3. **Target file:** `<PROJECT_ROOT>/.qe/planning/.sessions/<session_id>.json`. Create the `.sessions/` directory if absent.
+4. **Merge, don't clobber.** Read the existing JSON (or `{}`), set `summary` to the trimmed `<text>` (cap at ~120 chars; the HUD truncates to 48 for display) and `summaryAt` to the current ISO timestamp, **preserving `activePlanSlug` and any other keys.** For `summary --clear`, delete the `summary` and `summaryAt` keys instead. Pretty-print with 2-space indent + trailing newline.
+5. Print confirmation and a one-line HUD preview, e.g.:
+   ```
+   [✓] Session summary set: "Refactoring auth flow"
+       Shows in HUD presets: focused · qe · full  (run /Qhud on --preset focused)
+   ```
+6. If the active preset is `session`/`mix` (which don't include `summary`), add a hint: `[i] Your current preset doesn't show summary — switch with /Qhud on --preset focused.`
+
 ### Step HELP
 Print:
 ```
@@ -103,14 +122,19 @@ Usage:
   /Qhud on --project          Install into <PROJECT_ROOT>/.claude/settings.json (per-project override)
   /Qhud on --user             Same as the default (global); backward-compatible alias
   /Qhud on --preset focused   Install with the "focused" element preset
+  /Qhud summary "<text>"      Set this session's one-line summary (shown by focused/qe/full)
+  /Qhud summary --clear       Remove this session's summary
   /Qhud --help                Show this help
 
 Presets:
   session  ctx · 5h/7d · model · tokens · SIVS   (default, v6.6.3 shape)
-  focused  ctx · phase · task · SIVS             (current PSE state)
-  qe       SIVS · phase · task                   (planning layer only)
+  focused  summary · ctx · phase · task · SIVS   (current PSE state + session intent)
+  qe       summary · SIVS · phase · task         (planning layer only)
   mix      ctx · O:S:H:X token distribution · SIVS
   full     every element (widest terminal)
+
+  Note: `summary` self-skips until set via `/Qhud summary "..."`, so focused/qe/full
+  look identical to before on sessions with no summary.
 
 HUD shows:  ctx N% (used)  │  <tokens> tok  │  SIVS C/C/C/C
             green <50 · yellow 50–80 · red ≥80
@@ -123,16 +147,18 @@ Phase 2 (not yet in MVP): 5h / 7d rate limit %, model name, session cost.
 ## Safety Rules
 - Never write to `settings.local.json`.
 - Never overwrite a foreign `statusLine` entry without explicit confirmation.
-- Preserve all unrelated keys in settings.json.
+- Preserve all unrelated keys when merging into settings.json **or** the session binding file (`summary` must not drop `activePlanSlug`).
 - On JSON parse failure, stop and report the exact path; do not auto-rewrite.
 - Always write a pretty-printed JSON with 2-space indent and a trailing newline.
+- `summary` writes only to `<PROJECT_ROOT>/.qe/planning/.sessions/<session_id>.json` — never settings.json.
 
 ## Will
 - Add or remove a single `statusLine` entry in a single settings.json file.
+- Set/clear this session's `summary` field in the project's session binding file (merge-only).
 - Preview the rendered HUD string via a synthetic stdin payload.
 - Detect and refuse to clobber a non-QE statusline without confirmation.
 
 ## Will Not
-- Modify any file other than the chosen settings.json.
+- Modify any file other than the chosen settings.json (for `on`/`off`) or the session binding file (for `summary`).
 - Touch plugin.json, hooks.json, or the script itself.
 - Install into project scope without the `--project` flag (the default is always global).

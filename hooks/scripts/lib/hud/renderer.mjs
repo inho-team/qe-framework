@@ -20,6 +20,7 @@ import * as phase from './elements/phase.mjs';
 import * as task from './elements/task.mjs';
 import * as modelRatio from './elements/model-ratio.mjs';
 import * as wiki from './elements/wiki.mjs';
+import * as summary from './elements/summary.mjs';
 
 // Single source of truth for the element registry. Exported so tests can
 // validate presets against it without re-listing names by hand (a hand-kept
@@ -34,6 +35,7 @@ export const ELEMENTS = {
   task,
   modelRatio,
   wiki,
+  summary,
 };
 
 /**

@@ -10,17 +10,20 @@ export const PRESETS = {
   // Default — matches v6.6.3 behavior. Session health focus.
   session: ['context', 'rateLimits', 'model', 'tokens', 'sivs'],
 
-  // Minimal — just the planning/task state the user cares about most.
-  focused: ['context', 'phase', 'task', 'sivs'],
+  // Minimal — the session summary + planning/task state the user cares about
+  // most. `summary` leads so a multi-terminal user sees "what is this session
+  // doing" first; it self-skips until set, so the preset degrades to the old
+  // ctx · phase · task · sivs shape on sessions with no summary.
+  focused: ['summary', 'context', 'phase', 'task', 'sivs'],
 
-  // QE-native — PSE chain status foregrounded.
-  qe: ['sivs', 'phase', 'task'],
+  // QE-native — session summary + PSE chain status foregrounded.
+  qe: ['summary', 'sivs', 'phase', 'task'],
 
   // Model mix — show session token distribution across Opus/Sonnet/Haiku/Codex.
   mix: ['context', 'modelRatio', 'sivs'],
 
   // Full — every element we know about. Use when you have a wide terminal.
-  full: ['context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs'],
+  full: ['summary', 'context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs'],
 
   // Wiki — Qwiki knowledge-layer focus: planning phase + `.qe/wiki/` status.
   // Opt-in only; existing presets are intentionally left unchanged so the

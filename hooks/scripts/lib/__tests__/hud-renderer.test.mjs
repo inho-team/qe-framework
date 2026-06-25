@@ -260,11 +260,15 @@ test('renderHud: high-usage context paints red', () => {
 import { PRESETS, resolvePreset } from '../hud/presets.mjs';
 
 test('presets: existing 5 presets have frozen element order (no regression)', () => {
+  // session + mix stay byte-frozen — the v6.6.3 default shape and the token-mix
+  // view must never drift. focused/qe/full gained a leading `summary` element
+  // (self-skipping until set) so multi-terminal users can label each session;
+  // those three assert the new, deliberate order.
   assert.deepEqual(PRESETS.session, ['context', 'rateLimits', 'model', 'tokens', 'sivs']);
-  assert.deepEqual(PRESETS.focused, ['context', 'phase', 'task', 'sivs']);
-  assert.deepEqual(PRESETS.qe, ['sivs', 'phase', 'task']);
   assert.deepEqual(PRESETS.mix, ['context', 'modelRatio', 'sivs']);
-  assert.deepEqual(PRESETS.full, ['context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs']);
+  assert.deepEqual(PRESETS.focused, ['summary', 'context', 'phase', 'task', 'sivs']);
+  assert.deepEqual(PRESETS.qe, ['summary', 'sivs', 'phase', 'task']);
+  assert.deepEqual(PRESETS.full, ['summary', 'context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs']);
 });
 
 test('presets: none of the existing presets reference the wiki element', () => {
