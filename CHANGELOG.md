@@ -16,6 +16,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
+
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.2.11] - 2026-06-25
+
+### Added
 - Region-aware shell scanner (shell-scanner.mjs) separating executable command positions from string/comment regions, so hook guards match real invocations only.
 - measure-session-injection.mjs to quantify SessionStart context injection size.
 
@@ -24,10 +36,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 - PreToolUse guards (git commit, gh pr create) no longer false-block commands that merely mention those phrases inside strings, echo text, grep patterns, or comments.
-
-### Removed
-
-### Security
 
 ## [7.2.10] - 2026-06-25
 
