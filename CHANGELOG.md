@@ -25,6 +25,20 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.3.0] - 2026-06-25
+
+### Added
+- Per-session summary element for the HUD statusline.
+- Skill-usage telemetry: a forward counter plus a never-used skills report.
+- Stop-hook OUTPUT_STYLE drama gate.
+
+### Changed
+- Uninstall now removes orphaned Codex assets.
+
+### Fixed
+- Prevent CJK script leakage in the language directive.
+- Correct inaccurate Codex install claims in the setup guides.
+
 ## [7.2.11] - 2026-06-25
 
 ### Added
