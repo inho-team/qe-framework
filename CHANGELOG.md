@@ -21,6 +21,8 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- Expose the 72 `coding-experts` skills under the `qe-framework:` plugin namespace. They live 3 levels deep (`skills/coding-experts/<category>/<name>/SKILL.md`), but the plugin skill loader scans only one level, so `qe-framework:Qthe-fool` (and all 72) returned "Unknown skill". The `skills` field in `plugin.json` is now an array listing each category directory, so every coding-expert resolves under the namespace while bare invocation stays backward-compatible.
+
 ### Removed
 
 ### Security

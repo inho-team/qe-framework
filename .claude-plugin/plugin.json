@@ -14,7 +14,16 @@
     "hooks",
     "skills"
   ],
-  "skills": "./skills/",
+  "skills": [
+    "./skills/",
+    "./skills/coding-experts/ai/",
+    "./skills/coding-experts/backend/",
+    "./skills/coding-experts/data/",
+    "./skills/coding-experts/frontend/",
+    "./skills/coding-experts/infra/",
+    "./skills/coding-experts/languages/",
+    "./skills/coding-experts/quality/"
+  ],
   "hooks": {
     "SessionStart": [
       {
