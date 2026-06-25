@@ -66,11 +66,14 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-설치 후 Codex 타깃도 함께 구성됩니다.
+설치는 Claude(`~/.claude`)에만 적용됩니다. `~/.codex`로는 아무것도 복사하지 않습니다.
 
-- `~/.codex/skills`에 QE skill 복사
-- `~/.codex/agents`에 QE agent 복사
-- `~/.codex/config.toml`에 QE agent 설정 블록 추가
+Codex는 네이티브 설치 대상이 아니라 **엔진**으로 지원됩니다. `codex-plugin-cc`
+플러그인과 `/Qsivs-config`로 각 SIVS 단계(Spec/Implement/Verify/Supervise)를
+Codex에 라우팅할 수 있습니다.
+
+> 구버전(pre-v4.0) QE가 `~/.codex`에 남긴 잔재는 `qe-framework-uninstall --purge-codex`로
+> 정리할 수 있습니다(기본 uninstall은 dry-run 보고만, 비-QE 자산은 보존).
 
 2. 프로젝트 초기화
 

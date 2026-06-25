@@ -63,11 +63,15 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-インストール後は Codex ターゲットも同時に構成されます。
+インストールは Claude（`~/.claude`）にのみ適用され、`~/.codex` には何もコピーしません。
 
-- `~/.codex/skills` に QE skill をコピー
-- `~/.codex/agents` に QE agent をコピー
-- `~/.codex/config.toml` に QE agent 設定ブロックを追加
+Codex はネイティブなインストール対象ではなく、**エンジン**として対応しています。
+オプションの `codex-plugin-cc` プラグインと `/Qsivs-config` で、各 SIVS ステージ
+（Spec/Implement/Verify/Supervise）を Codex にルーティングできます。
+
+> 旧バージョン（v4.0 以前）の QE が `~/.codex` に残した skill/agent は
+> `qe-framework-uninstall --purge-codex` で整理できます（通常の uninstall は dry-run で
+> 報告するのみで、QE 以外の資産は削除しません）。
 
 2. プロジェクトを初期化
 

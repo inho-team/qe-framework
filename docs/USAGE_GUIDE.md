@@ -7,9 +7,9 @@ Run in your terminal:
 ```bash
 git clone https://github.com/inho-team/qe-framework.git
 cd qe-framework
-git checkout v3.0.27
+git checkout v7.2.11
 npm pack --cache /tmp/qe-npm-cache
-npm install -g ./inho-team-qe-framework-3.0.27.tgz
+npm install -g ./inho-team-qe-framework-7.2.11.tgz
 qe-framework-install
 ```
 
@@ -18,7 +18,7 @@ Update later with:
 ```bash
 git pull
 npm pack --cache /tmp/qe-npm-cache
-npm install -g ./inho-team-qe-framework-3.0.27.tgz
+npm install -g ./inho-team-qe-framework-7.2.11.tgz
 qe-framework-install
 ```
 
@@ -28,11 +28,20 @@ Uninstall with:
 qe-framework-uninstall
 ```
 
-The install configures both targets:
+The install targets Claude only:
 
-- copies QE skills to `~/.codex/skills`
-- copies QE agents to `~/.codex/agents`
-- updates `~/.codex/config.toml` with QE-managed agent entries
+- installs QE skills, agents, core, hooks, and scripts under `~/.claude` (as a plugin, or standalone)
+- does **not** copy anything into `~/.codex`
+
+Codex is supported as an **engine**, not a native install target. Route individual
+SIVS stages (Spec / Implement / Verify / Supervise) to Codex via the optional
+`codex-plugin-cc` plugin and `/Qsivs-config` — there is no QE skill/agent install
+inside `~/.codex`.
+
+> If an older (pre-v4.0) QE version once copied skills/agents into `~/.codex`,
+> `qe-framework-uninstall --purge-codex` removes those leftovers (skills matched by
+> a name manifest, agents by the `config.toml` QE fence). A plain `qe-framework-uninstall`
+> only reports them (dry-run) and never deletes non-QE content.
 
 ## 2. Initialize a Project
 
@@ -40,12 +49,6 @@ Inside a Claude session:
 
 ```text
 /Qinit
-```
-
-Inside a Codex session:
-
-```text
-$Qinit
 ```
 
 This creates:
