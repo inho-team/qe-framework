@@ -2,4 +2,6 @@
 
 import { uninstallClaudeAssets } from './scripts/lib/client_installers.mjs';
 
-uninstallClaudeAssets();
+const purgeCodex = process.argv.includes('--purge-codex');
+
+uninstallClaudeAssets({ purgeCodex });
