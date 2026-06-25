@@ -1,4 +1,4 @@
-import { test } from 'node:test';
+import { test, beforeEach, afterEach } from 'node:test';
 import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, rmSync, existsSync } from 'fs';
 import { tmpdir } from 'os';
@@ -6,6 +6,13 @@ import { join } from 'path';
 
 import { readDetectedLimit, writeDetectedLimit, normalizeModelId } from '../context-meter.mjs';
 import { checkContextPressure } from '../../context-monitor.mjs';
+
+// These tests assert id-based limit resolution (200k guess vs deterministic 1M
+// upgrade). A real QE session exports QE_CONTEXT_LIMIT, which resolveLimit honours
+// (step 2) and would mask the 200k baseline — clear it per test, restore after.
+let _savedQcl;
+beforeEach(() => { _savedQcl = process.env.QE_CONTEXT_LIMIT; delete process.env.QE_CONTEXT_LIMIT; });
+afterEach(() => { if (_savedQcl !== undefined) process.env.QE_CONTEXT_LIMIT = _savedQcl; });
 
 // ---------------------------------------------------------------------------
 // Helpers
