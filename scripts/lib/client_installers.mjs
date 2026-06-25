@@ -88,6 +88,9 @@ function resolveTargets(repoRoot, homeDir, log = () => {}) {
       pluginPath,
       targets: [
         { src: 'skills', dest: join(pluginPath, 'skills'), label: 'skill' },
+        // Opt-in / demoted skills (ADR-025 Phase 3): shipped but outside the
+        // catalog globs, so demotion stays reversible in an installed plugin.
+        { src: 'skills-optional', dest: join(pluginPath, 'skills-optional'), label: 'skill-optional' },
         { src: 'agents', dest: join(pluginPath, 'agents'), label: 'agent' },
         { src: 'core', dest: join(pluginPath, 'core'), label: 'core' },
         { src: 'hooks', dest: join(pluginPath, 'hooks'), label: 'hook' },
@@ -102,6 +105,9 @@ function resolveTargets(repoRoot, homeDir, log = () => {}) {
     pluginPath: null,
     targets: [
       { src: 'skills', dest: join(homeDir, '.claude', 'commands'), label: 'skill' },
+      // Demoted skills go to a sibling dir (NOT commands/), so they ship and stay
+      // restorable but are not exposed as active commands (ADR-025 Phase 3).
+      { src: 'skills-optional', dest: join(homeDir, '.claude', 'skills-optional'), label: 'skill-optional' },
       { src: 'agents', dest: join(homeDir, '.claude', 'agents'), label: 'agent' },
       { src: 'core', dest: join(homeDir, '.claude', 'core'), label: 'core' },
       { src: 'hooks', dest: join(homeDir, '.claude', 'hooks'), label: 'hook' },
@@ -539,6 +545,297 @@ export function cleanupCodexAssets({
     receiptPath,
     configBackup: backupPath,
   };
+}
+
+// ---------------------------------------------------------------------------
+// Codex install (dual-target)
+// ---------------------------------------------------------------------------
+
+/**
+ * Parse YAML-style frontmatter from a Markdown file.
+ * Returns { metadata: Record<string,string>, body: string }.
+ * If no frontmatter block is present, metadata is {} and body is the full text.
+ *
+ * @param {string} markdown - Raw markdown string (UTF-8)
+ * @returns {{ metadata: Record<string, string>, body: string }}
+ */
+function parseAgentFrontmatter(markdown) {
+  const match = markdown.match(/^---\n([\s\S]*?)\n---\n?/);
+  if (!match) {
+    return { metadata: {}, body: markdown.trim() };
+  }
+
+  const metadata = {};
+  for (const rawLine of match[1].split('\n')) {
+    const line = rawLine.trim();
+    if (!line || line.startsWith('#')) continue;
+    const separatorIndex = line.indexOf(':');
+    if (separatorIndex === -1) continue;
+    const key = line.slice(0, separatorIndex).trim();
+    const rawValue = line.slice(separatorIndex + 1).trim();
+    // Strip surrounding quotes (single or double)
+    metadata[key] = rawValue.replace(/^"(.*)"$/, '$1').replace(/^'(.*)'$/, '$1');
+  }
+
+  return {
+    metadata,
+    body: markdown.slice(match[0].length).trim(),
+  };
+}
+
+/**
+ * Escape a string for safe use as a TOML quoted value.
+ * @param {string} value
+ * @returns {string}
+ */
+function quoteToml(value) {
+  return `"${String(value).replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+}
+
+/**
+ * Render a Codex agent TOML file from name, description, and instruction body.
+ *
+ * @param {{ name: string, description: string, instructions: string }} opts
+ * @returns {string} TOML content
+ */
+function renderCodexAgentToml({ name, description, instructions }) {
+  return [
+    `name = ${quoteToml(name)}`,
+    `description = ${quoteToml(description)}`,
+    'sandbox_mode = "workspace-write"',
+    "developer_instructions = '''",
+    instructions.replace(/\r\n/g, '\n'),
+    "'''",
+    '',
+  ].join('\n');
+}
+
+/**
+ * Render the managed QE fence block for config.toml.
+ * Contains one [agents."<name>"] entry per installed agent.
+ *
+ * @param {string} agentsDir - Absolute path to ~/.codex/agents
+ * @param {Array<{ name: string, description: string }>} entries
+ * @returns {string} Multi-line TOML block (begins with QE_CODEX_CONFIG_BEGIN, ends with QE_CODEX_CONFIG_END)
+ */
+function renderCodexAgentConfigBlock(agentsDir, entries) {
+  const lines = [QE_CODEX_CONFIG_BEGIN, ''];
+  for (const entry of entries) {
+    lines.push(`[agents.${quoteToml(entry.name)}]`);
+    lines.push(`description = ${quoteToml(entry.description)}`);
+    lines.push(`config_file = ${quoteToml(join(agentsDir, `${entry.name}.toml`))}`);
+    lines.push('');
+  }
+  lines.push(QE_CODEX_CONFIG_END, '');
+  return lines.join('\n');
+}
+
+/**
+ * Synchronise the codex-cleanup-manifest.json to include every skill name
+ * currently in the repo `skills/` directory. Union with existing entries,
+ * deduplicate, and write sorted. Ensures manifest symmetry: every skill
+ * installCodexAssets() writes can later be removed by cleanupCodexAssets().
+ *
+ * @param {string} repoRoot - Repository root path
+ * @param {Function} log - Logger
+ */
+function syncCleanupManifest(repoRoot, log = () => {}) {
+  const manifestPath = join(MODULE_DIR, 'codex-cleanup-manifest.json');
+  const skillsDir = join(repoRoot, 'skills');
+
+  let existing = { skills: [] };
+  try {
+    existing = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    if (!Array.isArray(existing.skills)) existing.skills = [];
+  } catch { /* first run or parse error — start fresh */ }
+
+  let current = [];
+  try {
+    // Only real skill dirs (a directory containing SKILL.md) — never bare files
+    // like CATALOG.md or category dirs (coding-experts) that have no SKILL.md.
+    current = readdirSync(skillsDir).filter((entry) => {
+      try {
+        return lstatSync(join(skillsDir, entry)).isDirectory()
+          && existsSync(join(skillsDir, entry, 'SKILL.md'));
+      } catch { return false; }
+    });
+  } catch { /* skills dir absent */ }
+
+  // Union: preserve historical entries, add new ones, dedup, sort
+  const merged = [...new Set([...existing.skills, ...current])].sort();
+
+  const next = { ...existing, skills: merged };
+  try {
+    writeFileSync(manifestPath, JSON.stringify(next, null, 2) + '\n', 'utf8');
+    log(`[codex-install] manifest synced: ${merged.length} skills`);
+  } catch (e) {
+    log(`[WARN] installCodexAssets: could not write manifest: ${e.message}`);
+  }
+}
+
+/**
+ * Install QE Framework assets into ~/.codex.
+ *
+ * Safety contract:
+ *  - Injectable homeDir: NEVER touches real ~/.codex in tests.
+ *  - Graceful skip: if ~/.codex does not exist, logs a skip line and returns
+ *    WITHOUT creating any directory (user is not a Codex user).
+ *  - Skills: each skills/<dir> copied to ~/.codex/skills/<dir> (overwrite-safe).
+ *  - Agents: each agents/*.md parsed, rendered to <name>.toml, written to
+ *    ~/.codex/agents/<name>.toml; entries collected for config fence.
+ *  - config.toml: backed up via backupStamp() before edit; existing QE fence
+ *    stripped with stripQeAgentFence() then a freshly rendered fence appended
+ *    (idempotent — re-install does NOT duplicate the fence).
+ *  - Manifest: synced so cleanupCodexAssets() can remove every installed skill.
+ *  - dryRun: when true, prints the plan and returns without writing anything.
+ *
+ * @param {object} opts
+ * @param {string}   [opts.repoRoot] - repository root (default: auto-detected)
+ * @param {string}   [opts.homeDir]  - injectable home dir (default: os.homedir())
+ * @param {Function} [opts.log]      - logger (default: console.log)
+ * @param {boolean}  [opts.dryRun]   - if true, print plan only; write nothing
+ * @returns {{ skipped: boolean, skills: number, agents: number, dryRun: boolean }}
+ */
+export function installCodexAssets({
+  repoRoot = REPO_ROOT,
+  homeDir = homedir(),
+  log = console.log,
+  dryRun = false,
+  syncManifest = true,
+} = {}) {
+  const codexDir = join(homeDir, '.codex');
+
+  // Graceful skip: do NOT create ~/.codex if the user isn't a Codex user.
+  if (!existsSync(codexDir)) {
+    log('[codex-install] ~/.codex not found — skipping Codex install (not a Codex user).');
+    return { skipped: true, skills: 0, agents: 0, dryRun };
+  }
+
+  const skillsSrcDir = join(repoRoot, 'skills');
+  const agentsSrcDir = join(repoRoot, 'agents');
+  const codexSkillsDir = join(codexDir, 'skills');
+  const codexAgentsDir = join(codexDir, 'agents');
+  const codexConfigPath = join(codexDir, 'config.toml');
+
+  if (dryRun) {
+    log('[codex-install] dry-run — no files will be written');
+    let skillCount = 0;
+    let agentCount = 0;
+    if (existsSync(skillsSrcDir)) {
+      // Count only real skill dirs (matches the write path) so the preview is honest.
+      try {
+        skillCount = readdirSync(skillsSrcDir).filter((e) => {
+          try {
+            return lstatSync(join(skillsSrcDir, e)).isDirectory()
+              && existsSync(join(skillsSrcDir, e, 'SKILL.md'));
+          } catch { return false; }
+        }).length;
+      } catch {}
+    }
+    if (existsSync(agentsSrcDir)) {
+      try { agentCount = readdirSync(agentsSrcDir).filter((e) => e.endsWith('.md')).length; } catch {}
+    }
+    log(`[codex-install] would install ${skillCount} skill(s), ${agentCount} agent(s), upsert config fence`);
+    return { skipped: false, skills: skillCount, agents: agentCount, dryRun: true };
+  }
+
+  // ----- Skills -----
+  let skillCount = 0;
+  if (existsSync(skillsSrcDir)) {
+    ensureDir(codexSkillsDir);
+    let entries = [];
+    try { entries = readdirSync(skillsSrcDir); } catch {}
+    for (const entry of entries) {
+      const src = join(skillsSrcDir, entry);
+      const dest = join(codexSkillsDir, entry);
+      let stat;
+      try { stat = lstatSync(src); } catch { continue; }
+      if (stat.isSymbolicLink()) continue; // traversal guard
+      // Real skill dirs only (a directory containing SKILL.md) — symmetric with
+      // cleanupCodexAssets so uninstall leaves nothing behind. Skips CATALOG.md
+      // and support dirs (coding-experts) that have no SKILL.md.
+      if (!stat.isDirectory() || !existsSync(join(src, 'SKILL.md'))) continue;
+      copyRecursive(src, dest);
+      log(`[codex-install] skill: ${entry} -> ${codexSkillsDir}`);
+      skillCount++;
+    }
+    log(`[codex-install] ${skillCount} skill(s) installed for Codex.`);
+    // Keep manifest in sync so cleanupCodexAssets can remove these skills later.
+    // Skippable so tests never mutate the tracked repo manifest (test isolation).
+    if (syncManifest) syncCleanupManifest(repoRoot, log);
+  } else {
+    log('[codex-install] skills/ not found — skipping Codex skills.');
+  }
+
+  // ----- Agents -----
+  const agentEntries = [];
+  if (existsSync(agentsSrcDir)) {
+    ensureDir(codexAgentsDir);
+    let mdFiles = [];
+    try { mdFiles = readdirSync(agentsSrcDir).filter((e) => e.endsWith('.md')); } catch {}
+    for (const entry of mdFiles) {
+      const srcPath = join(agentsSrcDir, entry);
+      let markdown = '';
+      try { markdown = readFileSync(srcPath, 'utf8'); } catch { continue; }
+      const { metadata, body } = parseAgentFrontmatter(markdown);
+      const name = metadata.name || entry.replace(/\.md$/i, '');
+      const description = metadata.description || `${name} agent installed by QE Framework.`;
+      const tomlContent = renderCodexAgentToml({ name, description, instructions: body });
+      const tomlDest = join(codexAgentsDir, `${name}.toml`);
+      writeFileSync(tomlDest, tomlContent, 'utf8');
+      agentEntries.push({ name, description });
+      log(`[codex-install] agent: ${entry} -> ${tomlDest}`);
+    }
+    log(`[codex-install] ${agentEntries.length} agent(s) installed for Codex.`);
+  } else {
+    log('[codex-install] agents/ not found — skipping Codex agents.');
+  }
+
+  // ----- config.toml fence upsert -----
+  if (agentEntries.length > 0) {
+    // Back up config.toml before editing (idempotent — same stamp each call is fine).
+    const stamp = backupStamp();
+    const currentConfig = existsSync(codexConfigPath)
+      ? readFileSync(codexConfigPath, 'utf8')
+      : '';
+    if (existsSync(codexConfigPath)) {
+      const backupPath = `${codexConfigPath}.bak-${stamp}`;
+      writeFileSync(backupPath, currentConfig, 'utf8');
+      log(`[codex-install] config.toml backed up -> ${backupPath}`);
+    }
+    // Strip existing QE fence (idempotent if absent), then append new fence.
+    const stripped = stripQeAgentFence(currentConfig);
+    const managedBlock = renderCodexAgentConfigBlock(codexAgentsDir, agentEntries);
+    const nextConfig = [stripped, managedBlock]
+      .filter(Boolean)
+      .join('\n\n')
+      .replace(/\n{3,}/g, '\n\n')
+      .trimEnd();
+    writeFileSync(codexConfigPath, `${nextConfig}\n`, 'utf8');
+    log(`[codex-install] config.toml fence upserted (${agentEntries.length} agent entries).`);
+  }
+
+  return { skipped: false, skills: skillCount, agents: agentEntries.length, dryRun: false };
+}
+
+/**
+ * Copy a file or directory recursively (symlinks skipped — traversal guard).
+ * @param {string} src
+ * @param {string} dest
+ */
+function copyRecursive(src, dest) {
+  let stat;
+  try { stat = lstatSync(src); } catch { return; }
+  if (stat.isSymbolicLink()) return; // traversal guard (mirrors collectCopyPairs)
+  if (stat.isDirectory()) {
+    ensureDir(dest);
+    let entries = [];
+    try { entries = readdirSync(src); } catch {}
+    for (const entry of entries) copyRecursive(join(src, entry), join(dest, entry));
+    return;
+  }
+  ensureDir(dirname(dest));
+  copyFileSync(src, dest);
 }
 
 /**
