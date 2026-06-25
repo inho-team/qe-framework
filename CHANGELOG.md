@@ -21,6 +21,14 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+### Removed
+
+### Security
+
+## [7.2.8] - 2026-06-25
+
+### Fixed
+
 - `Qqa-council` keyword routing — the new skill was absent from
   `hooks/scripts/lib/intent-routes.json`, so QA-council intent prompts ("run an AI QA
   council", "set up a PR QA bot", "exploratory + regression QA") produced HIGH-confidence
