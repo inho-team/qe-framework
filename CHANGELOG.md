@@ -17,6 +17,22 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- `Qqa-council` — multi-agent QA orchestrator skill. Runs a role-separated, bounded-agent
+  QA loop over a live web app: Planner designs scenarios, Explorer black-box explores for
+  bugs (browser-only, no source access), Generator codifies stable flows into Playwright
+  regression tests, Healer reproduces and patches failures, Reporter aggregates findings
+  into a single PR comment. Reuses existing skills (`Qqa-test-planner`, `Qplaywright-expert`,
+  `Eqa-orchestrator`) for non-novel roles. Includes a PR-trigger GitHub Actions scaffold
+  (`reference/github-actions.md`) where Explorer's black-box boundary is hard-enforced via
+  `--allowedTools`, and parametrized multitenancy/RBAC/audit-log guardrail scenario templates
+  (`reference/guardrails.md`). Safety gates block production/real-PII runs and auto-merge.
+- `Eqa-explorer` — black-box exploratory UI tester agent (tools: Bash, Write only; no source
+  read). Probes bad input, boundary values, auth/permission edges, responsive breakpoints, and
+  guardrail scenarios against a live URL; returns a structured findings list.
+- `Eqa-reporter` — QA findings reporter agent (tools: Read, Bash). Aggregates explore/regress/
+  heal results into one report and posts a single PR comment via `gh`; comment-only, never
+  merges or pushes.
+
 ### Changed
 
 ### Fixed

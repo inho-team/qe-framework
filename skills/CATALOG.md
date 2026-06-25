@@ -27,6 +27,7 @@
 | `/Qtest-driven-development` | When starting a new feature that requires robust testing. | Implements TDD workflow (Red-Green-Refactor). |
 | `/Qsource-verifier` | When you need to verify if source code matches the provided specs. | Deep integrity check between implementation and TASK_REQUEST. |
 | `/Qvisual-qa` | When UI/Frontend changes need verification. | Uses screenshots and visual analysis to find regressions. |
+| `/Qqa-council` | When you want a role-separated multi-agent QA loop over a live app, or a PR-triggered QA bot. | Explore (black-box) → codify → heal → report, with bounded agents and optional GitHub Actions scaffold. |
 | `/Qsecurity-officer` | When security-sensitive code (auth, crypto) is modified. | Specialized security audit and vulnerability detection. |
 | `/Qgc` | When codebase needs quality audit or cleanup. | Scans for doc-code drift, rule violations, dead code. Auto-fixes simple issues. |
 

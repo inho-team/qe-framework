@@ -302,6 +302,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qrun-task` | Execute spec-based tasks |
 | `Qcode-run-task` | Test > review > fix quality loop |
 | `Qscenario-test` | Generate, execute, and verify E2E user scenarios (browser/API/CLI) |
+| `Qqa-council` | Multi-agent QA loop: explore (black-box) → codify → heal → report; optional PR-trigger scaffold |
 | `Mmigrate-tasks` | Migrate task files to .qe/ structure |
 | `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |
 | `Qtest-driven-development` | TDD: failing test first, then implement |
@@ -483,6 +484,8 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Epm-planner` | PRD/roadmap/story planning |
 | `Eprofile-collector` | User behavior data collection |
 | `Eqa-orchestrator` | Test > review > fix loop |
+| `Eqa-explorer` | Black-box exploratory UI tester (browser-only, no source access) |
+| `Eqa-reporter` | QA findings aggregator → PR comment (comment-only, never merges) |
 | `Erefresh-executor` | Project change detection |
 | `Esecurity-officer` | Security vulnerability scanning |
 | `Esupervision-orchestrator` | Expert-level quality assessment |
