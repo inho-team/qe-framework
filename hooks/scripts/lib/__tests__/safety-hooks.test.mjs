@@ -431,6 +431,11 @@ test('regression: no-statusline 1M run at 150k tokens is scored against 1M via c
   // The exact failure this whole change targets: HUD off → cache never written →
   // transcript model id stripped to "claude-opus-4-8" → would resolve to 200k →
   // 150k/200k = 0.75 false WARNING. With the config override it's 150k/1M = 0.15.
+  // Hermetic: a real session exports QE_CONTEXT_LIMIT, which resolveLimit honours
+  // (step 2) and would mask the 200k id-based baseline this test pins. Clear it.
+  const _qcl = process.env.QE_CONTEXT_LIMIT;
+  delete process.env.QE_CONTEXT_LIMIT;
+  t.after(() => { if (_qcl !== undefined) process.env.QE_CONTEXT_LIMIT = _qcl; });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
@@ -453,6 +458,11 @@ test('regression: 168k tokens on a 1M model is NOT mis-read as 84%', (t) => {
   // ~168k tokens. Without the true limit, estimateUsageRatio divides by the
   // 200k default (168k/200k = 0.84 → false CRITICAL). With the cached 1M limit
   // it reads the true ~17% occupancy that the HUD shows.
+  // Hermetic: clear the ambient QE_CONTEXT_LIMIT a real session exports, else the
+  // env override (resolveLimit step 2) makes the "naive" path resolve to 1M too.
+  const _qcl = process.env.QE_CONTEXT_LIMIT;
+  delete process.env.QE_CONTEXT_LIMIT;
+  t.after(() => { if (_qcl !== undefined) process.env.QE_CONTEXT_LIMIT = _qcl; });
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
