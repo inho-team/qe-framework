@@ -175,8 +175,10 @@ if (existsSync(stylePath) || existsSync(qeDir)) {
   const styleSrc = existsSync(stylePath) ? 'core/OUTPUT_STYLE.md' : 'the QE output style';
   messages.push(
     `[QE OUTPUT STYLE] Follow ${styleSrc}: conclusion-first (결론→근거), separate 사실/추정, ` +
-    'name the recommended option, cite 참고 문서. Tables for comparisons, ★ evidence-level for ' +
-    'verdicts, 3–5 line summary when long. Skip these forms for short/single-point answers.'
+    'name the recommended option, cite 참고 문서. NO 의식의 흐름·추임새("잠깐 —","맞다 —","음,")·과장/' +
+    '드라마 — 정리된 결론만, 도달 경로는 쓰지 않는다. Tables for comparisons, ★ evidence-level for ' +
+    'verdicts, 3–5 line summary when long. Skip these forms for short/single-point answers. ' +
+    '(A Stop-hook style gate blocks drama-style turns and forces a rewrite.)'
   );
 }
 

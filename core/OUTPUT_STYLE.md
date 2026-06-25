@@ -205,3 +205,11 @@
 - **메인 세션**: `CLAUDE.md`·`QE_CONVENTIONS.md`에서 참조.
 - **사용자 대상 에이전트**: 시스템 프롬프트에 본 파일 링크.
 - **범위 밖**: 구조화 데이터만 반환하는 백그라운드 실행기(`Ecommit-executor` 등).
+
+## 강제 (Stop-hook 드라마 게이트, ADR-025 R3)
+이 계약은 권고가 아니라 **집행된다.** Stop 훅이 매 답변 종료 시 2단으로 검사한다:
+1. **1단 정규식(비용 0):** 위 안티패턴 중 리터럴 표지(`잠깐 —`, `맞다 —`, `음,`, `좋은 질문입니다` 등)를 스캔. 안 걸리면 그대로 통과.
+2. **2단 Haiku 저지(걸렸을 때만):** 본 파일의 `안티패턴` 섹션을 루브릭으로 "심한 위반?"을 판정. 심하면 stop을 차단하고 재작성을 강제한다.
+- 루프가드: 동일 텍스트는 두 번 차단하지 않고, 창(window)당 최대 `style_gate_max_blocks`회. 자격증명/네트워크 실패 시 **fail-open**(통과).
+- 끄기: `.qe/config.json` → `{ "hooks": { "style_gate": false } }`.
+- 구현: `hooks/scripts/lib/style-gate.mjs`, 연결: `hooks/scripts/stop-handler.mjs`.

@@ -21,6 +21,7 @@ import {
 import { isAllComplete, parseChecklist } from './lib/checklist-parser.mjs';
 import { analyze as sweepAnalyze } from './lib/sweep-analyzer.mjs';
 import { execute as sweepExecute, executeVolatileOnly as sweepVolatileOnly } from './lib/sweep-executor.mjs';
+import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -285,6 +286,63 @@ if (!activeMode) {
   }
 }
 
+// --- OUTPUT_STYLE drama gate (ADR-025 R3) ---
+// 2-stage: Stage-1 regex pre-filter (cost 0) → only on a trip, Stage-2 Haiku judge
+// against core/OUTPUT_STYLE.md's anti-patterns. Blocks the stop with a rewrite
+// instruction on a SEVERE verdict. Loop guard: never re-block identical text, and at
+// most style_gate_max_blocks distinct blocks per rolling window. Fail-open throughout.
+if (!activeMode && cfg.style_gate !== false) {
+  try {
+    const text = extractLastAssistantText(data.transcript_path);
+    const scan = scanStyleViolations(text);
+    if (scan.tripped && text) {
+      const st = readUnifiedState(cwd);
+      const sg = st.styleGate || {};
+      const hash = styleHash(text);
+      const now = Date.now();
+      const windowMs = cfg.style_gate_window_ms || 10 * 60 * 1000;
+      const maxBlocks = cfg.style_gate_max_blocks || 2;
+
+      // Rolling window reset
+      let count = sg.count || 0;
+      let windowStart = sg.windowStart || now;
+      if (now - windowStart > windowMs) { count = 0; windowStart = now; }
+
+      const sameText = sg.lastHash === hash;
+      if (sameText) {
+        // Already blocked this exact text — model isn't fixing it (or judge erred).
+        // Allow stop to avoid an infinite loop; clear the marker.
+        delete st.styleGate;
+        try { writeUnifiedState(cwd, st); } catch {}
+      } else if (count >= maxBlocks) {
+        // Hit the per-window cap — give up, allow stop, warn on stderr.
+        process.stderr.write(`[QE Style] Gate gave up after ${count} blocks this window. Allowing stop.\n`);
+        delete st.styleGate;
+        try { writeUnifiedState(cwd, st); } catch {}
+      } else {
+        const rubric = loadStyleRubric(cwd);
+        const verdict = await judgeStyle(text, { rubric });
+        if (verdict.severe) {
+          st.styleGate = { lastHash: hash, count: count + 1, windowStart };
+          try { writeUnifiedState(cwd, st); } catch {}
+          console.log(JSON.stringify({
+            continue: false,
+            decision: 'block',
+            reason: `[QE Style] ${verdict.reason || '문체 위반'} — core/OUTPUT_STYLE.md 위반. 의식의 흐름·추임새("잠깐 —","음,")·과장을 빼고, 결론부터 담백하게 다시 써라.`,
+          }));
+          process.exit(0);
+        } else if (sg.lastHash) {
+          // Judged clean → clear any stale marker so a later clean turn starts fresh.
+          delete st.styleGate;
+          try { writeUnifiedState(cwd, st); } catch {}
+        }
+      }
+    }
+  } catch {
+    // Fault tolerance — the style gate must never crash the stop handler.
+  }
+}
+
 if (!activeMode && sweepAnnouncement) {
   console.log(JSON.stringify({ continue: true, systemMessage: sweepAnnouncement }));
   process.exit(0);
@@ -300,4 +358,16 @@ if (activeMode) {
 } else {
   // No active mode, allow stop
   console.log(JSON.stringify({ continue: true }));
+}
+
+/**
+ * Stable, dependency-free string hash (djb2) for the style-gate loop guard.
+ * Identifies "the same blocked text" across consecutive stops without pulling in crypto.
+ */
+function styleHash(str) {
+  let h = 5381;
+  for (let i = 0; i < str.length; i++) {
+    h = ((h << 5) + h) ^ str.charCodeAt(i);
+  }
+  return (h >>> 0).toString(36);
 }
