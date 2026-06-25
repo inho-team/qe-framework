@@ -8,6 +8,7 @@ import { createHash } from 'crypto';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { parseHelpFlag } from './lib/help-flag-parser.mjs';
+import { readClaudeOAuthToken } from './lib/claude-token.mjs';
 // wiki-retrieve top-level은 fs/path만 import한다(wiki-router는 그 안에서 lazy) → 매 프롬프트
 // selfTest 부작용 없음. estimateTokens를 여기서 static import하면 그 위험이 생기므로 안 한다.
 import { wikiRetrieve, PUSH_FLOOR } from '../../scripts/lib/wiki-retrieve.mjs';
@@ -328,24 +329,22 @@ async function translateToKeywords(message, routeKeys, cachePath) {
     }
   } catch {}
 
-  // Read Claude Code OAuth token for direct API call (fast, no CLI startup)
-  const credPath = join(process.env.HOME || '/root', '.claude', '.credentials.json');
-  if (!existsSync(credPath)) return '';
-
-  const creds = JSON.parse(readFileSync(credPath, 'utf8'));
-  const token = creds?.claudeAiOauth?.accessToken;
+  // Read Claude Code OAuth token (file → macOS Keychain). See lib/claude-token.mjs.
+  // The token is sk-ant-oat01-*: Bearer auth (x-api-key 401s) + current model ids
+  // (legacy claude-3-5-haiku-* 404s on this auth path).
+  const token = readClaudeOAuthToken();
   if (!token) return '';
 
   try {
     const resp = await fetch('https://api.anthropic.com/v1/messages', {
       method: 'POST',
       headers: {
-        'x-api-key': token,
+        'authorization': `Bearer ${token}`,
         'anthropic-version': '2023-06-01',
         'content-type': 'application/json',
       },
       body: JSON.stringify({
-        model: 'claude-3-5-haiku-20241022',
+        model: 'claude-haiku-4-5-20251001',
         max_tokens: 50,
         messages: [{
           role: 'user',

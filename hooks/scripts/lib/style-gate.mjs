@@ -22,7 +22,7 @@
 
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { readClaudeOAuthToken } from './claude-token.mjs';
 
 /**
  * High-precision drama markers. Each entry is enforcing a rule that ALREADY exists
@@ -191,49 +191,7 @@ export function loadStyleRubric(cwd) {
   }
 }
 
-/**
- * Read the Claude Code OAuth access token.
- *
- * Two sources, in order:
- *   1. ~/.claude/.credentials.json   (Linux / some setups)
- *   2. macOS Keychain item "Claude Code-credentials"  (darwin default — the file
- *      does NOT exist on macOS, which is why the old x-api-key/.credentials.json
- *      path silently failed here).
- *
- * Both yield the same JSON shape: { claudeAiOauth: { accessToken } }. The token is
- * an `sk-ant-oat01-*` OAuth token — it authenticates via `Authorization: Bearer`,
- * NOT `x-api-key` (which returns 401). See judgeStyle().
- *
- * @returns {string|null}
- */
-function readOauthToken() {
-  // 1) credentials file
-  try {
-    const credPath = join(process.env.HOME || '/root', '.claude', '.credentials.json');
-    if (existsSync(credPath)) {
-      const creds = JSON.parse(readFileSync(credPath, 'utf8'));
-      const t = creds?.claudeAiOauth?.accessToken;
-      if (t) return t;
-    }
-  } catch {
-    // fall through to keychain
-  }
-  // 2) macOS Keychain (fixed command, no interpolation → no injection surface)
-  if (process.platform === 'darwin') {
-    try {
-      const out = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
-        encoding: 'utf8',
-        timeout: 3000,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      const creds = JSON.parse(out);
-      return creds?.claudeAiOauth?.accessToken || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
-}
+// Token source: shared helper (file → macOS Keychain). See lib/claude-token.mjs.
 
 /**
  * Judge whether assistant prose is a SEVERE OUTPUT_STYLE violation.
@@ -254,7 +212,7 @@ export async function judgeStyle(text, opts = {}) {
   if (!text || typeof text !== 'string') return NO;
 
   const rubric = opts.rubric || RUBRIC_FALLBACK;
-  const token = opts.token || readOauthToken();
+  const token = opts.token || readClaudeOAuthToken();
   if (!token) return NO; // can't judge → fail-open
 
   const doFetch = opts.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);
