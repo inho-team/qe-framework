@@ -226,7 +226,12 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const cmd = toolInput.command || '';
 
     // git commit → Qcommit
-    if (/\bgit\s+commit\b/.test(cmd)) {
+    // Match an ACTUAL git commit invocation only — at command start or right after a
+    // shell separator (; && || | newline ( `). A bare substring match also fired on
+    // commands that merely *mention* "git commit" inside an echo string, grep pattern,
+    // or comment (e.g. `echo "use git commit"`, `grep "git commit" log`), hard-blocking
+    // harmless diagnostics. The separator-anchored form lets those through.
+    if (/(?:^|[;&|(\n`])\s*git\s+commit\b/.test(cmd)) {
       overrideRules.push({
         skill: 'Qcommit',
         msg: 'Raw git commit is blocked. Use /Qcommit instead.'
