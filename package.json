@@ -17,6 +17,7 @@
     "README.md",
     "scripts/",
     "skills/",
+    "skills-optional/",
     "uninstall.js"
   ],
   "bin": {
