@@ -93,6 +93,21 @@ Read the TASK_REQUEST checklist for `<!-- complexity: ... -->` tags, then pick t
 
 Pass the selected model as the `model` parameter when spawning `Etask-executor`.
 
+### Expert Reference Resolution (deterministic — `type: code` only)
+
+Before spawning `Etask-executor`, resolve the coding-expert guideline files that match the task's tech stack, and inject their paths into the agent prompt so the implementation follows the right language/framework standards. This replaces the old "agent might read `coding-experts/`" model with a deterministic one.
+
+1. Collect the task's target files (from the TASK_REQUEST checklist paths; fall back to `git diff --name-only` if already mid-implementation).
+2. Run the resolver (cwd = project root, so it can scan manifests):
+   ```bash
+   node <QE plugin>/scripts/lib/expert-resolver.mjs --files <file1> <file2> ...
+   ```
+   It returns a JSON array `[{ slug, path, reason }]` (top 2, may be empty).
+3. **Inject into the `Etask-executor` prompt**:
+   - Non-empty → `MANDATORY: read these expert guideline files first and follow their standards while implementing: {comma-separated absolute paths}`.
+   - Empty (no stack match) → instruct fallback to `skills/coding-experts/PRINCIPLES.md`.
+4. Skip this step entirely for `type: docs` / `type: analysis` tasks.
+
 ---
 ## Step 1: Document Discovery
 

@@ -366,12 +366,20 @@ This skill can be called independently as `/Qcode-run-task`, or it can be automa
 - Uses the changed file list already collected by Qrun-task
 - Returns to Qrun-task Step 4 (final verification) after quality verification is complete
 
-## Coding Expert References
+## Coding Expert References (deterministic resolution)
 
-During quality verification, reference expert skills matching the project's tech stack:
-- `coding-experts/languages/` — Language-specific coding standards
-- `coding-experts/quality/` — Testing/security/review guidelines
-- Full catalog: `skills/coding-experts/CATALOG.md`
+During quality verification, the review must be graded against the **same** language/framework standards the code was written to. Resolve them deterministically rather than relying on the reviewer to guess:
+
+1. After Step 1 collects the changed files, run:
+   ```bash
+   node <QE plugin>/scripts/lib/expert-resolver.mjs --files $(git diff --name-only)
+   ```
+   → JSON array `[{ slug, path, reason }]` (top 2, may be empty).
+2. **When delegating to `Eqa-orchestrator`** (default path), include the resolved paths in the delegation prompt: `Review/test against these expert guideline files: {absolute paths}`. Eqa-orchestrator forwards them to `Ecode-reviewer` and `Ecode-test-engineer` as part of their context.
+3. In manual mode, pass the same paths directly to the `Ecode-reviewer` agent.
+4. Empty result → reviewer falls back to `skills/coding-experts/PRINCIPLES.md`. Skip entirely for `type: docs` / `type: analysis`.
+
+Full human-readable catalog: `skills/coding-experts/CATALOG.md` · machine map: `skills/coding-experts/STACK_MAP.json`.
 
 ## Role Constraints
 - This skill focuses exclusively on the **test, review, and fix loop**

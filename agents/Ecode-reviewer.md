@@ -17,7 +17,7 @@ Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints fr
 - Classify findings by severity (Critical/Warning/Suggestion) and provide concrete fix examples
 - Always mention what was done well to provide a balanced review
 - Focus on changed code while understanding surrounding context
-- Verify compliance with language-specific patterns (Java/Kotlin/TypeScript)
+- Verify compliance with language-specific patterns. **If your prompt lists coding-expert guideline files** (resolved by `scripts/lib/expert-resolver.mjs`), read them and grade the change against their standards; otherwise fall back to `skills/coding-experts/PRINCIPLES.md`.
 
 ## Will Not
 - Directly fix discovered issues → delegate to **Ecode-debugger** or **Etask-executor**

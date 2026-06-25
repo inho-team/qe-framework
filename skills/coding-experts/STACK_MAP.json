@@ -1,0 +1,53 @@
+{
+  "_doc": "Machine-readable signal -> coding-expert map. Authoritative source for scripts/lib/expert-resolver.mjs. CATALOG.md remains the human-readable doc; keep slugs in sync (lint via expert-resolver --selftest). Fields: slug, path (relative to skills/coding-experts/), domain, ext[], deps[] (manifest dependency names, substring-matched), files[] (basename or repo-relative path; matched against changed files OR existence in cwd), priority (tiebreak only, higher wins). Conceptual experts with no deterministic file signal (e.g. Qarchitecture-designer, Qthe-fool) are intentionally omitted — they are invoked by intent, not file signal.",
+  "experts": [
+    { "slug": "Qpython-pro", "path": "languages/Qpython-pro/SKILL.md", "domain": "language", "ext": [".py"] },
+    { "slug": "Qjs-ts-expert", "path": "languages/Qjs-ts-expert/SKILL.md", "domain": "language", "ext": [".ts", ".js", ".mjs", ".cjs"] },
+    { "slug": "Qcpp-pro", "path": "languages/Qcpp-pro/SKILL.md", "domain": "language", "ext": [".cpp", ".cc", ".cxx", ".hpp", ".hh", ".c", ".h"] },
+    { "slug": "Qcsharp-developer", "path": "languages/Qcsharp-developer/SKILL.md", "domain": "language", "ext": [".cs"] },
+    { "slug": "Qgolang-pro", "path": "languages/Qgolang-pro/SKILL.md", "domain": "language", "ext": [".go"], "files": ["go.mod"] },
+    { "slug": "Qjava-architect", "path": "languages/Qjava-architect/SKILL.md", "domain": "language", "ext": [".java"] },
+    { "slug": "Qkotlin-specialist", "path": "languages/Qkotlin-specialist/SKILL.md", "domain": "language", "ext": [".kt", ".kts"] },
+    { "slug": "Qphp-pro", "path": "languages/Qphp-pro/SKILL.md", "domain": "language", "ext": [".php"] },
+    { "slug": "Qrust-engineer", "path": "languages/Qrust-engineer/SKILL.md", "domain": "language", "ext": [".rs"], "files": ["Cargo.toml"] },
+    { "slug": "Qsql-pro", "path": "languages/Qsql-pro/SKILL.md", "domain": "language", "ext": [".sql"] },
+    { "slug": "Qswift-expert", "path": "languages/Qswift-expert/SKILL.md", "domain": "language", "ext": [".swift"] },
+    { "slug": "Qembedded-systems", "path": "languages/Qembedded-systems/SKILL.md", "domain": "language", "ext": [".ino"], "files": ["platformio.ini"] },
+
+    { "slug": "Qnextjs-developer", "path": "frontend/Qnextjs-developer/SKILL.md", "domain": "framework", "ext": [".tsx", ".jsx"], "deps": ["next"], "files": ["next.config.js", "next.config.mjs", "next.config.ts"], "priority": 2 },
+    { "slug": "Qreact-native-expert", "path": "frontend/Qreact-native-expert/SKILL.md", "domain": "framework", "ext": [".tsx", ".jsx"], "deps": ["react-native"], "files": ["metro.config.js", "app.json"], "priority": 2 },
+    { "slug": "Qreact-expert", "path": "frontend/Qreact-expert/SKILL.md", "domain": "framework", "ext": [".tsx", ".jsx"], "deps": ["react"], "priority": 1 },
+    { "slug": "Qvue-expert", "path": "frontend/Qvue-expert/SKILL.md", "domain": "framework", "ext": [".vue"], "deps": ["vue"], "priority": 1 },
+    { "slug": "Qangular-architect", "path": "frontend/Qangular-architect/SKILL.md", "domain": "framework", "deps": ["@angular/core"], "files": ["angular.json"], "priority": 2 },
+    { "slug": "Qflutter-expert", "path": "frontend/Qflutter-expert/SKILL.md", "domain": "framework", "ext": [".dart"], "files": ["pubspec.yaml"] },
+    { "slug": "Qvite", "path": "frontend/Qvite/SKILL.md", "domain": "tool", "files": ["vite.config.js", "vite.config.ts", "vite.config.mjs"] },
+
+    { "slug": "Qfastapi-expert", "path": "backend/Qfastapi-expert/SKILL.md", "domain": "framework", "deps": ["fastapi"], "priority": 2 },
+    { "slug": "Qdjango-expert", "path": "backend/Qdjango-expert/SKILL.md", "domain": "framework", "deps": ["django"], "files": ["manage.py"], "priority": 2 },
+    { "slug": "Qnestjs-expert", "path": "backend/Qnestjs-expert/SKILL.md", "domain": "framework", "deps": ["@nestjs/core"], "priority": 2 },
+    { "slug": "Qspring-boot-engineer", "path": "backend/Qspring-boot-engineer/SKILL.md", "domain": "framework", "deps": ["spring-boot-starter"], "files": ["pom.xml", "build.gradle", "build.gradle.kts", "application.yml", "application.properties"], "priority": 2 },
+    { "slug": "Qlaravel-specialist", "path": "backend/Qlaravel-specialist/SKILL.md", "domain": "framework", "deps": ["laravel/framework"], "files": ["artisan"], "priority": 2 },
+    { "slug": "Qrails-expert", "path": "backend/Qrails-expert/SKILL.md", "domain": "framework", "deps": ["rails"], "files": ["config/routes.rb"], "priority": 2 },
+    { "slug": "Qgraphql-architect", "path": "backend/Qgraphql-architect/SKILL.md", "domain": "framework", "ext": [".graphql", ".gql"], "deps": ["graphql"] },
+    { "slug": "Qmcp-developer", "path": "backend/Qmcp-developer/SKILL.md", "domain": "framework", "deps": ["@modelcontextprotocol/sdk"] },
+    { "slug": "Qwebsocket-engineer", "path": "backend/Qwebsocket-engineer/SKILL.md", "domain": "framework", "deps": ["socket.io"] },
+
+    { "slug": "Qterraform-engineer", "path": "infra/Qterraform-engineer/SKILL.md", "domain": "infra", "ext": [".tf"] },
+    { "slug": "Qkubernetes-specialist", "path": "infra/Qkubernetes-specialist/SKILL.md", "domain": "infra", "files": ["kustomization.yaml", "Chart.yaml"] },
+    { "slug": "Qdevops-engineer", "path": "infra/Qdevops-engineer/SKILL.md", "domain": "infra", "files": ["Dockerfile", ".gitlab-ci.yml", "docker-compose.yml"] },
+    { "slug": "Qsalesforce-developer", "path": "infra/Qsalesforce-developer/SKILL.md", "domain": "infra", "ext": [".cls", ".trigger"], "files": ["sfdx-project.json"] },
+    { "slug": "Qshopify-expert", "path": "infra/Qshopify-expert/SKILL.md", "domain": "infra", "ext": [".liquid"], "files": ["shopify.app.toml"] },
+    { "slug": "Qwordpress-pro", "path": "infra/Qwordpress-pro/SKILL.md", "domain": "infra", "files": ["wp-config.php"] },
+
+    { "slug": "Qpandas-pro", "path": "data/Qpandas-pro/SKILL.md", "domain": "library", "deps": ["pandas"] },
+    { "slug": "Qspark-engineer", "path": "data/Qspark-engineer/SKILL.md", "domain": "library", "deps": ["pyspark"] },
+    { "slug": "Qml-pipeline", "path": "data/Qml-pipeline/SKILL.md", "domain": "library", "deps": ["mlflow", "kubeflow"] },
+    { "slug": "Qfine-tuning-expert", "path": "data/Qfine-tuning-expert/SKILL.md", "domain": "library", "deps": ["peft"] },
+    { "slug": "Qrag-architect", "path": "data/Qrag-architect/SKILL.md", "domain": "library", "deps": ["llama-index"] },
+    { "slug": "Qlangchain-specialist", "path": "ai/Qlangchain-specialist/SKILL.md", "domain": "library", "deps": ["langchain", "@langchain/core"] },
+
+    { "slug": "Qvitest", "path": "quality/Qvitest/SKILL.md", "domain": "test", "files": ["vitest.config.ts", "vitest.config.js", "vitest.config.mjs"] },
+    { "slug": "Qplaywright-expert", "path": "quality/Qplaywright-expert/SKILL.md", "domain": "test", "files": ["playwright.config.ts", "playwright.config.js"] },
+    { "slug": "Qtest-master", "path": "quality/Qtest-master/SKILL.md", "domain": "test", "files": ["jest.config.js", "jest.config.ts"] }
+  ]
+}
