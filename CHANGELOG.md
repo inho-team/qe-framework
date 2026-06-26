@@ -25,6 +25,11 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.3.3] - 2026-06-26
+
+### Added
+- Codex Runtime Policy: Codex (`codex:codex-rescue`, SIVS codex routing) now runs in the foreground by default so its stdout is visible in the conversation; background jobs must be retrieved via `/codex:status` → `/codex:result <job-id>` before the turn ends. Documented in `QE_CONVENTIONS.md` and enforced as a `[QE CODEX RUNTIME]` pointer injected into the SessionStart hook context.
+
 ## [7.3.2] - 2026-06-26
 
 ### Added
