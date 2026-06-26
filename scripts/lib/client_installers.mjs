@@ -11,6 +11,8 @@ const REPO_ROOT = join(MODULE_DIR, '..', '..');
 // Fence markers written by the historical qe-framework Codex installer
 const QE_CODEX_CONFIG_BEGIN = '# QE Framework Agent Configuration — managed by qe-framework installer';
 const QE_CODEX_CONFIG_END = '# End QE Framework Agent Configuration';
+const QE_CODEX_HOOKS_BEGIN = '# QE Framework Hook Configuration — managed by qe-framework installer';
+const QE_CODEX_HOOKS_END = '# End QE Framework Hook Configuration';
 
 /** Recursively create a directory (no-op if it exists). */
 function ensureDir(path) {
@@ -367,6 +369,31 @@ function stripQeAgentFence(text) {
 }
 
 /**
+ * Strip the QE hooks fence block from config.toml text. Kept separate from the
+ * agent fence so install/cleanup can manage hooks without disturbing agents.
+ */
+function stripQeHooksFence(text) {
+  const lines = text.split(/\r?\n/);
+  const beginIdx = lines.findIndex((l) => l.trim() === QE_CODEX_HOOKS_BEGIN);
+  const endIdx = lines.findIndex((l) => l.trim() === QE_CODEX_HOOKS_END);
+  if (beginIdx === -1 || endIdx === -1) return text;
+
+  const before = lines.slice(0, beginIdx);
+  const after = lines.slice(endIdx + 1);
+  const merged = [...before, ...after];
+  const collapsed = [];
+  let prevBlank = false;
+  for (const line of merged) {
+    const isBlank = line.trim() === '';
+    if (isBlank && prevBlank) continue;
+    collapsed.push(line);
+    prevBlank = isBlank;
+  }
+
+  return collapsed.join('\n');
+}
+
+/**
  * Remove orphaned QE assets from ~/.codex during uninstall.
  *
  * Safety contract:
@@ -426,6 +453,7 @@ export function cleanupCodexAssets({
   let qeAgents = []; // { name, configFile }
   let configText = null;
   let fencePresent = false;
+  let hooksFencePresent = false;
 
   if (existsSync(configPath)) {
     try { configText = readFileSync(configPath, 'utf8'); } catch { configText = null; }
@@ -435,6 +463,7 @@ export function cleanupCodexAssets({
         fencePresent = true;
         qeAgents = parsed;
       }
+      hooksFencePresent = configText.includes(QE_CODEX_HOOKS_BEGIN) && configText.includes(QE_CODEX_HOOKS_END);
     }
   }
 
@@ -462,6 +491,7 @@ export function cleanupCodexAssets({
   for (const p of skillsToRemove) log(`  [skill] ${p}`);
   for (const p of agentFilesToRemove) log(`  [agent] ${p}`);
   if (fencePresent) log(`  [config] strip QE fence from ${configPath}`);
+  if (hooksFencePresent) log(`  [config] strip QE hooks fence from ${configPath}`);
 
   // Build receipt object before any writes.
   const stamp = backupStamp();
@@ -492,11 +522,11 @@ export function cleanupCodexAssets({
 
   let configEdited = false;
   let backupPath = null;
-  if (fencePresent && configText !== null) {
+  if ((fencePresent || hooksFencePresent) && configText !== null) {
     try {
       backupPath = `${configPath}.bak-${stamp}`;
       writeFileSync(backupPath, configText, 'utf8'); // backup BEFORE edit
-      const stripped = stripQeAgentFence(configText);
+      const stripped = stripQeHooksFence(stripQeAgentFence(configText));
       writeFileSync(configPath, stripped, 'utf8');
       configEdited = true;
       log(`[codex-cleanup] config.toml backed up -> ${backupPath}`);
@@ -628,6 +658,36 @@ function renderCodexAgentConfigBlock(agentsDir, entries) {
   }
   lines.push(QE_CODEX_CONFIG_END, '');
   return lines.join('\n');
+}
+
+function resolveInstalledCodexHookPath(homeDir, log = () => {}) {
+  const pluginPath = getPluginInstallPath(homeDir, log);
+  if (pluginPath) return join(pluginPath, 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+  return join(homeDir, '.claude', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+}
+
+/**
+ * Render the managed QE Codex hooks fence block for config.toml.
+ *
+ * @param {string} entryPath - Absolute installed hook entry script path
+ * @returns {string} Multi-line TOML block
+ */
+function renderCodexHooksConfigBlock(entryPath) {
+  return [
+    QE_CODEX_HOOKS_BEGIN,
+    '',
+    '[[hooks.PreToolUse]]',
+    'matcher = "^Bash$"',
+    '',
+    '[[hooks.PreToolUse.hooks]]',
+    'type = "command"',
+    `command = ${quoteToml(`node "${entryPath}"`)}`,
+    'timeout = 30',
+    'statusMessage = "QE safety guard"',
+    '',
+    QE_CODEX_HOOKS_END,
+    '',
+  ].join('\n');
 }
 
 /**
@@ -792,28 +852,32 @@ export function installCodexAssets({
   }
 
   // ----- config.toml fence upsert -----
+  const stamp = backupStamp();
+  const currentConfig = existsSync(codexConfigPath)
+    ? readFileSync(codexConfigPath, 'utf8')
+    : '';
+  if (existsSync(codexConfigPath)) {
+    const backupPath = `${codexConfigPath}.bak-${stamp}`;
+    writeFileSync(backupPath, currentConfig, 'utf8');
+    log(`[codex-install] config.toml backed up -> ${backupPath}`);
+  }
+  const installedHookPath = resolveInstalledCodexHookPath(homeDir, log);
+  const stripped = stripQeHooksFence(stripQeAgentFence(currentConfig));
+  const blocks = [stripped];
   if (agentEntries.length > 0) {
-    // Back up config.toml before editing (idempotent — same stamp each call is fine).
-    const stamp = backupStamp();
-    const currentConfig = existsSync(codexConfigPath)
-      ? readFileSync(codexConfigPath, 'utf8')
-      : '';
-    if (existsSync(codexConfigPath)) {
-      const backupPath = `${codexConfigPath}.bak-${stamp}`;
-      writeFileSync(backupPath, currentConfig, 'utf8');
-      log(`[codex-install] config.toml backed up -> ${backupPath}`);
-    }
-    // Strip existing QE fence (idempotent if absent), then append new fence.
-    const stripped = stripQeAgentFence(currentConfig);
-    const managedBlock = renderCodexAgentConfigBlock(codexAgentsDir, agentEntries);
-    const nextConfig = [stripped, managedBlock]
-      .filter(Boolean)
-      .join('\n\n')
-      .replace(/\n{3,}/g, '\n\n')
-      .trimEnd();
-    writeFileSync(codexConfigPath, `${nextConfig}\n`, 'utf8');
+    blocks.push(renderCodexAgentConfigBlock(codexAgentsDir, agentEntries));
+  }
+  blocks.push(renderCodexHooksConfigBlock(installedHookPath));
+  const nextConfig = blocks
+    .filter(Boolean)
+    .join('\n\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .trimEnd();
+  writeFileSync(codexConfigPath, `${nextConfig}\n`, 'utf8');
+  if (agentEntries.length > 0) {
     log(`[codex-install] config.toml fence upserted (${agentEntries.length} agent entries).`);
   }
+  log('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.');
 
   return { skipped: false, skills: skillCount, agents: agentEntries.length, dryRun: false };
 }
