@@ -25,6 +25,21 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.3.2] - 2026-06-26
+
+### Added
+- Reversible skill demotion mechanism (`scripts/skill-demote.mjs`): move a skill between the active catalog (`skills/`) and `skills-optional/` (outside the plugin's skill globs) and back, with an exact-restore manifest. `--demote` / `--restore` / `--list`. Refuses `tier:core` and INTENT_GATE-routed skills, rejects cross-device moves, and rolls back on a failed manifest write. A self-contained guard covers it.
+- Skill usage telemetry: a per-skill forward invocation counter in the PreToolUse hook plus `scripts/skill-usage-report.mjs` (never-used + frequency report), and `scripts/measure-session-injection.mjs` to measure the SessionStart token footprint.
+
+### Changed
+- **Catalog diet — active skills 183 → 104.** 79 stack-/domain-specific skills (coding-experts languages/backend/frontend/data/infra/ai, plus product-management, design/visual, stitch, research) moved to opt-in `skills-optional/`. They still ship and are restorable via `node scripts/skill-demote.mjs --restore <name>`; cross-cutting quality, workflow, and INTENT_GATE-routed skills stay. Cuts roughly 8,000 tokens from the per-session skill catalog.
+- SessionStart injection slimmed ~50%: the OVERRIDE MAP and OUTPUT STYLE blocks are now compact pointers with fallbacks, and recorded-mistake lines are truncated.
+- PreToolUse command guards are region-aware via a new zero-dependency shell scanner: `git commit`, `gh pr create`, `plugin.json` version writes, and in-place edits fire only on real command invocations, not inside quoted strings, heredoc bodies, or comments (and `bash -c`/substitution/heredoc still block real commits).
+
+### Security
+- Closed a fail-open guard bypass: deeply nested `$(...)` substitution could overflow the command scanner, and the hook's fail-open then disabled all PreToolUse guards. The scanner now caps recursion and fails closed.
+- Closed a path-traversal in the demotion manifest: crafted `originalPath`/`demotedPath` entries could move directories outside the repo or clobber a live skill on restore. Manifest paths are now validated (with symlink resolution) against the catalog and optional roots.
+
 ## [7.3.1] - 2026-06-26
 
 ### Added
