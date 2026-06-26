@@ -16,7 +16,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
-- Codex asset auto-sync: SessionStart now detects when the loaded plugin version is ahead of the version stamped into `~/.codex/.qe-codex-version` and kicks off a fully detached background `installCodexAssets()` re-sync, so Codex-side QE skills/agents follow plugin updates without a manual `/Qupdate`. `installCodexAssets()` writes the version stamp on every run; `~/.codex` absent → no-op (not a Codex user).
 
 ### Changed
 
@@ -25,6 +24,11 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Removed
 
 ### Security
+
+## [7.3.4] - 2026-06-26
+
+### Added
+- Codex asset auto-sync: SessionStart now detects when the loaded plugin version is ahead of the version stamped into `~/.codex/.qe-codex-version` and kicks off a fully detached background `installCodexAssets()` re-sync, so Codex-side QE skills/agents follow plugin updates without a manual `/Qupdate`. `installCodexAssets()` writes the version stamp on every run; `~/.codex` absent → no-op (not a Codex user).
 
 ## [7.3.3] - 2026-06-26
 
