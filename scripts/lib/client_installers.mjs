@@ -879,6 +879,22 @@ export function installCodexAssets({
   }
   log('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.');
 
+  // Record the installed version so SessionStart drift-detection can tell when
+  // the plugin has been updated but Codex assets weren't re-synced yet. The
+  // SessionStart hook reads ~/.codex/.qe-codex-version and, if it lags the
+  // loaded plugin version, kicks off a background re-sync. Best-effort: a
+  // failed stamp just means the next session re-syncs again (idempotent).
+  try {
+    let version = 'unknown';
+    try { version = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version; } catch {}
+    writeFileSync(
+      join(codexDir, '.qe-codex-version'),
+      `${JSON.stringify({ version, ts: new Date().toISOString() })}\n`,
+      'utf8',
+    );
+    log(`[codex-install] version stamp written: ${version}`);
+  } catch { /* stamp is best-effort — never fail the install on it */ }
+
   return { skipped: false, skills: skillCount, agents: agentEntries.length, dryRun: false };
 }
 

@@ -4,7 +4,9 @@
 import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
 import { countInbox as countWikiInbox } from './lib/wiki-status.mjs';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { homedir } from 'os';
+import { pathToFileURL } from 'url';
+import { execSync, spawn } from 'child_process';
 import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
@@ -194,6 +196,36 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
     '/codex:result <job-id> before ending the turn — never leave a Codex result unretrieved. ' +
     'Full rule: QE_CONVENTIONS.md → Codex Runtime Policy.'
   );
+}
+
+// Codex asset auto-sync (drift detection). Claude has no "plugin updated" hook
+// event, so we detect drift at session start instead: when the loaded plugin
+// version (CLAUDE_PLUGIN_ROOT/package.json) is ahead of the version stamped into
+// ~/.codex/.qe-codex-version by the last installCodexAssets() run, the Codex-side
+// QE skills/agents are stale. Kick off a fully detached background re-sync so the
+// Codex target follows the plugin without a manual /Qupdate. Best-effort: never
+// delays or blocks session start; ~/.codex absent → no-op (not a Codex user).
+try {
+  const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
+  const codexDir = join(homedir(), '.codex');
+  if (pluginRoot && existsSync(codexDir)) {
+    let pluginVer = null;
+    try { pluginVer = JSON.parse(readFileSync(join(pluginRoot, 'package.json'), 'utf8')).version; } catch {}
+    let codexVer = null;
+    try { codexVer = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version; } catch {}
+    if (pluginVer && pluginVer !== codexVer) {
+      const installer = join(pluginRoot, 'scripts', 'lib', 'client_installers.mjs');
+      if (existsSync(installer)) {
+        const code = `import(${JSON.stringify(pathToFileURL(installer).href)})`
+          + `.then(m=>m.installCodexAssets()).catch(()=>{})`;
+        const child = spawn(process.execPath, ['-e', code], { detached: true, stdio: 'ignore' });
+        child.unref();
+        messages.push(`[QE] Codex 자산을 v${pluginVer}로 백그라운드 동기화 중 (이전: v${codexVer || 'none'}).`);
+      }
+    }
+  }
+} catch {
+  // Fault tolerance — never block session start on Codex sync housekeeping.
 }
 
 const aiTeamConfigPath = join(cwd, '.qe', 'ai-team', 'config', 'team-config.json');
