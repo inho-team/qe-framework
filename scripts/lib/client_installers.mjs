@@ -943,5 +943,37 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
     ? readdirSync(backupRoot).filter((d) => existsSync(join(backupRoot, d, 'manifest.json'))).sort()
     : [];
   log(`  backups: ${backups.length}${backups.length ? ` (latest: ${backups[backups.length - 1]})` : ''}`);
-  return { mode, version, present, backups: backups.length };
+
+  // Codex drift: cross-check the config.toml QE fence against the .toml files it
+  // references. A fenced agent whose config_file is missing makes Codex log a
+  // "malformed agent role definition" warning per entry. Read-only — surfaces the
+  // exact drift so `qe-framework-install` (now dual-target) can repair it.
+  const codexDir = join(homeDir, '.codex');
+  let codexFenced = 0;
+  let codexMissing = 0;
+  let codexStamp = null;
+  if (existsSync(codexDir)) {
+    const codexConfigPath = join(codexDir, 'config.toml');
+    if (existsSync(codexConfigPath)) {
+      let cfgText = '';
+      try { cfgText = readFileSync(codexConfigPath, 'utf8'); } catch {}
+      const fenced = parseQeAgentFence(cfgText);
+      if (fenced) {
+        codexFenced = fenced.length;
+        codexMissing = fenced.filter((a) => !existsSync(a.configFile)).length;
+      }
+    }
+    try {
+      codexStamp = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version;
+    } catch { /* stamp absent → never synced (or externally cleared) */ }
+    log('  codex:');
+    log(`    version stamp: ${codexStamp || 'none'}`);
+    log(`    fenced agents: ${codexFenced}`);
+    if (codexMissing > 0) {
+      log(`    ⚠ ${codexMissing} fenced agent(s) reference a missing .toml — run qe-framework-install to repair`);
+    } else if (codexFenced > 0) {
+      log('    all fenced agents resolve ✓');
+    }
+  }
+  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp };
 }
