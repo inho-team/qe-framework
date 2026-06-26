@@ -173,6 +173,24 @@ for (const [bad, label] of [
   finally { cleanup(root); }
 }
 
+// 13. INTENT_GATE route target refusal (exact + wildcard); non-routed still demotable
+{
+  const root = mkFixture(); const cfg = makeConfig(root);
+  try {
+    mkdirSync(join(root, 'core'), { recursive: true });
+    writeFileSync(join(root, 'core', 'INTENT_GATE.md'),
+      '| Intent | Keywords | Routing Target |\n|---|---|---|\n| design | ui | Qflat |\n| nested | x | Qnest* |\n');
+    throws(() => demote('Qflat', cfg), /INTENT_GATE/, '[route] exact route target not refused');
+    // Qnested matches wildcard Qnes-*
+    throws(() => demote('Qnested', cfg), /INTENT_GATE/, '[route] wildcard route target not refused');
+    // a skill with no route is still demotable (Qcoreskill is core → use a fresh non-routed one)
+    mkdirSync(join(root, 'skills', 'Qfree'), { recursive: true });
+    writeFileSync(join(root, 'skills', 'Qfree', 'SKILL.md'), '---\nname: x\n---\nbody');
+    const d = demote('Qfree', cfg);
+    expect(d.base === 'Qfree', '[route] non-routed skill wrongly refused');
+  } finally { cleanup(root); }
+}
+
 if (failures.length) {
   console.error('check-skill-demote: FAIL');
   for (const f of failures) console.error(`  ✗ ${f}`);

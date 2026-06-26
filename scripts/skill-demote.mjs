@@ -51,9 +51,42 @@ export function makeConfig(repoRoot, overrides = {}) {
     pluginJsonPath: overrides.pluginJsonPath || join(repoRoot, '.claude-plugin', 'plugin.json'),
     optionalDir: overrides.optionalDir || join(repoRoot, OPTIONAL_DIR),
     manifestPath: overrides.manifestPath || join(repoRoot, OPTIONAL_DIR, 'DEMOTED.json'),
+    intentGatePath: overrides.intentGatePath || join(repoRoot, 'core', 'INTENT_GATE.md'),
     rename: overrides.rename || renameSync,
     writeManifest: overrides.writeManifest || writeFileSync,
   };
+}
+
+/**
+ * Parse the routing targets declared in core/INTENT_GATE.md (3rd table column).
+ * Mirrors check-skill-routing.mjs extraction: multi-target cells split on '/',
+ * markdown/bold/parenthetical stripped, wildcard '*' preserved. Returns a Set of
+ * target strings (e.g. "Qcommit", "Qgrad-*"). Empty set if the file is absent.
+ */
+export function intentGateTargets(cfg) {
+  let content;
+  try { content = readFileSync(cfg.intentGatePath, 'utf8'); } catch { return new Set(); }
+  const targets = new Set();
+  const rowRe = /^\|[^|]+\|[^|]+\|([^|]+)\|/gm;
+  let m;
+  while ((m = rowRe.exec(content)) !== null) {
+    const cell = m[1].trim();
+    if (cell === 'Routing Target' || cell.startsWith('---') || cell.startsWith('Refer to')) continue;
+    for (const part of cell.split('/').map((p) => p.trim()).filter(Boolean)) {
+      let clean = part.replace(/`/g, '').replace(/\s+\(.*\)$/, '').replace(/\*\*/g, '').trim();
+      if (clean && /^[A-Za-z]/.test(clean)) targets.add(clean);
+    }
+  }
+  return targets;
+}
+
+/** Is `name` an INTENT_GATE route target — exact or via a wildcard prefix (Qgrad-*)? */
+export function isRoutedTarget(name, targets) {
+  for (const t of targets) {
+    if (t.includes('*')) { if (name.startsWith(t.replace(/\*/g, ''))) return true; }
+    else if (t === name) return true;
+  }
+  return false;
 }
 
 /** Resolve the 8 catalog root directories declared in plugin.json (absolute). */
@@ -179,6 +212,12 @@ export function demote(arg, cfg) {
 
   if (tierOf(join(srcAbs, 'SKILL.md')) === 'core') {
     throw new DemoteError(`refusing to demote a tier:core skill: ${base}`);
+  }
+  // Refuse skills that are INTENT_GATE auto-routing targets — demoting them
+  // creates dangling routes (caught by check-skill-routing). Same protective
+  // intent as the tier:core refusal. Remove the route first, or keep it cataloged.
+  if (isRoutedTarget(base, intentGateTargets(cfg))) {
+    throw new DemoteError(`refusing to demote an INTENT_GATE route target: ${base} (it is auto-routed; remove its route in core/INTENT_GATE.md first, or keep it in the catalog)`);
   }
   const manifest = loadManifest(cfg);
   if (manifest.demoted[base]) throw new DemoteError(`already demoted: ${base}`);
