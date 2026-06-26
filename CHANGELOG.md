@@ -18,14 +18,20 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Added
 
 ### Changed
-- `Qupdate` is now the single update entry point. It updates the framework body (Claude + Codex assets) and also checks/installs/updates the codex-plugin-cc bridge — work previously split across `Qupdate` and `QCodexUpdate`. It also documents the native `claude plugin update qe-framework` path for plugin-mode installs.
 
 ### Fixed
 
 ### Removed
-- `QCodexUpdate` skill. Its codex-plugin-cc check/install/update flow is absorbed into `/Qupdate`. References in `Qsivs-config`, `Qinit`, and `Qplan` now point to `/Qupdate`.
 
 ### Security
+
+## [7.3.7] - 2026-06-26
+
+### Changed
+- `Qupdate` is now the single update entry point. It updates the framework body (Claude + Codex assets) and also checks/installs/updates the codex-plugin-cc bridge — work previously split across `Qupdate` and `QCodexUpdate`. It also documents the native `claude plugin update qe-framework` path for plugin-mode installs.
+
+### Removed
+- `QCodexUpdate` skill. Its codex-plugin-cc check/install/update flow is absorbed into `/Qupdate`. References in `Qsivs-config`, `Qinit`, and `Qplan` now point to `/Qupdate`.
 
 ## [7.3.6] - 2026-06-26
 
