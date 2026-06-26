@@ -43,8 +43,7 @@
 | `/Qmcp-sync` | When MCP settings should be shared across Claude, Codex, and Gemini. | Keeps one QE-managed MCP registry and syncs clients from it. |
 | `/Qsecret` | When API keys or tokens must be stored or used safely. | Keeps plaintext secrets out of the repo while supporting secure env injection. |
 | `/Qissue` | When the user wants to file a bug report, feature request, or question against the qe-framework repo. | Single-command issue filing via `gh` CLI with one-time PAT onboarding. |
-| `/Qupdate` | When the QE framework or its components need updating. | Chooses the right update path for Claude plugin, Codex/npm, or local repo installs. |
-| `/QCodexUpdate` | When checking or updating the Codex plugin. | Checks codex-plugin-cc version and updates if outdated. |
+| `/Qupdate` | When the QE framework, its Codex assets, or the codex-plugin-cc bridge need updating. | One command: updates the framework body (Claude + Codex) and checks/updates the codex-plugin-cc bridge. |
 | `/Qmistake` | When user points out a mistake or corrects behavior. | Records to .qe/MISTAKE.md, loaded every session start. |
 | `/Qversion` | When you need to check the current framework version. | Displays version info and recent changelog. |
 | `/Qsivs-config` | When you need to view or change SIVS engine routing (claude/codex per stage). | CLI-style config manager for `.qe/sivs-config.json`. |

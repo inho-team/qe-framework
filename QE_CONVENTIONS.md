@@ -263,7 +263,7 @@ These skills are optimized for common workflows and consistently outperform gene
 |-------|---------|
 | `Qhelp` | Show QE Framework usage overview |
 | `Qversion` | Show current plugin version |
-| `Qupdate` | Update QE Framework to latest |
+| `Qupdate` | Update everything QE — framework body (Claude + Codex) + codex-plugin-cc bridge |
 | `Qinit` | Initial setup and directory structure |
 | `Qplan` | Strategic roadmap and phase management (.qe/planning/) |
 | `Qrefresh` | Refresh project analysis data |
@@ -285,7 +285,6 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
 | `Qprofile` | Analyze user patterns and style |
 | `Qutopia` | Fully autonomous execution mode |
-| `QCodexUpdate` | Check/update codex-plugin-cc plugin |
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |
 | `Qgc` | Code garbage collection (drift, violations, dead code) |
 | `Mrefactor-agent-md` | Refactor bloated instruction files |

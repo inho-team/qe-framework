@@ -55,7 +55,7 @@
     "lesson-learned/lessons/retrospective": "Qlesson-learned",
     "compact/save-context": "Qcompact",
     "utopia/autonomous": "Qutopia",
-    "update-plugin/upgrade-qe": "Qupdate",
+    "update-plugin/upgrade-qe/update-codex/codex-plugin": "Qupdate",
     "migrate-tasks/reorganize-tasks": "Mmigrate-tasks",
     "refactor-instructions/split-CLAUDE.md": "Mrefactor-agent-md",
     "jira/jira-ticket/sprint-manage": "Qjira-cli",

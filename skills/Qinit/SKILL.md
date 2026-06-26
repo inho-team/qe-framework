@@ -55,7 +55,7 @@ node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await
 - If `installed: true`: Display "Codex 플러그인 v{version} 감지됨" before the options.
 - If `installed: false`: Display "Codex 플러그인 미설치 (Hybrid 선택 시 설치 안내)" before the options.
 - If the command fails or the script is missing: Treat as `installed: false`.
-- If installed > 30 days ago (compare `installedAt`): Append "Run `/QCodexUpdate` to check for updates."
+- If installed > 30 days ago (compare `installedAt`): Append "Run `/Qupdate` to check for updates."
 
 After running the detection command and displaying the result, ask the user to configure SIVS engine routing.
 

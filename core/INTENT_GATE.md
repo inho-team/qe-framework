@@ -18,7 +18,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Documentation** | "docs", "explain", "README", "document" | Ecode-doc-writer |
 | **Commit** | "commit", "save", "push" | Qcommit |
 | **Refresh** | "refresh", "sync", "latest" | Qrefresh |
-| **Plugin update** | "update plugin", "upgrade", "update qe" | Qupdate |
+| **Plugin update** | "update plugin", "upgrade", "update qe", "update codex", "codex plugin" | Qupdate |
 | **Utopia mode** | "utopia", "autonomous", "no questions", "auto execute" | Qutopia |
 | **Help** | "help", "how to use", "show commands", "what can you do" | Qhelp |
 | **Resume** | "continue", "resume", "restore" | Qresume |

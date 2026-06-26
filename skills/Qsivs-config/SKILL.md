@@ -190,6 +190,6 @@ Schema:      core/schemas/svs-config.schema.json
 - Show help on `--help` or invalid input
 
 ## Will Not
-- Install or manage codex-plugin-cc (use `/QCodexUpdate` for that)
+- Install or manage codex-plugin-cc (use `/Qupdate` for that)
 - Modify any files other than `.qe/sivs-config.json`
 - Auto-assign models or effort levels without user instruction
