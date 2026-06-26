@@ -28,20 +28,27 @@ Uninstall with:
 qe-framework-uninstall
 ```
 
-The install targets Claude only:
+The install is **dual-target** — it installs into both Claude and Codex:
 
-- installs QE skills, agents, core, hooks, and scripts under `~/.claude` (as a plugin, or standalone)
-- does **not** copy anything into `~/.codex`
+- **Claude**: QE skills, agents, core, hooks, and scripts under `~/.claude` (as a plugin, or standalone).
+- **Codex** (when `~/.codex` exists): QE skills → `~/.codex/skills`, agents → `~/.codex/agents/*.toml`,
+  a managed agent fence + a `[[hooks.PreToolUse]]` safety-hook fence in `~/.codex/config.toml`.
+  Skipped silently if you are not a Codex user (`~/.codex` absent).
 
-Codex is supported as an **engine**, not a native install target. Route individual
-SIVS stages (Spec / Implement / Verify / Supervise) to Codex via the optional
-`codex-plugin-cc` plugin and `/Qsivs-config` — there is no QE skill/agent install
-inside `~/.codex`.
+After a Codex install, run `/hooks` inside Codex once to **review and approve** the QE
+safety hook (Codex requires you to trust hook definitions; the installer never auto-bypasses).
 
-> If an older (pre-v4.0) QE version once copied skills/agents into `~/.codex`,
-> `qe-framework-uninstall --purge-codex` removes those leftovers (skills matched by
-> a name manifest, agents by the `config.toml` QE fence). A plain `qe-framework-uninstall`
-> only reports them (dry-run) and never deletes non-QE content.
+**Parity ceiling (honest):**
+- ✅ Full parity: skill/agent install, and the safety guards (raw `git commit`, `gh pr create`,
+  in-place `sed -i`, direct `plugin.json` version writes) block on Codex exactly as on Claude.
+- ⚠️ Degrades: skills that delegate to E-agents run **inline** on Codex — Codex only spawns
+  sub-agents on explicit request (`/agent`), not via automatic skill delegation. The agents are
+  installed and available for manual `/agent` invocation.
+- You can still route individual SIVS stages to Codex as an **engine** via `codex-plugin-cc` + `/Qsivs-config`.
+
+> `qe-framework-uninstall` removes the Claude assets and (with `--purge-codex`) the Codex
+> assets too — skills matched by a name manifest, agents + hook fence by their managed fences.
+> A plain uninstall reports Codex orphans (dry-run) and never deletes non-QE content.
 
 ## 2. Initialize a Project
 

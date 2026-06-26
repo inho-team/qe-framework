@@ -55,14 +55,19 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-安装仅作用于 Claude（`~/.claude`），不会向 `~/.codex` 复制任何内容。
+安装是 **dual-target** 的——同时安装到 Claude 和 Codex。
 
-Codex 不是原生安装目标，而是作为**引擎**受支持。可通过可选的 `codex-plugin-cc`
-插件与 `/Qsivs-config` 将各 SIVS 阶段（Spec/Implement/Verify/Supervise）路由到 Codex。
+- **Claude**：skill、agent、core、hooks、scripts 安装到 `~/.claude`。
+- **Codex**（存在 `~/.codex` 时）：skill→`~/.codex/skills`，agent→`~/.codex/agents/*.toml`，
+  并在 `~/.codex/config.toml` 写入 agent fence 与 `[[hooks.PreToolUse]]` 安全钩子 fence。
+  非 Codex 用户（无 `~/.codex`）则静默跳过。安装后需在 Codex 中运行 `/hooks` 审批一次安全钩子。
 
-> 若旧版本（v4.0 之前）的 QE 曾向 `~/.codex` 复制过 skill/agent，可用
-> `qe-framework-uninstall --purge-codex` 清理这些残留（默认 uninstall 仅以 dry-run 方式
-> 报告，绝不删除非 QE 内容）。
+**诚实的上限**：✅ 安装与安全防护（拦截 raw git commit、gh pr create、sed -i、直接写 plugin.json 版本）
+与 Claude 完全一致。⚠️ 委派给 E-agent 的 skill 在 Codex 上**内联降级**（Codex 仅在显式 `/agent`
+时才 spawn 子代理，无自动委派）。也可通过 `codex-plugin-cc`+`/Qsivs-config` 将 SIVS 阶段路由到 Codex **引擎**。
+
+> `qe-framework-uninstall` 移除 Claude 资产；加 `--purge-codex` 时一并移除 Codex 资产
+> （默认仅 dry-run 报告，绝不删除非 QE 内容）。
 
 2. 初始化项目
 

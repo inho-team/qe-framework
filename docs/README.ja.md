@@ -63,15 +63,20 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-インストールは Claude（`~/.claude`）にのみ適用され、`~/.codex` には何もコピーしません。
+インストールは **dual-target** で、Claude と Codex の両方にインストールします。
 
-Codex はネイティブなインストール対象ではなく、**エンジン**として対応しています。
-オプションの `codex-plugin-cc` プラグインと `/Qsivs-config` で、各 SIVS ステージ
-（Spec/Implement/Verify/Supervise）を Codex にルーティングできます。
+- **Claude**: skill・agent・core・hooks・scripts を `~/.claude` に。
+- **Codex**（`~/.codex` がある場合）: skill→`~/.codex/skills`、agent→`~/.codex/agents/*.toml`、
+  `~/.codex/config.toml` に agent fence と `[[hooks.PreToolUse]]` セーフティフック fence。
+  Codex 非ユーザー（`~/.codex` 不在）は静かにスキップ。インストール後に Codex で `/hooks` を実行しフックを一度承認します。
 
-> 旧バージョン（v4.0 以前）の QE が `~/.codex` に残した skill/agent は
-> `qe-framework-uninstall --purge-codex` で整理できます（通常の uninstall は dry-run で
-> 報告するのみで、QE 以外の資産は削除しません）。
+**正直な上限**: ✅ インストールとセーフティガード（raw git commit・gh pr create・sed -i・plugin.json の
+直接バージョン書き込みのブロック）は Claude と完全に同一。⚠️ E-agent へ委譲する skill は Codex 上で
+**インライン降格**（Codex は明示的な `/agent` 時のみサブエージェントを spawn、自動委譲なし）。
+SIVS ステージを Codex **エンジン**へルーティングするのも `codex-plugin-cc`+`/Qsivs-config` で可能。
+
+> `qe-framework-uninstall` は Claude 資産を、`--purge-codex` 付きなら Codex 資産も削除します
+> （デフォルトは dry-run 報告のみ、QE 以外の資産は保持）。
 
 2. プロジェクトを初期化
 

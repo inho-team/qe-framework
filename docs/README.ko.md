@@ -66,14 +66,19 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-설치는 Claude(`~/.claude`)에만 적용됩니다. `~/.codex`로는 아무것도 복사하지 않습니다.
+설치는 **dual-target**입니다 — Claude와 Codex 양쪽에 설치됩니다.
 
-Codex는 네이티브 설치 대상이 아니라 **엔진**으로 지원됩니다. `codex-plugin-cc`
-플러그인과 `/Qsivs-config`로 각 SIVS 단계(Spec/Implement/Verify/Supervise)를
-Codex에 라우팅할 수 있습니다.
+- **Claude**: 스킬·에이전트·core·hooks·scripts를 `~/.claude`에 설치.
+- **Codex**(`~/.codex` 존재 시): 스킬→`~/.codex/skills`, 에이전트→`~/.codex/agents/*.toml`,
+  `~/.codex/config.toml`에 에이전트 fence + `[[hooks.PreToolUse]]` 안전훅 fence. Codex 사용자가
+  아니면(`~/.codex` 없음) 조용히 skip. 설치 후 Codex에서 `/hooks`로 안전훅을 1회 승인해야 합니다.
 
-> 구버전(pre-v4.0) QE가 `~/.codex`에 남긴 잔재는 `qe-framework-uninstall --purge-codex`로
-> 정리할 수 있습니다(기본 uninstall은 dry-run 보고만, 비-QE 자산은 보존).
+**정직한 천장**: ✅ 설치 + 안전가드(raw git commit·gh pr create·sed -i·plugin.json 버전쓰기 차단)는
+Claude와 완전 동일. ⚠️ E-에이전트 위임 스킬은 Codex에서 **인라인 degrade**(Codex는 명시적 `/agent`로만
+서브에이전트 spawn, 자동 위임 없음). SIVS 단계를 Codex **엔진**으로 라우팅하는 것도 `codex-plugin-cc`+`/Qsivs-config`로 가능.
+
+> `qe-framework-uninstall`은 Claude 자산을, `--purge-codex`와 함께면 Codex 자산까지 제거합니다
+> (기본은 dry-run 보고만, 비-QE 자산 보존).
 
 2. 프로젝트 초기화
 
