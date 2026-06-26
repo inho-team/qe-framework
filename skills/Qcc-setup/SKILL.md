@@ -1,15 +1,15 @@
 ---
 name: Qcc-setup
-description: 'Sets up Claude Code shell aliases (cc, ccc, ccd) for quick terminal launch. Supports macOS/Linux (zsh/bash) and Windows (PowerShell). Use when the user wants "claude shortcut", "cc alias", "shell alias setup", or "terminal shortcut".'
+description: 'Sets up Claude Code and Codex shell aliases (cc, ccc, ccd, cx, cxd) for quick terminal launch. Supports macOS/Linux (zsh/bash) and Windows (PowerShell). Use when the user wants "claude shortcut", "codex shortcut", "cc alias", "cx alias", "shell alias setup", or "terminal shortcut".'
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku
 ---
 
 
-# Qcc-setup — Claude Code Shell Alias Setup
+# Qcc-setup — Claude Code & Codex Shell Alias Setup
 
 ## Role
-Registers shell aliases so users can launch Claude Code with short commands instead of typing the full command each time.
+Registers shell aliases so users can launch Claude Code and Codex with short commands instead of typing the full command each time.
 
 ## Aliases
 
@@ -18,6 +18,12 @@ Registers shell aliases so users can launch Claude Code with short commands inst
 | `cc` | `claude` | Launch Claude Code |
 | `ccc` | `claude --chrome` | Chrome browser integration mode |
 | `ccd` | `claude --dangerously-skip-permissions --chrome` | Skip permissions + Chrome integration |
+| `cx` | `codex` | Launch Codex |
+| `cxd` | `codex --dangerously-bypass-approvals-and-sandbox` | Skip all approvals + sandbox (Codex equivalent of `ccd`) |
+
+> Codex has no `--chrome` equivalent, so there is no `cxc`. The bypass flag is
+> `--dangerously-bypass-approvals-and-sandbox` (EXTREMELY DANGEROUS — only for externally
+> sandboxed environments). Confirm with the user before adding `cxd`.
 
 ## Workflow
 
@@ -39,7 +45,7 @@ Registers shell aliases so users can launch Claude Code with short commands inst
 
 #### Check for Existing Aliases
 1. Read the target config file
-2. Search for existing `alias cc=`, `alias ccc=`, `alias ccd=` lines
+2. Search for existing `alias cc=`, `alias ccc=`, `alias ccd=`, `alias cx=`, `alias cxd=` lines
 3. If any exist, inform the user and ask whether to overwrite or skip
 
 #### Append Aliases
@@ -50,6 +56,9 @@ Add the following block to the end of the config file:
 alias cc="claude"
 alias ccc="claude --chrome"
 alias ccd="claude --dangerously-skip-permissions --chrome"
+# Codex shortcuts
+alias cx="codex"
+alias cxd="codex --dangerously-bypass-approvals-and-sandbox"
 ```
 
 For **fish** shell, use:
@@ -58,6 +67,9 @@ For **fish** shell, use:
 abbr -a cc claude
 abbr -a ccc claude --chrome
 abbr -a ccd claude --dangerously-skip-permissions --chrome
+# Codex shortcuts
+abbr -a cx codex
+abbr -a cxd codex --dangerously-bypass-approvals-and-sandbox
 ```
 
 #### Apply
@@ -71,7 +83,7 @@ Run `source <config-file>` to apply immediately.
 
 #### Check for Existing Aliases
 1. Read the profile file
-2. Search for existing `function cc`, `function ccc`, `function ccd` definitions
+2. Search for existing `function cc`, `function ccc`, `function ccd`, `function cx`, `function cxd` definitions
 3. If any exist, inform the user and ask whether to overwrite or skip
 
 #### Append Functions
@@ -82,6 +94,9 @@ Add the following block to the end of the profile file:
 function cc { claude $args }
 function ccc { claude --chrome $args }
 function ccd { claude --dangerously-skip-permissions --chrome $args }
+# Codex shortcuts
+function cx { codex $args }
+function cxd { codex --dangerously-bypass-approvals-and-sandbox $args }
 ```
 
 > Note: PowerShell `Set-Alias` cannot pass arguments, so `function` is used instead.
@@ -94,11 +109,13 @@ Run `. $PROFILE` to apply immediately.
 After successful setup, display:
 
 ```
-Claude Code shortcuts installed!
+Claude Code & Codex shortcuts installed!
 
   cc  → claude
   ccc → claude --chrome
   ccd → claude --dangerously-skip-permissions --chrome
+  cx  → codex
+  cxd → codex --dangerously-bypass-approvals-and-sandbox
 
 Restart your terminal or run `source <config>` to apply.
 ```
@@ -106,11 +123,11 @@ Restart your terminal or run `source <config>` to apply.
 ## Will
 - Detect OS and shell automatically
 - Check for duplicate aliases before adding
-- Add aliases to the appropriate config file
+- Add Claude Code and Codex aliases to the appropriate config file
 - Apply changes immediately
 
 ## Will Not
-- Modify aliases unrelated to Claude Code
+- Modify aliases unrelated to Claude Code or Codex
 - Remove existing user aliases
 - Add aliases without user confirmation
 - Change shell settings beyond alias registration

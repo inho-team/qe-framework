@@ -275,7 +275,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qcommit` | Human-style git commit (no AI traces) |
 | `Mbump` | Bump plugin version (major/minor/patch) |
 | `Qalias` | Define path/command shortcuts |
-| `Qcc-setup` | Shell alias setup (cc, ccc, ccd) |
+| `Qcc-setup` | Shell alias setup for Claude & Codex (cc, ccc, ccd, cx, cxd) |
 | `Qcommand-creator` | Create slash commands |
 | `Mcreate-skill` | Create/edit/optimize/diagnose skills |
 | `Mcreate-agent` | Create new background agents (E-prefix) |
