@@ -1,4 +1,245 @@
 {
   "version": 1,
-  "demoted": {}
+  "demoted": {
+    "Qangular-architect": {
+      "originalPath": "skills/coding-experts/frontend/Qangular-architect",
+      "demotedPath": "skills-optional/Qangular-architect"
+    },
+    "Qapi-designer": {
+      "originalPath": "skills/coding-experts/backend/Qapi-designer",
+      "demotedPath": "skills-optional/Qapi-designer"
+    },
+    "Qarchitecture-designer": {
+      "originalPath": "skills/coding-experts/backend/Qarchitecture-designer",
+      "demotedPath": "skills-optional/Qarchitecture-designer"
+    },
+    "Qatlassian-mcp": {
+      "originalPath": "skills/coding-experts/infra/Qatlassian-mcp",
+      "demotedPath": "skills-optional/Qatlassian-mcp"
+    },
+    "Qchaos-engineer": {
+      "originalPath": "skills/coding-experts/infra/Qchaos-engineer",
+      "demotedPath": "skills-optional/Qchaos-engineer"
+    },
+    "Qcli-developer": {
+      "originalPath": "skills/coding-experts/infra/Qcli-developer",
+      "demotedPath": "skills-optional/Qcli-developer"
+    },
+    "Qcloud-architect": {
+      "originalPath": "skills/coding-experts/infra/Qcloud-architect",
+      "demotedPath": "skills-optional/Qcloud-architect"
+    },
+    "Qcpp-pro": {
+      "originalPath": "skills/coding-experts/languages/Qcpp-pro",
+      "demotedPath": "skills-optional/Qcpp-pro"
+    },
+    "Qcsharp-developer": {
+      "originalPath": "skills/coding-experts/languages/Qcsharp-developer",
+      "demotedPath": "skills-optional/Qcsharp-developer"
+    },
+    "Qdatabase-optimizer": {
+      "originalPath": "skills/coding-experts/infra/Qdatabase-optimizer",
+      "demotedPath": "skills-optional/Qdatabase-optimizer"
+    },
+    "Qdevops-engineer": {
+      "originalPath": "skills/coding-experts/infra/Qdevops-engineer",
+      "demotedPath": "skills-optional/Qdevops-engineer"
+    },
+    "Qdjango-expert": {
+      "originalPath": "skills/coding-experts/backend/Qdjango-expert",
+      "demotedPath": "skills-optional/Qdjango-expert"
+    },
+    "Qembedded-systems": {
+      "originalPath": "skills/coding-experts/languages/Qembedded-systems",
+      "demotedPath": "skills-optional/Qembedded-systems"
+    },
+    "Qfastapi-expert": {
+      "originalPath": "skills/coding-experts/backend/Qfastapi-expert",
+      "demotedPath": "skills-optional/Qfastapi-expert"
+    },
+    "Qfine-tuning-expert": {
+      "originalPath": "skills/coding-experts/data/Qfine-tuning-expert",
+      "demotedPath": "skills-optional/Qfine-tuning-expert"
+    },
+    "Qflutter-expert": {
+      "originalPath": "skills/coding-experts/frontend/Qflutter-expert",
+      "demotedPath": "skills-optional/Qflutter-expert"
+    },
+    "Qgame-developer": {
+      "originalPath": "skills/coding-experts/frontend/Qgame-developer",
+      "demotedPath": "skills-optional/Qgame-developer"
+    },
+    "Qgolang": {
+      "originalPath": "skills/coding-experts/languages/Qgolang",
+      "demotedPath": "skills-optional/Qgolang"
+    },
+    "Qgolang-pro": {
+      "originalPath": "skills/coding-experts/languages/Qgolang-pro",
+      "demotedPath": "skills-optional/Qgolang-pro"
+    },
+    "Qgraphql-architect": {
+      "originalPath": "skills/coding-experts/backend/Qgraphql-architect",
+      "demotedPath": "skills-optional/Qgraphql-architect"
+    },
+    "Qjava-architect": {
+      "originalPath": "skills/coding-experts/languages/Qjava-architect",
+      "demotedPath": "skills-optional/Qjava-architect"
+    },
+    "Qjs-ts-expert": {
+      "originalPath": "skills/coding-experts/languages/Qjs-ts-expert",
+      "demotedPath": "skills-optional/Qjs-ts-expert"
+    },
+    "Qkotlin-specialist": {
+      "originalPath": "skills/coding-experts/languages/Qkotlin-specialist",
+      "demotedPath": "skills-optional/Qkotlin-specialist"
+    },
+    "Qkubernetes-specialist": {
+      "originalPath": "skills/coding-experts/infra/Qkubernetes-specialist",
+      "demotedPath": "skills-optional/Qkubernetes-specialist"
+    },
+    "Qlangchain-specialist": {
+      "originalPath": "skills/coding-experts/ai/Qlangchain-specialist",
+      "demotedPath": "skills-optional/Qlangchain-specialist"
+    },
+    "Qlaravel-specialist": {
+      "originalPath": "skills/coding-experts/backend/Qlaravel-specialist",
+      "demotedPath": "skills-optional/Qlaravel-specialist"
+    },
+    "Qlegacy-modernizer": {
+      "originalPath": "skills/coding-experts/backend/Qlegacy-modernizer",
+      "demotedPath": "skills-optional/Qlegacy-modernizer"
+    },
+    "Qlocal-llm-setup": {
+      "originalPath": "skills/coding-experts/ai/Qlocal-llm-setup",
+      "demotedPath": "skills-optional/Qlocal-llm-setup"
+    },
+    "Qmcp-developer": {
+      "originalPath": "skills/coding-experts/backend/Qmcp-developer",
+      "demotedPath": "skills-optional/Qmcp-developer"
+    },
+    "Qmicroservices-architect": {
+      "originalPath": "skills/coding-experts/backend/Qmicroservices-architect",
+      "demotedPath": "skills-optional/Qmicroservices-architect"
+    },
+    "Qml-pipeline": {
+      "originalPath": "skills/coding-experts/data/Qml-pipeline",
+      "demotedPath": "skills-optional/Qml-pipeline"
+    },
+    "Qmonitoring-expert": {
+      "originalPath": "skills/coding-experts/infra/Qmonitoring-expert",
+      "demotedPath": "skills-optional/Qmonitoring-expert"
+    },
+    "Qnestjs-expert": {
+      "originalPath": "skills/coding-experts/backend/Qnestjs-expert",
+      "demotedPath": "skills-optional/Qnestjs-expert"
+    },
+    "Qnextjs-developer": {
+      "originalPath": "skills/coding-experts/frontend/Qnextjs-developer",
+      "demotedPath": "skills-optional/Qnextjs-developer"
+    },
+    "Qpandas-pro": {
+      "originalPath": "skills/coding-experts/data/Qpandas-pro",
+      "demotedPath": "skills-optional/Qpandas-pro"
+    },
+    "Qphp-pro": {
+      "originalPath": "skills/coding-experts/languages/Qphp-pro",
+      "demotedPath": "skills-optional/Qphp-pro"
+    },
+    "Qpostgres-pro": {
+      "originalPath": "skills/coding-experts/infra/Qpostgres-pro",
+      "demotedPath": "skills-optional/Qpostgres-pro"
+    },
+    "Qprompt-engineer": {
+      "originalPath": "skills/coding-experts/ai/Qprompt-engineer",
+      "demotedPath": "skills-optional/Qprompt-engineer"
+    },
+    "Qpython-pro": {
+      "originalPath": "skills/coding-experts/languages/Qpython-pro",
+      "demotedPath": "skills-optional/Qpython-pro"
+    },
+    "Qrag-architect": {
+      "originalPath": "skills/coding-experts/data/Qrag-architect",
+      "demotedPath": "skills-optional/Qrag-architect"
+    },
+    "Qrails-expert": {
+      "originalPath": "skills/coding-experts/backend/Qrails-expert",
+      "demotedPath": "skills-optional/Qrails-expert"
+    },
+    "Qreact-best-practices": {
+      "originalPath": "skills/coding-experts/frontend/Qreact-best-practices",
+      "demotedPath": "skills-optional/Qreact-best-practices"
+    },
+    "Qreact-expert": {
+      "originalPath": "skills/coding-experts/frontend/Qreact-expert",
+      "demotedPath": "skills-optional/Qreact-expert"
+    },
+    "Qreact-native-expert": {
+      "originalPath": "skills/coding-experts/frontend/Qreact-native-expert",
+      "demotedPath": "skills-optional/Qreact-native-expert"
+    },
+    "Qrust-engineer": {
+      "originalPath": "skills/coding-experts/languages/Qrust-engineer",
+      "demotedPath": "skills-optional/Qrust-engineer"
+    },
+    "Qsalesforce-developer": {
+      "originalPath": "skills/coding-experts/infra/Qsalesforce-developer",
+      "demotedPath": "skills-optional/Qsalesforce-developer"
+    },
+    "Qshopify-expert": {
+      "originalPath": "skills/coding-experts/infra/Qshopify-expert",
+      "demotedPath": "skills-optional/Qshopify-expert"
+    },
+    "Qspark-engineer": {
+      "originalPath": "skills/coding-experts/data/Qspark-engineer",
+      "demotedPath": "skills-optional/Qspark-engineer"
+    },
+    "Qspring-boot-engineer": {
+      "originalPath": "skills/coding-experts/backend/Qspring-boot-engineer",
+      "demotedPath": "skills-optional/Qspring-boot-engineer"
+    },
+    "Qsql-pro": {
+      "originalPath": "skills/coding-experts/languages/Qsql-pro",
+      "demotedPath": "skills-optional/Qsql-pro"
+    },
+    "Qsre-engineer": {
+      "originalPath": "skills/coding-experts/infra/Qsre-engineer",
+      "demotedPath": "skills-optional/Qsre-engineer"
+    },
+    "Qswift-expert": {
+      "originalPath": "skills/coding-experts/languages/Qswift-expert",
+      "demotedPath": "skills-optional/Qswift-expert"
+    },
+    "Qterraform-engineer": {
+      "originalPath": "skills/coding-experts/infra/Qterraform-engineer",
+      "demotedPath": "skills-optional/Qterraform-engineer"
+    },
+    "Qvite": {
+      "originalPath": "skills/coding-experts/frontend/Qvite",
+      "demotedPath": "skills-optional/Qvite"
+    },
+    "Qvlm-specialist": {
+      "originalPath": "skills/coding-experts/ai/Qvlm-specialist",
+      "demotedPath": "skills-optional/Qvlm-specialist"
+    },
+    "Qvue-best-practices": {
+      "originalPath": "skills/coding-experts/frontend/Qvue-best-practices",
+      "demotedPath": "skills-optional/Qvue-best-practices"
+    },
+    "Qvue-expert": {
+      "originalPath": "skills/coding-experts/frontend/Qvue-expert",
+      "demotedPath": "skills-optional/Qvue-expert"
+    },
+    "Qvue-expert-js": {
+      "originalPath": "skills/coding-experts/frontend/Qvue-expert-js",
+      "demotedPath": "skills-optional/Qvue-expert-js"
+    },
+    "Qwebsocket-engineer": {
+      "originalPath": "skills/coding-experts/backend/Qwebsocket-engineer",
+      "demotedPath": "skills-optional/Qwebsocket-engineer"
+    },
+    "Qwordpress-pro": {
+      "originalPath": "skills/coding-experts/infra/Qwordpress-pro",
+      "demotedPath": "skills-optional/Qwordpress-pro"
+    }
+  }
 }
