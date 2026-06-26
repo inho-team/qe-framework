@@ -16,7 +16,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
-- `Qcc-setup` now also installs Codex launcher aliases: `cx` (`codex`) and `cxd` (`codex --dangerously-bypass-approvals-and-sandbox`, the Codex equivalent of `ccd`). Covers zsh/bash/fish and PowerShell. Codex has no `--chrome` flag, so there is no `cxc`.
 
 ### Changed
 
@@ -25,6 +24,11 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Removed
 
 ### Security
+
+## [7.3.8] - 2026-06-26
+
+### Added
+- `Qcc-setup` now also installs Codex launcher aliases: `cx` (`codex`) and `cxd` (`codex --dangerously-bypass-approvals-and-sandbox`, the Codex equivalent of `ccd`). Covers zsh/bash/fish and PowerShell. Codex has no `--chrome` flag, so there is no `cxc`.
 
 ## [7.3.7] - 2026-06-26
 
