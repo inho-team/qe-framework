@@ -16,18 +16,24 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
-- **Codex dual-target install**: `qe-framework-install` now installs QE into `~/.codex` as well as `~/.claude` — skills, agents (`*.toml`), a managed agent fence, and a `[[hooks.PreToolUse]]` safety-hook fence in `~/.codex/config.toml`. Skipped silently when `~/.codex` is absent.
-- **Codex safety hook**: a Codex PreToolUse hook enforces the same normal-mode guards as Claude (raw `git commit`, `gh pr create`, in-place `sed -i`, direct `plugin.json` version writes), reusing the existing shell-scanner/block-emitter. Run `/hooks` in Codex once to approve it.
-- `qe-framework-uninstall --purge-codex` cleans up Codex assets symmetrically; plain uninstall reports orphans in dry-run.
 
 ### Changed
-- Docs (USAGE_GUIDE + README ko/zh/ja) updated from "Codex = engine only" to the dual-target reality, with the honest parity ceiling: full parity for install + safety guards; automatic E-agent delegation degrades to inline on Codex (platform limit — Codex only spawns sub-agents on explicit `/agent`).
 
 ### Fixed
 
 ### Removed
 
 ### Security
+
+## [7.3.1] - 2026-06-26
+
+### Added
+- **Codex dual-target install**: `qe-framework-install` now installs QE into `~/.codex` as well as `~/.claude` — skills, agents (`*.toml`), a managed agent fence, and a `[[hooks.PreToolUse]]` safety-hook fence in `~/.codex/config.toml`. Skipped silently when `~/.codex` is absent.
+- **Codex safety hook**: a Codex PreToolUse hook enforces the same normal-mode guards as Claude (raw `git commit`, `gh pr create`, in-place `sed -i`, direct `plugin.json` version writes), reusing the existing shell-scanner/block-emitter. Run `/hooks` in Codex once to approve it.
+- `qe-framework-uninstall --purge-codex` cleans up Codex assets symmetrically; plain uninstall reports orphans in dry-run.
+
+### Changed
+- Docs (USAGE_GUIDE + README ko/zh/ja) updated from "Codex = engine only" to the dual-target reality, with the honest parity ceiling: full parity for install + safety guards; automatic E-agent delegation degrades to inline on Codex (platform limit — Codex only spawns sub-agents on explicit `/agent`).
 
 ## [7.3.0] - 2026-06-25
 

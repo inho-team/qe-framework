@@ -9,7 +9,7 @@
     {
       "name": "qe-framework",
       "description": "Personal Claude Code skills package",
-      "version": "7.3.0",
+      "version": "7.3.1",
       "category": "development",
       "tags": ["sivs", "harness", "hooks", "multi-agent", "quality"],
       "compatibility": {
