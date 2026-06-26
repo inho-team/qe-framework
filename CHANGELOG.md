@@ -25,6 +25,14 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.3.5] - 2026-06-26
+
+### Added
+- `doctor` now cross-checks the Codex `config.toml` QE fence against the agent `.toml` files it references and reports any whose `config_file` is missing — surfacing the exact drift that makes Codex log "malformed agent role definition" warnings.
+
+### Fixed
+- `qe-framework-install` now also syncs `~/.codex` agent assets (dual-target), so a standard CLI re-install repairs Codex config-fence drift. Previously only `install.js` and the Claude-side SessionStart auto-sync refreshed Codex, leaving Codex-primary users with a stale fence pointing at missing `.toml` files. Graceful no-op when `~/.codex` is absent.
+
 ## [7.3.4] - 2026-06-26
 
 ### Added
