@@ -19,6 +19,16 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Changed
 
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.3.9] - 2026-06-26
+
+### Changed
+
 - Documented measured Claude/Codex parity across setup, PSE handoffs, SIVS
   routing, native agent conversion, hook support, and known degraded paths. The
   new verification matrix is the source of truth for supported, degraded,
@@ -36,10 +46,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   `$Qcommit`, `$Qbranch`, and `$Mbump`.
 - Codex cleanup manifest now includes `Qclaude-rescue`, so purge cleanup can
   remove the reverse-delegation skill it installs.
-
-### Removed
-
-### Security
 
 ## [7.3.8] - 2026-06-26
 
