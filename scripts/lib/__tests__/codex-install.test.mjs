@@ -86,11 +86,14 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
   const tomlFiles = fs.readdirSync(agentsDir).filter((f) => f.endsWith('.toml'));
   assert.ok(tomlFiles.length > 0, 'at least one agent .toml installed');
 
-  // Each .toml must contain name and developer_instructions
+  // Each .toml must contain name, metadata hints, compatibility note, and developer_instructions
   for (const toml of tomlFiles.slice(0, 3)) {
     const content = fs.readFileSync(path.join(agentsDir, toml), 'utf8');
     assert.ok(content.includes('name ='), `${toml} contains name field`);
-    assert.ok(content.includes("developer_instructions = '''"), `${toml} contains developer_instructions`);
+    assert.ok(content.includes('sandbox_mode = "workspace-write"'), `${toml} contains sandbox_mode`);
+    assert.ok(content.includes('developer_instructions = """'), `${toml} contains developer_instructions`);
+    assert.ok(content.includes('# Codex Native Agent Compatibility'), `${toml} contains compatibility note`);
+    assert.ok(content.includes('codex-inline-degrade'), `${toml} explains inline degradation`);
   }
 
   // config.toml must have exactly ONE QE fence
@@ -243,4 +246,69 @@ test('(f) no-Claude-regression: installClaudeAssets still operates correctly', (
   // or plugin path — at minimum the function ran without error
   const claudeDir = path.join(homeDir, '.claude');
   assert.ok(fs.existsSync(claudeDir), '~/.claude directory was created');
+});
+
+test('(g) Codex agent renderer preserves metadata hints and escapes TOML strings', (t) => {
+  const homeDir = makeCodexHome();
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-agent-renderer-repo-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  const agentsDir = path.join(repoRoot, 'agents');
+  fs.mkdirSync(agentsDir, { recursive: true });
+  fs.writeFileSync(path.join(agentsDir, 'Equote-agent.md'), [
+    '---',
+    'name: Equote-agent',
+    'description: "Agent with \\"quoted\\" metadata and paths C:\\\\tmp"',
+    'tools: Read, Bash',
+    'recommendedModel: haiku',
+    '---',
+    '',
+    '# Equote-agent',
+    '',
+    'Use the Agent tool only on Claude.',
+    'Literal triple double quote: """',
+    "Literal triple single quote: '''",
+    'Windows path: C:\\tmp\\agent',
+    '',
+  ].join('\n'), 'utf8');
+
+  installCodexAssets({ repoRoot, homeDir, log: () => {}, syncManifest: false });
+
+  const tomlPath = path.join(homeDir, '.codex', 'agents', 'Equote-agent.toml');
+  assert.ok(fs.existsSync(tomlPath), 'custom agent TOML created');
+  const content = fs.readFileSync(tomlPath, 'utf8');
+
+  assert.ok(content.includes('name = "Equote-agent"'), 'name rendered');
+  assert.ok(content.includes('description = "'), 'description rendered');
+  assert.ok(content.includes('\\\\\\"quoted\\\\\\"'), 'description quotes escaped');
+  assert.ok(content.includes('C:\\\\\\\\tmp'), 'description backslashes escaped');
+  assert.ok(content.includes('qe_model_hint = "haiku"'), 'model hint preserved');
+  assert.ok(content.includes('qe_reasoning_effort_hint = "low"'), 'effort hint inferred');
+  assert.ok(content.includes('qe_tools_hint = "Read, Bash"'), 'tools hint preserved');
+  assert.ok(content.includes('developer_instructions = """'), 'uses TOML multiline basic string');
+  assert.ok(content.includes('Literal triple double quote: \\"\\"\\"'), 'triple double quote escaped');
+  assert.ok(content.includes("Literal triple single quote: '''"), 'triple single quote preserved safely');
+  assert.ok(content.includes('Windows path: C:\\\\tmp\\\\agent'), 'backslashes escaped');
+  assert.ok(content.includes('codex-inline-degrade'), 'compatibility note included');
+});
+
+test('(h) delegating PSE skills document Codex native and inline-degrade behavior', () => {
+  const qcommit = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcommit', 'SKILL.md'), 'utf8');
+  const qcodeRunTask = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcode-run-task', 'SKILL.md'), 'utf8');
+  const qcriticalReview = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcritical-review', 'SKILL.md'), 'utf8');
+
+  assert.ok(qcommit.includes('Codex native'), 'Qcommit documents Codex native path');
+  assert.ok(qcommit.includes('codex-inline-degrade'), 'Qcommit documents inline degrade');
+  assert.ok(qcommit.includes('Ecommit-executor'), 'Qcommit keeps Ecommit-executor delegation');
+
+  assert.ok(qcodeRunTask.includes('Codex native'), 'Qcode-run-task documents Codex native path');
+  assert.ok(qcodeRunTask.includes('codex-inline-degrade'), 'Qcode-run-task documents inline degrade');
+  assert.ok(qcodeRunTask.includes('Eqa-orchestrator'), 'Qcode-run-task keeps Claude orchestrator path');
+
+  assert.ok(qcriticalReview.includes('Codex native'), 'Qcritical-review documents Codex native path');
+  assert.ok(qcriticalReview.includes('codex-inline-degrade'), 'Qcritical-review documents inline degrade');
+  assert.ok(qcriticalReview.includes('role-separated inline passes'), 'Qcritical-review documents inline reviewer fallback');
 });

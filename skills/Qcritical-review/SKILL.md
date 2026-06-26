@@ -10,6 +10,14 @@ recommendedModel: sonnet
 ## Role
 Stress-tests artifacts at each SIVS stage through adversarial sub-agents. Produces a structured PASS/WARN/FAIL verdict. Designed to be called standalone or auto-invoked by other SIVS skills.
 
+## Client Adapter Compatibility
+
+- **Claude**: spawn reviewer agents via Agent tool and `subagent_type` as described below.
+- **Codex native**: use native Codex subagents only when explicitly available.
+- **Codex inline fallback**: when automatic Agent tool delegation is unavailable, run the reviewer roles as separate inline passes in the Lead session and label the report `codex-inline-degrade`.
+- **Interaction**: ambiguous target selection and WARN/FAIL decisions use the interaction adapter. Claude uses `AskUserQuestion`; Codex interactive uses concise plain-text choices; Codex non-interactive applies the safe recommended default or stops on destructive ambiguity.
+- **Command rendering**: user-visible examples use the active client's command prefix.
+
 ## CLI Interface
 
 ```
@@ -65,7 +73,7 @@ Full definitions (trigger conditions, output schemas, examples): [./reference/ni
 Detection order:
 1. If a file argument is given: match against the Stage column above
 2. If no argument: check `.qe/state/unified-state.json` for last SIVS stage
-3. If ambiguous: ask user via `AskUserQuestion`
+3. If ambiguous: ask user via the interaction adapter
 
 ## Execution Procedure
 
@@ -79,7 +87,7 @@ Detection order:
 
 ### Step 2: Spawn Adversarial Agents
 
-Spawn **3 sub-agents in parallel** via the Agent tool. Each adopts a distinct critical lens. Agents must NOT see each other's output.
+Spawn **3 reviewer roles** via the agent adapter. Claude uses 3 sub-agents in parallel via the Agent tool. Codex uses native subagents when available; otherwise run role-separated inline passes and report `codex-inline-degrade`. Reviewers must NOT see each other's output when the client can enforce isolation.
 
 #### Spec Stage Agents
 
@@ -201,7 +209,7 @@ Display the full report, then ask:
 
 ## Agent Spawn Rules
 
-1. All 3 agents run **in parallel** (single message, 3 Agent tool calls)
+1. All 3 agents run **in parallel** where the active client supports it (Claude: single message, 3 Agent tool calls; Codex: native subagents if available; otherwise inline degraded passes)
 2. Agent prompts must include:
    - The full artifact content (spec text, diff, or PR summary)
    - Their assigned role and questions (from the stage table above)
@@ -213,6 +221,10 @@ Display the full report, then ask:
 
 **claude-only (default):**
 - All 3 agents use `subagent_type: "general-purpose"`
+
+**codex-native base session:**
+- If native Codex subagents are available, route each reviewer role to the matching native agent.
+- If not available, run all reviewer roles inline and mark `crossmodel=degraded`, `mode=codex-inline-degrade`.
 
 **cross-model:**
 1. First, check Codex availability:

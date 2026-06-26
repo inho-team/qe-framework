@@ -51,8 +51,8 @@ const view = executableView(cmd);
 if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
   emitBlock({
     skill: 'Qcommit',
-    reason: 'Raw git commit is blocked. Use /Qcommit instead.',
-    action: 'Use /Qcommit instead',
+    reason: 'Raw git commit is blocked. Use $Qcommit instead.',
+    action: 'Use $Qcommit instead',
     bypass: 'skill-bypass.json with skill:"Qcommit"',
   });
 }
@@ -60,8 +60,8 @@ if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
 if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
   emitBlock({
     skill: 'Qbranch',
-    reason: 'Raw gh pr create is blocked. Use /Qbranch instead.',
-    action: 'Use /Qbranch instead',
+    reason: 'Raw gh pr create is blocked. Use $Qbranch instead.',
+    action: 'Use $Qbranch instead',
     bypass: 'skill-bypass.json with skill:"Qbranch"',
   });
 }
@@ -71,8 +71,8 @@ const writesPluginJson =
 if (writesPluginJson && /version/.test(cmd)) {
   emitBlock({
     skill: 'Mbump',
-    reason: 'Direct version editing is blocked. Use /Mbump instead.',
-    action: 'Use /Mbump instead',
+    reason: 'Direct version editing is blocked. Use $Mbump instead.',
+    action: 'Use $Mbump instead',
     bypass: 'skill-bypass.json with skill:"Mbump"',
   });
 }

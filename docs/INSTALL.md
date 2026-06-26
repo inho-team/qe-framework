@@ -1,8 +1,10 @@
 # Installing & Removing QE Framework — Safely
 
-QE installs as a Claude Code plugin. The installer copies `skills/`, `agents/`,
-`core/`, `hooks/`, and `scripts/` into your Claude config. This page documents
-exactly what it touches and how to preview, back up, and roll back.
+QE's baseline install is the Claude Code plugin. The installer copies `skills/`,
+`agents/`, `core/`, `hooks/`, and `scripts/` into your Claude config. When a
+Codex home exists, QE also installs native Codex assets under `~/.codex`. This
+page documents exactly what it touches and how to preview, back up, and roll
+back.
 
 ## Where assets go
 
@@ -10,9 +12,14 @@ exactly what it touches and how to preview, back up, and roll back.
 |------|---------|-------------|
 | **plugin** | qe-framework is registered in `~/.claude/plugins/installed_plugins.json` | the plugin cache dir + `~/.claude/scripts/` (absolute-path fallback) |
 | **standalone** | no plugin registration | `~/.claude/commands`, `~/.claude/agents`, `~/.claude/core`, `~/.claude/hooks`, `~/.claude/scripts` |
+| **codex-native** | `~/.codex` exists | `~/.codex/skills`, `~/.codex/agents/*.toml`, `~/.codex/scripts`, and managed fences in `~/.codex/config.toml` |
 
-Everything written stays under `~/.claude/`. Symlinks in the source are skipped
-(traversal guard).
+Claude writes stay under `~/.claude/`. Codex writes stay under `~/.codex/`.
+Symlinks in the source are skipped (traversal guard).
+
+After a Codex install, run `/hooks` inside Codex once to review and trust the QE
+`PreToolUse` safety hook. QE does not document hook-trust bypass as the normal
+path.
 
 ## Preview before you install — `--dry-run`
 
@@ -67,6 +74,11 @@ asset, is left untouched. Empty directories are pruned.
 > `scripts/check-installer-safety.mjs` (run in CI via `npm run check:all`), which
 > exercises the full lifecycle against a temporary HOME — your real `~/.claude` is
 > never touched by the test.
+
+Codex install and hook behavior is covered by temp-HOME tests:
+`scripts/lib/__tests__/codex-install.test.mjs` and
+`scripts/lib/__tests__/codex-install-hooks.test.mjs`. These tests also preserve
+user-authored `mcp_servers` and project config outside QE-managed fences.
 
 ## Not yet: `--profile minimal|full`
 

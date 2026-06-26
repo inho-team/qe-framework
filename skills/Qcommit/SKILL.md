@@ -12,6 +12,13 @@ recommendedModel: haiku
 Creates natural git commits that show no trace of AI authorship, as if written directly by a human.
 Actual commit work is delegated to the `Ecommit-executor` sub-agent.
 
+## Client Adapter Compatibility
+
+- **Claude**: delegate commit execution to `Ecommit-executor` via Agent tool.
+- **Codex native**: explicitly invoke the native Codex `Ecommit-executor` agent when available.
+- **Codex inline fallback**: if native subagent invocation is unavailable, run the same commit protocol inline and report `codex-inline-degrade`. The inline path must still obey the bypass-flag sequence in `agents/Ecommit-executor.md`.
+- **Command rendering**: user-facing follow-up commands use the active client's prefix (`/Q...` for Claude, `$Q...` for Codex).
+
 ## Examples
 
 ```
@@ -68,15 +75,23 @@ refactor: extract DB connection pool configuration
 
 ## Execution Procedure (Mandatory Delegation)
 
-**ABSOLUTE RULE: Do NOT run git commands directly. ALL git operations MUST be delegated to the `Ecommit-executor` agent via the Agent tool.**
+**ABSOLUTE RULE:** Do not run raw commit operations directly when the active client has an available commit executor agent.
+
+- Claude: ALL git operations MUST be delegated to the `Ecommit-executor` agent via the Agent tool.
+- Codex native: use the native `Ecommit-executor` agent when available.
+- Codex inline fallback: if no native subagent invocation is available, run the Ecommit-executor protocol inline and visibly report `codex-inline-degrade`.
 
 ### Step 1: Delegate to Ecommit-executor
-Call the `Ecommit-executor` agent via Agent tool with the following information:
+Call the `Ecommit-executor` agent through the agent adapter with the following information:
 - Project path
 - Whether the user requested push
 - Any specific commit message hints from context
 
 The `Ecommit-executor` agent handles everything: status check, diff analysis, commit message writing, staging, committing, and optionally pushing.
+
+On Codex inline fallback, read `agents/Ecommit-executor.md` and execute the same
+steps in the current session. Do not skip the separate skill-bypass flag write
+immediately before `git commit`.
 
 ### Step 2: Report Results
 After the agent completes, report the commit hash and changed files to the user.

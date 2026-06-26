@@ -10,7 +10,15 @@ recommendedModel: haiku
 ## Role
 Execute tasks based on spec documents. This is a **secondary execution engine** within the `/Qplan` PSE Chain, used when tasks cannot be fully atomized for `/Qatomic-run`.
 
-> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool. Do NOT output options as plain text — always call the tool.
+> **MANDATORY:** All user confirmations MUST use the interaction adapter. Claude MUST use the `AskUserQuestion` tool. Codex interactive may use concise plain-text choices. Codex non-interactive selects the documented recommended default only when the action is reversible and reports the default.
+
+## Client Adapter Compatibility
+
+- **Claude**: approvals and next-task prompts use `AskUserQuestion`; implementation delegation uses the Agent tool where specified.
+- **Codex interactive**: approvals and next-task prompts use concise plain-text choices.
+- **Codex non-interactive**: chained tasks may continue; otherwise default to the safe recommended action and report it. Destructive ambiguity must stop.
+- **Agent delegation**: if Codex cannot invoke an equivalent native subagent, run inline and report `codex-inline-degrade`.
+- **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Relationship to the Primary Chain
 - Canonical path: `/Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task`.
@@ -46,7 +54,8 @@ Before executing task items, check SIVS engine configuration:
 4. Check for legacy config: call `detectLegacyConfig()`. If non-null, display migration warning.
 
 **Codex Implement Delegation:**
-- Use `codex:codex-rescue` subagent (via Agent tool) for autonomous execution
+- Claude base session: use `codex:codex-rescue` subagent via Agent tool for autonomous execution
+- Codex base session: use the native Codex execution path; if native subagent delegation is unavailable, run inline and report `codex-inline-degrade`
 - Pass TASK_REQUEST content as the task prompt
 - Codex operates in `--write` mode (can modify files)
 - After Codex returns Done, run **Materialization Check** before proceeding
@@ -67,7 +76,7 @@ Codex may return `Done` before files are actually written (async companion patte
    - File not found → watcher still polling. Wait 30s, re-read. Repeat up to 120 times (1h).
    - `"timeout": true` → no changes after 1h. Go to step 3.
 
-3. **Fallback** — use `AskUserQuestion`:
+3. **Fallback** — use the interaction adapter:
    - "Codex companion did not produce file changes after 1 hour."
    - (a) Keep waiting +1h  (b) Retry with Codex  (c) Implement with Claude  (d) Check Codex process
    - If user chooses (a), repeat the 1-hour polling loop.
@@ -129,7 +138,7 @@ Read TASK_REQUEST + VERIFY_CHECKLIST, show summary:
 
 **Chained execution skip:** If TASK_REQUEST contains `<!-- chained-from: Qgenerate-spec -->`, skip the approval prompt (user already approved in Qgenerate-spec). Remove the comment after reading.
 
-Otherwise, use `AskUserQuestion` for approval. On approve:
+Otherwise, use the interaction adapter for approval. On approve:
 - Move files to `in-progress/`
 - **Update Status**: Call `updateClaudeStatus(cwd, uuid, "🔶")`. This updates the active task registry, preferring `.qe/TASK_LOG.md`.
 
@@ -137,7 +146,7 @@ Otherwise, use `AskUserQuestion` for approval. On approve:
 
 Execute checklist items in order. Report: `✅ [1/N] desc - done`. Record `- [x] item ✅ (HH:MM)`.
 
-**Code task**: After Step 3, ask whether to run `/Qcode-run-task` quality loop.
+**Code task**: After Step 3, ask whether to run `{adapter.commandPrefix}Qcode-run-task` quality loop.
 
 **Intermediate verification**: Every 3 items (or per `<!-- verify-interval: N -->`), check relevant VERIFY_CHECKLIST items. Fix failures before continuing.
 
@@ -214,9 +223,9 @@ Report: UUID, items completed, verification passed, changed files.
 After completion, check for remaining tasks:
 1. Read the project task registry first (`.qe/TASK_LOG.md` or equivalent active task tracker); use the legacy `CLAUDE.md` task table only as backward compatibility fallback
 2. Also check `.qe/tasks/pending/` for queued TASK_REQUEST files
-3. If next tasks exist, use `AskUserQuestion` to prompt:
+3. If next tasks exist, use the interaction adapter to prompt:
    - List upcoming tasks (UUID + name)
-   - Ask: "To execute the next task, run `/Qrun-task {UUID}`."
+   - Ask: "To execute the next task, run `{adapter.commandPrefix}Qrun-task {UUID}`."
 4. If no remaining tasks, skip this step
 
 ---
@@ -241,7 +250,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 {TaskDescription — 다음 작업 내용 한 줄 요약}
-Next: /Qcode-run-task {UUID}
+Next: {adapter.commandPrefix}Qcode-run-task {UUID}
 ```
 
 ### When `type: docs` / `type: analysis` / deletion-heavy
@@ -257,9 +266,9 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
 {NextPhaseDescription — 다음 Phase 작업 내용 한 줄 요약}
-{Next label — 사용자 입력 언어로, 예: "다음:" / "Next:"}: /Qgs {slug}: {짧은 별칭, 최대 6단어}
+{Next label — 사용자 입력 언어로, 예: "다음:" / "Next:"}: {adapter.commandPrefix}Qgs {slug}: {짧은 별칭, 최대 6단어}
 ```
-(Fallback line 금지 — `/Qgs`는 `/Qgenerate-spec`의 alias이므로 중복이다. Legacy flat-file projects drop the `{slug} · ` prefix and use `/Qgs Phase {X+1}: {짧은 별칭}`.)
+(Fallback line 금지 — `Qgs`는 `Qgenerate-spec`의 alias이므로 중복이다. Legacy flat-file projects drop the `{slug} · ` prefix and use `{adapter.commandPrefix}Qgs Phase {X+1}: {짧은 별칭}`.)
 When all Phases are complete:
 ```
 All phases done. Finalize with /Qcommit
@@ -284,7 +293,7 @@ All phases done. Finalize with /Qcommit
 
 ### Execution Flow
 ```
-/Qrun-task {UUID1} {UUID2} {UUID3}
+{adapter.commandPrefix}Qrun-task {UUID1} {UUID2} {UUID3}
   │
   ├─ Read all TASK_REQUESTs → check for inter-dependencies
   │

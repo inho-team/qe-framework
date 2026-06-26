@@ -21,7 +21,11 @@ Cognitive modes referenced here are defined in [thinking-modes.md](./thinking-mo
 
 ## Agents (Spec stage)
 
-Spawned in parallel via the Agent tool; agents MUST NOT see each other's output.
+Spawned through the agent adapter. Claude uses parallel Agent tool calls; Codex
+uses native subagents when explicitly available. If Codex cannot provide
+equivalent automatic delegation, run the roles inline and mark the gate
+`codex-inline-degrade`; reviewers must not see each other's output when the
+client can enforce isolation.
 
 | Agent | Mode | Source of questions |
 |-------|------|---------------------|
@@ -47,6 +51,12 @@ opportunistically:
    genuinely independent engine. The other agents stay on Claude.
 3. **Graceful degrade:** if codex is not installed or unreachable, silently fall
    back to the same-engine baseline. Codex is **never** a required dependency.
+
+For a Codex-native base session, "same-engine sub-agents" means native Codex
+subagents when they are explicitly available. If they are unavailable, the Lead
+runs the three roles inline, records `crossmodel=degraded`, and reports
+`codex-inline-degrade` because isolated parallel reviewer contexts were not
+available.
 
 No configuration is needed for either path — the upgrade is automatic when codex
 is present.
@@ -107,7 +117,7 @@ and supervise gates. Aggregate the three agent verdicts into the gate verdict:
 | Gate verdict | Action |
 |--------------|--------|
 | **FAIL** | **Block.** Do NOT offer "Generate & Execute" or "Generate & Atomic-Run". Allow only "Generate Only" (so the draft is saved) plus a "Fix spec & re-run gate" path. List CRITICAL/HIGH items as required fixes. |
-| **WARN** | Allow execution, but surface MEDIUM findings and ask the user to proceed or fix first (`AskUserQuestion`). |
+| **WARN** | Allow execution, but surface MEDIUM findings and ask through the interaction adapter whether to proceed or fix first. Claude uses `AskUserQuestion`; Codex interactive uses concise plain text; Codex non-interactive follows the documented default. |
 | **PASS** | Proceed to Step 3 normally. |
 
 **Backward routing (D014):** a FAIL is not a dead-end. For the Spec gate the

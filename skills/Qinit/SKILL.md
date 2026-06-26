@@ -12,6 +12,18 @@ tier: core
 A skill that sets up the QE framework base structure in a new project and auto-analyzes it.
 Run once only; do not run on a project that is already set up.
 
+## Client Adapter Compatibility
+
+Use the interaction adapter for all user choices and confirmations:
+- **Claude**: use `AskUserQuestion` exactly where this skill requires structured choices.
+- **Codex interactive**: if `AskUserQuestion` is unavailable, ask a concise plain-text question with the same explicit choices.
+- **Codex non-interactive**: use the documented recommended/default path and report the selected default. Do not make destructive or irreversible choices without explicit user input.
+
+Claude setup files such as `.claude/settings.json` remain part of the Claude
+install target. Codex-native setup should be handled by the Codex install target
+(`~/.codex` assets and `AGENTS.md`) rather than treating `.claude/settings.json`
+as a universal client file.
+
 ## Pre-check
 Before running, verify whether `CLAUDE.md` exists in the project root.
 - **If it does not exist**: Proceed with initialization (Step 0).
@@ -26,7 +38,10 @@ When `CLAUDE.md` already exists, check if it contains the `## QE Toolkit` sectio
   3. If the existing CLAUDE.md has a `## Task Log` section, insert the QE Toolkit section **before** it.
   4. If not, append the QE Toolkit section at the end.
   5. Also ensure `## Task Log` with `.qe/TASK_LOG.md` reference exists; add if missing.
-  6. Show diff preview to user via `AskUserQuestion` before applying.
+  6. Show diff preview to user via the interaction adapter before applying.
+     - Claude: `AskUserQuestion`.
+     - Codex interactive: plain-text "Apply migration? Yes / No / Show more".
+     - Codex non-interactive: do not migrate existing non-QE instructions unless the task explicitly requested migration.
   7. Report: "CLAUDE.md migrated — QE Toolkit section added."
 
 ## Step 0: Acquire .qe/ Permissions
@@ -59,9 +74,9 @@ node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await
 
 After running the detection command and displaying the result, ask the user to configure SIVS engine routing.
 
-> **CRITICAL — ALL THREE OPTIONS ARE MANDATORY**: You MUST call `AskUserQuestion` with exactly the three options listed below. NEVER remove, merge, reword, or conditionally hide any option. The "Claude + Codex Hybrid" option MUST always appear regardless of the detection result above. Codex availability is checked AFTER the user selects that option, not before.
+> **CRITICAL — ALL THREE OPTIONS ARE MANDATORY**: Ask through the interaction adapter with exactly the three options listed below. In Claude, you MUST call `AskUserQuestion`. In Codex interactive mode, present the same three choices as concise plain text. NEVER remove, merge, reword, or conditionally hide any option. The "Claude + Codex Hybrid" option MUST always appear regardless of the detection result above. Codex availability is checked AFTER the user selects that option, not before.
 
-Call `AskUserQuestion` with these **exact** parameters (copy verbatim):
+Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy verbatim):
 ```json
 {
   "questions": [{
@@ -96,7 +111,7 @@ Call `AskUserQuestion` with these **exact** parameters (copy verbatim):
    ```
    - If `false`: Show warning ("codex-plugin-cc가 설치되어 있지 않습니다. `/plugin install codex@openai-codex`로 설치 후 `/Qsivs-config`로 다시 설정해주세요.") → Fallback to Claude Only.
    - If `true`: Continue.
-2. For each SIVS stage, use `AskUserQuestion` to select engine:
+2. For each SIVS stage, ask through the interaction adapter to select engine:
 
    **Spec Stage**: "Select engine for Spec stage"
    - Claude (Recommended) — Claude generates spec document
@@ -248,7 +263,7 @@ ANALYSIS_*.md
 ```
 
 ### Step 3.5: Wiki Bootstrap (Opt-in — `.qe/` 구조 생성 후)
-디렉터리 구조가 만들어진 뒤에만 실행하는 **선택 단계**. `AskUserQuestion`으로 "프로젝트 지식 wiki를
+디렉터리 구조가 만들어진 뒤에만 실행하는 **선택 단계**. interaction adapter로 "프로젝트 지식 wiki를
 부트스트랩할까요? (기존 DECISION_LOG·MISTAKE·RETROSPECTIVE를 `.qe/wiki/`로 시드 → Qwiki 생태계 시작)"를
 묻는다.
 - **예**: `.qe/wiki/{inbox,raw,pages,templates,queries,archive}` 스켈레톤 생성 →
@@ -265,7 +280,7 @@ Show the list of created files and guide the next steps.
 ## Creation Rules
 - Do not overwrite files that already exist.
 - Keep existing `.gitignore` content intact; add only missing entries.
-- Do not create files without user confirmation. **MUST use the `AskUserQuestion` tool to confirm — do NOT output confirmation prompts as plain text.**
+- Do not create files without user confirmation. **Use the interaction adapter to confirm. Claude MUST use `AskUserQuestion`; Codex interactive may use plain-text choices; Codex non-interactive must only proceed when the user explicitly requested initialization and the change is reversible.**
 
 ## Will
 - Create CLAUDE.md from template

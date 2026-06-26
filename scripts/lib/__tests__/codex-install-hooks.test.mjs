@@ -33,7 +33,7 @@ function countNeedle(text, needle) {
   return text.split(needle).length - 1;
 }
 
-test('install writes valid PreToolUse hook block referencing installed entry path', (t) => {
+test('install writes one PreToolUse hook block with trust guidance and no bypass flag', (t) => {
   const homeDir = makeCodexHome('# user config\n');
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
   const logs = [];
@@ -46,34 +46,54 @@ test('install writes valid PreToolUse hook block referencing installed entry pat
   assert.ok(config.includes(QE_HOOKS_FENCE_BEGIN), 'hooks fence begin present');
   assert.ok(config.includes(QE_HOOKS_FENCE_END), 'hooks fence end present');
   assert.ok(config.includes('[[hooks.PreToolUse]]'), 'PreToolUse table present');
-  assert.ok(config.includes('matcher = "^Bash$"'), 'Bash matcher present');
+  assert.ok(config.includes('matcher = "^(Bash|Shell|shell|exec_command)$"'), 'shell tool matcher variants present');
   assert.ok(config.includes('[[hooks.PreToolUse.hooks]]'), 'nested hook command table present');
   assert.ok(config.includes('type = "command"'), 'command hook type present');
   assert.ok(config.includes('timeout = 30'), 'timeout present');
   assert.ok(config.includes('statusMessage = "QE safety guard"'), 'status message present');
   assert.ok(config.includes(`node \\\"${expectedEntry}\\\"`), 'command references installed standalone hook path');
-  assert.ok(logs.includes('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.'));
+  assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'exactly one PreToolUse block');
+  assert.ok(logs.includes('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.'), 'trust guidance log emitted');
   assert.ok(!config.includes('--dangerously-bypass-hook-trust'), 'does not bypass hook trust');
 });
 
-test('install cleanup reinstall keeps hooks fence idempotent', (t) => {
+test('repeated install keeps exactly one hooks fence and one PreToolUse block', (t) => {
   const homeDir = makeCodexHome('# user config\n');
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
   let config = readConfig(homeDir);
-  assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 1, 'one hooks fence after install');
-
-  cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
-  config = readConfig(homeDir);
-  assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 0, 'hooks fence removed after cleanup');
-  assert.equal(countNeedle(config, QE_HOOKS_FENCE_END), 0, 'hooks fence end removed after cleanup');
-
-  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
-  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
-  config = readConfig(homeDir);
   assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 1, 'one hooks fence after reinstall twice');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'one PreToolUse block after reinstall twice');
+  assert.equal(countNeedle(config, '[[hooks.PreToolUse.hooks]]'), 1, 'one nested PreToolUse hook block after reinstall twice');
+});
+
+test('cleanup removes only QE hooks fence and preserves user config sections', (t) => {
+  const preExistingConfig = [
+    'model = "gpt-5"',
+    '',
+    '[mcp_servers.myServer]',
+    'command = "node"',
+    'args = ["server.js"]',
+    '',
+    '[projects."/work/myproject"]',
+    'trust_level = "trusted"',
+    '',
+  ].join('\n');
+  const homeDir = makeCodexHome(preExistingConfig);
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+  cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
+
+  const config = readConfig(homeDir);
+  assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 0, 'hooks fence removed after cleanup');
+  assert.equal(countNeedle(config, QE_HOOKS_FENCE_END), 0, 'hooks fence end removed after cleanup');
+  assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 0, 'PreToolUse block removed after cleanup');
+  assert.ok(config.includes('model = "gpt-5"'), 'user model preserved');
+  assert.ok(config.includes('[mcp_servers.myServer]'), 'user mcp section preserved');
+  assert.ok(config.includes('[projects."/work/myproject"]'), 'user project section preserved');
 });
 
 test('agent fence and mcp_servers are preserved alongside hooks fence', (t) => {
@@ -137,4 +157,3 @@ test('round-trip leaves no QE fence and preserves every user-authored line', (t)
     assert.ok(after.includes(line), `user line preserved: ${line}`);
   }
 });
-

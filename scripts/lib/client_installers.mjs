@@ -660,20 +660,82 @@ function quoteToml(value) {
 }
 
 /**
+ * Escape a string for TOML multi-line basic strings.
+ * Newlines are preserved; quotes/backslashes/control characters are escaped.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function quoteTomlMultilineBasic(value) {
+  return String(value)
+    .replace(/\r\n/g, '\n')
+    .replace(/\r/g, '\n')
+    .replace(/\\/g, '\\\\')
+    .replace(/"/g, '\\"')
+    .replace(/\u0008/g, '\\b')
+    .replace(/\t/g, '\\t')
+    .replace(/\f/g, '\\f');
+}
+
+function inferReasoningEffort(modelHint) {
+  const model = String(modelHint || '').toLowerCase();
+  if (model.includes('opus')) return 'high';
+  if (model.includes('sonnet')) return 'medium';
+  if (model.includes('haiku')) return 'low';
+  return '';
+}
+
+function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint }) {
+  const lines = [
+    '# Codex Native Agent Compatibility',
+    '',
+    'This file was generated from a QE Framework Claude agent markdown file.',
+    '',
+    '- Claude Agent tool auto-delegation and Codex native subagent invocation are not the same primitive.',
+    '- Invoke this agent explicitly from Codex when native subagents are available.',
+    '- If a workflow cannot invoke a native Codex subagent, run the role inline and report `codex-inline-degrade`.',
+  ];
+  if (modelHint) lines.push(`- Source recommendedModel hint: \`${modelHint}\`.`);
+  if (reasoningEffortHint) lines.push(`- Source reasoning effort hint: \`${reasoningEffortHint}\`.`);
+  if (toolsHint) lines.push(`- Source tool/MCP hint: \`${toolsHint}\`.`);
+  lines.push('', '---', '');
+  return lines.join('\n');
+}
+
+/**
  * Render a Codex agent TOML file from name, description, and instruction body.
  *
- * @param {{ name: string, description: string, instructions: string }} opts
+ * @param {{ name: string, description: string, instructions: string, metadata?: Record<string, string> }} opts
  * @returns {string} TOML content
  */
-function renderCodexAgentToml({ name, description, instructions }) {
-  return [
+function renderCodexAgentToml({ name, description, instructions, metadata = {} }) {
+  const modelHint = metadata.recommendedModel || metadata.model || '';
+  const reasoningEffortHint = metadata.reasoningEffort
+    || metadata.reasoning_effort
+    || metadata.model_reasoning_effort
+    || inferReasoningEffort(modelHint);
+  const toolsHint = metadata.tools || metadata.mcp || metadata.MCP || '';
+  const sandboxMode = metadata.sandbox_mode || metadata.sandboxMode || 'workspace-write';
+  const compatibilityNote = renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint });
+  const developerInstructions = `${compatibilityNote}${instructions.replace(/\r\n/g, '\n').replace(/\r/g, '\n')}`;
+
+  const lines = [
+    '# QE-generated Codex native agent',
     `name = ${quoteToml(name)}`,
     `description = ${quoteToml(description)}`,
-    'sandbox_mode = "workspace-write"',
-    "developer_instructions = '''",
-    instructions.replace(/\r\n/g, '\n'),
-    "'''",
+  ];
+  if (modelHint) lines.push(`qe_model_hint = ${quoteToml(modelHint)}`);
+  if (reasoningEffortHint) lines.push(`qe_reasoning_effort_hint = ${quoteToml(reasoningEffortHint)}`);
+  if (toolsHint) lines.push(`qe_tools_hint = ${quoteToml(toolsHint)}`);
+  lines.push(
+    `sandbox_mode = ${quoteToml(sandboxMode)}`,
+    'developer_instructions = """',
+    quoteTomlMultilineBasic(developerInstructions),
+    '"""',
     '',
+  );
+  return [
+    ...lines,
   ].join('\n');
 }
 
@@ -714,7 +776,7 @@ function renderCodexHooksConfigBlock(entryPath) {
     QE_CODEX_HOOKS_BEGIN,
     '',
     '[[hooks.PreToolUse]]',
-    'matcher = "^Bash$"',
+    'matcher = "^(Bash|Shell|shell|exec_command)$"',
     '',
     '[[hooks.PreToolUse.hooks]]',
     'type = "command"',
@@ -886,7 +948,7 @@ export function installCodexAssets({
       const { metadata, body } = parseAgentFrontmatter(markdown);
       const name = metadata.name || entry.replace(/\.md$/i, '');
       const description = metadata.description || `${name} agent installed by QE Framework.`;
-      const tomlContent = renderCodexAgentToml({ name, description, instructions: body });
+      const tomlContent = renderCodexAgentToml({ name, description, instructions: body, metadata });
       const tomlDest = join(codexAgentsDir, `${name}.toml`);
       writeFileSync(tomlDest, tomlContent, 'utf8');
       agentEntries.push({ name, description });

@@ -1,6 +1,12 @@
 # QE Framework System Overview
 
-QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loop system for Claude Code. It provides a structured AI-driven workflow with **folder-aware context memory**, **<!--qe:skills-->104<!--/qe:skills--> skills**, and **<!--qe:agents-->27<!--/qe:agents--> agents**, using Claude as the default provider with optional Codex support via `codex-plugin-cc`.
+QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise)
+loop system for Claude Code and Codex. Claude remains the fully supported
+baseline. Codex is supported as a native client for installed skills, generated
+agents, and hard safety hooks, with documented degradation where Codex and
+Claude expose different primitives. See
+`../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md` for measured
+parity status.
 
 ---
 
@@ -28,8 +34,8 @@ QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loo
 │  └────────────────────────────────────────────────────┘  │
 │                         │                                │
 │              ┌──────────┴──────────┐                     │
-│              │    Claude Code      │                     │
-│              │  (+ optional Codex) │                     │
+│              │   Claude / Codex    │                     │
+│              │ measured parity     │                     │
 │              └─────────────────────┘                     │
 └──────────────────────────────────────────────────────────┘
 ```
@@ -39,8 +45,9 @@ QE (**Query Execute**) Framework is a SIVS (Spec-Implement-Verify-Supervise) loo
 ## User Workflow
 
 ```
-/Qinit           →  /Qcontext init  →  /Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
- Setup               Context            Plan       Spec     Execute          Verify
+Claude: /Qinit → /Qcontext init → /Qplan → /Qgs → /Qatomic-run → /Qcode-run-task
+Codex:  $Qinit → $Qcontext init → $Qplan → $Qgs → $Qatomic-run → $Qcode-run-task
+        Setup     Context          Plan     Spec    Execute       Verify
 ```
 
 | Step | Skill | Purpose |
@@ -153,11 +160,14 @@ Auto-refreshed when `/Qrefresh` runs.
 - No external dependencies
 - Full functionality out of the box
 
-### Optional Codex Bridge
-- Install `codex-plugin-cc` for Codex integration
-- Route individual SIVS stages via `/Qsivs-config`
-- Bridge logic: `scripts/lib/codex_bridge.mjs`
-- Falls back to Claude if plugin unavailable
+### Codex Paths
+- Claude base -> Codex engine uses the `codex-plugin-cc` bridge.
+- Codex base -> Codex engine uses native Codex skills, generated native agents,
+  and the Codex `PreToolUse` hook fence.
+- Codex base -> Claude engine uses the reverse bridge surface
+  (`Qclaude-rescue` / `claude_bridge.mjs`) when available.
+- Automatic Claude Agent tool delegation is not exact Codex parity; Codex uses
+  explicit native subagents when available or `codex-inline-degrade`.
 
 ---
 
@@ -269,7 +279,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 - `telemetry.mjs`: JSONL telemetry export (.qe/telemetry/)
 - `trace-logger.mjs`: Agent decision tracing (.qe/traces/)
 - HUD metrics panel (`metrics-panel.mjs`)
-- SessionEnd + TaskCompleted hooks wired to metrics/telemetry
+- Claude SessionEnd + TaskCompleted hooks wired to metrics/telemetry
 
 ### New lib Modules
 | Module | Path | Purpose |

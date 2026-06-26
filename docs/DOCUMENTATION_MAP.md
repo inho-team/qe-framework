@@ -11,6 +11,8 @@ Use this file to find the right document quickly.
 
 - Philosophy and design intent: [PHILOSOPHY.md](PHILOSOPHY.md)
 - System overview: [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)
+- Claude/Codex measured parity matrix: [../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md](../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
+- Hook lifecycle and safety policy: [HOOKS.md](HOOKS.md)
 
 ## Usage
 

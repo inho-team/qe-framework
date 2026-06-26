@@ -26,8 +26,9 @@ All skills, agents, and documents in this framework MUST use these standard term
 ### PSE Chain (outer workflow)
 
 ```
-/Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
- Plan       Spec      Execute          Verify
+Claude: /Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
+Codex:  $Qplan  →  $Qgs  →  $Qatomic-run  →  $Qcode-run-task
+        Plan       Spec      Execute          Verify
 ```
 
 - **Plan**: Define roadmap, phases, requirements (`/Qplan`)
@@ -70,6 +71,27 @@ PSE Chain (user workflow)
 | Execute | `/Qatomic-run` | Wave execution with Haiku Teammates (default) |
 | Execute | `/Qrun-task` | Sequential execution (fallback for non-atomic tasks) |
 | Verify | `/Qcode-run-task` | Test → review → fix quality loop |
+
+---
+
+## Client Command Prefixes
+
+QE skills are shared across Claude and Codex, but the user-visible command
+prefix is client-specific.
+
+| Active client | Skill command prefix | Example |
+|---------------|----------------------|---------|
+| Claude | `/` | `/Qatomic-run 24740a27` |
+| Codex | `$` | `$Qatomic-run 24740a27` |
+
+All handoffs must render through the active-client prefix. Do not show a
+slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
+`$Q...`.
+
+Codex is also not exact Claude Agent tool parity: when a skill depends on
+automatic Agent tool delegation, Codex should use explicit native subagents when
+available or report `codex-inline-degrade` and run the role-separated workflow
+inline.
 
 ---
 
@@ -140,6 +162,23 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
 All phases done. Finalize with /Qcommit
+```
+
+Codex finalization example:
+
+```
+codex-native-parity · Phase 5: Verification Docs — Complete
+
+Roadmap
+  [x] Phase 1: Runtime Contract
+  [x] Phase 2: Skill Compatibility
+  [x] Phase 3: Native Agents
+  [x] Phase 4: Hook Parity
+  [x] Phase 5: Verification Docs
+
+PSE: [x] Plan [x] Spec [x] Execute [x] Complete
+
+All phases done. Finalize with $Qcommit
 ```
 
 ---

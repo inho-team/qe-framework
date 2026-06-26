@@ -16,7 +16,14 @@ tier: core
 ## Role
 An assistant that ensures quality by performing a **test → review → fix → retest** cycle after code implementation is complete.
 
-> **MANDATORY:** All user confirmations (iteration continue, fix/complete/stop, loop limit) MUST use the `AskUserQuestion` tool. Do NOT output options as plain text — always call the tool.
+> **MANDATORY:** All user confirmations (iteration continue, fix/complete/stop, loop limit) MUST use the interaction adapter. Claude MUST use `AskUserQuestion`. Codex interactive may use concise plain-text choices. Codex non-interactive applies the safe recommended default and reports it.
+
+## Client Adapter Compatibility
+
+- **Claude**: default delegation uses `Eqa-orchestrator` via Agent tool.
+- **Codex native**: use native Codex subagents if explicitly available.
+- **Codex inline fallback**: if equivalent automatic delegation is unavailable, run the QA roles inline and report `codex-inline-degrade`.
+- **Command rendering**: examples and handoffs use `adapter.commandPrefix`.
 
 ## Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만)
 review/fix 전, `test -d .qe/wiki`가 참이면 변경 파일 관련 누적 지식(conventions·gotcha·결정)을 회수한다 —
@@ -51,12 +58,12 @@ Step 5: Report results
 
 ## Loop Limit
 - **Maximum iterations: 3**
-- Use `AskUserQuestion` to confirm continuation at each iteration
+- Use the interaction adapter to confirm continuation at each iteration
 - If 3 iterations are exceeded, delegate judgment to the user and report current state
 
 ## Default Execution: Eqa-orchestrator Delegation
 
-**By default, delegate the entire quality loop to the `Eqa-orchestrator` sub-agent via Agent tool.** This is the recommended approach because:
+**By default on Claude, delegate the entire quality loop to the `Eqa-orchestrator` sub-agent via Agent tool.** This is the recommended approach because:
 - Saves main context tokens (only final summary returns)
 - Eqa-orchestrator internally coordinates Ecode-test-engineer, Ecode-reviewer, and Ecode-debugger
 - Supports automatic escalation from MEDIUM to HIGH tier on repeated failures
@@ -68,6 +75,10 @@ Step 5: Report results
 - Project test structure and patterns
 
 **After Eqa-orchestrator returns**, proceed directly to Step 5 (Report Results) using the returned summary.
+
+On Codex, use a native Codex subagent if one is explicitly available. Otherwise
+run the same test/review/fix roles inline and label the report
+`codex-inline-degrade`.
 
 ## Manual Execution Procedure (Opt-in)
 
@@ -182,13 +193,13 @@ Even if tests pass, perform a **Coverage Gap Audit**:
 **On failure:**
 
 1. Report discovered issues to the user
-2. Confirm with `AskUserQuestion`:
+2. Confirm with the interaction adapter:
    - "Fix and re-verify" → proceed with fix
    - "Complete as-is" → proceed to Step 5 (Warning/Suggestion can be ignored)
    - "Stop" → report current state and exit
 
 3. If a fix is needed:
-   - Delegate the fix to the `Ecode-debugger` sub-agent via Agent tool
+   - Delegate the fix to the `Ecode-debugger` sub-agent via Agent tool on Claude, or native Codex subagent/inline degraded fix on Codex
    - Pass on delegation: test failure details + review Critical items + related code
    - After fix is complete, **return to Step 2 (test)** → loop counter +1
 
@@ -201,7 +212,7 @@ Even if tests pass, perform a **Coverage Gap Audit**:
 
    User judgment is required.
    ```
-   - Confirm with `AskUserQuestion`: "Additional attempt" / "Complete as-is" / "Manual fix"
+   - Confirm with the interaction adapter: "Additional attempt" / "Complete as-is" / "Manual fix"
 
 ### Step 4.8: Comment Coverage Gate
 After test+review, verify documentation coverage of changed code:
@@ -308,7 +319,7 @@ After the adversarial gate passes (Step 4.9), run contract conformance verificat
 | Verdict | Action |
 |---------|--------|
 | **ALL PASS** | Proceed to Step 5 (Report) |
-| **Any FAIL** | Treat as Step 4 failure — show findings to user via `AskUserQuestion`: "Fix contract drift" / "Accept as-is (accept FAIL)" / "Stop". On "Fix", delegate to `Ecode-debugger` with the failing contract findings and return to Step 2 (loop counter +1). |
+| **Any FAIL** | Treat as Step 4 failure — show findings via the interaction adapter: "Fix contract drift" / "Accept as-is (accept FAIL)" / "Stop". On "Fix", delegate to `Ecode-debugger` on Claude or native Codex subagent/inline degraded fix on Codex, then return to Step 2 (loop counter +1). |
 
 **Output example:**
 ```
@@ -352,11 +363,11 @@ Summarize and report final results.
 
 ## Qrun-task Integration
 
-This skill can be called independently as `/Qcode-run-task`, or it can be automatically triggered from Qrun-task.
+This skill can be called independently as `{adapter.commandPrefix}Qcode-run-task`, or it can be automatically triggered from Qrun-task.
 
 ### Independent Call
 ```
-/Qcode-run-task {UUID}
+{adapter.commandPrefix}Qcode-run-task {UUID}
 ```
 - References TASK_REQUEST and VERIFY_CHECKLIST for the given UUID
 - Changed files are auto-detected via git diff

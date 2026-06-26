@@ -11,6 +11,17 @@ tier: core
 
 This is the canonical shortcut for `/Qgenerate-spec`.
 
+## Client Adapter Compatibility
+
+`Qgs` is the same skill regardless of client; only the user-visible command
+prefix changes.
+
+- Claude handoff/rendering: `/Qgs ...`
+- Codex handoff/rendering: `$Qgs ...`
+
+Pass arguments through unchanged after the active client has resolved the skill
+invocation.
+
 ## Behavior
 1. Pass all arguments directly to `/Qgenerate-spec`.
 2. If the first token looks like a **plan slug** (`[a-z0-9][a-z0-9-]{0,63}` followed by `:`), Qgenerate-spec treats everything before the colon as the plan slug and reads `.qe/planning/plans/{slug}/ROADMAP.md` + `STATE.md` for that plan's active Phase.
@@ -22,6 +33,11 @@ This is the canonical shortcut for `/Qgenerate-spec`.
 /Qgs auth-refactor: 인증 모듈     # Slug-based — reads plans/auth-refactor/
 /Qgs dashboard-v2: Polish         # Another plan in parallel — no collision
 /Qgs fix login bug                # Freeform — generates spec from description
+```
+
+Codex rendering uses the same arguments with `$`:
+```
+$Qgs codex-native-parity: Skill Compatibility
 ```
 
 > **Legacy**: `/Qgs Phase 2: Codex Bridge` still works against the flat `.qe/planning/ROADMAP.md` for projects that pre-date Named Plans. New projects always use slug form.

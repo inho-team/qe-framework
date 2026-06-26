@@ -11,6 +11,13 @@ tier: core
 ## Role
 A coordination skill that orchestrates multiple **Haiku Teammates** to execute atomic checklist items in parallel. It acts as the "Lead" session that partitions work and merges results.
 
+## Client Adapter Compatibility
+
+- **Claude**: use Agent Teams / Agent tool as described below.
+- **Codex native**: use native Codex subagents only when explicitly available in the session. Codex skills do not automatically spawn Claude Agent tool teammates.
+- **Codex inline fallback**: when no equivalent native subagent dispatch exists, the Lead session executes the wave inline and reports `codex-inline-degrade` with lost guarantees: no true parallelism, no isolated teammate context, and no per-teammate atomic commit.
+- **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
+
 ## Workflow
 
 ### Step 1: Atomic Partitioning
@@ -20,7 +27,9 @@ Read the `TASK_REQUEST` and identify items suitable for parallel execution:
 - Non-overlapping file ownership.
 
 ### Step 2: Wave Initiation
-Create an **Agent Team** using the `Agent` tool:
+Create an **Agent Team** through the agent adapter:
+- Claude: use the `Agent` tool.
+- Codex: use native Codex subagents when explicitly available; otherwise run inline with `codex-inline-degrade`.
 - Assign **one Haiku Teammate per atomic item**.
 - **Atomic Commits**: Teammates MUST perform a `git commit` immediately after completing their specific item.
 - **Technical Summary**: Teammates MUST create `SUMMARY_{Item#}.md` under the active plan's phase directory — resolve the slug via `.qe/state/current-session.json` → `.qe/planning/.sessions/{session_id}.json` → `.qe/planning/ACTIVE_PLAN`, then write to `.qe/planning/plans/{slug}/phases/{X}/SUMMARY_{Item#}.md`. Legacy projects with no slug resolvable write to `.qe/planning/phases/{X}/SUMMARY_{Item#}.md`.
@@ -34,7 +43,7 @@ As Haiku teammates complete their tasks:
 
 ### Step 4: Post-Execution Gate
 After all atomic items are done, determine the next step based on task type:
-- **`type: code`** → trigger `/Qcode-run-task` for test → review → fix quality loop.
+- **`type: code`** → trigger `{adapter.commandPrefix}Qcode-run-task` for test → review → fix quality loop.
 - **`type: docs` / `type: analysis` / deletion-heavy tasks** → run SIVS Loop verification (VERIFY_CHECKLIST check + supervision) directly, skip `/Qcode-run-task`.
 
 ## Execution Rules
@@ -91,7 +100,7 @@ Codex may return `Done` before files are actually written (async companion patte
    - File not found → watcher still polling. Wait 30s, re-read. Repeat up to 120 times (1h).
    - `"timeout": true` → no changes after 1h. Go to step 3.
 
-3. **Fallback** — use `AskUserQuestion`:
+3. **Fallback** — use the interaction adapter:
    - "Codex companion did not produce file changes after 1 hour."
    - (a) Keep waiting +1h  (b) Retry with Codex  (c) Implement with Claude  (d) Check Codex process
 
@@ -128,7 +137,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 {TaskDescription — 다음 작업 내용 한 줄 요약}
-Next: /Qcode-run-task {UUID}
+Next: {adapter.commandPrefix}Qcode-run-task {UUID}
 ```
 
 ### When `type: docs` / `type: analysis` / deletion-heavy
@@ -144,9 +153,9 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
 {NextPhaseDescription — 다음 Phase 작업 내용 한 줄 요약}
-{Next label — 사용자 입력 언어로, 예: "다음:" / "Next:"}: /Qgs {slug}: {짧은 별칭, 최대 6단어}
+{Next label — 사용자 입력 언어로, 예: "다음:" / "Next:"}: {adapter.commandPrefix}Qgs {slug}: {짧은 별칭, 최대 6단어}
 ```
-(Fallback line 금지 — `/Qgs`는 `/Qgenerate-spec`의 alias이므로 중복이다. Legacy flat-file projects drop the `{slug} · ` prefix and use `/Qgs Phase {X+1}: {짧은 별칭}`.)
+(Fallback line 금지 — `Qgs`는 `Qgenerate-spec`의 alias이므로 중복이다. Legacy flat-file projects drop the `{slug} · ` prefix and use `{adapter.commandPrefix}Qgs Phase {X+1}: {짧은 별칭}`.)
 When all Phases are complete:
 ```
 All phases done. Finalize with /Qcommit

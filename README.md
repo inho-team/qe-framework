@@ -1,6 +1,6 @@
 # QE Framework
 
-**Query Execute Framework for Claude Code**
+**Query Execute Framework for Claude Code and Codex**
 
 > <!--qe:skills-->104<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
@@ -18,8 +18,9 @@ Rendered guides — view in any browser, no install needed.
 ---
 
 ```
-/Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
- Plan       Spec     Execute          Verify
+Claude: /Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
+Codex:  $Qplan  →  $Qgs  →  $Qatomic-run  →  $Qcode-run-task
+        Plan       Spec     Execute          Verify
 ```
 
 ---
@@ -58,7 +59,7 @@ You only say **what you want**. How to ask the right question, how to verify the
 │        └──────────────┼───────────────┘         │
 │                       │                         │
 │              ┌────────┴────────┐                │
-│              │   Claude Code   │                │
+│              │ Claude / Codex  │                │
 │              └─────────────────┘                │
 └─────────────────────────────────────────────────┘
 ```
@@ -75,7 +76,13 @@ You only say **what you want**. How to ask the right question, how to verify the
 
 ## Install
 
-QE Framework is a **Claude Code plugin**. Install it with two commands:
+QE Framework's baseline install is the **Claude Code plugin**. Codex-native
+assets are also installed when `~/.codex` exists; see
+[`docs/INSTALL.md`](docs/INSTALL.md) and the measured
+[`VERIFICATION_MATRIX.md`](.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
+for the support boundary.
+
+Install the Claude plugin with two commands:
 
 ```bash
 # 1. Register the marketplace
@@ -85,7 +92,12 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-That's it. All <!--qe:skills-->104<!--/qe:skills--> skills, <!--qe:agents-->27<!--/qe:agents--> agents, and hooks are active immediately.
+That's it for Claude. All <!--qe:skills-->104<!--/qe:skills--> skills,
+<!--qe:agents-->27<!--/qe:agents--> agents, and hooks are active immediately.
+For Codex, run the installer/refresh path from this repository or package; it
+writes native skills, generated agent TOML, and a managed `PreToolUse` hook fence
+when `~/.codex` exists. After a Codex install, run `/hooks` inside Codex once to
+review and trust the QE safety hook.
 
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
@@ -123,7 +135,7 @@ claude --plugin-dir /path/to/qe-framework
 
 ## Quick Start
 
-You only need to remember two commands:
+In Claude, you only need to remember two commands:
 
 ```
 /Qinit    # Set up project, choose engine routing (Claude-only or Claude+Codex)
@@ -131,6 +143,16 @@ You only need to remember two commands:
 ```
 
 `/Qinit` asks how you want to assign engines to each stage (Spec, Implement, Verify, Supervise). Pick Claude-only or mix in Codex — your choice. After that, `/Qplan` takes over and tells you exactly what to run next.
+
+In Codex, use the same skill names with the Codex skill prefix:
+
+```text
+$Qinit
+$Qplan
+```
+
+Shared QE skills render follow-up commands with the active client prefix:
+Claude uses `/Q...`; Codex uses `$Q...`.
 
 ---
 
@@ -148,6 +170,11 @@ The 4-step pipeline that drives all work:
 | **Verify** | `/Qcode-run-task` | Test → review → fix quality loop |
 
 `/Qrun-task` is the sequential fallback when tasks can't be parallelized.
+
+Codex uses the same PSE skills with `$Q...`. Where Claude can auto-delegate
+through the Agent tool, Codex uses explicit native subagents when available or
+reports `codex-inline-degrade` and runs the roles inline. That is usable support,
+not exact Agent tool parity.
 
 ### SIVS Loop (Quality Gate)
 
@@ -199,7 +226,10 @@ Pick a setup with one command:
 /Qsivs-config --help                         # full options
 ```
 
-No Codex? No problem. No Claude delegation from Codex? Also fine. Each base runs solo with zero config, and routing activates only when you opt into the bridge for the other engine.
+No Codex? No problem. No Claude delegation from Codex? Also fine. Each base runs
+solo with zero config, and routing activates only when you opt into the bridge
+for the other engine. The four base/engine combinations are documented in
+`.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md`.
 
 ### Folder-Aware Context Memory
 

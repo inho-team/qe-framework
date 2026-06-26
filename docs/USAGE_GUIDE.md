@@ -39,11 +39,14 @@ After a Codex install, run `/hooks` inside Codex once to **review and approve** 
 safety hook (Codex requires you to trust hook definitions; the installer never auto-bypasses).
 
 **Parity ceiling (honest):**
-- ✅ Full parity: skill/agent install, and the safety guards (raw `git commit`, `gh pr create`,
-  in-place `sed -i`, direct `plugin.json` version writes) block on Codex exactly as on Claude.
+- ✅ Supported: skill/agent install and safety guards are implemented on Codex. The
+  Codex `PreToolUse` guard blocks raw `git commit`, `gh pr create`, in-place
+  `sed -i`, and direct `plugin.json` version writes after the hook bundle is trusted.
 - ⚠️ Degrades: skills that delegate to E-agents run **inline** on Codex — Codex only spawns
   sub-agents on explicit request (`/agent`), not via automatic skill delegation. The agents are
   installed and available for manual `/agent` invocation.
+- See `.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md` for the measured
+  Claude/Codex parity matrix.
 - You can still route individual SIVS stages to Codex as an **engine** via `codex-plugin-cc` + `/Qsivs-config`.
 
 > `qe-framework-uninstall` removes the Claude assets and (with `--purge-codex`) the Codex
@@ -66,10 +69,14 @@ This creates:
 
 ## 3. Standard Workflow
 
+Claude uses slash commands. Codex uses the same QE skill names with the `$`
+prefix.
+
 ### Plan
 
 ```text
 /Qplan
+$Qplan
 ```
 
 Creates or updates planning artifacts in `.qe/planning/`.
@@ -78,6 +85,7 @@ Creates or updates planning artifacts in `.qe/planning/`.
 
 ```text
 /Qgs
+$Qgs
 ```
 
 Generates task specs from the active plan.
@@ -86,6 +94,7 @@ Generates task specs from the active plan.
 
 ```text
 /Qatomic-run
+$Qatomic-run
 ```
 
 - `single-model`: Claude/Haiku atomic swarm path
@@ -98,9 +107,15 @@ Use `/Qrun-task` instead when the work is not meaningfully atomic.
 
 ```text
 /Qcode-run-task
+$Qcode-run-task
 ```
 
 Runs the review/verification loop.
+
+When a workflow relies on Claude Agent tool auto-delegation, Codex either uses
+an explicitly invoked native Codex subagent or runs inline with a visible
+`codex-inline-degrade` note. That is the measured support boundary, not exact
+Agent tool parity.
 
 ## 4. Mode Selection
 

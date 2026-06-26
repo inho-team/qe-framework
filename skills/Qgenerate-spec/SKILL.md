@@ -14,7 +14,19 @@ You are a specialist document writer acting as a **sub-component of the `/Qplan`
 ## Role Constraints (Absolute Rules)
 - When this skill is invoked, focus exclusively on writing the 3 spec documents.
 - Do not perform any actions outside of document writing, such as writing code, fixing bugs, or answering general questions.
-- **User confirmation MUST use `AskUserQuestion` tool — NEVER print options as plain text.** This applies to Step 3 and any other point requiring user input. Printing "Generate & Execute / Generate Only / Needs Revision" as text is strictly prohibited.
+- **User confirmation MUST go through the interaction adapter.** Claude MUST use `AskUserQuestion` and MUST NOT print options as plain text. Codex interactive may print concise plain-text choices because `AskUserQuestion` is not a Codex primitive. Codex non-interactive MUST select the deterministic recommended default and report it.
+
+## Client Adapter Compatibility
+
+Interaction rules:
+- **Claude**: use `AskUserQuestion` for Step 3 and any other structured choice.
+- **Codex interactive**: ask concise plain-text choices with the same option labels.
+- **Codex non-interactive**: choose **Generate Only** unless the task is already chained or the user explicitly requested execution.
+
+Command rendering rules:
+- Render handoff commands through `adapter.commandPrefix`.
+- Claude examples use `/Q...`, for example `/Qatomic-run {UUID}`.
+- Codex examples use `$Q...`, for example `$Qatomic-run {UUID}`.
 
 ## Documents to Generate
 
@@ -186,13 +198,16 @@ auto-revises up to the iteration cap, then proceeds Generate-Only.)
   CRITICAL/HIGH findings as required fixes. Execution options unlock only after the
   gate reaches WARN/PASS, or the user explicitly overrides with full awareness of
   the findings.
-- **MANDATORY**: Use `AskUserQuestion` to present these options.
+- **MANDATORY**: Use the interaction adapter to present these options.
+  - Claude: `AskUserQuestion`.
+  - Codex interactive: concise plain-text choices.
+  - Codex non-interactive: Generate Only by default and report `selected_default=Generate Only`.
 - **Recommend Atomic-Run**: If the checklist has 4+ independent items, clearly label **"Generate & Atomic-Run (Wave)"** as the **[Recommended]** path. Explain that it uses multiple parallel Haiku agents for maximum speed.
-- **Auto-Chain**: Once the user selects an execution option, immediately invoke the corresponding skill (`/Qrun-task` or `/Qatomic-run`) with the generated UUIDs.
+- **Auto-Chain**: Once the user selects an execution option, immediately invoke the corresponding skill (`{adapter.commandPrefix}Qrun-task` or `{adapter.commandPrefix}Qatomic-run`) with the generated UUIDs.
 
 On "Generate & Atomic-Run":
 - Auto-create directories and files
-- Invoke `/Qatomic-run {UUID}` immediately. (Sets `<!-- chained-from: Qgenerate-spec -->` flag so Qatomic-run skips approval)
+- Invoke `{adapter.commandPrefix}Qatomic-run {UUID}` immediately. (Sets `<!-- chained-from: Qgenerate-spec -->` flag so Qatomic-run skips approval)
 
 
 On "Generate & Execute" or "Generate Only":
@@ -223,13 +238,13 @@ Output status summary after file creation:
 ```
 
 On "Generate & Execute":
-- **Single task** → invoke `/Qrun-task {UUID}` immediately.
-- **Multiple tasks** → invoke `/Qrun-task {UUID1} {UUID2} ... {UUIDn}` with all generated UUIDs space-separated in a single call. Qrun-task handles parallel execution.
+- **Single task** → invoke `{adapter.commandPrefix}Qrun-task {UUID}` immediately.
+- **Multiple tasks** → invoke `{adapter.commandPrefix}Qrun-task {UUID1} {UUID2} ... {UUIDn}` with all generated UUIDs space-separated in a single call. Qrun-task handles parallel execution.
 
 ## Autonomous Mode Support
 
 When called from Qutopia (autonomous mode), Qgenerate-spec:
-- Skips all `AskUserQuestion` calls — auto-selects first option
+- Skips all interaction prompts — auto-selects the documented default
 - Auto-proceeds through Steps 1-3 without user confirmation
 - Sets `<!-- chained-from: Qgenerate-spec -->` on generated TASK_REQUEST files
 
@@ -309,7 +324,7 @@ Phase {X}: {PhaseName} — Spec complete
 PSE: [x] Plan [x] Spec [>] Execute [ ] Verify
 
 {TaskDescription — 다음 작업 내용 한 줄 요약}
-Next: /Qatomic-run {UUID}
+Next: {adapter.commandPrefix}Qatomic-run {UUID}
 ```
 
 Note: "Generate & Execute" and "Generate & Atomic-Run" options auto-chain, so the handoff is only needed for "Generate Only".
