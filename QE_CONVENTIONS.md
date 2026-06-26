@@ -198,6 +198,14 @@ All skills MUST respond in the same language the user used in their most recent 
 - All VERIFY_CHECKLIST checkboxes checked → ✅ Complete
 - Completed task files do not need to be referenced.
 
+### Codex Runtime Policy
+When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
+- **Foreground by default** — call Codex synchronously (no `--background`) so its full stdout lands in the conversation. Codex output must never be silently invisible to the user.
+- **Background for long jobs only** — if backgrounded, you MUST poll `/codex:status` and pull the final output back into the conversation with `/codex:result <job-id>`. Never end a turn or session with a Codex result left unretrieved.
+- **Live monitoring (optional)** — to watch progress in real time, tail the job log:
+  `~/.claude/plugins/data/codex-openai-codex/state/<workspace>-<hash>/jobs/<job-id>.log`
+  (falls back to `$TMPDIR/codex-companion/...` when `CLAUDE_PLUGIN_DATA` is unset).
+
 ---
 
 ## Performance & Optimization Standard

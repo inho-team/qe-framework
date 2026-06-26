@@ -182,6 +182,20 @@ if (existsSync(stylePath) || existsSync(qeDir)) {
   );
 }
 
+// Inject the Codex Runtime Policy as a COMPACT POINTER. Codex run in the
+// background writes only to per-job log files and never streams into the
+// conversation — so the default is foreground, and any background run must be
+// retrieved before the turn ends. Full rule lives in QE_CONVENTIONS.md.
+if (existsSync(conventionsPath) || existsSync(qeDir)) {
+  messages.push(
+    '[QE CODEX RUNTIME] Run Codex (codex:codex-rescue, SIVS codex routing) in the FOREGROUND by ' +
+    'default so its stdout lands in the conversation — no --background for short tasks. ' +
+    'For long jobs only: run background, then surface output via /codex:status → ' +
+    '/codex:result <job-id> before ending the turn — never leave a Codex result unretrieved. ' +
+    'Full rule: QE_CONVENTIONS.md → Codex Runtime Policy.'
+  );
+}
+
 const aiTeamConfigPath = join(cwd, '.qe', 'ai-team', 'config', 'team-config.json');
 if (existsSync(aiTeamConfigPath)) {
   messages.push('[AI Team] Multi-model role config detected. Respect role boundaries: planner owns spec artifacts, implementer owns code changes, reviewer performs independent review, supervisor makes the final gate decision.');
