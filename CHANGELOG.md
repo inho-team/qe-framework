@@ -19,7 +19,23 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Changed
 
+- Documented measured Claude/Codex parity across setup, PSE handoffs, SIVS
+  routing, native agent conversion, hook support, and known degraded paths. The
+  new verification matrix is the source of truth for supported, degraded,
+  manual-trust, unsupported, and not-tested behavior.
+- Codex-facing PSE guidance now renders native `$Q...` skill commands, while
+  Claude-facing examples keep slash commands.
+- Codex agent conversion and delegation docs now distinguish native explicit
+  subagent invocation from Claude Agent tool auto-delegation, with
+  `codex-inline-degrade` documented as the fallback.
+
 ### Fixed
+
+- Codex hook install now matches representative shell tool names
+  (`Bash`, `Shell`, `shell`, `exec_command`) and Codex safety blocks point to
+  `$Qcommit`, `$Qbranch`, and `$Mbump`.
+- Codex cleanup manifest now includes `Qclaude-rescue`, so purge cleanup can
+  remove the reverse-delegation skill it installs.
 
 ### Removed
 
