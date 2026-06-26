@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code**
 
-> <!--qe:skills-->123<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->104<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -85,7 +85,7 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-That's it. All <!--qe:skills-->123<!--/qe:skills--> skills, <!--qe:agents-->27<!--/qe:agents--> agents, and hooks are active immediately.
+That's it. All <!--qe:skills-->104<!--/qe:skills--> skills, <!--qe:agents-->27<!--/qe:agents--> agents, and hooks are active immediately.
 
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
@@ -254,7 +254,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->123<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->104<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > other 170+ are an opt-in library that ships in the *same package* — no extra installs,

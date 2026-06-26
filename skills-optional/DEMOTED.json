@@ -1,6 +1,10 @@
 {
   "version": 1,
   "demoted": {
+    "Qagentation": {
+      "originalPath": "skills/Qagentation",
+      "demotedPath": "skills-optional/Qagentation"
+    },
     "Qangular-architect": {
       "originalPath": "skills/coding-experts/frontend/Qangular-architect",
       "demotedPath": "skills-optional/Qangular-architect"
@@ -29,6 +33,10 @@
       "originalPath": "skills/coding-experts/infra/Qcloud-architect",
       "demotedPath": "skills-optional/Qcloud-architect"
     },
+    "Qcontent-research-writer": {
+      "originalPath": "skills/Qcontent-research-writer",
+      "demotedPath": "skills-optional/Qcontent-research-writer"
+    },
     "Qcpp-pro": {
       "originalPath": "skills/coding-experts/languages/Qcpp-pro",
       "demotedPath": "skills-optional/Qcpp-pro"
@@ -41,6 +49,18 @@
       "originalPath": "skills/coding-experts/infra/Qdatabase-optimizer",
       "demotedPath": "skills-optional/Qdatabase-optimizer"
     },
+    "Qdesign": {
+      "originalPath": "skills/Qdesign",
+      "demotedPath": "skills-optional/Qdesign"
+    },
+    "Qdesign-audit": {
+      "originalPath": "skills/Qdesign-audit",
+      "demotedPath": "skills-optional/Qdesign-audit"
+    },
+    "Qdesign-studio": {
+      "originalPath": "skills/Qdesign-studio",
+      "demotedPath": "skills-optional/Qdesign-studio"
+    },
     "Qdevops-engineer": {
       "originalPath": "skills/coding-experts/infra/Qdevops-engineer",
       "demotedPath": "skills-optional/Qdevops-engineer"
@@ -52,6 +72,10 @@
     "Qembedded-systems": {
       "originalPath": "skills/coding-experts/languages/Qembedded-systems",
       "demotedPath": "skills-optional/Qembedded-systems"
+    },
+    "Qfact-checker": {
+      "originalPath": "skills/Qfact-checker",
+      "demotedPath": "skills-optional/Qfact-checker"
     },
     "Qfastapi-expert": {
       "originalPath": "skills/coding-experts/backend/Qfastapi-expert",
@@ -145,6 +169,38 @@
       "originalPath": "skills/coding-experts/languages/Qphp-pro",
       "demotedPath": "skills-optional/Qphp-pro"
     },
+    "Qpm-discovery": {
+      "originalPath": "skills/Qpm-discovery",
+      "demotedPath": "skills-optional/Qpm-discovery"
+    },
+    "Qpm-gtm": {
+      "originalPath": "skills/Qpm-gtm",
+      "demotedPath": "skills-optional/Qpm-gtm"
+    },
+    "Qpm-okr": {
+      "originalPath": "skills/Qpm-okr",
+      "demotedPath": "skills-optional/Qpm-okr"
+    },
+    "Qpm-prd": {
+      "originalPath": "skills/Qpm-prd",
+      "demotedPath": "skills-optional/Qpm-prd"
+    },
+    "Qpm-retro": {
+      "originalPath": "skills/Qpm-retro",
+      "demotedPath": "skills-optional/Qpm-retro"
+    },
+    "Qpm-roadmap": {
+      "originalPath": "skills/Qpm-roadmap",
+      "demotedPath": "skills-optional/Qpm-roadmap"
+    },
+    "Qpm-strategy": {
+      "originalPath": "skills/Qpm-strategy",
+      "demotedPath": "skills-optional/Qpm-strategy"
+    },
+    "Qpm-user-story": {
+      "originalPath": "skills/Qpm-user-story",
+      "demotedPath": "skills-optional/Qpm-user-story"
+    },
     "Qpostgres-pro": {
       "originalPath": "skills/coding-experts/infra/Qpostgres-pro",
       "demotedPath": "skills-optional/Qpostgres-pro"
@@ -189,6 +245,10 @@
       "originalPath": "skills/coding-experts/infra/Qshopify-expert",
       "demotedPath": "skills-optional/Qshopify-expert"
     },
+    "Qsource-verifier": {
+      "originalPath": "skills/Qsource-verifier",
+      "demotedPath": "skills-optional/Qsource-verifier"
+    },
     "Qspark-engineer": {
       "originalPath": "skills/coding-experts/data/Qspark-engineer",
       "demotedPath": "skills-optional/Qspark-engineer"
@@ -205,6 +265,14 @@
       "originalPath": "skills/coding-experts/infra/Qsre-engineer",
       "demotedPath": "skills-optional/Qsre-engineer"
     },
+    "Qstitch-apply": {
+      "originalPath": "skills/Qstitch-apply",
+      "demotedPath": "skills-optional/Qstitch-apply"
+    },
+    "Qstitch-cli": {
+      "originalPath": "skills/Qstitch-cli",
+      "demotedPath": "skills-optional/Qstitch-cli"
+    },
     "Qswift-expert": {
       "originalPath": "skills/coding-experts/languages/Qswift-expert",
       "demotedPath": "skills-optional/Qswift-expert"
@@ -212,6 +280,14 @@
     "Qterraform-engineer": {
       "originalPath": "skills/coding-experts/infra/Qterraform-engineer",
       "demotedPath": "skills-optional/Qterraform-engineer"
+    },
+    "Qvisual-qa": {
+      "originalPath": "skills/Qvisual-qa",
+      "demotedPath": "skills-optional/Qvisual-qa"
+    },
+    "Qvisual-redesign": {
+      "originalPath": "skills/Qvisual-redesign",
+      "demotedPath": "skills-optional/Qvisual-redesign"
     },
     "Qvite": {
       "originalPath": "skills/coding-experts/frontend/Qvite",
