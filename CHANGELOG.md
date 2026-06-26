@@ -16,17 +16,23 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [Unreleased]
 
 ### Added
-- Bidirectional SIVS engine routing. A Codex base session can now delegate Claude-stages back to Claude, the reverse of the existing Claude→Codex path. New `scripts/lib/claude_bridge.mjs` (mirror of `codex_bridge.mjs`) resolves reverse delegation, and the new `Qclaude-rescue` skill is the Codex-side surface (counterpart of codex-plugin-cc's `/codex:rescue`).
-- `installCodexAssets` now copies `scripts/` into `~/.codex/scripts` (dual-target, mirroring the Claude-side installer) so the reverse bridge is available in global Codex sessions, with symmetric cleanup and an empty-`homeDir` guard.
 
 ### Changed
-- README Multi-Engine Routing and `core/PHILOSOPHY.md` SIVS routing now describe routing as base-agnostic and bidirectional; with no config, each base still runs solo (zero-dependency).
 
 ### Fixed
 
 ### Removed
 
 ### Security
+
+## [7.3.6] - 2026-06-26
+
+### Added
+- Bidirectional SIVS engine routing. A Codex base session can now delegate Claude-stages back to Claude, the reverse of the existing Claude→Codex path. New `scripts/lib/claude_bridge.mjs` (mirror of `codex_bridge.mjs`) resolves reverse delegation, and the new `Qclaude-rescue` skill is the Codex-side surface (counterpart of codex-plugin-cc's `/codex:rescue`).
+- `installCodexAssets` now copies `scripts/` into `~/.codex/scripts` (dual-target, mirroring the Claude-side installer) so the reverse bridge is available in global Codex sessions, with symmetric cleanup and an empty-`homeDir` guard.
+
+### Changed
+- README Multi-Engine Routing and `core/PHILOSOPHY.md` SIVS routing now describe routing as base-agnostic and bidirectional; with no config, each base still runs solo (zero-dependency).
 
 ## [7.3.5] - 2026-06-26
 
