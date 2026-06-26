@@ -172,7 +172,7 @@ Runs inside Execute and Verify steps:
 
 The problem with single-model workflows: the same model that writes the spec also implements it, reviews it, and approves it. That's self-grading.
 
-QE solves this by letting you **assign a different engine to each SIVS stage**. Claude handles all stages by default, but you can optionally route specific stages to Codex via `codex-plugin-cc`:
+QE solves this by letting you **assign a different engine to each SIVS stage**. Claude handles all stages by default, but routing is bidirectional: a Claude base session can route Codex stages through `codex-plugin-cc`, and a Codex base session can route Claude stages back through `Qclaude-rescue` plus `claude_bridge.mjs` (the reverse of `codex-plugin-cc`'s `/codex:rescue`).
 
 You decide what fits your project. Some examples:
 
@@ -199,7 +199,7 @@ Pick a setup with one command:
 /Qsivs-config --help                         # full options
 ```
 
-No Codex? No problem. All stages default to Claude and everything works out of the box. Install `codex-plugin-cc` later if you want — the routing updates instantly, no migration needed.
+No Codex? No problem. No Claude delegation from Codex? Also fine. Each base runs solo with zero config, and routing activates only when you opt into the bridge for the other engine.
 
 ### Folder-Aware Context Memory
 

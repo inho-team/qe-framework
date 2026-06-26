@@ -419,6 +419,10 @@ export function cleanupCodexAssets({
   purge = false,
   log = console.log,
 } = {}) {
+  if (!homeDir || typeof homeDir !== 'string' || homeDir.trim() === '') {
+    throw new Error('cleanupCodexAssets: refusing to run with empty homeDir (would resolve to a cwd-relative .codex path)');
+  }
+
   const codexDir = join(homeDir, '.codex');
 
   // Graceful skip if ~/.codex doesn't exist.
@@ -432,6 +436,8 @@ export function cleanupCodexAssets({
   const knownSkillNames = loadKnownSkillNames(log);
   const skillsDir = join(codexDir, 'skills');
   const skillsToRemove = [];
+  const scriptsDir = join(codexDir, 'scripts');
+  const scriptsToRemove = [];
 
   if (existsSync(skillsDir)) {
     let entries;
@@ -445,6 +451,20 @@ export function cleanupCodexAssets({
       if (!stat.isDirectory()) continue;
       if (!existsSync(join(entryPath, 'SKILL.md'))) continue;
       skillsToRemove.push(entryPath);
+    }
+  }
+
+  // ----- Scripts: explicit installed subtree only -----
+  if (existsSync(scriptsDir)) {
+    try {
+      const stat = lstatSync(scriptsDir);
+      if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        scriptsToRemove.push(scriptsDir);
+      } else if (stat.isSymbolicLink()) {
+        log(`[WARN] cleanupCodexAssets: skipping symlink scripts dir: ${scriptsDir}`);
+      }
+    } catch (e) {
+      log(`[WARN] cleanupCodexAssets: could not inspect scripts dir: ${e.message}`);
     }
   }
 
@@ -487,9 +507,10 @@ export function cleanupCodexAssets({
   }
 
   // ----- Log plan -----
-  log(`[codex-cleanup] mode=${effectiveDryRun ? 'dry-run' : 'PURGE'} | skills=${skillsToRemove.length} | agents=${agentFilesToRemove.length} | configFence=${fencePresent}`);
+  log(`[codex-cleanup] mode=${effectiveDryRun ? 'dry-run' : 'PURGE'} | skills=${skillsToRemove.length} | agents=${agentFilesToRemove.length} | scripts=${scriptsToRemove.length} | configFence=${fencePresent}`);
   for (const p of skillsToRemove) log(`  [skill] ${p}`);
   for (const p of agentFilesToRemove) log(`  [agent] ${p}`);
+  for (const p of scriptsToRemove) log(`  [script] ${p}`);
   if (fencePresent) log(`  [config] strip QE fence from ${configPath}`);
   if (hooksFencePresent) log(`  [config] strip QE hooks fence from ${configPath}`);
 
@@ -502,6 +523,7 @@ export function cleanupCodexAssets({
     mode: effectiveDryRun ? 'dry-run' : 'purge',
     skills: skillsToRemove,
     agents: agentFilesToRemove,
+    scripts: scriptsToRemove,
     configFenceStripped: false,
     configBackup: null,
   };
@@ -515,7 +537,7 @@ export function cleanupCodexAssets({
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not write receipt: ${e.message}`);
     }
-    return { skills: skillsToRemove, agents: agentFilesToRemove, configEdited: false, dryRun: true, receiptPath };
+    return { skills: skillsToRemove, agents: agentFilesToRemove, scripts: scriptsToRemove, configEdited: false, dryRun: true, receiptPath };
   }
 
   // ----- Purge mode: backup config.toml, strip fence, remove files -----
@@ -556,6 +578,20 @@ export function cleanupCodexAssets({
     }
   }
 
+  // Remove installed scripts subtree explicitly (never broader than ~/.codex/scripts).
+  for (const p of scriptsToRemove) {
+    try {
+      if (resolve(p) !== resolve(scriptsDir)) {
+        log(`[WARN] cleanupCodexAssets: skipping unexpected scripts path: ${p}`);
+        continue;
+      }
+      rmSync(p, { recursive: true, force: true });
+      log(`[codex-cleanup] removed scripts dir: ${p}`);
+    } catch (e) {
+      log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
+    }
+  }
+
   // Write purge receipt.
   receipt.configFenceStripped = configEdited;
   receipt.configBackup = backupPath;
@@ -570,6 +606,7 @@ export function cleanupCodexAssets({
   return {
     skills: skillsToRemove,
     agents: agentFilesToRemove,
+    scripts: scriptsToRemove,
     configEdited,
     dryRun: false,
     receiptPath,
@@ -763,6 +800,10 @@ export function installCodexAssets({
   dryRun = false,
   syncManifest = true,
 } = {}) {
+  if (!homeDir || typeof homeDir !== 'string' || homeDir.trim() === '') {
+    throw new Error('installCodexAssets: refusing to run with empty homeDir (would resolve to a cwd-relative .codex path)');
+  }
+
   const codexDir = join(homeDir, '.codex');
 
   // Graceful skip: do NOT create ~/.codex if the user isn't a Codex user.
@@ -773,8 +814,10 @@ export function installCodexAssets({
 
   const skillsSrcDir = join(repoRoot, 'skills');
   const agentsSrcDir = join(repoRoot, 'agents');
+  const scriptsSrcDir = join(repoRoot, 'scripts');
   const codexSkillsDir = join(codexDir, 'skills');
   const codexAgentsDir = join(codexDir, 'agents');
+  const codexScriptsDir = join(codexDir, 'scripts');
   const codexConfigPath = join(codexDir, 'config.toml');
 
   if (dryRun) {
@@ -796,6 +839,9 @@ export function installCodexAssets({
       try { agentCount = readdirSync(agentsSrcDir).filter((e) => e.endsWith('.md')).length; } catch {}
     }
     log(`[codex-install] would install ${skillCount} skill(s), ${agentCount} agent(s), upsert config fence`);
+    if (existsSync(scriptsSrcDir)) {
+      log(`[codex-install] would copy scripts/ -> ${codexScriptsDir}`);
+    }
     return { skipped: false, skills: skillCount, agents: agentCount, dryRun: true };
   }
 
@@ -849,6 +895,15 @@ export function installCodexAssets({
     log(`[codex-install] ${agentEntries.length} agent(s) installed for Codex.`);
   } else {
     log('[codex-install] agents/ not found — skipping Codex agents.');
+  }
+
+  // ----- Scripts -----
+  if (existsSync(scriptsSrcDir)) {
+    ensureDir(codexScriptsDir);
+    copyRecursive(scriptsSrcDir, codexScriptsDir);
+    log(`[codex-install] scripts/ copied -> ${codexScriptsDir}`);
+  } else {
+    log('[codex-install] scripts/ not found — skipping Codex scripts.');
   }
 
   // ----- config.toml fence upsert -----

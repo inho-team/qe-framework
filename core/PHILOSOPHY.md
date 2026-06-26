@@ -9,20 +9,20 @@
 
 ## SIVS Engine Routing
 
-Each SIVS stage can be configured to use Claude (default) or Codex (via codex-plugin-cc):
+Each SIVS stage can be configured to use Claude (default) or Codex. Routing is base-agnostic and bidirectional: with `.qe/sivs-config.json`, a Claude base session delegates Codex stages through `codex_bridge`, and a Codex base session delegates Claude stages through `claude_bridge` / `Qclaude-rescue` (DECISION_LOG D028/D029/D030).
 
 - **Spec**: Claude generates specs natively, or delegates to Codex via `/codex:rescue`
 - **Implement**: Claude executes via agents, or delegates to Codex via `/codex:rescue --write`
 - **Verify**: Claude validates results, or delegates to Codex via `/codex:rescue --verify`
 - **Supervise**: Claude runs domain supervisors, or delegates to Codex via `/codex:review`
 
-Configuration: `.qe/sivs-config.json` (optional — defaults to Claude for all stages)
+Configuration: `.qe/sivs-config.json` (optional — absent config means each base runs solo with zero external dependencies)
 
 This architecture ensures:
-- Claude-only baseline works without any external dependencies
-- Codex integration is strictly optional via codex-plugin-cc bridge
+- Claude-only and Codex-only baselines work without any external dependencies
+- Cross-engine delegation is strictly optional via the Codex and Claude bridges
 - No external provider APIs (Gemini, GPT) are directly invoked by the framework
-- User retains full choice of which stage to delegate to Codex
+- User retains full choice of which engine handles each SIVS stage
 
 ---
 
