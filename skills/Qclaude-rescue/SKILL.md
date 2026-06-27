@@ -15,8 +15,10 @@ Resolve the configured engine for the current SIVS stage from the Codex base ses
 
 ```bash
 BRIDGE="./scripts/lib/claude_bridge.mjs"; [ -f "$BRIDGE" ] || BRIDGE="$HOME/.codex/scripts/lib/claude_bridge.mjs"
-node -e 'import(process.argv[1]).then(m => { const r = m.resolveReverseEngine(STAGE, m.loadSivsConfig()); console.log(JSON.stringify(r)); })' "$BRIDGE"
+STAGE=verify node -e 'import(process.argv[1]).then(m => { const stage = process.env.STAGE; if (!stage) throw new Error("STAGE is required"); const r = m.resolveReverseEngine(stage, m.loadSivsConfig()); console.log(JSON.stringify(r)); })' "$BRIDGE"
 ```
+
+Replace `verify` with the current SIVS stage (`spec`, `implement`, `verify`, or `supervise`).
 
 Branch on the resolved result:
 
