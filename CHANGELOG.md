@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.3.13] - 2026-06-27
+
+### Added
+
 - Terminal sessions are now auto-named from the work in progress. When a session
   has no name, qe injects a one-line nudge (at most twice) asking Claude to name
   it from the current task via `/Qsession-name set`; once named, every few prompts
