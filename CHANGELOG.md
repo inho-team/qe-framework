@@ -41,6 +41,13 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   (skill-invoked) rather than hook-enforced because Codex hooks cannot mutate
   tool input; the Qclaude-rescue skill prepends the built context to the Claude
   prompt as a single argv.
+- Multi-terminal session naming and an active-session registry. Each QE session
+  can carry a human-readable name (`/Qsession-name set <name>`, capped at 48
+  chars) recorded in `.qe/state/sessions-registry.json`, so concurrent
+  terminals are aware of each other. SessionStart injects the current name and
+  other active sessions into context, Stop cleans the entry, stale rows (>2h)
+  and invalid SIDs are pruned, and a new HUD `session-name` element plus the
+  `/Qsession-name` skill (show / set / list) surface it.
 
 ### Changed
 
