@@ -17,9 +17,26 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- Terminal sessions are now auto-named from the work in progress. When a session
+  has no name, qe injects a one-line nudge (at most twice) asking Claude to name
+  it from the current task via `/Qsession-name set`; once named, every few prompts
+  it re-checks and renames only on a clear topic shift, so a continuous task keeps
+  a stable name. State is tracked per session id in unified-state.
+- The default HUD is now a uniform two-row layout: row 1 shows session name,
+  the context gauge, and SIVS routing; row 2 shows the 5h/7d rate-limit quotas
+  and the model. The renderer gained a `newline` marker so any preset can split
+  across multiple terminal rows; presets without the marker stay single-row.
+- Stale `.qe/analysis` is now auto-refreshed by a detached background job on
+  session start, so project context stays fresh without a manual `/Qrefresh`.
+
 ### Changed
 
 ### Fixed
+
+- `/Qsession-name set` saved an empty name. The Step 3 snippet assigned
+  `SESSION_NAME` without `export`, so the separately-spawned node process never
+  received it via `process.env` and always stored an empty string. The variable
+  is now exported.
 
 ### Removed
 
