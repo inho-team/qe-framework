@@ -65,7 +65,7 @@ NODE
 Use the user-provided `<name>` as a single string. Do not preserve surrounding quotes. The helper applies the 48-character cap.
 
 ```bash
-SESSION_NAME='<name>'
+export SESSION_NAME='<name>'
 node --input-type=module - <<'NODE'
 import { readCurrentSessionId, readCurrentSid, writeSessionName } from './hooks/scripts/lib/session-resolver.mjs';
 

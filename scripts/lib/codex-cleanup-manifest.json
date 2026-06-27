@@ -93,6 +93,7 @@
     "Qrun-task",
     "Qscenario-test",
     "Qsecret",
+    "Qsession-name",
     "Qsivs-config",
     "Qsource-verifier",
     "Qspringboot-security",
