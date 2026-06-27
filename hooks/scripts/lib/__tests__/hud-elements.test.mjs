@@ -12,6 +12,7 @@ import { join } from 'node:path';
 
 import { pickActivePhase } from '../hud/elements/phase.mjs';
 import { pickActiveTask } from '../hud/elements/task.mjs';
+import { pickSessionName } from '../hud/elements/session-name.mjs';
 import { pickSessionSummary } from '../hud/elements/summary.mjs';
 import { bucketTokens, normalizePercents } from '../hud/elements/model-ratio.mjs';
 import { resolvePreset, PRESETS, DEFAULT_PRESET } from '../hud/presets.mjs';
@@ -174,6 +175,24 @@ test('task: missing pending dir yields null, no throw', () => {
 });
 
 // ============================================================================
+// session-name element
+// ============================================================================
+
+test('session-name: reads sessionName field and returns null when unset', () => {
+  const root = mkdtempSync(join(tmpdir(), 'hud-name-'));
+  try {
+    mkdirSync(join(root, '.qe/planning/.sessions'), { recursive: true });
+    writeFileSync(join(root, '.qe/planning/.sessions/a1b2c3d4.json'), JSON.stringify({ sessionName: 'Backend terminal' }));
+    assert.equal(pickSessionName(root, 'a1b2c3d4'), 'Backend terminal');
+
+    writeFileSync(join(root, '.qe/planning/.sessions/a1b2c3d4.json'), JSON.stringify({ activePlanSlug: 'x' }));
+    assert.equal(pickSessionName(root, 'a1b2c3d4'), null);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+// ============================================================================
 // summary element
 // ============================================================================
 
@@ -317,6 +336,13 @@ test('presets: resolvePreset returns the named preset', () => {
   assert.deepEqual(resolvePreset('qe'), PRESETS.qe);
   assert.deepEqual(resolvePreset('mix'), PRESETS.mix);
   assert.deepEqual(resolvePreset('full'), PRESETS.full);
+});
+
+test('presets: sessionName is wired into all HUD presets', () => {
+  for (const key of Object.keys(PRESETS)) {
+    assert.equal(PRESETS[key].includes('sessionName'), true, `${key} must include sessionName`);
+  }
+  assert.equal(typeof ELEMENTS.sessionName.render, 'function');
 });
 
 test('presets: unknown name falls back to default (session)', () => {

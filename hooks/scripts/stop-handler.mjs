@@ -22,6 +22,8 @@ import { isAllComplete, parseChecklist } from './lib/checklist-parser.mjs';
 import { analyze as sweepAnalyze } from './lib/sweep-analyzer.mjs';
 import { execute as sweepExecute, executeVolatileOnly as sweepVolatileOnly } from './lib/sweep-executor.mjs';
 import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
+import { shortenSid } from './lib/session-resolver.mjs';
+import { cleanupStaleSessions, removeSession } from './lib/session-registry.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -29,9 +31,25 @@ if (!data) {
   process.exit(0);
 }
 
-const cwd = getCwd(data);
+const cwd = data.cwd || data.directory || getCwd(data);
 const cfg = loadConfig(cwd);
 const sessionId = data.session_id || null;
+const currentSid = shortenSid(sessionId || data.sessionId || null);
+
+try {
+  cleanupStaleSessions(cwd);
+} catch {
+  // Fault tolerance — registry cleanup must never block Stop.
+}
+
+function cleanupRegistryForAllowedStop() {
+  try {
+    if (currentSid) removeSession(cwd, currentSid);
+    else cleanupStaleSessions(cwd);
+  } catch {
+    // Fault tolerance — registry cleanup must never block shutdown.
+  }
+}
 
 // --- .qe sweep (auto-apply when cfg.sweep_auto, else volatile-only) ---
 // Archive moves use deterministic signals (completed/ folders, fully-checked pairs,
@@ -194,6 +212,7 @@ if (!activeMode) {
 // Stop hook schema only allows systemMessage; hookSpecificOutput is rejected here.
 if (!activeMode && cfg.satisfaction_enabled) {
   try {
+    cleanupRegistryForAllowedStop();
     console.log(JSON.stringify({
       continue: true,
       systemMessage: [
@@ -344,6 +363,7 @@ if (!activeMode && cfg.style_gate !== false) {
 }
 
 if (!activeMode && sweepAnnouncement) {
+  cleanupRegistryForAllowedStop();
   console.log(JSON.stringify({ continue: true, systemMessage: sweepAnnouncement }));
   process.exit(0);
 }
@@ -357,6 +377,7 @@ if (activeMode) {
   }));
 } else {
   // No active mode, allow stop
+  cleanupRegistryForAllowedStop();
   console.log(JSON.stringify({ continue: true }));
 }
 

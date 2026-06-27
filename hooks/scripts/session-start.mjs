@@ -8,11 +8,12 @@ import { homedir } from 'os';
 import { pathToFileURL } from 'url';
 import { execSync, spawn } from 'child_process';
 import { loadConfig } from './lib/config.mjs';
-import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
+import { readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
 import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
-import { shortenSid, getSessionContextDir } from './lib/session-resolver.mjs';
+import { shortenSid, getSessionContextDir, readSessionName, readSessionPlan } from './lib/session-resolver.mjs';
+import { cleanupStaleSessions, upsertSession, filterActiveSessions } from './lib/session-registry.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
@@ -64,10 +65,23 @@ try {
   // Fault tolerance — seeding is best-effort.
 }
 
+function sessionIdFromPayload(payload) {
+  let sessionId = payload.session_id || payload.sessionId || null;
+  if (!sessionId && typeof payload.transcript_path === 'string') {
+    const base = payload.transcript_path.split('/').pop() || '';
+    const candidate = base.replace(/\.jsonl$/, '');
+    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)) {
+      sessionId = candidate;
+    }
+  }
+  return sessionId;
+}
+
 // Compute this Claude session's short sid up front so per-session paths
 // (snapshot, handoff, decisions) and the additionalContext announcement all
 // agree. Falls back to '_unknown' bucket downstream if sid is missing.
-const currentSid = shortenSid(data.session_id || data.sessionId);
+const currentSessionId = sessionIdFromPayload(data);
+const currentSid = shortenSid(currentSessionId);
 
 // Run every auto-eligible legacy migration (context flat, handoffs flat,
 // future entries from lib/legacy-migrator.mjs) before any downstream reader
@@ -85,9 +99,43 @@ try {
 
 // Announce this session's short sid so skills (Qcompact / Qresume) can
 // address per-session paths without re-reading state files. Skills look for
-// the `[Session] sid:XXXXXXXX` marker in additionalContext.
+// the `[Session] sid:XXXXXXXX` marker in additionalContext. If the user set a
+// session name, include it without changing the legacy no-name marker shape.
 if (currentSid) {
-  messages.push(`[Session] sid:${currentSid}`);
+  const sessionName = readSessionName(cwd, currentSessionId || currentSid);
+  messages.push(sessionName ? `[Session] name:${sessionName} sid:${currentSid}` : `[Session] sid:${currentSid}`);
+}
+
+// Maintain a best-effort active-session registry for multi-terminal awareness.
+// This does not replace .qe/state/current-session.json, which remains a
+// project-global last-write-wins pointer for legacy skill lookup.
+try {
+  const activeAfterCleanup = cleanupStaleSessions(cwd);
+  let activeSessions = activeAfterCleanup;
+  if (currentSid) {
+    activeSessions = upsertSession(cwd, {
+      sid: currentSid,
+      name: readSessionName(cwd, currentSessionId || currentSid),
+      plan: readSessionPlan(cwd, currentSessionId || currentSid),
+      lastSeen: new Date().toISOString(),
+      pid: process.pid,
+    });
+  }
+
+  const others = filterActiveSessions(activeSessions)
+    .filter((entry) => entry.sid !== currentSid);
+  if (others.length > 0) {
+    const line = others
+      .map((entry) => {
+        const name = entry.name || '(unnamed)';
+        const plan = entry.plan || '(none)';
+        return `name:${name} sid:${entry.sid} plan:${plan} lastSeen:${entry.lastSeen}`;
+      })
+      .join('; ');
+    messages.push(`[Sessions] other active sessions: ${line}`);
+  }
+} catch {
+  // Fault tolerance — session awareness must never block SessionStart.
 }
 
 // Surface a one-line summary when auto-migration moved anything, so the
@@ -411,20 +459,12 @@ try {
 // is always `{session_id}.jsonl`. Accept the value only when it parses as
 // a UUID so a malformed path can't poison the pointer.
 try {
-  let sessionId = data.session_id || data.sessionId || null;
-  if (!sessionId && typeof data.transcript_path === 'string') {
-    const base = data.transcript_path.split('/').pop() || '';
-    const candidate = base.replace(/\.jsonl$/, '');
-    if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(candidate)) {
-      sessionId = candidate;
-    }
-  }
-  if (sessionId) {
+  if (currentSessionId) {
     const stateDir = join(cwd, '.qe', 'state');
     mkdirSync(stateDir, { recursive: true });
     writeFileSync(
       join(stateDir, 'current-session.json'),
-      JSON.stringify({ session_id: sessionId, startedAt: new Date().toISOString() }, null, 2)
+      JSON.stringify({ session_id: currentSessionId, startedAt: new Date().toISOString() }, null, 2)
     );
   }
 } catch {

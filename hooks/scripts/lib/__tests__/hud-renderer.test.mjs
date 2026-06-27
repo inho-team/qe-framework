@@ -264,11 +264,11 @@ test('presets: existing 5 presets have frozen element order (no regression)', ()
   // view must never drift. focused/qe/full gained a leading `summary` element
   // (self-skipping until set) so multi-terminal users can label each session;
   // those three assert the new, deliberate order.
-  assert.deepEqual(PRESETS.session, ['context', 'rateLimits', 'model', 'tokens', 'sivs']);
-  assert.deepEqual(PRESETS.mix, ['context', 'modelRatio', 'sivs']);
-  assert.deepEqual(PRESETS.focused, ['summary', 'context', 'phase', 'task', 'sivs']);
-  assert.deepEqual(PRESETS.qe, ['summary', 'sivs', 'phase', 'task']);
-  assert.deepEqual(PRESETS.full, ['summary', 'context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs']);
+  assert.deepEqual(PRESETS.session, ['sessionName', 'context', 'rateLimits', 'model', 'tokens', 'sivs']);
+  assert.deepEqual(PRESETS.mix, ['sessionName', 'context', 'modelRatio', 'sivs']);
+  assert.deepEqual(PRESETS.focused, ['sessionName', 'summary', 'context', 'phase', 'task', 'sivs']);
+  assert.deepEqual(PRESETS.qe, ['sessionName', 'summary', 'sivs', 'phase', 'task']);
+  assert.deepEqual(PRESETS.full, ['sessionName', 'summary', 'context', 'rateLimits', 'model', 'tokens', 'modelRatio', 'phase', 'task', 'sivs']);
 });
 
 test('presets: none of the existing presets reference the wiki element', () => {
@@ -278,7 +278,7 @@ test('presets: none of the existing presets reference the wiki element', () => {
 });
 
 test('presets: new wiki preset exists and contains the wiki element (opt-in)', () => {
-  assert.deepEqual(PRESETS.wiki, ['context', 'phase', 'wiki', 'sivs']);
+  assert.deepEqual(PRESETS.wiki, ['sessionName', 'context', 'phase', 'wiki', 'sivs']);
 });
 
 test('presets: unknown name still falls back to session', () => {

@@ -5,6 +5,8 @@
 ```
 .qe/state/
 ├── {mode}-state.json              ← Legacy (when no session is specified)
+├── current-session.json           ← Project-global last-write-wins pointer
+├── sessions-registry.json         ← Active QE terminal sessions
 └── sessions/
     └── {sessionId}/
         └── {mode}-state.json      ← Session-isolated
@@ -38,6 +40,46 @@
 ### Staleness Guard
 - State older than 2 hours (7,200,000 ms) is treated as inactive
 - Prevents zombie states from blocking new sessions
+
+### Active Session Registry
+
+`.qe/state/sessions-registry.json` stores best-effort awareness of active QE
+terminal sessions. It is separate from `.qe/state/current-session.json`, which
+remains a project-global single pointer with last-write-wins behavior.
+
+Registry format:
+
+```json
+{
+  "sessions": [
+    {
+      "sid": "a1b2c3d4",
+      "name": "API refactor",
+      "plan": "auth-refresh",
+      "lastSeen": "2026-06-27T12:00:00.000Z",
+      "pid": 12345
+    }
+  ]
+}
+```
+
+| Field | Type | Description |
+|-------|------|-------------|
+| sid | string | Required 8-char session id matching `/^[a-z0-9]{8}$/` |
+| name | string | Optional human-readable session name, capped at 48 chars at write time |
+| plan | string | Active plan slug for the session, or empty string |
+| lastSeen | string | ISO timestamp updated by `SessionStart` |
+| pid | number/null | Process id recorded by the hook when available |
+
+Registry reads are fail-safe: a missing or corrupt file is treated as an empty
+session list. Invalid SID entries are ignored. Entries whose `lastSeen` is older
+than 2 hours are stale and excluded from active-session output; `SessionStart`
+and `Stop` both attempt stale cleanup.
+
+The registry intentionally does **not** use IPC, file locks, or inter-session
+command delivery. Writes use the existing `atomicWriteJson()` temp-write +
+rename pattern only, so concurrent writers remain last-write-wins within this
+feature's scope.
 
 ### Reinforcement Limit
 - Each mode has a max_reinforcements setting (default 20)

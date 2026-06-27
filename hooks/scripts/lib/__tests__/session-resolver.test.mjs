@@ -5,7 +5,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { mkdtempSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
+import { mkdtempSync, readFileSync, writeFileSync, mkdirSync, rmSync, existsSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
@@ -17,6 +17,9 @@ import {
   getSessionContextDir,
   getSessionHandoffDir,
   ensureSessionDirs,
+  readSessionName,
+  readSessionPlan,
+  writeSessionName,
   listSessionBuckets,
   latestHandoffIn,
   resolveResumeContext,
@@ -177,6 +180,64 @@ test('ensureSessionDirs: creates both directories and returns resolved sid', () 
     assert.equal(result.sid, 'a1b2c3d4');
     assert.ok(existsSync(result.contextDir));
     assert.ok(existsSync(result.handoffDir));
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+// ---------------------------------------------------------------------------
+// sessionName helpers
+// ---------------------------------------------------------------------------
+
+test('sessionName: reads empty string when field is missing or invalid', () => {
+  const root = mkroot();
+  try {
+    mkdirSync(join(root, '.qe/planning/.sessions'), { recursive: true });
+    writeFileSync(join(root, '.qe/planning/.sessions/a1b2c3d4.json'), JSON.stringify({ activePlanSlug: 'x' }));
+    assert.equal(readSessionName(root, 'a1b2c3d4'), '');
+
+    writeFileSync(join(root, '.qe/planning/.sessions/a1b2c3d4.json'), JSON.stringify({ sessionName: 123 }));
+    assert.equal(readSessionName(root, 'a1b2c3d4'), '');
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('sessionName: write caps to 48 chars and preserves existing fields', () => {
+  const root = mkroot();
+  try {
+    mkdirSync(join(root, '.qe/planning/.sessions'), { recursive: true });
+    const binding = join(root, '.qe/planning/.sessions/a1b2c3d4.json');
+    writeFileSync(binding, JSON.stringify({ activePlanSlug: 'plan-a', summary: 'work', custom: true }));
+
+    const result = writeSessionName(root, 'Z'.repeat(80), 'a1b2c3d4');
+    assert.equal(result.sessionName.length, 48);
+
+    const data = JSON.parse(readFileSync(binding, 'utf8'));
+    assert.equal(data.activePlanSlug, 'plan-a');
+    assert.equal(data.summary, 'work');
+    assert.equal(data.custom, true);
+    assert.equal(data.sessionName, 'Z'.repeat(48));
+    assert.ok(data.updatedAt);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('sessionName: prefers existing UUID binding to avoid splitting activePlanSlug', () => {
+  const root = mkroot();
+  const sessionId = 'abcdef12-3456-7890-1234-56789abcdef0';
+  try {
+    mkdirSync(join(root, '.qe/planning/.sessions'), { recursive: true });
+    writeFileSync(
+      join(root, `.qe/planning/.sessions/${sessionId}.json`),
+      JSON.stringify({ activePlanSlug: 'uuid-plan' }),
+    );
+
+    writeSessionName(root, 'Backend terminal', sessionId);
+    assert.equal(readSessionName(root, sessionId), 'Backend terminal');
+    assert.equal(readSessionPlan(root, sessionId), 'uuid-plan');
+    assert.equal(existsSync(join(root, '.qe/planning/.sessions/abcdef12.json')), false);
   } finally {
     rmSync(root, { recursive: true });
   }

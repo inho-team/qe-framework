@@ -25,13 +25,17 @@
 
 import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
+import { atomicWriteJson } from './state.mjs';
 
 const STATE_FILE = '.qe/state/current-session.json';
 const CONTEXT_BASE = '.qe/context';
 const HANDOFF_BASE = '.qe/handoffs';
+const PLANNING_SESSIONS_DIR = '.qe/planning/.sessions';
 const SESSIONS_SUBDIR = 'sessions';
 const LEGACY_BUCKET = '_legacy';
 const UNKNOWN_BUCKET = '_unknown';
+const MAX_SESSION_NAME = 48;
+const SESSION_ID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 // Manual `/Qcompact` handoffs are written as HANDOFF_{date}_{time}.md inside
 // the handoff bucket. The prefix lets the resolver recognize them generically
@@ -76,6 +80,18 @@ export function shortenSid(raw) {
 }
 
 /**
+ * Normalize a human-readable session name for storage/display. The value is
+ * intentionally small because it is shown in SessionStart context and HUD.
+ *
+ * @param {unknown} raw
+ * @returns {string}
+ */
+export function normalizeSessionName(raw) {
+  if (typeof raw !== 'string') return '';
+  return raw.trim().slice(0, MAX_SESSION_NAME);
+}
+
+/**
  * Validate a slug used as an on-disk session directory name. Accepts the
  * 8-char auto-name shape and the two reserved bucket names. Rejects anything
  * that could escape the sessions/ root (`..`, slashes, whitespace).
@@ -105,6 +121,27 @@ export function readCurrentSid(projectRoot) {
   try {
     const data = JSON.parse(readFileSync(p, 'utf8'));
     return shortenSid(data?.session_id ?? data?.sessionId);
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Read the raw Claude session id from the project-global pointer file.
+ * This preserves existing plan/HUD bindings keyed by full UUID while callers
+ * that need the 8-char sid can still use readCurrentSid().
+ *
+ * @param {string} projectRoot
+ * @returns {string|null}
+ */
+export function readCurrentSessionId(projectRoot) {
+  if (!projectRoot) return null;
+  const p = join(projectRoot, STATE_FILE);
+  if (!existsSync(p)) return null;
+  try {
+    const data = JSON.parse(readFileSync(p, 'utf8'));
+    const raw = data?.session_id ?? data?.sessionId;
+    return typeof raw === 'string' && SESSION_ID_RE.test(raw) ? raw : null;
   } catch {
     return null;
   }
@@ -166,6 +203,127 @@ export function ensureSessionDirs(projectRoot, sid) {
   mkdirSync(contextDir, { recursive: true });
   mkdirSync(handoffDir, { recursive: true });
   return { sid: bucket, contextDir, handoffDir };
+}
+
+/**
+ * Candidate binding ids for `.qe/planning/.sessions/{id}.json`. Historical
+ * plan/HUD code uses the full Claude UUID; new session-awareness surfaces use
+ * the 8-char sid. Readers try both, writers preserve an existing UUID binding
+ * if present so activePlanSlug/summary are not split across files.
+ *
+ * @param {string} projectRoot
+ * @param {string|null} [sessionRef]
+ * @returns {string[]}
+ */
+function sessionBindingIds(projectRoot, sessionRef = null) {
+  const ids = [];
+  const add = (value) => {
+    if (value && !ids.includes(value)) ids.push(value);
+  };
+
+  if (typeof sessionRef === 'string') {
+    if (SESSION_ID_RE.test(sessionRef)) add(sessionRef);
+    const short = shortenSid(sessionRef) ?? normalizeSidBucket(sessionRef);
+    if (short && short !== LEGACY_BUCKET && short !== UNKNOWN_BUCKET) add(short);
+  }
+
+  const currentRaw = readCurrentSessionId(projectRoot);
+  if (!ids.length && currentRaw) {
+    add(currentRaw);
+    const short = shortenSid(currentRaw);
+    if (short) add(short);
+  }
+
+  const currentSid = readCurrentSid(projectRoot);
+  if (!ids.length && currentSid) add(currentSid);
+
+  return ids;
+}
+
+function sessionBindingPath(projectRoot, id) {
+  return join(projectRoot, PLANNING_SESSIONS_DIR, `${id}.json`);
+}
+
+function readSessionBinding(projectRoot, sessionRef = null) {
+  for (const id of sessionBindingIds(projectRoot, sessionRef)) {
+    const file = sessionBindingPath(projectRoot, id);
+    if (!existsSync(file)) continue;
+    try {
+      const data = JSON.parse(readFileSync(file, 'utf8'));
+      return data && typeof data === 'object' && !Array.isArray(data) ? data : {};
+    } catch {
+      return {};
+    }
+  }
+  return {};
+}
+
+function resolveWritableSessionBindingPath(projectRoot, sessionRef = null) {
+  const ids = sessionBindingIds(projectRoot, sessionRef);
+  if (ids.length === 0) return null;
+  for (const id of ids) {
+    const file = sessionBindingPath(projectRoot, id);
+    if (existsSync(file)) return file;
+  }
+  return sessionBindingPath(projectRoot, ids[ids.length - 1]);
+}
+
+/**
+ * Read the sessionName field from the per-session planning binding file.
+ *
+ * @param {string} projectRoot
+ * @param {string|null} [sessionRef] full UUID or 8-char sid
+ * @returns {string} normalized name, or empty string when absent/invalid
+ */
+export function readSessionName(projectRoot, sessionRef = null) {
+  if (!projectRoot) return '';
+  const data = readSessionBinding(projectRoot, sessionRef);
+  return normalizeSessionName(data?.sessionName);
+}
+
+/**
+ * Read the active plan slug from the per-session planning binding file.
+ *
+ * @param {string} projectRoot
+ * @param {string|null} [sessionRef] full UUID or 8-char sid
+ * @returns {string}
+ */
+export function readSessionPlan(projectRoot, sessionRef = null) {
+  if (!projectRoot) return '';
+  const data = readSessionBinding(projectRoot, sessionRef);
+  return typeof data?.activePlanSlug === 'string' ? data.activePlanSlug.trim() : '';
+}
+
+/**
+ * Merge-write sessionName into `.qe/planning/.sessions/{id}.json`, preserving
+ * activePlanSlug, summary, and any other existing fields.
+ *
+ * @param {string} projectRoot
+ * @param {unknown} name
+ * @param {string|null} [sessionRef] full UUID or 8-char sid
+ * @returns {{ sessionName: string, filePath: string|null }}
+ */
+export function writeSessionName(projectRoot, name, sessionRef = null) {
+  const sessionName = normalizeSessionName(name);
+  const filePath = resolveWritableSessionBindingPath(projectRoot, sessionRef);
+  if (!filePath) return { sessionName, filePath: null };
+
+  let existing = {};
+  if (existsSync(filePath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+    } catch {
+      existing = {};
+    }
+  }
+
+  atomicWriteJson(filePath, {
+    ...existing,
+    sessionName,
+    updatedAt: new Date().toISOString(),
+  });
+  return { sessionName, filePath };
 }
 
 /**
