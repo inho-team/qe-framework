@@ -21,6 +21,12 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- `/Mrelease` no longer has to swap the skill-bypass flag mid-run. The
+  PreToolUse `git commit` guard now also honors an active `Mbump` bypass flag
+  (in addition to `Qcommit`), so the release-train version-bump commit passes
+  without the Ecommit-executor rewriting the flag. Unrelated skills are still
+  blocked.
+
 ### Removed
 
 ### Security

@@ -260,6 +260,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
       overrideRules.push({
         skill: 'Qcommit',
+        // /Mrelease cuts the version-bump commit under an active Mbump bypass
+        // flag (it edits plugin.json/package.json then commits). Honor that flag
+        // for the commit too, so the release train doesn't have to swap the flag
+        // to Qcommit mid-run. TTL on the flag (120s) keeps this bounded.
+        also: ['Mbump'],
         msg: 'Raw git commit is blocked. Use /Qcommit instead.'
       });
     }
@@ -314,6 +319,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   // when a guard misfires); "safe" (default) and "full" enforce.
   for (const rule of overrideRules) {
     if (bypassSkill === rule.skill) continue;
+    if (Array.isArray(rule.also) && rule.also.includes(bypassSkill)) continue;
     if (cfg.hook_profile === 'minimal') {
       hints.push(`[guard:${rule.skill}] ${rule.msg} (hook_profile=minimal — not enforced)`);
     } else {

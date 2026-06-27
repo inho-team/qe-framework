@@ -605,3 +605,50 @@ test('shell-scanner: pathological deep $( nesting fails CLOSED (no stack overflo
   const huge = 'echo ' + 'a'.repeat(200000);
   assert.doesNotThrow(() => executableView(huge));
 });
+
+// ============================================================================
+// pre-tool-use git-commit bypass tests (drives the hook as a subprocess —
+// the bypass-rule loop is internal, so we assert on exit code: 2 = hard block)
+// ============================================================================
+
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
+
+const HOOK_PATH = fileURLToPath(new URL('../../pre-tool-use.mjs', import.meta.url));
+
+function runCommitGuard(bypassSkill) {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-guard-'));
+  if (bypassSkill) {
+    fs.mkdirSync(path.join(dir, '.qe', 'state'), { recursive: true });
+    fs.writeFileSync(
+      path.join(dir, '.qe', 'state', 'skill-bypass.json'),
+      JSON.stringify({ active: true, skill: bypassSkill, ts: Date.now() }),
+    );
+  }
+  const payload = JSON.stringify({
+    cwd: dir,
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "chore: release v9.9.9"' },
+  });
+  const res = spawnSync(process.execPath, [HOOK_PATH], { input: payload, encoding: 'utf8' });
+  fs.rmSync(dir, { recursive: true, force: true });
+  return res.status;
+}
+
+test('pre-tool-use: raw git commit with no bypass flag is hard-blocked', () => {
+  assert.strictEqual(runCommitGuard(null), 2);
+});
+
+test('pre-tool-use: Qcommit bypass flag allows git commit', () => {
+  assert.notStrictEqual(runCommitGuard('Qcommit'), 2);
+});
+
+test('pre-tool-use: Mbump bypass flag allows the release-train commit (regression)', () => {
+  // /Mrelease bumps version files under an Mbump flag, then commits. The commit
+  // must pass without swapping the flag to Qcommit.
+  assert.notStrictEqual(runCommitGuard('Mbump'), 2);
+});
+
+test('pre-tool-use: an unrelated bypass flag does NOT allow git commit', () => {
+  assert.strictEqual(runCommitGuard('Qrun-task'), 2);
+});
