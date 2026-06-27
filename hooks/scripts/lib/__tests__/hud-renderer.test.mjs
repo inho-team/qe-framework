@@ -186,7 +186,13 @@ test('renderSivsLetters: unknown engine falls back to claude (C)', () => {
 // renderHud
 // ============================================================================
 
-test('renderHud: full payload renders ctx · quotas · model · tokens · SIVS', () => {
+// Multi-terminal sessions write a sessionName into the project's .qe, and the
+// HUD's sessionName element reads it from projectRoot. Point these tests at a
+// path with no .qe so the session-name segment self-skips — keeping assertions
+// deterministic regardless of the developer's live session state.
+const NO_SESSION = '/__hud_test_no_session__';
+
+test('renderHud: full payload → ctx·SIVS on row 1, quotas·model on row 2', () => {
   const data = {
     context_window: {
       used_percentage: 32,
@@ -199,56 +205,56 @@ test('renderHud: full payload renders ctx · quotas · model · tokens · SIVS',
     },
     model: { display_name: 'Opus' },
   };
-  const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx [██░░░░░] 32% │ 5h 23%·7d 12% │ Opus │ 42k tok │ SIVS C/C/C/C');
+  const line = renderHud(data, {}, { noColor: true, projectRoot: NO_SESSION });
+  assert.equal(line, 'ctx [██░░░░░] 32% │ SIVS C/C/C/C\n5h 23%·7d 12% │ Opus');
 });
 
-test('renderHud: single rate limit renders without separator', () => {
+test('renderHud: single rate limit renders without separator (row 2)', () => {
   const data = {
     context_window: { used_percentage: 30 },
     rate_limits: { five_hour: { used_percentage: 45 } },
   };
-  const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx [██░░░░░] 30% │ 5h 45% │ SIVS C/C/C/C');
+  const line = renderHud(data, {}, { noColor: true, projectRoot: NO_SESSION });
+  assert.equal(line, 'ctx [██░░░░░] 30% │ SIVS C/C/C/C\n5h 45%');
 });
 
-test('renderHud: missing model and quotas skips those segments', () => {
+test('renderHud: no model and no quotas drops the empty second row', () => {
   const data = { context_window: { used_percentage: 40 } };
-  const line = renderHud(data, {}, { noColor: true });
+  const line = renderHud(data, {}, { noColor: true, projectRoot: NO_SESSION });
   assert.equal(line, 'ctx [███░░░░] 40% │ SIVS C/C/C/C');
 });
 
-test('renderHud: missing tokens skips the token segment', () => {
+test('renderHud: model present but no quotas → model alone on row 2', () => {
   const data = {
     context_window: { used_percentage: 58 },
     model: { display_name: 'Sonnet' },
   };
-  const line = renderHud(data, {}, { noColor: true });
-  assert.equal(line, 'ctx [████░░░] 58% │ Sonnet │ SIVS C/C/C/C');
+  const line = renderHud(data, {}, { noColor: true, projectRoot: NO_SESSION });
+  assert.equal(line, 'ctx [████░░░] 58% │ SIVS C/C/C/C\nSonnet');
 });
 
 test('renderHud: missing context still shows SIVS segment', () => {
-  const line = renderHud({}, {}, { noColor: true });
+  const line = renderHud({}, {}, { noColor: true, projectRoot: NO_SESSION });
   assert.equal(line, 'SIVS C/C/C/C');
 });
 
 test('renderHud: mixed SIVS keeps "SIVS" prefix with slash letters', () => {
   const data = { context_window: { used_percentage: 20 } };
   const sivs = { implement: { engine: 'codex' } };
-  const line = renderHud(data, sivs, { noColor: true });
+  const line = renderHud(data, sivs, { noColor: true, projectRoot: NO_SESSION });
   assert.equal(line, 'ctx [█░░░░░░] 20% │ SIVS C/X/C/C');
 });
 
 test('renderHud: low-usage context paints green', () => {
   const data = { context_window: { used_percentage: 16 } };
-  const line = renderHud(data, {});
+  const line = renderHud(data, {}, { projectRoot: NO_SESSION });
   assert.match(line, /\x1b\[32m/);
   assert.match(line, /\x1b\[0m/);
 });
 
 test('renderHud: high-usage context paints red', () => {
   const data = { context_window: { used_percentage: 92 } };
-  const line = renderHud(data, {});
+  const line = renderHud(data, {}, { projectRoot: NO_SESSION });
   assert.match(line, /\x1b\[31m/);
 });
 
@@ -260,11 +266,10 @@ test('renderHud: high-usage context paints red', () => {
 import { PRESETS, resolvePreset } from '../hud/presets.mjs';
 
 test('presets: existing 5 presets have frozen element order (no regression)', () => {
-  // session + mix stay byte-frozen — the v6.6.3 default shape and the token-mix
-  // view must never drift. focused/qe/full gained a leading `summary` element
-  // (self-skipping until set) so multi-terminal users can label each session;
-  // those three assert the new, deliberate order.
-  assert.deepEqual(PRESETS.session, ['sessionName', 'context', 'rateLimits', 'model', 'tokens', 'sivs']);
+  // `session` is the uniform 2-row default: row 1 = sessionName·ctx·SIVS, then
+  // a `newline` marker, row 2 = quotas·model. mix stays single-row. focused/qe/
+  // full assert their deliberate order with a leading `summary` element.
+  assert.deepEqual(PRESETS.session, ['sessionName', 'context', 'sivs', 'newline', 'rateLimits', 'model']);
   assert.deepEqual(PRESETS.mix, ['sessionName', 'context', 'modelRatio', 'sivs']);
   assert.deepEqual(PRESETS.focused, ['sessionName', 'summary', 'context', 'phase', 'task', 'sivs']);
   assert.deepEqual(PRESETS.qe, ['sessionName', 'summary', 'sivs', 'phase', 'task']);

@@ -353,8 +353,9 @@ test('presets: unknown name falls back to default (session)', () => {
 
 test('presets: all named presets reference known elements only', () => {
   // Derive the known set from the renderer's registry so adding a new element
-  // (e.g. `wiki`) never silently leaves this guard stale.
-  const known = new Set(Object.keys(ELEMENTS));
+  // (e.g. `wiki`) never silently leaves this guard stale. `newline` is a layout
+  // marker (row separator), not an element, so it is allowed explicitly.
+  const known = new Set([...Object.keys(ELEMENTS), 'newline']);
   for (const [name, list] of Object.entries(PRESETS)) {
     for (const el of list) {
       assert.ok(known.has(el), `preset "${name}" references unknown element "${el}"`);
@@ -366,11 +367,16 @@ test('presets: all named presets reference known elements only', () => {
 // renderer composition
 // ============================================================================
 
-test('renderer: session preset matches v6.6.3 element order', () => {
-  const out = composeRender({ context_window: { used_percentage: 40 } }, {}, { noColor: true, preset: 'session' });
-  // session: ctx, rateLimits, model, tokens, sivs — only ctx + sivs surface with minimal payload.
-  // The context element leads (now with a progress bar) and sivs trails; assert order + content,
-  // not the exact bar glyphs, so cosmetic bar changes don't break the order guard.
+test('renderer: session preset row 1 leads with ctx and trails with SIVS', () => {
+  const out = composeRender(
+    { context_window: { used_percentage: 40 } },
+    {},
+    { noColor: true, preset: 'session', projectRoot: '/nonexistent' },
+  );
+  // session row 1 = sessionName·ctx·sivs, row 2 = quotas·model. With this minimal
+  // payload sessionName self-skips and row 2 is empty (dropped), so a single row
+  // surfaces: ctx leads (progress bar), SIVS trails. Assert order + content, not
+  // the exact bar glyphs, so cosmetic bar changes don't break the order guard.
   assert.ok(out.startsWith('ctx '));
   assert.ok(out.includes('40%'));
   assert.ok(out.endsWith('SIVS C/C/C/C'));

@@ -4,6 +4,11 @@
  * (preset + noColor), walks the ordered element list and joins the non-null
  * chunks with a dim "│" separator.
  *
+ * A preset may contain the special `'newline'` marker to split the HUD across
+ * multiple terminal rows (Claude Code renders each output line as its own
+ * status row). Elements before a marker form one row; elements after it form
+ * the next. Presets with no marker render exactly one line (back-compat).
+ *
  * Separated from `statusline.mjs` (stdin wrapper) so it can be unit-tested
  * without spawning a process.
  */
@@ -57,15 +62,28 @@ export function render(data, sivsConfig, opts = {}) {
     projectRoot: opts.projectRoot || process.cwd(),
   };
 
-  const parts = [];
+  const sep = painter.dim('│');
+
+  // Walk the element order into one or more rows, split on the `newline` marker.
+  const rows = [];
+  let parts = [];
   for (const name of order) {
+    if (name === 'newline') {
+      rows.push(parts);
+      parts = [];
+      continue;
+    }
     const el = ELEMENTS[name];
     if (!el || typeof el.render !== 'function') continue;
     const chunk = el.render(ctx, painter);
     if (chunk != null && chunk !== '') parts.push(chunk);
   }
+  rows.push(parts);
 
-  if (parts.length === 0) return '';
-  const sep = painter.dim('│');
-  return parts.join(` ${sep} `);
+  // Join each row's chunks; drop rows that came out empty (e.g. a second row
+  // whose elements all self-skipped) so the HUD never shows a blank line.
+  return rows
+    .map((rowParts) => rowParts.join(` ${sep} `))
+    .filter((line) => line !== '')
+    .join('\n');
 }

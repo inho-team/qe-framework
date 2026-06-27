@@ -7,8 +7,12 @@
  */
 
 export const PRESETS = {
-  // Default — matches v6.6.3 behavior. Session health focus.
-  session: ['sessionName', 'context', 'rateLimits', 'model', 'tokens', 'sivs'],
+  // Default — uniform 2-row layout for every session:
+  //   row 1: <session name>  │ ctx gauge       │ SIVS
+  //   row 2: 5h/7d quotas     │ model
+  // The `newline` marker splits the rows; Claude Code renders each as its own
+  // status row. `tokens` was dropped from the default to keep both rows tight.
+  session: ['sessionName', 'context', 'sivs', 'newline', 'rateLimits', 'model'],
 
   // Minimal — the session summary + planning/task state the user cares about
   // most. `summary` leads so a multi-terminal user sees "what is this session
