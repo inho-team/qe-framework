@@ -17,14 +17,24 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.3.11] - 2026-06-27
+
+### Added
+
 - Codex background-job staleness detection. When qe reads a Codex job's
   status (`getLatestCodexJobStatus`), it now probes the recorded worker
   process and recent log activity, so a crashed background job that Codex
   still records as `running` is surfaced as stale. SIVS polling and the
   result-handler hook no longer wait forever on a job that will never finish.
   Threshold is tunable via `CODEX_STALE_LOG_SILENCE_MS`.
-
-### Changed
 
 ### Fixed
 
@@ -38,10 +48,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   (in addition to `Qcommit`), so the release-train version-bump commit passes
   without the Ecommit-executor rewriting the flag. Unrelated skills are still
   blocked.
-
-### Removed
-
-### Security
 
 ## [7.3.10] - 2026-06-27
 
