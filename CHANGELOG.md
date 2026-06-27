@@ -25,6 +25,17 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.3.10] - 2026-06-27
+
+### Fixed
+
+- Codex agent role TOML no longer emits `qe_model_hint`,
+  `qe_reasoning_effort_hint`, or `qe_tools_hint` as top-level keys. Codex CLI
+  (>=0.142.x) strict-deserializes these files and rejected every generated
+  agent with "malformed agent role definition" warnings, silently dropping all
+  27 native agents. The hint values remain available inside
+  `developer_instructions` (compatibility note), so no information is lost.
+
 ## [7.3.9] - 2026-06-26
 
 ### Changed
