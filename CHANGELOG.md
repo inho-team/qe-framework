@@ -23,6 +23,24 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   both on session start and when checking Codex results — so SIVS never polls
   a dead job forever. Only confirmed `process-dead` jobs are auto-reaped; weak
   `log-silent` signals are surfaced but left for the user to judge.
+- Code-enforced artifact context injection for SIVS Codex delegations. When a
+  stage is delegated to Codex, the PreToolUse hook now reads the active
+  TASK_REQUEST / VERIFY_CHECKLIST and injects their content into the codex
+  subagent prompt via `hookSpecificOutput.updatedInput` — previously the
+  artifacts were only referenced by path and could be skipped if the model
+  never opened them. New `buildDelegationContext` / `buildDelegationPayload`
+  helpers in `codex_bridge.mjs` (64 KiB per-artifact cap, UTF-8-safe
+  truncation, graceful skip on missing files) and a new
+  `codex-context-injector.mjs` hook module that resolves the active artifacts
+  (in-progress over pending, newest first) and performs the injection.
+  Injections are recorded as metadata-only audit entries in
+  `.qe/agent-results/codex-context-audit.log` (no artifact body, no secrets).
+- Reverse delegation (Codex base session → `claude -p` via Qclaude-rescue) now
+  shares the same artifact context builder through
+  `buildReverseDelegationPayload` in `claude_bridge.mjs`. This path is soft
+  (skill-invoked) rather than hook-enforced because Codex hooks cannot mutate
+  tool input; the Qclaude-rescue skill prepends the built context to the Claude
+  prompt as a single argv.
 
 ### Changed
 
