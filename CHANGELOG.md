@@ -17,6 +17,13 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- Automatic reaping of stale Codex background jobs. When a background job's
+  worker process is confirmed gone but its status is still `running`, qe now
+  cancels it through the Codex `cancel` path (state corrected to `cancelled`)
+  both on session start and when checking Codex results — so SIVS never polls
+  a dead job forever. Only confirmed `process-dead` jobs are auto-reaped; weak
+  `log-silent` signals are surfaced but left for the user to judge.
+
 ### Changed
 
 ### Fixed

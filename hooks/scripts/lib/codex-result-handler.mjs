@@ -15,7 +15,7 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { resolveCodexStateDir, getLatestCodexJobStatus } from '../../../scripts/lib/codex_bridge.mjs';
+import { resolveCodexStateDir, getLatestCodexJobStatus, reapStaleCodexJobs } from '../../../scripts/lib/codex_bridge.mjs';
 
 const SIGNAL_DIR_NAME = join('.qe', 'agent-results');
 const SIGNAL_FILE_NAME = 'codex-ready.signal';
@@ -87,7 +87,19 @@ function checkCompanionJobState(cwd) {
     'cancelled': 'failed',
   };
 
-  const mapped = statusMap[job.status] || 'unknown';
+  let mapped = statusMap[job.status] || 'unknown';
+
+  // Auto-reap confirmed zombies (worker process gone). Weak `log-silent` signals
+  // are left alone — only `process-dead` is certain enough to cancel. Once reaped,
+  // the job is terminal, so report it as failed instead of a forever-"running".
+  let reapedId = null;
+  if (job.stale && job.staleKind === 'process-dead') {
+    const r = reapStaleCodexJobs(cwd);
+    if (r.reaped.some((x) => x.id === job.jobId)) {
+      reapedId = job.jobId;
+      mapped = 'failed';
+    }
+  }
 
   return {
     status: mapped,
@@ -103,6 +115,7 @@ function checkCompanionJobState(cwd) {
     completedAt: job.completedAt,
     stale: job.stale || false,
     staleReason: job.staleReason || null,
+    reaped: reapedId,
   };
 }
 

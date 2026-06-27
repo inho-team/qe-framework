@@ -565,7 +565,8 @@ export function resolveCodexCompanionScript() {
  * captured in the result so this is safe to call from hooks.
  *
  * @param {string} cwd - workspace root
- * @param {object} [options] - { timeoutMs?: number }
+ * @param {object} [options] - { timeoutMs?: number, companionScript?: string }
+ *   companionScript overrides the auto-resolved codex-companion path (tests).
  * @returns {{ reaped: Array<{id:string,reason:string}>, skipped: Array<{id:string,reason:string}>, errors: Array<{id:string,reason:string}> }}
  */
 export function reapStaleCodexJobs(cwd, options = {}) {
@@ -599,7 +600,7 @@ export function reapStaleCodexJobs(cwd, options = {}) {
   const confirmed = runningStale.filter((e) => e.staleKind === 'process-dead');
   if (confirmed.length === 0) return result;
 
-  const companion = resolveCodexCompanionScript();
+  const companion = options.companionScript || resolveCodexCompanionScript();
   if (!companion) {
     for (const { job, staleReason } of confirmed) {
       result.errors.push({ id: job.id, reason: `codex companion script not found; cannot reap (${staleReason})` });

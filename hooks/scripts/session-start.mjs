@@ -9,6 +9,7 @@ import { pathToFileURL } from 'url';
 import { execSync, spawn } from 'child_process';
 import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
+import { reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
 import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
 import { shortenSid, getSessionContextDir } from './lib/session-resolver.mjs';
@@ -385,6 +386,18 @@ try {
   }
 } catch {
   // Fault tolerance — ignore cleanup errors
+}
+
+// Cleanup: Reap confirmed-zombie Codex jobs left by crashed background runs —
+// status still "running" but the worker process is gone. Only process-dead jobs
+// are auto-cancelled; weak (log-silent) signals are left for the user to judge.
+try {
+  const reap = reapStaleCodexJobs(cwd);
+  if (reap.reaped.length) {
+    messages.push(`[Codex] Auto-reaped ${reap.reaped.length} stale job(s) from crashed background runs`);
+  }
+} catch {
+  // Best-effort — never block session start on Codex reap.
 }
 
 // Persist session_id so model-side skills (Qplan, Qgs, …) can bind their
