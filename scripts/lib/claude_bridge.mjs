@@ -6,6 +6,11 @@ import { loadSivsConfig } from './codex_bridge.mjs';
 
 export { loadSivsConfig };
 
+// Reverse-path parity note: Codex artifact context injection is implemented in
+// codex_bridge.mjs via buildDelegationContext/buildDelegationPayload. The Claude
+// reverse bridge keeps its existing command-only API for this task so reverse
+// delegation exports and callers remain unchanged.
+
 /**
  * Check if Claude CLI is available on PATH
  * @returns {boolean} true if claude binary is found, false otherwise

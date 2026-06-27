@@ -43,6 +43,7 @@ const cwd = data.cwd || data.directory || process.cwd();
 const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const hints = [];
+let mutatedInput = null;
 
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
@@ -452,6 +453,21 @@ if (toolName === 'Agent') {
       const reachable = isCodexReachable(state);
       const result = enforceRouting(toolInput, sivsConfig, reachable);
       appendAuditLog(cwd, result);
+      if (result.actualEngine === 'codex' && result.action !== 'block') {
+        try {
+          const { injectCodexContext } = await import('./lib/codex-context-injector.mjs');
+          const injection = await injectCodexContext(cwd, toolInput, result.stage);
+          if (injection.injected) {
+            mutatedInput = { ...toolInput, prompt: injection.updatedPrompt };
+            const artifactSummary = injection.artifacts
+              .map((artifact) => `${artifact.kind}(${artifact.bytes}B)`)
+              .join(', ');
+            hints.push(`[SIVS CONTEXT] Injected artifact context into codex delegation: ${artifactSummary}`);
+          }
+        } catch {
+          // Fault-tolerant: context injection must never affect routing.
+        }
+      }
       if (result.action === 'block') {
         emitBlock({
           skill: result.configuredEngine === 'codex' ? 'codex:codex-rescue' : 'Etask-executor',
@@ -540,13 +556,20 @@ try {
   writeUnifiedState(cwd, state);
 } catch {}
 
-if (hints.length > 0) {
+if (hints.length > 0 || mutatedInput) {
+  const hookSpecificOutput = {
+    hookEventName: "PreToolUse",
+  };
+  if (hints.length > 0) {
+    hookSpecificOutput.additionalContext = `[QE] ${hints.join(' ')}`;
+  }
+  if (mutatedInput) {
+    hookSpecificOutput.updatedInput = mutatedInput;
+  }
+
   console.log(JSON.stringify({
     continue: true,
-    hookSpecificOutput: {
-      hookEventName: "PreToolUse",
-      additionalContext: `[QE] ${hints.join(' ')}`
-    }
+    hookSpecificOutput,
   }));
 } else {
   console.log(JSON.stringify({ continue: true }));
