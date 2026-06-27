@@ -285,9 +285,14 @@ test('(g) Codex agent renderer preserves metadata hints and escapes TOML strings
   assert.ok(content.includes('description = "'), 'description rendered');
   assert.ok(content.includes('\\\\\\"quoted\\\\\\"'), 'description quotes escaped');
   assert.ok(content.includes('C:\\\\\\\\tmp'), 'description backslashes escaped');
-  assert.ok(content.includes('qe_model_hint = "haiku"'), 'model hint preserved');
-  assert.ok(content.includes('qe_reasoning_effort_hint = "low"'), 'effort hint inferred');
-  assert.ok(content.includes('qe_tools_hint = "Read, Bash"'), 'tools hint preserved');
+  // Codex strict-deserializes role TOML and rejects unknown top-level keys, so
+  // the hints must live inside developer_instructions, never as qe_*_hint keys.
+  assert.ok(!content.includes('qe_model_hint'), 'no unknown top-level model hint key');
+  assert.ok(!content.includes('qe_reasoning_effort_hint'), 'no unknown top-level effort hint key');
+  assert.ok(!content.includes('qe_tools_hint'), 'no unknown top-level tools hint key');
+  assert.ok(content.includes('Source recommendedModel hint: `haiku`'), 'model hint in note');
+  assert.ok(content.includes('Source reasoning effort hint: `low`'), 'effort hint inferred in note');
+  assert.ok(content.includes('Source tool/MCP hint: `Read, Bash`'), 'tools hint in note');
   assert.ok(content.includes('developer_instructions = """'), 'uses TOML multiline basic string');
   assert.ok(content.includes('Literal triple double quote: \\"\\"\\"'), 'triple double quote escaped');
   assert.ok(content.includes("Literal triple single quote: '''"), 'triple single quote preserved safely');

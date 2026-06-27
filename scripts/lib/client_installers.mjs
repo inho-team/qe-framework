@@ -724,9 +724,10 @@ function renderCodexAgentToml({ name, description, instructions, metadata = {} }
     `name = ${quoteToml(name)}`,
     `description = ${quoteToml(description)}`,
   ];
-  if (modelHint) lines.push(`qe_model_hint = ${quoteToml(modelHint)}`);
-  if (reasoningEffortHint) lines.push(`qe_reasoning_effort_hint = ${quoteToml(reasoningEffortHint)}`);
-  if (toolsHint) lines.push(`qe_tools_hint = ${quoteToml(toolsHint)}`);
+  // NOTE: Codex (>=0.142.x) strict-deserializes agent role TOML and rejects the
+  // whole file on any unknown top-level key. The model/effort/tools hints are
+  // therefore carried inside developer_instructions (compatibility note) only,
+  // not as top-level qe_*_hint keys.
   lines.push(
     `sandbox_mode = ${quoteToml(sandboxMode)}`,
     'developer_instructions = """',
