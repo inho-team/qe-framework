@@ -17,9 +17,21 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- Codex background-job staleness detection. When qe reads a Codex job's
+  status (`getLatestCodexJobStatus`), it now probes the recorded worker
+  process and recent log activity, so a crashed background job that Codex
+  still records as `running` is surfaced as stale. SIVS polling and the
+  result-handler hook no longer wait forever on a job that will never finish.
+  Threshold is tunable via `CODEX_STALE_LOG_SILENCE_MS`.
+
 ### Changed
 
 ### Fixed
+
+- Reverse delegation (claude rescue) now checks Claude CLI authentication
+  before routing a stage to `claude -p`. When the CLI is not logged in it
+  falls back to Codex solo with a clear warning, instead of silently failing
+  on an unauthenticated invocation.
 
 - `/Mrelease` no longer has to swap the skill-bypass flag mid-run. The
   PreToolUse `git commit` guard now also honors an active `Mbump` bypass flag

@@ -94,11 +94,15 @@ function checkCompanionJobState(cwd) {
     source: 'companion',
     diffStat: null,
     elapsedSec: null,
-    error: job.error || null,
+    // A stale "running" job is a zombie (worker gone) — surface its reason as the
+    // error so callers do not wait forever on a job that will never finish.
+    error: job.error || (job.stale ? `Job appears stale: ${job.staleReason}` : null),
     timestamp: new Date().toISOString(),
     jobId: job.jobId,
     phase: job.phase,
     completedAt: job.completedAt,
+    stale: job.stale || false,
+    staleReason: job.staleReason || null,
   };
 }
 

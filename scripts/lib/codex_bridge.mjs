@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 
 import { createHash } from 'crypto';
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync, statSync } from 'fs';
 import { homedir, tmpdir } from 'os';
 import { join } from 'path';
 
@@ -296,9 +296,89 @@ export function evaluateCodexReachability(state = {}, options = {}, pluginAvaila
 }
 
 /**
+ * Staleness threshold (ms): an active job whose log has been silent at least
+ * this long, with no live worker process recorded, is treated as a soft
+ * staleness signal. Override with CODEX_STALE_LOG_SILENCE_MS.
+ */
+const DEFAULT_STALE_LOG_SILENCE_MS = 5 * 60 * 1000;
+
+function staleLogSilenceThresholdMs() {
+  const raw = Number(process.env.CODEX_STALE_LOG_SILENCE_MS);
+  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STALE_LOG_SILENCE_MS;
+}
+
+/**
+ * Liveness probe for a recorded worker pid. Uses signal 0, which performs the
+ * existence/permission check without delivering a signal.
+ * @param {number} pid
+ * @returns {boolean|null} true=alive, false=gone, null=unknown (no/invalid pid)
+ */
+export function isProcessAlive(pid) {
+  if (!Number.isInteger(pid) || pid <= 0) return null;
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch (err) {
+    // ESRCH: no such process. EPERM: alive but owned by another user.
+    return err?.code === 'EPERM';
+  }
+}
+
+/**
+ * Milliseconds since a log file was last modified, or null if unreadable.
+ * @param {string|null} logFile
+ * @returns {number|null}
+ */
+function logSilenceMs(logFile) {
+  if (!logFile) return null;
+  try {
+    return Date.now() - statSync(logFile).mtimeMs;
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Detect "zombie" Codex jobs: the persisted status still says running, but the
+ * worker process is gone (or, when no pid is recorded, the log has been silent
+ * far longer than expected). Codex's own status command only reads the stored
+ * status field, so a crashed background job reports "running" forever. Doing the
+ * check here lets the qe consumer surface the truth without patching the codex
+ * plugin (which would be lost on every plugin update).
+ *
+ * Conservative by design: a confirmed-alive pid is always trusted (long log
+ * gaps are normal while Codex writes a large file or runs a slow command), so
+ * only crashed or pid-less-and-silent jobs are flagged.
+ *
+ * @param {object} [job] - state.json job entry ({ status, pid, logFile })
+ * @returns {{ stale: boolean, staleReason: string|null }}
+ */
+export function detectJobStaleness(job = {}) {
+  if (job.status !== 'running') return { stale: false, staleReason: null };
+
+  const alive = isProcessAlive(job.pid);
+  // Strong signal: recorded worker process is gone but status says running.
+  if (alive === false) {
+    return { stale: true, staleReason: `recorded process ${job.pid} is not running` };
+  }
+  // Confirmed alive — trust it.
+  if (alive === true) return { stale: false, staleReason: null };
+
+  // pid unknown — fall back to the log-silence heuristic only.
+  const silenceMs = logSilenceMs(job.logFile);
+  if (silenceMs != null && silenceMs > staleLogSilenceThresholdMs()) {
+    return {
+      stale: true,
+      staleReason: `no log activity for ${Math.round(silenceMs / 60000)}m and no live process recorded`,
+    };
+  }
+  return { stale: false, staleReason: null };
+}
+
+/**
  * Get the latest Codex companion job status for the given workspace.
  * @param {string} cwd - Project root directory
- * @returns {{ found: boolean, jobId?: string, status?: string, phase?: string, completedAt?: string, error?: string }}
+ * @returns {{ found: boolean, jobId?: string, status?: string, phase?: string, completedAt?: string, error?: string, stale?: boolean, staleReason?: string|null }}
  */
 export function getLatestCodexJobStatus(cwd) {
   const stateDir = resolveCodexStateDir(cwd);
@@ -314,6 +394,7 @@ export function getLatestCodexJobStatus(cwd) {
 
     // Most recent job (sorted by updatedAt desc)
     const latest = jobs.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
+    const { stale, staleReason } = detectJobStaleness(latest);
     return {
       found: true,
       jobId: latest.id,
@@ -321,6 +402,8 @@ export function getLatestCodexJobStatus(cwd) {
       phase: latest.phase,
       completedAt: latest.completedAt || null,
       error: latest.errorMessage || null,
+      stale,
+      staleReason,
     };
   } catch {
     return { found: false };
