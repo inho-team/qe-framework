@@ -16,6 +16,7 @@ import { shortenSid, getSessionContextDir, readSessionName, readSessionPlan } fr
 import { cleanupStaleSessions, upsertSession, filterActiveSessions } from './lib/session-registry.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
+import { maybeSpawnRefresh, ensurePeriodicRefresh } from './lib/auto-refresh.mjs';
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
@@ -178,7 +179,19 @@ if (existsSync(analysisDir)) {
   }
 
   if (staleCount >= 1) {
-    messages.push('[QE] Project analysis looks stale — /Qrefresh would give you fresher context to work from.');
+    // Self-heal: spawn a detached Haiku /Qrefresh (one-shot, lock-guarded) and start a
+    // periodic refresh job. Never block session start if any of this fails.
+    let launched = false;
+    try {
+      launched = maybeSpawnRefresh(cwd, cfg);
+      ensurePeriodicRefresh(cwd, cfg, process.env.CLAUDE_PLUGIN_ROOT);
+    } catch { /* auto-refresh is best-effort housekeeping */ }
+
+    if (launched) {
+      messages.push('[QE] 분석이 오래됨 — Haiku로 백그라운드 갱신 시작 (.qe/analysis/). 완료 후 자동 반영.');
+    } else {
+      messages.push('[QE] Project analysis looks stale — /Qrefresh would give you fresher context to work from.');
+    }
   }
 }
 

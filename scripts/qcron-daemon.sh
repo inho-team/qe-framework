@@ -1,12 +1,18 @@
 #!/bin/bash
 
 # Qcron Daemon Engine
-# Usage: ./qcron-daemon.sh [start|stop|list] [job_id] [interval] [mission]
+# Usage: ./qcron-daemon.sh [start|stop|list] [job_id] [interval] [mission] [model] [perm_mode]
+#   model     (optional) — passed as --model to claude (e.g. haiku). Empty = CLI default.
+#   perm_mode (optional) — "allowlist" runs headless with --permission-mode dontAsk plus a
+#                          .qe/-scoped allowlist (Edit/Write locked to .qe/**, read-only Bash).
+#                          Anything else / empty keeps the legacy --dangerously-skip-permissions.
 
 ACTION=$1
 JOB_ID=$2
 INTERVAL=$3
 MISSION=$4
+MODEL=$5
+PERM_MODE=$6
 
 QE_LOG_DIR=".qe/logs/qcron"
 JOBS_DIR="scripts/qcron-jobs"
@@ -20,11 +26,26 @@ CLAUDE_BIN="$(command -v claude)"
 # Headless + non-interactive flags. THIS IS THE FIX: the old daemon ran
 # `claude "$MISSION"` with no `-p`, which in a TTY-less tmux pane starts an
 # interactive REPL and blocks forever — the mission never runs and the loop
-# never sleeps. `-p/--print` runs headless and exits; `--dangerously-skip-
-# permissions` stops the unattended run from stalling on a permission prompt
-# it has no TTY to answer. Safety must therefore live in the MISSION prompt
-# (scope it; say "do not modify files" for read-only checks).
-CLAUDE_FLAGS="-p --dangerously-skip-permissions"
+# never sleeps. `-p/--print` runs headless and exits.
+#
+# Permission handling has two modes:
+#   default ("skip")    — --dangerously-skip-permissions. Safety lives in the MISSION
+#                         prompt (scope it; "do not modify files" for read-only checks).
+#   "allowlist"         — --permission-mode dontAsk + a .qe/-scoped allowlist. Un-allowed
+#                         tools fail closed (deny, never hang). Used by the auto-refresh
+#                         job so an unattended /Qrefresh can never touch project source.
+#
+# The allowlist is embedded with literal quotes so that patterns containing spaces
+# (e.g. `Bash(ls *)`) survive substitution into the generated job script as a single arg.
+REFRESH_ALLOWED="Read Grep Glob Edit(.qe/**) Write(.qe/**) Bash(ls *) Bash(find *) Bash(cat *) Bash(wc *) Bash(head *) Bash(tail *) Bash(stat *) Bash(git log *) Bash(git status *) Bash(git diff *)"
+if [ "$PERM_MODE" = "allowlist" ]; then
+  CLAUDE_FLAGS="-p --permission-mode dontAsk"
+  [ -n "$MODEL" ] && CLAUDE_FLAGS="$CLAUDE_FLAGS --model $MODEL"
+  CLAUDE_FLAGS="$CLAUDE_FLAGS --allowedTools \"$REFRESH_ALLOWED\""
+else
+  CLAUDE_FLAGS="-p --dangerously-skip-permissions"
+  [ -n "$MODEL" ] && CLAUDE_FLAGS="$CLAUDE_FLAGS --model $MODEL"
+fi
 
 case $ACTION in
   start)
@@ -88,6 +109,6 @@ JOBEOF
     ;;
 
   *)
-    echo "Usage: $0 [start|stop|list] [job_id] [interval] [mission]"
+    echo "Usage: $0 [start|stop|list] [job_id] [interval] [mission] [model] [perm_mode]"
     ;;
 esac

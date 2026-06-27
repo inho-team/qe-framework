@@ -18,6 +18,21 @@ const DEFAULTS = {
   // may reflect a different codebase state after overnight changes.
   analysis_freshness_ms: 24 * 60 * 60 * 1000,  // 24 hours — .qe/analysis/ freshness
 
+  // [why default true]: when .qe/analysis/ is stale, the session-start hook spawns a
+  // detached headless `claude -p /Qrefresh` on the Haiku model so analysis self-heals
+  // without the user running /Qrefresh manually. Permissions are NOT bypassed — the
+  // spawn uses --permission-mode dontAsk + an allowlist scoped to .qe/ (Edit/Write
+  // never touch project source). Opt-out via .qe/config.json { "hooks": { "auto_refresh_enabled": false } }.
+  auto_refresh_enabled: true,                  // spawn background Haiku /Qrefresh when analysis is stale
+  auto_refresh_model: 'haiku',                 // model alias for the background refresh run
+  // [why 6h]: shorter than the 24h staleness window so a long-lived machine refreshes
+  // a few times a day; long enough that the periodic tmux job is not chatty.
+  auto_refresh_interval_ms: 6 * 60 * 60 * 1000, // periodic (qcron) refresh cadence
+  // [why 10 min]: dedupes concurrent spawns when several terminals start a session at
+  // once. A refresh normally finishes inside this window; once it does, analysis mtime
+  // is fresh so the next session skips spawning anyway.
+  auto_refresh_lock_ttl_ms: 10 * 60 * 1000,    // lock TTL to dedupe concurrent session spawns
+
   // post-tool-use.mjs
   // [why this value]: 90 seconds is the typical latency window for a burst of tool
   // calls caused by a single agent action (e.g. multi-file edits). Errors that cluster
