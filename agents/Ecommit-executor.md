@@ -22,13 +22,13 @@ Never leaves AI traces (e.g., Co-Authored-By).
 4. **Validate conventional commit format** (see below)
 5. Selectively `git add` only relevant files
 6. Exclude sensitive files such as `.env`, credentials, etc.
-7. **Set the skill bypass flag — in its OWN bash call, immediately before the commit** (required — the PreToolUse hook hard-blocks raw `git commit`):
-   ```bash
-   mkdir -p .qe/state && echo '{"active":true,"skill":"Qcommit","ts":'$(date +%s000)'}' > .qe/state/skill-bypass.json
+7. **Set the skill bypass flag using the Write tool — NOT Bash** (required — the PreToolUse hook hard-blocks raw `git commit`). Use the **Write tool** to create `.qe/state/skill-bypass.json` with exactly this content:
+   ```json
+   {"active":true,"skill":"Qcommit"}
    ```
-   > ❌ **Never combine flag-creation and `git commit` in one bash command.** The PreToolUse hook reads the flag from disk *before* the command executes, so a flag written in the same command is not yet on disk and the commit is blocked. Flag-write and commit MUST be **separate Bash tool calls, flag first.**
-   > The flag has a **120-second TTL** (`ts` must be within 120s of the commit). Write it right before committing — not at the start of your status/diff analysis — or it expires.
-8. **Execute the commit in the NEXT bash call.** Staging may share this call, and cleanup may be appended after the commit (only `git commit` is gated, so `git add` and `rm` run freely once the flag is in place):
+   > ✅ **Why the Write tool, not Bash:** a Write tool call can never be combined with `git commit` into a single command, so the flag is guaranteed to be on disk before the gated commit runs. (A flag written by Bash in the same `&&` chain is not yet on disk when the PreToolUse hook checks the command, so the commit is blocked. This is the failure mode the Write tool eliminates structurally.)
+   > **120-second TTL:** the hook uses the file's mtime when no `ts` is present, so create the flag right before committing — not at the start of your status/diff analysis — or it expires.
+8. **Execute the commit in the NEXT step, with a Bash tool call** (separate from step 7's Write call). Staging may share this call, and cleanup may be appended after the commit (only `git commit` is gated, so `git add` and `rm` run freely once the flag is in place):
    ```bash
    git add <relevant files> && git commit -m "..." ; rm -f .qe/state/skill-bypass.json
    ```

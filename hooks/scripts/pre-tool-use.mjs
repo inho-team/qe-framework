@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync, readdirSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { loadConfig } from './lib/config.mjs';
@@ -228,7 +228,15 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   if (!bypass || !bypass.active) {
     const bypassFile = join(cwd, '.qe', 'state', 'skill-bypass.json');
     if (existsSync(bypassFile)) {
-      try { bypass = JSON.parse(readFileSync(bypassFile, 'utf8')); } catch { bypass = null; }
+      try {
+        bypass = JSON.parse(readFileSync(bypassFile, 'utf8'));
+        // A flag written via the Write tool (e.g. Ecommit-executor) has no `ts` — Write
+        // cannot stamp $(date). Fall back to the file mtime so the 120s TTL still applies.
+        // Bash-written flags keep their `ts` and are unaffected.
+        if (bypass && bypass.active && !bypass.ts) {
+          bypass.ts = statSync(bypassFile).mtimeMs;
+        }
+      } catch { bypass = null; }
     }
   }
   let bypassSkill = null;
