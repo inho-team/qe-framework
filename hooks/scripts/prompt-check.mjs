@@ -12,6 +12,7 @@ import { readClaudeOAuthToken } from './lib/claude-token.mjs';
 // wiki-retrieve top-level은 fs/path만 import한다(wiki-router는 그 안에서 lazy) → 매 프롬프트
 // selfTest 부작용 없음. estimateTokens를 여기서 static import하면 그 위험이 생기므로 안 한다.
 import { wikiRetrieve, PUSH_FLOOR } from '../../scripts/lib/wiki-retrieve.mjs';
+import { readCurrentSid, readCurrentSessionId, readSessionName } from './lib/session-resolver.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -300,6 +301,49 @@ try {
   }
 } catch {
   // fail-open: wiki hint is advisory, never block the hook
+}
+
+// --- Session auto-naming (AI-driven) + topic-change refresh ---
+// The hook is not an LLM, so it cannot read the work itself — it only injects a
+// one-line instruction and lets Claude name/rename the session from the actual
+// task. Two phases keyed off the per-session sessionName binding:
+//   1. No name yet  → ask Claude to name it from this request (capped at 2 nudges
+//      so an un-named session never spams every turn).
+//   2. Already named → count prompts; every NAME_REFRESH_EVERY prompts, ask
+//      Claude to RENAME *only* if the topic has clearly shifted (conservative —
+//      keep the name during a continuous task to avoid flicker across sessions).
+// State lives in unified-state under session_name_meta, scoped to the sid so a
+// new terminal starts its own counter. Fail-open: advisory only.
+const NAME_REFRESH_EVERY = 5;
+const MAX_NONAME_NUDGES = 2;
+try {
+  const sid = readCurrentSid(cwd);
+  if (sid) {
+    const sessionRef = readCurrentSessionId(cwd) || sid;
+    const currentName = readSessionName(cwd, sessionRef);
+    const meta = (state.session_name_meta && state.session_name_meta.sid === sid)
+      ? state.session_name_meta
+      : { sid, noNameNudges: 0, promptsSinceNamed: 0 };
+
+    if (!currentName) {
+      if (meta.noNameNudges < MAX_NONAME_NUDGES) {
+        hints.push('[SESSION-NAME] 이 세션에 이름이 없습니다. 이번 요청의 핵심 업무를 한국어 4~6단어로 요약해 /Qsession-name set <이름> 을 한 번 실행하세요. 같은 작업을 계속하는 동안엔 다시 묻지 않습니다.');
+        meta.noNameNudges += 1;
+      }
+      meta.promptsSinceNamed = 0;
+    } else {
+      meta.noNameNudges = 0;
+      meta.promptsSinceNamed = (meta.promptsSinceNamed || 0) + 1;
+      if (meta.promptsSinceNamed >= NAME_REFRESH_EVERY) {
+        hints.push('[SESSION-NAME] 현재 세션 이름은 "' + currentName + '"입니다. 지금 진행 중인 업무가 이 이름과 명확히 다른 주제로 전환됐다면 /Qsession-name set <새 이름> 으로 갱신하세요. 같은 작업의 연속이면 그대로 두세요(불필요한 변경 금지).');
+        meta.promptsSinceNamed = 0;
+      }
+    }
+    state.session_name_meta = meta;
+    writeUnifiedState(cwd, state);
+  }
+} catch {
+  // fail-open: session auto-naming is advisory, never block the hook
 }
 
 if (hints.length > 0) {
