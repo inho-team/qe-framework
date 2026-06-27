@@ -2,14 +2,13 @@
 
 import { execFileSync } from 'child_process';
 
-import { loadSivsConfig } from './codex_bridge.mjs';
+import { buildDelegationContext, loadSivsConfig } from './codex_bridge.mjs';
 
-export { loadSivsConfig };
+export { buildDelegationContext, loadSivsConfig };
 
-// Reverse-path parity note: Codex artifact context injection is implemented in
-// codex_bridge.mjs via buildDelegationContext/buildDelegationPayload. The Claude
-// reverse bridge keeps its existing command-only API for this task so reverse
-// delegation exports and callers remain unchanged.
+// Reverse-path parity note: the artifact context builder is shared via
+// codex_bridge.mjs buildDelegationContext. Reverse delegation remains soft
+// (skill-invoked) because Codex hooks cannot mutate input.
 
 /**
  * Check if Claude CLI is available on PATH
@@ -86,6 +85,23 @@ export function getClaudeCommand(stage, options = {}) {
   }
 
   return { command, description };
+}
+
+/**
+ * Build a Claude reverse-delegation payload with the existing command object
+ * plus artifact context that callers can prepend to the Claude prompt.
+ *
+ * This is intentionally separate from getClaudeCommand() so existing callers
+ * keep the original return shape unchanged.
+ *
+ * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
+ * @param {object} options - getClaudeCommand options plus taskPath/checklistPath/planPath/cwd
+ * @returns {{ command: { command: string, description: string }, context: string, warnings: string[], artifacts: Array<{ kind: string, path: string, bytes: number, truncated: boolean }> }}
+ */
+export function buildReverseDelegationPayload(stage, options = {}) {
+  const command = getClaudeCommand(stage, options);
+  const { context, warnings, artifacts } = buildDelegationContext(stage, options);
+  return { command, context, warnings, artifacts };
 }
 
 /**

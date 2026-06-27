@@ -32,6 +32,15 @@ Pass the matching prompt to Claude for each delegated stage, mirroring `codex_br
 - `verify` -> `Validate the following output against VERIFY_CHECKLIST: <output>`
 - `supervise` -> `Review the following for quality and correctness: <output>`
 
+Before running `claude -p`, build the soft reverse counterpart of the forward hook-injected artifact context:
+
+```bash
+BRIDGE="./scripts/lib/claude_bridge.mjs"; [ -f "$BRIDGE" ] || BRIDGE="$HOME/.codex/scripts/lib/claude_bridge.mjs"
+STAGE=verify TASK_PATH=".qe/tasks/pending/TASK_REQUEST.md" CHECKLIST_PATH=".qe/checklists/pending/VERIFY_CHECKLIST.md" node -e 'import(process.argv[1]).then(m => { const stage = process.env.STAGE; if (!stage) throw new Error("STAGE is required"); const r = m.buildReverseDelegationPayload(stage, { taskPath: process.env.TASK_PATH, checklistPath: process.env.CHECKLIST_PATH, cwd: process.cwd() }); console.log(JSON.stringify(r)); })' "$BRIDGE"
+```
+
+Prepend the returned `context` to the selected stage prompt, then pass the enriched prompt as the single task argument to `claude -p`.
+
 ## Distinction from ask-claude (OMX)
 `Qclaude-rescue` and `ask-claude` are separate skills with different names and roles. `Qclaude-rescue` is a QE skill for SIVS-stage-aware reverse delegation from Codex to Claude. `ask-claude` is an OMX skill for generic ad-hoc questions to Claude. They coexist without conflict. QE does NOT absorb or replace `ask-claude`.
 
