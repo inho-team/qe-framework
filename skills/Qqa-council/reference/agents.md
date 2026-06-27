@@ -69,12 +69,15 @@ needs. A "super agent" with every tool is an anti-pattern and a FAIL condition.
 
 | Role | Read src | Write src | Browser | gh/PR | Enforced by |
 |------|:--------:|:---------:|:-------:|:-----:|-------------|
-| Planner | ✅ | ❌ | ✅ (ro) | ❌ | skill delegation |
-| Explorer | ❌ | ❌ | ✅ | ❌ | `Eqa-explorer` tools + CI allowedTools |
-| Auditor (opt) | ✅ | ❌ | ✅ (ro) | ❌ | `Qvisual-qa`+`Qweb-design-guidelines`+`Qdesign-audit` |
-| Generator | ✅ | ✅ | ✅ | ❌ | `Qplaywright-expert` |
-| Healer | ✅ | ✅ | ✅ | ❌ | `Eqa-orchestrator` |
-| Reporter | artifacts | ❌ | ❌ | comment | `Eqa-reporter` tools |
+| Planner | ✅ | ❌ | ✅ (ro) | ❌ | `Qqa-test-planner`/`Qscenario-test` (skill) |
+| Explorer | ❌ | ❌ | ✅ | ❌ | `Eqa-explorer` (agent) tools + CI allowedTools |
+| Auditor (opt) | ✅ | ❌ | ✅ (ro) | ❌ | `Qvisual-qa`+`Qweb-design-guidelines`+`Qdesign-audit` (skill) |
+| Generator | ✅ | ✅ | ✅ | ❌ | `Qplaywright-expert` (skill) |
+| Healer | ✅ | ✅ | ✅ | ❌ | `Eqa-orchestrator` (agent) |
+| Reporter | artifacts | ❌ | ❌ | comment | `Eqa-reporter` (agent) tools |
+
+> **`Q*` = skill (Skill tool) · `E*` = sub-agent (Agent tool).** Never call a `Q*` backing through the
+> Agent tool — it is not a registered `subagent_type`.
 
 ## Why bounded agents (source)
 The "super agent" pattern fails because a single agent with all tools loses focus, leaks white-box

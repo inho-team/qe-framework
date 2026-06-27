@@ -27,16 +27,21 @@ regression tests, heals failures, and reports findings.
 | Want a PR-triggered QA bot scaffold | `Qqa-test-planner` — writes test docs, no execution |
 | Want black-box exploratory + regression together | `Qplaywright-expert` — writes Playwright code only |
 
-## Role Map (bounded agents)
+## Role Map (bounded roles)
 
 | Role | Responsibility | Tool boundary | Backed by |
 |------|---------------|---------------|-----------|
-| **Planner** | Design scenarios → review-ready Markdown | read code + browser | `Qqa-test-planner` / `Qscenario-test` |
-| **Explorer** | Black-box explore, bad input, event/interaction + responsive checks | **browser only, NO source** | `Eqa-explorer` (new) |
-| **Auditor** _(optional)_ | Visual pixel-diff + a11y/UX + design-token outliers | read source + browser, **read-only, never writes** | `Qvisual-qa` + `Qweb-design-guidelines` + `Qdesign-audit` |
-| **Generator** | Markdown → Playwright regression code | read/write code + browser | `Qplaywright-expert` |
-| **Healer** | Reproduce failures, patch selectors | read/write code + browser | `Eqa-orchestrator` (test→fix loop) |
-| **Reporter** | Findings → PR comment | write comment only | `Eqa-reporter` (new) |
+| **Planner** | Design scenarios → review-ready Markdown | read code + browser | `Qqa-test-planner` / `Qscenario-test` (skill) |
+| **Explorer** | Black-box explore, bad input, event/interaction + responsive checks | **browser only, NO source** | `Eqa-explorer` (agent) |
+| **Auditor** _(optional)_ | Visual pixel-diff + a11y/UX + design-token outliers | read source + browser, **read-only, never writes** | `Qvisual-qa` + `Qweb-design-guidelines` + `Qdesign-audit` (skill) |
+| **Generator** | Markdown → Playwright regression code | read/write code + browser | `Qplaywright-expert` (skill) |
+| **Healer** | Reproduce failures, patch selectors | read/write code + browser | `Eqa-orchestrator` (agent) |
+| **Reporter** | Findings → PR comment | write comment only | `Eqa-reporter` (agent) |
+
+> **Calling convention (do not violate):** `Q*` backings are **skills** — invoke them via the **Skill**
+> tool. `E*` backings are **sub-agents** — spawn them via the **Agent** tool (`subagent_type`). Never
+> pass a `Q*` name as an `Agent` `subagent_type` — it is not in the agent registry and the call fails
+> with "Agent type not found".
 
 Pattern: **explore expensive once (MCP), regress cheap every time (CLI).** Explorer uses Playwright
 MCP for live adaptation; Generator emits CLI-runnable `.spec` files for low-cost CI reruns.
@@ -78,11 +83,12 @@ Use `AskUserQuestion` to fix scope. Required answers:
 > STOP and require explicit written confirmation. MCP sends page content to the API.
 
 ### Step 2 — Plan (Planner)
-Delegate scenario design to `Qqa-test-planner` (or `Qscenario-test` for codified flows). Output a
-review-ready Markdown scenario list. **Pause for user review** before any execution.
+Invoke skill `Qqa-test-planner` (or `Qscenario-test` for codified flows) via the **Skill** tool to
+design scenarios. Output a review-ready Markdown scenario list. **Pause for user review** before any
+execution.
 
 ### Step 3 — Explore (Explorer, black-box)
-For `explore`/`full`: spawn `Eqa-explorer` (browser-only, no source). It probes the live URL with
+For `explore`/`full`: spawn agent `Eqa-explorer` via the **Agent** tool (browser-only, no source). It probes the live URL with
 bad input, edge cases, responsive breakpoints, and — if requested — the guardrail scenarios. It
 returns a findings list (each: title, repro steps, severity, screenshot path). It MUST NOT read repo
 source.
@@ -103,16 +109,17 @@ Merge the Auditor findings into the same findings list the Explorer produced (ta
 knowledge back into the black-box Explorer, and it never edits code (fixes belong to Generator/Healer).
 
 ### Step 4 — Codify (Generator)
-For each confirmed exploratory finding worth a regression test, delegate to `Qplaywright-expert` to
-write a CLI-runnable `*.spec.ts` (Page Object Model). Keep tests deterministic and selector-stable.
+For each confirmed exploratory finding worth a regression test, invoke skill `Qplaywright-expert` via
+the **Skill** tool to write a CLI-runnable `*.spec.ts` (Page Object Model). Keep tests deterministic
+and selector-stable.
 
 ### Step 5 — Regress + Heal
-Run the existing/new suite (`npx playwright test`). On failure, delegate to `Eqa-orchestrator`
-(test→review→fix loop) acting as Healer to reproduce and propose selector/code patches — capped at
-3 iterations. Healer proposes; it does not silently merge.
+Run the existing/new suite (`npx playwright test`). On failure, spawn agent `Eqa-orchestrator` via the
+**Agent** tool (test→review→fix loop) acting as Healer to reproduce and propose selector/code patches
+— capped at 3 iterations. Healer proposes; it does not silently merge.
 
 ### Step 6 — Report (Reporter)
-Delegate to `Eqa-reporter` to assemble a structured report (bugs found, tests added, heals applied,
+Spawn agent `Eqa-reporter` via the **Agent** tool to assemble a structured report (bugs found, tests added, heals applied,
 guardrail verdicts) and, when in a PR context, post it as a single PR comment via `gh`. **Never
 auto-merge.** Final merge is a human decision.
 
