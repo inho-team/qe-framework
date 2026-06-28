@@ -25,6 +25,30 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [7.3.14] - 2026-06-29
+
+### Added
+
+- Cross-session build admission control: a memory probe (macOS `vm_stat` / Linux
+  `MemAvailable` / `os.freemem` fallback) plus a machine-global build lock now gate
+  heavy builds (gradle/mvn/npm) through the PreToolUse hook and release them on
+  PostToolUse, so concurrent builds across independent sessions no longer
+  OOM-kill each other. Tunable via `QE_BUILD_MIN_FREE_MB` (default 1536) and
+  `QE_BUILD_ADMISSION=off`; stale locks are reaped via process-liveness checks.
+
+### Fixed
+
+- Parallel wave workers no longer die from build OOM: concurrent build workers are
+  capped at `min(cpuCount-2, 3)` with a FIFO queue, build/test verification moved
+  out of each worker into a single Lead-owned post-wave run, and abnormal worker
+  exits (exit 137 / SIGKILL) are captured with one automatic retry.
+- Codex companion orphan crashes are now detected: the poll watcher probes the
+  companion PID and emits a terminal `crashed` status within one poll interval
+  instead of staying "running" for the full timeout; orphaned running jobs are
+  reaped at session start, and retry identity is unified on
+  `(taskUuid, workerId, itemId)` so a worker retries at most once regardless of
+  how it died.
+
 ## [7.3.13] - 2026-06-27
 
 ### Added
