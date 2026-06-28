@@ -7,6 +7,7 @@ import { readUnifiedState, writeUnifiedState, updateContextMemo, markMemoModifie
 import { loadConfig } from './lib/config.mjs';
 import { checkComments, isCheckableFile } from './lib/comment-checker.mjs';
 import { runLint, isLintableFile } from './lib/lint-runner.mjs';
+import { isHeavyBuildCommand, releaseBuildLock } from './lib/build-admission.mjs';
 
 // --- Fail-open safety net ---
 // A PostToolUse error must never wedge the session. PostToolUse only emits soft hints
@@ -49,6 +50,7 @@ try {
 }
 
 const cwd = getCwd(data);
+const payloadCwd = data.cwd || data.directory || cwd;
 const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const isError = data.tool_response?.includes?.('error') ||
@@ -60,6 +62,28 @@ const hints = [];
 
 // --- Load Unified State ---
 const state = readUnifiedState(cwd);
+
+// --- Build Admission Release (Bash only) ---
+// PreToolUse acquires the machine-global build lock only for executable heavy
+// build commands. PostToolUse releases it for the same command/session metadata,
+// regardless of success or failure; light Bash commands cannot release locks.
+if (toolName === 'Bash') {
+  try {
+    const toolInput = data.tool_input || data.toolInput || {};
+    const command = toolInput.command || '';
+    if (isHeavyBuildCommand(command)) {
+      releaseBuildLock({
+        cwd: payloadCwd,
+        command,
+        sessionId: data.session_id || data.sessionId || '',
+        toolUseId: data.tool_use_id || data.toolUseId || '',
+        transcriptPath: data.transcript_path || data.transcriptPath || '',
+      });
+    }
+  } catch {
+    // fail-open: release failures fall back to stale reaping/max-age.
+  }
+}
 
 // --- ContextMemo Maintenance ---
 if (!isError && toolName === 'Read') {

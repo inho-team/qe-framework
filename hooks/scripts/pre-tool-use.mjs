@@ -8,6 +8,7 @@ import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState, getContextMemo, isMemoValid, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from './lib/shell-scanner.mjs';
+import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, isHeavyBuildCommand } from './lib/build-admission.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -338,6 +339,39 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
         action: `Use /${rule.skill} instead`,
         bypass: `skill-bypass.json with skill:"${rule.skill}"`,
       });
+    }
+  }
+
+  // Machine-global heavy build admission. This intentionally runs after the
+  // existing Bash hard-block rules, so a command rejected for another policy
+  // cannot acquire and strand the build lock.
+  if (toolName === 'Bash') {
+    const cmd = toolInput.command || '';
+    if (isHeavyBuildCommand(cmd)) {
+      try {
+        const sessionId = data.session_id || data.sessionId || '';
+        const toolUseId = data.tool_use_id || data.toolUseId || '';
+        const transcriptPath = data.transcript_path || data.transcriptPath || '';
+        const admission = checkBuildAdmission({
+          cwd,
+          command: cmd,
+          sessionId,
+          toolUseId,
+          transcriptPath,
+        });
+        if (admission.disabled) {
+          hints.push('[build-admission] QE_BUILD_ADMISSION=off; heavy build gate disabled.');
+        } else if (!admission.admitted) {
+          emitBlock({
+            skill: '_build_admission',
+            reason: BUILD_BLOCK_MESSAGE,
+            action: BUILD_BLOCK_MESSAGE,
+            bypass: 'QE_BUILD_ADMISSION=off',
+          });
+        }
+      } catch {
+        // fail-open: unexpected admission bugs must not block tool execution.
+      }
     }
   }
 

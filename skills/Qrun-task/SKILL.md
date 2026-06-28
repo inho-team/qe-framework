@@ -87,6 +87,8 @@ Results are logged to `.qe/agent-results/codex-materialization.md` automatically
 
 **Fallback guarantee**: Missing `.qe/sivs-config.json` → all stages default to Claude. Zero impact on existing workflows.
 
+**Build Admission Gate:** Before invoking any build-capable verification command (`gradle`, `mvn`, `npm test`, `npm run build`, or wrappers), let the normal PreToolUse Bash hook enforce machine-global build admission. Heavy commands may be hard-blocked until memory is available and no competing build lock is active; do not bypass this with worker-side verification.
+
 ## Delegation Rule
 When checklist has **5+ items**, delegate to `Etask-executor` agent. Main agent tracks progress, state transitions, and verification. After delegation, update timestamps: `- [x] item ✅ (HH:MM)`.
 

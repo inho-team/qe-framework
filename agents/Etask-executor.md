@@ -41,6 +41,7 @@ Read `.qe/analysis/` and project memory to identify discovered patterns, frequen
 ### 3. Quality & Integrity
 - **Forbidden**: Never use `sed -i` (use **Edit** tool).
 - **Checks**: After edits, verify line counts (alert if >20% loss). Atomic wave workers must not run project build/test verification in their own context.
+- **Build Admission**: Any Lead-owned or sequential build-capable command is subject to the PreToolUse build admission gate. This does not re-enable worker-side project build/test fan-out.
 - **Cheap Sanity**: Atomic wave workers may run cheap local sanity checks that do not invoke project builds, then report changed files and risk notes for the Lead session.
 - **Shared Files**: `package.json`, i18n, and config files are owned by the **Lead** session. Subagents write additions to `.qe/agent-results/` for Lead to merge.
 

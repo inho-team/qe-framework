@@ -46,6 +46,7 @@ As Haiku teammates complete their tasks:
 ### Step 4: Post-Execution Gate
 After all atomic items are done, determine the next step based on task type:
 - The Lead session runs exactly one full build/test verification after all wave workers complete and results are synthesized.
+- The Lead-owned full build/test verification is subject to the PreToolUse build admission gate; if blocked for low memory or a competing build, wait and retry instead of launching another build.
 - Workers MUST NOT invoke `{adapter.commandPrefix}Qcode-run-task` or project build/test commands directly.
 - **`type: code`** → the single Lead-owned verification handoff is `{adapter.commandPrefix}Qcode-run-task` for test → review → fix quality loop.
 - **`type: docs` / `type: analysis` / deletion-heavy tasks** → run SIVS Loop verification (VERIFY_CHECKLIST check + supervision) directly, skip `/Qcode-run-task`.
