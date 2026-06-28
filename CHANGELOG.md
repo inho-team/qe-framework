@@ -49,6 +49,13 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   `SESSION_NAME` without `export`, so the separately-spawned node process never
   received it via `process.env` and always stored an empty string. The variable
   is now exported.
+- The Qcommit bypass-flag sequence could be blocked when the flag was written and
+  `git commit` were combined into a single Bash command — the PreToolUse hook
+  inspects the command before it runs, so the flag was not yet on disk. The
+  Ecommit-executor now writes the flag with the Write tool (structurally separate
+  from the commit call), and the hook falls back to the flag file's mtime for the
+  120-second TTL when no `ts` field is present. Bash-written flags with `ts`
+  (Mbump/Mrelease) stay backward compatible.
 
 ### Removed
 
