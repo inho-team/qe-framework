@@ -17,6 +17,7 @@ import {
   detectFailure,
   findAbnormalWorkerExit,
   isAbnormalWorkerExit,
+  isCodexMaterializationCrash,
 } from '../failure-capture.mjs';
 
 function mkproject() {
@@ -101,6 +102,67 @@ test('failure-capture: first retry allowed, second retry suppressed', (t) => {
   const errors = readAgentErrors(root);
   assert.equal(errors.length, 2);
   assert.equal(errors[1].retryCount, 1);
+});
+
+test('failure-capture: retry identity ignores exit reporting shape', (t) => {
+  const root = mkproject();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  const first = captureAbnormalWorkerExit(root, {
+    exitCode: 137,
+    workerId: 'worker-same',
+    itemId: 'item-same',
+    taskUuid: 'same-task',
+  });
+  assert.equal(first.shouldRetry, true);
+  assert.equal(first.retryCount, 0);
+
+  const second = captureAbnormalWorkerExit(root, {
+    signal: 'SIGKILL',
+    workerId: 'worker-same',
+    itemId: 'item-same',
+    taskUuid: 'same-task',
+  });
+  assert.equal(second.shouldRetry, false);
+  assert.equal(second.retryCount, 1);
+
+  const errors = readAgentErrors(root);
+  assert.equal(errors.length, 2);
+  assert.equal(errors[0].exitCode, 137);
+  assert.equal(errors[1].signal, 'SIGKILL');
+  assert.equal(errors[1].retryAllowed, false);
+});
+
+test('failure-capture: Codex materialization crash uses the same one-retry counter', (t) => {
+  const root = mkproject();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  assert.equal(isCodexMaterializationCrash({ status: 'crashed' }), true);
+  assert.equal(isAbnormalWorkerExit({ crashed: true }), true);
+
+  const first = captureAbnormalWorkerExit(root, {
+    status: 'crashed',
+    pid: 999999,
+    jobId: 'job-dead',
+    workerId: 'codex-rescue',
+    itemId: 'codex-materialization',
+    taskUuid: 'crash-task',
+  });
+  assert.equal(first.captured, true);
+  assert.equal(first.shouldRetry, true);
+  assert.equal(first.entry.crashed, true);
+  assert.equal(first.entry.pid, 999999);
+
+  const second = captureAbnormalWorkerExit(root, {
+    crashed: true,
+    pid: 999999,
+    jobId: 'job-dead',
+    workerId: 'codex-rescue',
+    itemId: 'codex-materialization',
+    taskUuid: 'crash-task',
+  });
+  assert.equal(second.shouldRetry, false);
+  assert.equal(second.retryCount, 1);
 });
 
 test('failure-capture: malformed or missing agent-errors.json is tolerated', (t) => {

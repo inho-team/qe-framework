@@ -497,7 +497,7 @@ export function detectJobStaleness(job = {}) {
 /**
  * Get the latest Codex companion job status for the given workspace.
  * @param {string} cwd - Project root directory
- * @returns {{ found: boolean, jobId?: string, status?: string, phase?: string, completedAt?: string, error?: string, stale?: boolean, staleReason?: string|null }}
+ * @returns {{ found: boolean, jobId?: string, status?: string, phase?: string, pid?: number|null, completedAt?: string, error?: string, stale?: boolean, staleReason?: string|null }}
  */
 export function getLatestCodexJobStatus(cwd) {
   const stateDir = resolveCodexStateDir(cwd);
@@ -519,6 +519,9 @@ export function getLatestCodexJobStatus(cwd) {
       jobId: latest.id,
       status: latest.status,
       phase: latest.phase,
+      pid: Number.isInteger(latest.pid) && latest.pid > 0 ? latest.pid : null,
+      logFile: latest.logFile || null,
+      updatedAt: latest.updatedAt || null,
       completedAt: latest.completedAt || null,
       error: latest.errorMessage || null,
       stale,

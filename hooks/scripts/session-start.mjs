@@ -9,7 +9,7 @@ import { pathToFileURL } from 'url';
 import { execSync, spawn } from 'child_process';
 import { loadConfig } from './lib/config.mjs';
 import { readUnifiedState, writeUnifiedState } from './lib/state.mjs';
-import { reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
+import { getLatestCodexJobStatus, reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
 import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
 import { shortenSid, getSessionContextDir, readSessionName, readSessionPlan } from './lib/session-resolver.mjs';
@@ -453,9 +453,39 @@ try {
 // status still "running" but the worker process is gone. Only process-dead jobs
 // are auto-cancelled; weak (log-silent) signals are left for the user to judge.
 try {
+  const latestCodexJob = getLatestCodexJobStatus(cwd);
   const reap = reapStaleCodexJobs(cwd);
   if (reap.reaped.length) {
     messages.push(`[Codex] Auto-reaped ${reap.reaped.length} stale job(s) from crashed background runs`);
+  }
+  if (
+    latestCodexJob.found &&
+    latestCodexJob.stale &&
+    latestCodexJob.staleKind === 'process-dead'
+  ) {
+    const state = readUnifiedState(cwd);
+    if (state.codex_materialization?.status === 'running') {
+      const now = new Date().toISOString();
+      state.codex_materialization = {
+        ...state.codex_materialization,
+        status: 'crashed',
+        checkedAt: now,
+        crashedAt: now,
+        source: 'session-start-reaper',
+        pid: latestCodexJob.pid ?? state.codex_materialization.pid ?? null,
+        jobId: latestCodexJob.jobId,
+        stale: true,
+        staleKind: latestCodexJob.staleKind,
+        staleReason: latestCodexJob.staleReason || null,
+        reaped: {
+          jobId: latestCodexJob.jobId,
+          reaped: reap.reaped.some((x) => x.id === latestCodexJob.jobId),
+          reason: reap.reaped.find((x) => x.id === latestCodexJob.jobId)?.reason || null,
+          errors: reap.errors.filter((x) => x.id === latestCodexJob.jobId),
+        },
+      };
+      writeUnifiedState(cwd, state);
+    }
   }
 } catch {
   // Best-effort — never block session start on Codex reap.

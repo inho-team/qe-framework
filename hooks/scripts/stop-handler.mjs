@@ -216,6 +216,79 @@ try {
   // Fault tolerance — worker exit capture must never crash Stop.
 }
 
+// --- Codex Materialization Crash Capture / Retry ---
+// A confirmed process-dead companion is terminal and should use the same
+// one-retry counter as OOM/SIGKILL worker exits. PID-unknown timeout cases are
+// intentionally excluded so the existing ask/fallback behavior remains intact.
+try {
+  let materialization = null;
+  try {
+    materialization = readUnifiedState(cwd).codex_materialization || null;
+  } catch {}
+
+  if (!materialization || materialization.status !== 'crashed') {
+    const signalPath = join(cwd, '.qe', 'agent-results', 'codex-ready.signal');
+    if (existsSync(signalPath)) {
+      try {
+        const signal = JSON.parse(readFileSync(signalPath, 'utf8'));
+        if (signal?.crashed === true || signal?.status === 'crashed') {
+          materialization = { ...signal, status: 'crashed', source: 'signal' };
+        }
+      } catch {}
+    }
+  }
+
+  if (materialization?.status === 'crashed') {
+    const taskUuid =
+      data.taskUuid ||
+      data.task_uuid ||
+      data.uuid ||
+      materialization.taskUuid ||
+      materialization.task_uuid ||
+      null;
+    const workerId =
+      data.workerId ||
+      data.worker_id ||
+      materialization.workerId ||
+      materialization.worker_id ||
+      'codex-rescue';
+    const itemId =
+      data.itemId ||
+      data.item_id ||
+      materialization.itemId ||
+      materialization.item_id ||
+      materialization.jobId ||
+      'codex-materialization';
+    const captured = captureAbnormalWorkerExit(cwd, materialization, {
+      taskUuid,
+      workerId,
+      itemId,
+      source: 'codex-materialization',
+      message: materialization.error || materialization.message || 'Codex companion process died before materialization',
+    });
+
+    if (captured.shouldRetry) {
+      console.log(JSON.stringify({
+        continue: false,
+        decision: 'block',
+        reason: `[QE Codex Retry] Codex companion crashed before materialization${captured.entry.pid ? ` (pid ${captured.entry.pid})` : ''}. Retry Codex once through the existing SIVS/Codex route, then continue materialization check.`,
+      }));
+      process.exit(0);
+    }
+
+    if (captured.captured) {
+      console.log(JSON.stringify({
+        continue: false,
+        decision: 'block',
+        reason: '[QE Codex Fallback] Codex companion crashed before materialization and the one automatic retry for this task/worker/item has already been used. Keep the crash in .qe/state/agent-errors.json and fallback through the existing SIVS route.',
+      }));
+      process.exit(0);
+    }
+  }
+} catch {
+  // Fault tolerance — Codex crash capture must never crash Stop.
+}
+
 // --- Failure Capture ---
 if (!activeMode) {
   try {

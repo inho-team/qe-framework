@@ -110,6 +110,7 @@ test('getLatestCodexJobStatus: surfaces stale flag for a zombie running job', ()
     assert.equal(r.found, true);
     assert.equal(r.jobId, 'job-zombie');
     assert.equal(r.status, 'running');
+    assert.equal(r.pid, DEAD_PID);
     assert.equal(r.stale, true);
     assert.match(r.staleReason, /not running/);
   } finally {

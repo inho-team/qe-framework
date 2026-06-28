@@ -10,15 +10,16 @@
  * Runs detached from the parent process.
  *
  * Usage:
- *   node codex-poll-watcher.mjs <cwd> [--interval 30] [--timeout 3600]
+ *   node codex-poll-watcher.mjs <cwd> [--interval 30] [--timeout 3600] [--pid <n>]
  *
  * Signal file: <cwd>/.qe/agent-results/codex-ready.signal
  * Contains: JSON with { detected: true, timestamp, diffStat, elapsedSec }
  */
 
-import { existsSync, mkdirSync, writeFileSync, readFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
+import { isProcessAlive } from '../../../scripts/lib/codex_bridge.mjs';
 
 const args = process.argv.slice(2);
 const cwd = args[0] || process.cwd();
@@ -26,9 +27,20 @@ const cwd = args[0] || process.cwd();
 // Parse flags
 let interval = 30; // seconds
 let timeout = 3600; // seconds (1 hour)
+let companionPid = null;
 for (let i = 1; i < args.length; i++) {
-  if (args[i] === '--interval' && args[i + 1]) interval = parseInt(args[i + 1], 10);
-  if (args[i] === '--timeout' && args[i + 1]) timeout = parseInt(args[i + 1], 10);
+  if (args[i] === '--interval' && args[i + 1]) {
+    const parsed = Number(args[i + 1]);
+    if (Number.isFinite(parsed) && parsed > 0) interval = parsed;
+  }
+  if (args[i] === '--timeout' && args[i + 1]) {
+    const parsed = Number(args[i + 1]);
+    if (Number.isFinite(parsed) && parsed > 0) timeout = parsed;
+  }
+  if (args[i] === '--pid' && args[i + 1]) {
+    const parsed = Number(args[i + 1]);
+    companionPid = Number.isInteger(parsed) && parsed > 0 ? parsed : null;
+  }
 }
 
 const SIGNAL_DIR = join(cwd, '.qe', 'agent-results');
@@ -95,12 +107,28 @@ function writeTimeoutSignal(elapsedSec) {
   log(`TIMEOUT signal written after ${elapsedSec}s`);
 }
 
+function writeCrashSignal(pid, elapsedSec) {
+  mkdirSync(SIGNAL_DIR, { recursive: true });
+  const signal = {
+    detected: false,
+    crashed: true,
+    status: 'crashed',
+    pid,
+    timestamp: new Date().toISOString(),
+    elapsedSec,
+    pollInterval: interval,
+    message: `Codex companion process ${pid} died before file changes materialized. Retry Codex once or fallback to Claude.`,
+  };
+  writeFileSync(SIGNAL_FILE, JSON.stringify(signal, null, 2) + '\n', 'utf-8');
+  log(`CRASH signal written — pid ${pid} dead after ${elapsedSec}s`);
+}
+
 // Take baseline snapshot
 const baselineDiff = getGitDiff();
 const baselineStaged = getGitDiffStaged();
 const baselineUntracked = getUntrackedFiles();
 
-log(`Watcher started — interval=${interval}s, timeout=${timeout}s`);
+log(`Watcher started — interval=${interval}s, timeout=${timeout}s${companionPid ? `, pid=${companionPid}` : ''}`);
 log(`Baseline: diff=${baselineDiff.length} chars, staged=${baselineStaged.length} chars, untracked=${baselineUntracked.split('\n').filter(Boolean).length} files`);
 
 // Immediate check
@@ -141,6 +169,13 @@ const timer = setInterval(() => {
     clearInterval(timer);
     const combinedDiff = [currentDiff, currentStaged, currentUntracked].filter(Boolean).join('\n');
     writeSignal(combinedDiff, Math.round(elapsed));
+    process.exit(0);
+  }
+
+  const alive = companionPid ? isProcessAlive(companionPid) : null;
+  if (alive === false) {
+    clearInterval(timer);
+    writeCrashSignal(companionPid, Math.round(elapsed));
     process.exit(0);
   }
 

@@ -68,11 +68,13 @@ Codex may return `Done` before files are actually written (async companion patte
 1. **Read unified state** — check `.qe/state/unified-state.json` → `codex_materialization` field:
    - `status: "completed"` → notification hook already confirmed files written. Run `git diff --stat` and proceed to **Verify**.
    - `status: "failed"` → report error to user, offer retry or Claude fallback.
+   - `status: "crashed"` → companion PID was confirmed dead before materialization. Enter the abnormal-termination retry path immediately: retry Codex once through the existing SIVS route, then fallback to Claude if the same task/worker/item has already retried.
    - `status: "running"` → poll watcher is active, proceed to step 2.
    - Field missing → notification hook did not fire, proceed to step 2.
 
 2. **Read signal file** — `cat .qe/agent-results/codex-ready.signal 2>/dev/null`:
    - `"detected": true` → files written. Run `git diff --stat`, proceed to **Verify**.
+   - `"crashed": true` or `"status": "crashed"` → companion process died before materialization. Enter the one-retry/fallback path immediately; do not wait for the 1h timeout.
    - File not found → watcher still polling. Wait 30s, re-read. Repeat up to 120 times (1h).
    - `"timeout": true` → no changes after 1h. Go to step 3.
 

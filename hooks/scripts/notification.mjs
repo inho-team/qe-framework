@@ -8,6 +8,7 @@ import { spawn } from 'child_process';
 import { readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { isPersistentModeActiveFromState, getPersistentModeMessageFromState } from './lib/persistent-mode.mjs';
 import { checkCodexResult, formatResultInstruction, isPollWatcherActive } from './lib/codex-result-handler.mjs';
+import { getLatestCodexJobStatus } from '../../scripts/lib/codex_bridge.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -71,7 +72,7 @@ for (const { match, hint, action } of chains) {
         } catch {}
         hints.push(`[CODEX] ${formatResultInstruction(immediateResult)}`);
         codexPollStarted = true; // skip watcher spawn
-      } else if (immediateResult.status === 'failed') {
+      } else if (immediateResult.status === 'failed' || immediateResult.status === 'crashed') {
         try {
           const st = readUnifiedState(cwd);
           st.codex_materialization = { ...immediateResult, checkedAt: new Date().toISOString() };
@@ -84,8 +85,18 @@ for (const { match, hint, action } of chains) {
         try { if (existsSync(signalFile)) unlinkSync(signalFile); } catch {}
 
         const watcherScript = join(__dirname, 'lib', 'codex-poll-watcher.mjs');
+        let companionPid = immediateResult.pid ?? null;
+        if (!companionPid) {
+          try {
+            const latest = getLatestCodexJobStatus(cwd);
+            companionPid = latest.found ? latest.pid ?? null : null;
+          } catch {}
+        }
+
         try {
-          const child = spawn('node', [watcherScript, cwd, '--interval', '30', '--timeout', '3600'], {
+          const watcherArgs = [watcherScript, cwd, '--interval', '30', '--timeout', '3600'];
+          if (Number.isInteger(companionPid) && companionPid > 0) watcherArgs.push('--pid', String(companionPid));
+          const child = spawn('node', watcherArgs, {
             cwd,
             detached: true,
             stdio: 'ignore',
@@ -104,6 +115,7 @@ for (const { match, hint, action } of chains) {
             source: 'poll-watcher',
             startedAt: new Date().toISOString(),
             signalFile,
+            pid: Number.isInteger(companionPid) && companionPid > 0 ? companionPid : null,
           };
           writeUnifiedState(cwd, st);
         } catch {}

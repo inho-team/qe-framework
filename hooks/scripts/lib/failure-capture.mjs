@@ -43,6 +43,8 @@ function normalizeSignal(value) {
  * Exit code 137 is the conventional SIGKILL/OOM code (128 + 9).
  */
 export function isAbnormalWorkerExit(exitInfo = {}) {
+  if (isCodexMaterializationCrash(exitInfo)) return true;
+
   const exitCode = normalizeExitCode(
     exitInfo.exitCode ?? exitInfo.exit_code ?? exitInfo.code ?? exitInfo.status
   );
@@ -51,6 +53,14 @@ export function isAbnormalWorkerExit(exitInfo = {}) {
   );
 
   return exitCode === 137 || signal === 'SIGKILL';
+}
+
+export function isCodexMaterializationCrash(exitInfo = {}) {
+  return (
+    exitInfo?.crashed === true ||
+    exitInfo?.status === 'crashed' ||
+    exitInfo?.codex_materialization?.status === 'crashed'
+  );
 }
 
 function pickFirst(...values) {
@@ -106,12 +116,11 @@ function workerExitSignature(entry) {
     entry.taskUuid || 'no-task',
     entry.workerId || 'no-worker',
     entry.itemId || 'no-item',
-    entry.exitCode ?? 'no-code',
-    entry.signal || 'no-signal',
   ].join('|');
 }
 
-function makeWorkerExitMessage(exitCode, signal) {
+function makeWorkerExitMessage(exitCode, signal, crashed = false) {
+  if (crashed) return 'Codex companion process died before materialization';
   if (exitCode === 137) return 'Worker terminated with exit code 137 (SIGKILL/OOM-equivalent)';
   if (signal === 'SIGKILL') return 'Worker terminated with SIGKILL (OOM-equivalent)';
   return 'Worker terminated abnormally';
@@ -125,6 +134,7 @@ export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
   if (!isAbnormalWorkerExit(exitInfo)) {
     return { captured: false, shouldRetry: false, retryCount: 0, entry: null };
   }
+  const crashed = isCodexMaterializationCrash(exitInfo);
 
   const exitCode = normalizeExitCode(
     exitInfo.exitCode ?? exitInfo.exit_code ?? exitInfo.code ?? exitInfo.status
@@ -137,7 +147,9 @@ export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
     exitInfo.taskUuid,
     exitInfo.task_uuid,
     exitInfo.uuid,
-    exitInfo.task?.uuid
+    exitInfo.task?.uuid,
+    exitInfo.codex_materialization?.taskUuid,
+    exitInfo.codex_materialization?.task_uuid
   );
   const workerId = pickFirst(
     options.workerId,
@@ -147,7 +159,9 @@ export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
     exitInfo.agent_id,
     exitInfo.teammateId,
     exitInfo.teammate_id,
-    exitInfo.name
+    exitInfo.name,
+    exitInfo.codex_materialization?.workerId,
+    exitInfo.codex_materialization?.worker_id
   );
   const itemId = pickFirst(
     options.itemId,
@@ -155,7 +169,9 @@ export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
     exitInfo.item_id,
     exitInfo.item,
     exitInfo.checklistItem,
-    exitInfo.checklist_item
+    exitInfo.checklist_item,
+    exitInfo.codex_materialization?.itemId,
+    exitInfo.codex_materialization?.item_id
   );
   const maxRetries = Number.isInteger(options.maxRetries) ? options.maxRetries : 1;
   const baseEntry = {
@@ -165,7 +181,11 @@ export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
     itemId,
     exitCode,
     signal,
-    message: pickFirst(options.message, exitInfo.message, makeWorkerExitMessage(exitCode, signal)),
+    crashed,
+    pid: pickFirst(options.pid, exitInfo.pid, exitInfo.codex_materialization?.pid),
+    jobId: pickFirst(options.jobId, exitInfo.jobId, exitInfo.job_id, exitInfo.codex_materialization?.jobId),
+    source: pickFirst(options.source, exitInfo.source, crashed ? 'codex-materialization' : null),
+    message: pickFirst(options.message, exitInfo.message, makeWorkerExitMessage(exitCode, signal, crashed)),
     taskUuid,
   };
   const signature = workerExitSignature(baseEntry);

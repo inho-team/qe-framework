@@ -23,7 +23,7 @@ const RESULT_LOG_NAME = 'codex-materialization.md';
 
 /**
  * @typedef {Object} CodexResult
- * @property {'completed'|'running'|'failed'|'timeout'|'unknown'} status
+ * @property {'completed'|'running'|'failed'|'crashed'|'timeout'|'unknown'} status
  * @property {string} source - 'companion' | 'signal' | 'none'
  * @property {string|null} diffStat - git diff summary if available
  * @property {number|null} elapsedSec - seconds since delegation
@@ -90,15 +90,19 @@ function checkCompanionJobState(cwd) {
   let mapped = statusMap[job.status] || 'unknown';
 
   // Auto-reap confirmed zombies (worker process gone). Weak `log-silent` signals
-  // are left alone — only `process-dead` is certain enough to cancel. Once reaped,
-  // the job is terminal, so report it as failed instead of a forever-"running".
-  let reapedId = null;
+  // are left alone — only `process-dead` is certain enough to cancel. A confirmed
+  // process-dead job is terminal and crash-retry eligible, even if the best-effort
+  // Codex cancel command cannot be resolved.
+  let reaped = null;
   if (job.stale && job.staleKind === 'process-dead') {
     const r = reapStaleCodexJobs(cwd);
-    if (r.reaped.some((x) => x.id === job.jobId)) {
-      reapedId = job.jobId;
-      mapped = 'failed';
-    }
+    reaped = {
+      jobId: job.jobId,
+      reaped: r.reaped.some((x) => x.id === job.jobId),
+      reason: r.reaped.find((x) => x.id === job.jobId)?.reason || null,
+      errors: r.errors.filter((x) => x.id === job.jobId),
+    };
+    mapped = 'crashed';
   }
 
   return {
@@ -111,11 +115,13 @@ function checkCompanionJobState(cwd) {
     error: job.error || (job.stale ? `Job appears stale: ${job.staleReason}` : null),
     timestamp: new Date().toISOString(),
     jobId: job.jobId,
+    pid: job.pid ?? null,
     phase: job.phase,
     completedAt: job.completedAt,
     stale: job.stale || false,
     staleReason: job.staleReason || null,
-    reaped: reapedId,
+    staleKind: job.staleKind || null,
+    reaped,
   };
 }
 
@@ -133,6 +139,18 @@ function checkSignalFile(cwd) {
 
   try {
     const signal = JSON.parse(readFileSync(signalPath, 'utf-8'));
+
+    if (signal.crashed === true || signal.status === 'crashed') {
+      return {
+        status: 'crashed',
+        source: 'signal',
+        diffStat: null,
+        elapsedSec: signal.elapsedSec || null,
+        error: signal.message || 'Codex companion process died before materialization.',
+        timestamp: signal.timestamp || new Date().toISOString(),
+        pid: signal.pid ?? null,
+      };
+    }
 
     if (signal.detected === true) {
       return {
@@ -211,6 +229,11 @@ No file changes detected. Ask user:
       return `**Codex Materialization: FAILED**
 ${result.error ? `Error: ${result.error}` : 'Codex job failed without error details.'}
 Ask user: (a) Retry with Codex  (b) Fallback to Claude  (c) Check logs`;
+
+    case 'crashed':
+      return `**Codex Materialization: CRASHED**
+${result.error ? `Error: ${result.error}` : 'Codex companion process died before file changes materialized.'}
+Retry Codex once via the existing retry path, or fallback to Claude if the retry has already been used.`;
 
     default:
       return `**Codex Materialization: UNKNOWN**
