@@ -6,7 +6,11 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import { readState, readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
-import { captureFailureQuietly } from './lib/failure-capture.mjs';
+import {
+  captureAbnormalWorkerExit,
+  captureFailureQuietly,
+  findAbnormalWorkerExit,
+} from './lib/failure-capture.mjs';
 import { notify } from './lib/notify.mjs';
 import { appendRating } from './lib/rating-capture.mjs';
 import { isPersistentModeActiveFromState } from './lib/persistent-mode.mjs';
@@ -184,6 +188,32 @@ if (!activeMode) {
   } catch {
     // Fault tolerance — never let persistent mode check crash the stop handler
   }
+}
+
+// --- Abnormal Worker Exit Capture / Retry ---
+// Worker OOM/SIGKILL exits are captured before the generic failure snapshot.
+// The first occurrence blocks Stop with a retry instruction; repeated exits are
+// left in agent-errors.json for the existing failure-capture/reporting path.
+try {
+  const workerExit = findAbnormalWorkerExit(data);
+  if (workerExit) {
+    const taskUuid = data.taskUuid || data.task_uuid || data.uuid || workerExit.taskUuid || workerExit.task_uuid || null;
+    const workerId = data.workerId || data.worker_id || workerExit.workerId || workerExit.worker_id || null;
+    const itemId = data.itemId || data.item_id || workerExit.itemId || workerExit.item_id || null;
+    const captured = captureAbnormalWorkerExit(cwd, workerExit, { taskUuid, workerId, itemId });
+
+    if (captured.shouldRetry) {
+      const workerLabel = captured.entry.workerId || captured.entry.itemId || 'worker';
+      console.log(JSON.stringify({
+        continue: false,
+        decision: 'block',
+        reason: `[QE Worker Retry] ${workerLabel} exited with ${captured.entry.exitCode || captured.entry.signal}. Retry this worker once, then continue wave synthesis.`,
+      }));
+      process.exit(0);
+    }
+  }
+} catch {
+  // Fault tolerance — worker exit capture must never crash Stop.
 }
 
 // --- Failure Capture ---

@@ -138,20 +138,27 @@ After each subagent completes, the orchestrator collects:
 ```
 For each wave W (0, 1, 2, ...):
   1. Orchestrator partitions file ownership for items in W
-  2. Spawn one Agent per item (or per item group if items share no files)
-  3. Wait for all agents in W to complete
-  4. If any agent failed:
+  2. Compute the build-capable worker cap as min(cpuCount - 2, 3)
+     (effective runtime cap is clamped to at least 1 on low-core machines)
+  3. Dispatch up to the cap of Agent workers for W; queue any excess items FIFO
+  4. Start the next queued item only after an active worker completes
+  5. Wait for all active and queued agents in W to complete
+  6. If any agent failed:
      a. Log error with item number and reason
      b. Mark dependent items in later waves as blocked
      c. Continue with non-blocked items in next wave
-  5. Update checklist status
-  6. Proceed to wave W+1
+  7. Update checklist status
+  8. Proceed to wave W+1
 ```
+
+The per-wave cap applies to build-capable worker contexts. Queued items are
+deterministic FIFO work: they do not start until an already-dispatched worker
+finishes and frees capacity.
 
 **Post-execution:**
 After all waves complete, the orchestrator:
 - Handles shared files that could not be assigned to a single agent (e.g., package.json, CLAUDE.md updates)
-- Runs integration checks if specified in the checklist
+- Runs integration checks/builds once from the Lead session if specified in the checklist
 - Produces the final Implementation Result report
 
 ## Fallback to Sequential Execution

@@ -16,6 +16,181 @@ export function getFailuresDir(cwd) {
   return join(cwd, '.qe', 'learning', 'failures');
 }
 
+function getAgentErrorsPath(cwd) {
+  return join(cwd, '.qe', 'state', 'agent-errors.json');
+}
+
+function normalizeExitCode(value) {
+  if (typeof value === 'number' && Number.isFinite(value)) return value;
+  if (typeof value === 'string' && value.trim() !== '') {
+    const parsed = Number(value);
+    if (Number.isFinite(parsed)) return parsed;
+  }
+  return null;
+}
+
+function normalizeSignal(value) {
+  if (typeof value === 'number') return value === 9 ? 'SIGKILL' : String(value);
+  if (typeof value !== 'string') return null;
+  const signal = value.trim().toUpperCase();
+  if (!signal) return null;
+  if (signal === '9' || signal === 'KILL') return 'SIGKILL';
+  return signal;
+}
+
+/**
+ * Detect worker exits caused by OOM-style process death.
+ * Exit code 137 is the conventional SIGKILL/OOM code (128 + 9).
+ */
+export function isAbnormalWorkerExit(exitInfo = {}) {
+  const exitCode = normalizeExitCode(
+    exitInfo.exitCode ?? exitInfo.exit_code ?? exitInfo.code ?? exitInfo.status
+  );
+  const signal = normalizeSignal(
+    exitInfo.signal ?? exitInfo.termSignal ?? exitInfo.terminationSignal ?? exitInfo.term_signal
+  );
+
+  return exitCode === 137 || signal === 'SIGKILL';
+}
+
+function pickFirst(...values) {
+  for (const value of values) {
+    if (value !== undefined && value !== null && value !== '') return value;
+  }
+  return null;
+}
+
+/**
+ * Find an abnormal worker exit in hook payloads while remaining tolerant of
+ * client-specific field names.
+ */
+export function findAbnormalWorkerExit(payload = {}) {
+  const candidates = [
+    payload.workerExit,
+    payload.worker_exit,
+    payload.agentExit,
+    payload.agent_exit,
+    payload.childExit,
+    payload.child_exit,
+    payload.teammateExit,
+    payload.teammate_exit,
+    payload,
+  ].filter(Boolean);
+
+  for (const candidate of candidates) {
+    if (isAbnormalWorkerExit(candidate)) return candidate;
+  }
+
+  return null;
+}
+
+function readAgentErrors(cwd) {
+  try {
+    const errorLogPath = getAgentErrorsPath(cwd);
+    if (!existsSync(errorLogPath)) return [];
+    const errors = JSON.parse(readFileSync(errorLogPath, 'utf8'));
+    if (Array.isArray(errors)) return errors;
+    if (Array.isArray(errors?.errors)) return errors.errors;
+  } catch {}
+  return [];
+}
+
+function writeAgentErrors(cwd, errors) {
+  const errorLogPath = getAgentErrorsPath(cwd);
+  mkdirSync(join(cwd, '.qe', 'state'), { recursive: true });
+  writeFileSync(errorLogPath, JSON.stringify(errors, null, 2), 'utf8');
+}
+
+function workerExitSignature(entry) {
+  return [
+    entry.taskUuid || 'no-task',
+    entry.workerId || 'no-worker',
+    entry.itemId || 'no-item',
+    entry.exitCode ?? 'no-code',
+    entry.signal || 'no-signal',
+  ].join('|');
+}
+
+function makeWorkerExitMessage(exitCode, signal) {
+  if (exitCode === 137) return 'Worker terminated with exit code 137 (SIGKILL/OOM-equivalent)';
+  if (signal === 'SIGKILL') return 'Worker terminated with SIGKILL (OOM-equivalent)';
+  return 'Worker terminated abnormally';
+}
+
+/**
+ * Capture an abnormal worker exit in .qe/state/agent-errors.json.
+ * Returns retry metadata so callers can auto-retry once without owning the log format.
+ */
+export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
+  if (!isAbnormalWorkerExit(exitInfo)) {
+    return { captured: false, shouldRetry: false, retryCount: 0, entry: null };
+  }
+
+  const exitCode = normalizeExitCode(
+    exitInfo.exitCode ?? exitInfo.exit_code ?? exitInfo.code ?? exitInfo.status
+  );
+  const signal = normalizeSignal(
+    exitInfo.signal ?? exitInfo.termSignal ?? exitInfo.terminationSignal ?? exitInfo.term_signal
+  );
+  const taskUuid = pickFirst(
+    options.taskUuid,
+    exitInfo.taskUuid,
+    exitInfo.task_uuid,
+    exitInfo.uuid,
+    exitInfo.task?.uuid
+  );
+  const workerId = pickFirst(
+    options.workerId,
+    exitInfo.workerId,
+    exitInfo.worker_id,
+    exitInfo.agentId,
+    exitInfo.agent_id,
+    exitInfo.teammateId,
+    exitInfo.teammate_id,
+    exitInfo.name
+  );
+  const itemId = pickFirst(
+    options.itemId,
+    exitInfo.itemId,
+    exitInfo.item_id,
+    exitInfo.item,
+    exitInfo.checklistItem,
+    exitInfo.checklist_item
+  );
+  const maxRetries = Number.isInteger(options.maxRetries) ? options.maxRetries : 1;
+  const baseEntry = {
+    kind: 'abnormal-worker-exit',
+    timestamp: new Date().toISOString(),
+    workerId,
+    itemId,
+    exitCode,
+    signal,
+    message: pickFirst(options.message, exitInfo.message, makeWorkerExitMessage(exitCode, signal)),
+    taskUuid,
+  };
+  const signature = workerExitSignature(baseEntry);
+  const errors = readAgentErrors(cwd);
+  const retryCount = errors
+    .filter(error => error?.kind === 'abnormal-worker-exit')
+    .filter(error => workerExitSignature(error) === signature)
+    .length;
+  const entry = {
+    ...baseEntry,
+    retryCount,
+    retryAllowed: retryCount < maxRetries,
+  };
+
+  errors.push(entry);
+  writeAgentErrors(cwd, errors);
+
+  return {
+    captured: true,
+    shouldRetry: entry.retryAllowed,
+    retryCount,
+    entry,
+  };
+}
+
 /**
  * Detect failure conditions for the current session.
  * Returns { failed: boolean, reasons: string[], uncheckedItems: string[], taskUuid: string|null }

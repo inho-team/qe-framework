@@ -40,7 +40,8 @@ Read `.qe/analysis/` and project memory to identify discovered patterns, frequen
 
 ### 3. Quality & Integrity
 - **Forbidden**: Never use `sed -i` (use **Edit** tool).
-- **Checks**: After edits, verify line counts (alert if >20% loss) and run `tsc --noEmit` for TS files.
+- **Checks**: After edits, verify line counts (alert if >20% loss). Atomic wave workers must not run project build/test verification in their own context.
+- **Cheap Sanity**: Atomic wave workers may run cheap local sanity checks that do not invoke project builds, then report changed files and risk notes for the Lead session.
 - **Shared Files**: `package.json`, i18n, and config files are owned by the **Lead** session. Subagents write additions to `.qe/agent-results/` for Lead to merge.
 
 ## Output Format

@@ -30,7 +30,9 @@ Read the `TASK_REQUEST` and identify items suitable for parallel execution:
 Create an **Agent Team** through the agent adapter:
 - Claude: use the `Agent` tool.
 - Codex: use native Codex subagents when explicitly available; otherwise run inline with `codex-inline-degrade`.
-- Assign **one Haiku Teammate per atomic item**.
+- Dispatch Haiku Teammates through a per-wave cap of `min(cpuCount - 2, 3)`; on low-core machines the effective runtime cap is clamped to at least 1.
+- Queue additional atomic items FIFO. A queued item starts only after an active teammate completes.
+- Assign **one Haiku Teammate per active atomic item** within that cap.
 - **Atomic Commits**: Teammates MUST perform a `git commit` immediately after completing their specific item.
 - **Technical Summary**: Teammates MUST create `SUMMARY_{Item#}.md` under the active plan's phase directory — resolve the slug via `.qe/state/current-session.json` → `.qe/planning/.sessions/{session_id}.json` → `.qe/planning/ACTIVE_PLAN`, then write to `.qe/planning/plans/{slug}/phases/{X}/SUMMARY_{Item#}.md`. Legacy projects with no slug resolvable write to `.qe/planning/phases/{X}/SUMMARY_{Item#}.md`.
 - Set teammates to `haiku` model for maximum speed and efficiency.
@@ -43,7 +45,9 @@ As Haiku teammates complete their tasks:
 
 ### Step 4: Post-Execution Gate
 After all atomic items are done, determine the next step based on task type:
-- **`type: code`** → trigger `{adapter.commandPrefix}Qcode-run-task` for test → review → fix quality loop.
+- The Lead session runs exactly one full build/test verification after all wave workers complete and results are synthesized.
+- Workers MUST NOT invoke `{adapter.commandPrefix}Qcode-run-task` or project build/test commands directly.
+- **`type: code`** → the single Lead-owned verification handoff is `{adapter.commandPrefix}Qcode-run-task` for test → review → fix quality loop.
 - **`type: docs` / `type: analysis` / deletion-heavy tasks** → run SIVS Loop verification (VERIFY_CHECKLIST check + supervision) directly, skip `/Qcode-run-task`.
 
 ## Execution Rules
