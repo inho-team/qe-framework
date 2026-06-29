@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [7.4.0] - 2026-06-29
+
+### Added
+
 - Environment-aware SIVS Codex defaults: when Codex is available, Implement and
   Verify now prefer Codex while Spec and Supervise stay Claude-led. The runtime
   policy also allows configurable Codex background mode for long Implement/Verify
@@ -37,10 +49,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 - Codex asset installation migrates deprecated `[features].codex_hooks` config
   keys to `[features].hooks`, preventing repeated Codex startup warnings while
   preserving user-authored config outside QE-managed fences.
-
-### Removed
-
-### Security
 
 ## [7.3.14] - 2026-06-29
 
