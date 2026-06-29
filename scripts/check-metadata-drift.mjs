@@ -11,12 +11,29 @@
  * historical changelog entries (no markers) are intentionally ignored.
  */
 
-import { readFileSync } from 'node:fs';
-import { join } from 'node:path';
+import { readFileSync, readdirSync } from 'node:fs';
+import { join, relative, sep } from 'node:path';
 import { ROOT, getMetadata, listAgents } from './lib/metadata-source.mjs';
 
 const meta = getMetadata();
 const failures = [];
+
+function listSkillRelPaths(dir = join(ROOT, 'skills'), base = dir, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    if (entry.isDirectory()) {
+      const next = join(dir, entry.name);
+      try {
+        readdirSync(next);
+      } catch {
+        continue;
+      }
+      listSkillRelPaths(next, base, out);
+    } else if (entry.name === 'SKILL.md') {
+      out.push(relative(base, dir).split(sep).join('/'));
+    }
+  }
+  return out.sort();
+}
 
 /** Extract all values inside `<!--qe:key-->…<!--/qe:key-->` regions. @returns {string[]} */
 function markerValues(text, key) {
@@ -77,6 +94,36 @@ for (const rel of MARKDOWN_FILES) {
 
   if (plugin.version !== meta.version)
     failures.push(`plugin.json version "${plugin.version}" != package.json version "${meta.version}"`);
+
+  const hookContract = JSON.parse(readFileSync(join(ROOT, 'hooks/hooks.json'), 'utf8')).hooks;
+  if (JSON.stringify(plugin.hooks) !== JSON.stringify(hookContract)) {
+    failures.push('plugin.json hooks differ from hooks/hooks.json lifecycle contract');
+  }
+}
+
+// 4. Codex cleanup manifest covers every skill path installCodexAssets can write.
+{
+  const manifest = JSON.parse(readFileSync(join(ROOT, 'scripts/lib/codex-cleanup-manifest.json'), 'utf8'));
+  const known = new Set(Array.isArray(manifest.skills) ? manifest.skills : []);
+  const missing = listSkillRelPaths().filter((skillPath) => !known.has(skillPath));
+  if (missing.length) {
+    failures.push(`codex-cleanup-manifest.json: missing ${missing.length} current skill path(s): ${missing.join(', ')}`);
+  }
+}
+
+// 5. Every install entrypoint must keep Claude and Codex assets in sync.
+{
+  const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
+  if (!/installClaudeAssets/.test(pkg.scripts?.postinstall || '') || !/installCodexAssets/.test(pkg.scripts?.postinstall || '')) {
+    failures.push('package.json postinstall must call both installClaudeAssets() and installCodexAssets()');
+  }
+
+  for (const rel of ['install.js', 'scripts/postinstall.mjs', 'bin/qe-framework-install.mjs']) {
+    const text = readFileSync(join(ROOT, rel), 'utf8');
+    if (!/installClaudeAssets/.test(text) || !/installCodexAssets/.test(text)) {
+      failures.push(`${rel}: install entrypoint must call both installClaudeAssets() and installCodexAssets()`);
+    }
+  }
 }
 
 if (failures.length) {

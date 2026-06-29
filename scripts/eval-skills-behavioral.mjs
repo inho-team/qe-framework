@@ -11,7 +11,7 @@
  * Exit 0 = manifest written (even with 0 cases). Exit 1 = a case failed schema.
  */
 
-import { readdirSync, readFileSync, existsSync, writeFileSync, statSync } from 'fs';
+import { readdirSync, readFileSync, existsSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -58,12 +58,20 @@ function parseFrontmatter(content) {
 }
 
 const skillNames = new Set();
-for (const dir of readdirSync(SKILLS_DIR)) {
-  if (dir === 'coding-experts') continue;
-  if (existsSync(join(SKILLS_DIR, dir, 'SKILL.md')) && statSync(join(SKILLS_DIR, dir)).isDirectory()) {
-    skillNames.add(dir);
+
+function collectSkillNames(dir = SKILLS_DIR) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      if (existsSync(join(fullPath, 'SKILL.md'))) {
+        skillNames.add(entry.name);
+      } else {
+        collectSkillNames(fullPath);
+      }
+    }
   }
 }
+collectSkillNames();
 
 const cases = [];
 const errors = [];

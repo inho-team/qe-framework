@@ -42,6 +42,8 @@ safety hook (Codex requires you to trust hook definitions; the installer never a
 - ✅ Supported: skill/agent install and safety guards are implemented on Codex. The
   Codex `PreToolUse` guard blocks raw `git commit`, `gh pr create`, in-place
   `sed -i`, and direct `plugin.json` version writes after the hook bundle is trusted.
+- ✅ Supported as command: `$Qhud`/`~/.codex/scripts/qe-hud.mjs` renders the QE HUD
+  for Codex shell/tmux/manual use. This is not native statusline hook parity.
 - ⚠️ Degrades: skills that delegate to E-agents run **inline** on Codex — Codex only spawns
   sub-agents on explicit request (`/agent`), not via automatic skill delegation. The agents are
   installed and available for manual `/agent` invocation.

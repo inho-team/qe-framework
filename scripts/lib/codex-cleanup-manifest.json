@@ -1,5 +1,5 @@
 {
-  "_comment": "Historical superset of all known QE skill directory names ever shipped to ~/.codex/skills/. Seeded from (a) current repo skills/ directory names and (b) observed ~/.codex/skills/ QE catalog as of Phase 2 audit (172 entries observed, ~59 orphans). May need expansion as new skills ship. Used by cleanupCodexAssets() to identify removal candidates — a dir is only removed if its name is in this set AND it contains SKILL.md.",
+  "_comment": "Historical superset of all known QE skill paths ever shipped to ~/.codex/skills/. Entries may be top-level names or repo-relative nested paths. Seeded from (a) current repo skills/ SKILL.md paths and (b) observed ~/.codex/skills/ QE catalog as of Phase 2 audit (172 entries observed, ~59 orphans). May need expansion as new skills ship. Used by cleanupCodexAssets() to identify removal candidates — a dir is only removed if its manifest entry resolves under ~/.codex/skills/ AND contains SKILL.md.",
   "skills": [
     "Mbump",
     "Mcreate-agent",
@@ -117,6 +117,18 @@
     "Qwriting-clearly",
     "Qxlsx",
     "Qyoutube-transcript-api",
-    "coding-experts"
+    "coding-experts",
+    "coding-experts/quality/Qcode-documenter",
+    "coding-experts/quality/Qcode-reviewer",
+    "coding-experts/quality/Qdebugging-wizard",
+    "coding-experts/quality/Qfeature-forge",
+    "coding-experts/quality/Qfullstack-guardian",
+    "coding-experts/quality/Qplaywright-expert",
+    "coding-experts/quality/Qsecure-code-guardian",
+    "coding-experts/quality/Qsecurity-reviewer",
+    "coding-experts/quality/Qspec-miner",
+    "coding-experts/quality/Qtest-master",
+    "coding-experts/quality/Qthe-fool",
+    "coding-experts/quality/Qvitest"
   ]
 }

@@ -16,7 +16,7 @@
  * Exit 0 = clean or WARN only. Exit 1 = any FAIL (schema violation).
  */
 
-import { readdirSync, readFileSync, existsSync, statSync } from 'fs';
+import { readdirSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -24,7 +24,6 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
 const SKILLS_DIR = join(ROOT, 'skills');
 const CASES_DIR = join(ROOT, 'evals', 'cases');
-const CATALOG_DIRS = new Set(['coding-experts']);
 
 const REQUIRED_CASE_FIELDS = ['skill', 'prompt', 'must_include', 'must_not_include', 'rubric'];
 const LIST_FIELDS = new Set(['must_include', 'must_not_include']);
@@ -79,13 +78,23 @@ function parseFrontmatter(content) {
 // ─── collect skills ──────────────────────────────────────────────────────────
 
 const skillNames = new Set();
-for (const dir of readdirSync(SKILLS_DIR)) {
-  if (CATALOG_DIRS.has(dir)) continue;
-  const skillPath = join(SKILLS_DIR, dir, 'SKILL.md');
-  if (!existsSync(skillPath)) continue;
-  if (!statSync(join(SKILLS_DIR, dir)).isDirectory()) continue;
-  skillNames.add(dir);
+const skillFiles = [];
+
+function collectSkillFiles(dir = SKILLS_DIR) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const skillPath = join(fullPath, 'SKILL.md');
+      if (existsSync(skillPath)) {
+        skillNames.add(entry.name);
+        skillFiles.push(skillPath);
+      } else {
+        collectSkillFiles(fullPath);
+      }
+    }
+  }
 }
+collectSkillFiles();
 
 const fails = [];
 const warns = [];
@@ -136,8 +145,8 @@ const PATH_RE = /(?<![\w/.:-])(skills\/[\w.-]+\/SKILL\.md|core\/[\w.\/-]+\.md|do
 const PLACEHOLDER_RE = /\b(Qname|Ename|Enew-agent|Qfoo|foo|bar|example|template|XXX|YYY|ZZZ)\b/i;
 let refCount = 0;
 const warnStart = warns.length;
-for (const dir of skillNames) {
-  const skillPath = join(SKILLS_DIR, dir, 'SKILL.md');
+for (const skillPath of skillFiles) {
+  const dir = skillPath.split('/').at(-2);
   const content = readFileSync(skillPath, 'utf8');
   const seen = new Set();
   let mm;

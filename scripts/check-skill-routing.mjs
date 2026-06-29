@@ -5,7 +5,7 @@
  * Exit 0 = clean or WARN only. Exit 1 = any FAIL.
  */
 
-import { readdirSync, readFileSync, existsSync, statSync } from 'fs';
+import { readdirSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 
@@ -15,9 +15,25 @@ const ROOT = join(__dirname, '..');
 const SKILLS_DIR = join(ROOT, 'skills');
 const AGENTS_DIR = join(ROOT, 'agents');
 const INTENT_GATE = join(ROOT, 'core', 'INTENT_GATE.md');
-const CATALOG_DIRS = new Set(['coding-experts']);
 
 // ─── helpers ────────────────────────────────────────────────────────────────
+
+function collectSkillEntries(dir = SKILLS_DIR, out = []) {
+  for (const entry of readdirSync(dir, { withFileTypes: true })) {
+    const fullPath = join(dir, entry.name);
+    if (entry.isDirectory()) {
+      const skillPath = join(fullPath, 'SKILL.md');
+      if (existsSync(skillPath)) {
+        const content = readFileSync(skillPath, 'utf8');
+        const fm = parseFrontmatter(content);
+        out.push({ dir: entry.name, path: skillPath, content, fm });
+      } else {
+        collectSkillEntries(fullPath, out);
+      }
+    }
+  }
+  return out;
+}
 
 /**
  * Parses YAML frontmatter from a Markdown file's content.
@@ -75,16 +91,9 @@ function jaccard(tokensA, tokensB) {
 const skillEntries = []; // { name, path, fm, description }
 const skillNames = new Set();
 
-for (const dir of readdirSync(SKILLS_DIR)) {
-  if (CATALOG_DIRS.has(dir)) continue;
-  const skillPath = join(SKILLS_DIR, dir, 'SKILL.md');
-  if (!existsSync(skillPath)) continue;
-  const stat = statSync(join(SKILLS_DIR, dir));
-  if (!stat.isDirectory()) continue;
-  const content = readFileSync(skillPath, 'utf8');
-  const fm = parseFrontmatter(content);
-  skillEntries.push({ dir, path: skillPath, content, fm });
-  skillNames.add(dir);
+for (const entry of collectSkillEntries()) {
+  skillEntries.push(entry);
+  skillNames.add(entry.dir);
 }
 
 // ─── 2. Parse INTENT_GATE routing targets ───────────────────────────────────

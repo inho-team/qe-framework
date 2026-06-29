@@ -54,6 +54,7 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
   const codexDir = path.join(homeDir, '.codex');
   const skillsDir = path.join(codexDir, 'skills');
   const agentsDir = path.join(codexDir, 'agents');
+  const scriptsDir = path.join(codexDir, 'scripts');
   const configPath = path.join(codexDir, 'config.toml');
 
   // Skills dir must exist with at least some skills
@@ -77,14 +78,28 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
       );
     }
   }
-  // Symmetry guard: non-skill entries (CATALOG.md, coding-experts) must NOT be
-  // installed — install copies only real skill dirs so uninstall leaves nothing.
+  // Symmetry guard: non-skill files are not copied as skills. Nested category
+  // directories may exist as parents when they contain real descendant skills.
   assert.ok(!fs.existsSync(path.join(skillsDir, 'CATALOG.md')), 'CATALOG.md not installed as a skill');
+  assert.ok(
+    fs.existsSync(path.join(skillsDir, 'coding-experts', 'quality', 'Qvitest', 'SKILL.md')),
+    'nested coding-experts skill present for Codex parity',
+  );
+  assert.ok(
+    !fs.existsSync(path.join(skillsDir, 'coding-experts', 'SKILL.md')),
+    'category parent is not installed as a standalone skill',
+  );
 
   // Agents: must have .toml files
   assert.ok(fs.existsSync(agentsDir), '~/.codex/agents/ created');
   const tomlFiles = fs.readdirSync(agentsDir).filter((f) => f.endsWith('.toml'));
   assert.ok(tomlFiles.length > 0, 'at least one agent .toml installed');
+
+  // Scripts: Codex HUD command proxy must be available for $Qhud.
+  assert.ok(
+    fs.existsSync(path.join(scriptsDir, 'qe-hud.mjs')),
+    '~/.codex/scripts/qe-hud.mjs installed for Codex HUD',
+  );
 
   // Each .toml must contain name, metadata hints, compatibility note, and developer_instructions
   for (const toml of tomlFiles.slice(0, 3)) {

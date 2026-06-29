@@ -501,14 +501,19 @@ export function cleanupCodexAssets({
   const skillsToRemove = [];
   const scriptsDir = join(codexDir, 'scripts');
   const scriptsToRemove = [];
+  const hooksDir = join(codexDir, 'hooks');
+  const hooksToRemove = [];
 
   if (existsSync(skillsDir)) {
-    let entries;
-    try { entries = readdirSync(skillsDir); } catch { entries = []; }
-    for (const entry of entries) {
-      // Must be in the known manifest AND contain SKILL.md.
-      if (!knownSkillNames.has(entry)) continue;
-      const entryPath = join(skillsDir, entry);
+    for (const entry of knownSkillNames) {
+      if (typeof entry !== 'string' || entry.trim() === '') continue;
+      // Must be in the known manifest AND contain SKILL.md. Entries may be
+      // top-level names (legacy) or nested repo-relative paths such as
+      // coding-experts/quality/Qvitest.
+      const parts = entry.split('/').filter(Boolean);
+      if (parts.length === 0 || parts.some((part) => part === '..')) continue;
+      const entryPath = join(skillsDir, ...parts);
+      if (!resolve(entryPath).startsWith(resolve(skillsDir) + sep)) continue;
       let stat;
       try { stat = lstatSync(entryPath); } catch { continue; }
       if (!stat.isDirectory()) continue;
@@ -528,6 +533,20 @@ export function cleanupCodexAssets({
       }
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not inspect scripts dir: ${e.message}`);
+    }
+  }
+
+  // ----- Hooks: explicit installed subtree only -----
+  if (existsSync(hooksDir)) {
+    try {
+      const stat = lstatSync(hooksDir);
+      if (stat.isDirectory() && !stat.isSymbolicLink()) {
+        hooksToRemove.push(hooksDir);
+      } else if (stat.isSymbolicLink()) {
+        log(`[WARN] cleanupCodexAssets: skipping symlink hooks dir: ${hooksDir}`);
+      }
+    } catch (e) {
+      log(`[WARN] cleanupCodexAssets: could not inspect hooks dir: ${e.message}`);
     }
   }
 
@@ -570,10 +589,11 @@ export function cleanupCodexAssets({
   }
 
   // ----- Log plan -----
-  log(`[codex-cleanup] mode=${effectiveDryRun ? 'dry-run' : 'PURGE'} | skills=${skillsToRemove.length} | agents=${agentFilesToRemove.length} | scripts=${scriptsToRemove.length} | configFence=${fencePresent}`);
+  log(`[codex-cleanup] mode=${effectiveDryRun ? 'dry-run' : 'PURGE'} | skills=${skillsToRemove.length} | agents=${agentFilesToRemove.length} | scripts=${scriptsToRemove.length} | hooks=${hooksToRemove.length} | configFence=${fencePresent}`);
   for (const p of skillsToRemove) log(`  [skill] ${p}`);
   for (const p of agentFilesToRemove) log(`  [agent] ${p}`);
   for (const p of scriptsToRemove) log(`  [script] ${p}`);
+  for (const p of hooksToRemove) log(`  [hook] ${p}`);
   if (fencePresent) log(`  [config] strip QE fence from ${configPath}`);
   if (hooksFencePresent) log(`  [config] strip QE hooks fence from ${configPath}`);
 
@@ -587,6 +607,7 @@ export function cleanupCodexAssets({
     skills: skillsToRemove,
     agents: agentFilesToRemove,
     scripts: scriptsToRemove,
+    hooks: hooksToRemove,
     configFenceStripped: false,
     configBackup: null,
   };
@@ -600,7 +621,7 @@ export function cleanupCodexAssets({
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not write receipt: ${e.message}`);
     }
-    return { skills: skillsToRemove, agents: agentFilesToRemove, scripts: scriptsToRemove, configEdited: false, dryRun: true, receiptPath };
+    return { skills: skillsToRemove, agents: agentFilesToRemove, scripts: scriptsToRemove, hooks: hooksToRemove, configEdited: false, dryRun: true, receiptPath };
   }
 
   // ----- Purge mode: backup config.toml, strip fence, remove files -----
@@ -655,6 +676,20 @@ export function cleanupCodexAssets({
     }
   }
 
+  // Remove installed hooks subtree explicitly (never broader than ~/.codex/hooks).
+  for (const p of hooksToRemove) {
+    try {
+      if (resolve(p) !== resolve(hooksDir)) {
+        log(`[WARN] cleanupCodexAssets: skipping unexpected hooks path: ${p}`);
+        continue;
+      }
+      rmSync(p, { recursive: true, force: true });
+      log(`[codex-cleanup] removed hooks dir: ${p}`);
+    } catch (e) {
+      log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
+    }
+  }
+
   // Write purge receipt.
   receipt.configFenceStripped = configEdited;
   receipt.configBackup = backupPath;
@@ -670,6 +705,7 @@ export function cleanupCodexAssets({
     skills: skillsToRemove,
     agents: agentFilesToRemove,
     scripts: scriptsToRemove,
+    hooks: hooksToRemove,
     configEdited,
     dryRun: false,
     receiptPath,
@@ -824,9 +860,7 @@ function renderCodexAgentConfigBlock(agentsDir, entries) {
 }
 
 function resolveInstalledCodexHookPath(homeDir, log = () => {}) {
-  const pluginPath = getPluginInstallPath(homeDir, log);
-  if (pluginPath) return join(pluginPath, 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
-  return join(homeDir, '.claude', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+  return join(homeDir, '.codex', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
 }
 
 /**
@@ -928,6 +962,27 @@ function copyCodexSkillDirectory(src, dest) {
   return compacted;
 }
 
+function collectSkillSourceDirs(skillsDir, baseDir = skillsDir, out = []) {
+  let stat;
+  try { stat = lstatSync(skillsDir); } catch { return out; }
+  if (!stat.isDirectory() || stat.isSymbolicLink()) return out;
+
+  if (existsSync(join(skillsDir, 'SKILL.md'))) {
+    out.push({
+      src: skillsDir,
+      rel: relative(baseDir, skillsDir).split(sep).join('/'),
+    });
+    return out;
+  }
+
+  let entries = [];
+  try { entries = readdirSync(skillsDir); } catch { return out; }
+  for (const entry of entries) {
+    collectSkillSourceDirs(join(skillsDir, entry), baseDir, out);
+  }
+  return out;
+}
+
 /**
  * Synchronise the codex-cleanup-manifest.json to include every skill name
  * currently in the repo `skills/` directory. Union with existing entries,
@@ -947,17 +1002,7 @@ function syncCleanupManifest(repoRoot, log = () => {}) {
     if (!Array.isArray(existing.skills)) existing.skills = [];
   } catch { /* first run or parse error — start fresh */ }
 
-  let current = [];
-  try {
-    // Only real skill dirs (a directory containing SKILL.md) — never bare files
-    // like CATALOG.md or category dirs (coding-experts) that have no SKILL.md.
-    current = readdirSync(skillsDir).filter((entry) => {
-      try {
-        return lstatSync(join(skillsDir, entry)).isDirectory()
-          && existsSync(join(skillsDir, entry, 'SKILL.md'));
-      } catch { return false; }
-    });
-  } catch { /* skills dir absent */ }
+  const current = collectSkillSourceDirs(skillsDir).map((entry) => entry.rel);
 
   // Union: preserve historical entries, add new ones, dedup, sort
   const merged = [...new Set([...existing.skills, ...current])].sort();
@@ -1016,9 +1061,11 @@ export function installCodexAssets({
   const skillsSrcDir = join(repoRoot, 'skills');
   const agentsSrcDir = join(repoRoot, 'agents');
   const scriptsSrcDir = join(repoRoot, 'scripts');
+  const hooksSrcDir = join(repoRoot, 'hooks');
   const codexSkillsDir = join(codexDir, 'skills');
   const codexAgentsDir = join(codexDir, 'agents');
   const codexScriptsDir = join(codexDir, 'scripts');
+  const codexHooksDir = join(codexDir, 'hooks');
   const codexConfigPath = join(codexDir, 'config.toml');
 
   if (dryRun) {
@@ -1026,15 +1073,7 @@ export function installCodexAssets({
     let skillCount = 0;
     let agentCount = 0;
     if (existsSync(skillsSrcDir)) {
-      // Count only real skill dirs (matches the write path) so the preview is honest.
-      try {
-        skillCount = readdirSync(skillsSrcDir).filter((e) => {
-          try {
-            return lstatSync(join(skillsSrcDir, e)).isDirectory()
-              && existsSync(join(skillsSrcDir, e, 'SKILL.md'));
-          } catch { return false; }
-        }).length;
-      } catch {}
+      skillCount = collectSkillSourceDirs(skillsSrcDir).length;
     }
     if (existsSync(agentsSrcDir)) {
       try { agentCount = readdirSync(agentsSrcDir).filter((e) => e.endsWith('.md')).length; } catch {}
@@ -1042,6 +1081,9 @@ export function installCodexAssets({
     log(`[codex-install] would install ${skillCount} skill(s), ${agentCount} agent(s), upsert config fence`);
     if (existsSync(scriptsSrcDir)) {
       log(`[codex-install] would copy scripts/ -> ${codexScriptsDir}`);
+    }
+    if (existsSync(hooksSrcDir)) {
+      log(`[codex-install] would copy hooks/ -> ${codexHooksDir}`);
     }
     return { skipped: false, skills: skillCount, agents: agentCount, dryRun: true };
   }
@@ -1051,20 +1093,10 @@ export function installCodexAssets({
   let compactedSkillDescriptions = 0;
   if (existsSync(skillsSrcDir)) {
     ensureDir(codexSkillsDir);
-    let entries = [];
-    try { entries = readdirSync(skillsSrcDir); } catch {}
-    for (const entry of entries) {
-      const src = join(skillsSrcDir, entry);
-      const dest = join(codexSkillsDir, entry);
-      let stat;
-      try { stat = lstatSync(src); } catch { continue; }
-      if (stat.isSymbolicLink()) continue; // traversal guard
-      // Real skill dirs only (a directory containing SKILL.md) — symmetric with
-      // cleanupCodexAssets so uninstall leaves nothing behind. Skips CATALOG.md
-      // and support dirs (coding-experts) that have no SKILL.md.
-      if (!stat.isDirectory() || !existsSync(join(src, 'SKILL.md'))) continue;
+    for (const { src, rel } of collectSkillSourceDirs(skillsSrcDir)) {
+      const dest = join(codexSkillsDir, ...rel.split('/'));
       compactedSkillDescriptions += copyCodexSkillDirectory(src, dest);
-      log(`[codex-install] skill: ${entry} -> ${codexSkillsDir}`);
+      log(`[codex-install] skill: ${rel} -> ${codexSkillsDir}`);
       skillCount++;
     }
     log(`[codex-install] ${skillCount} skill(s) installed for Codex.`);
@@ -1109,6 +1141,15 @@ export function installCodexAssets({
     log(`[codex-install] scripts/ copied -> ${codexScriptsDir}`);
   } else {
     log('[codex-install] scripts/ not found — skipping Codex scripts.');
+  }
+
+  // ----- Hooks -----
+  if (existsSync(hooksSrcDir)) {
+    ensureDir(codexHooksDir);
+    copyRecursive(hooksSrcDir, codexHooksDir);
+    log(`[codex-install] hooks/ copied -> ${codexHooksDir}`);
+  } else {
+    log('[codex-install] hooks/ not found — skipping Codex hooks.');
   }
 
   // ----- config.toml fence upsert -----
@@ -1216,8 +1257,12 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
   let codexFenced = 0;
   let codexMissing = 0;
   let codexStamp = null;
+  let codexHookInstalled = false;
+  let codexHookFenced = false;
   if (existsSync(codexDir)) {
     const codexConfigPath = join(codexDir, 'config.toml');
+    const expectedHookPath = resolveInstalledCodexHookPath(homeDir);
+    codexHookInstalled = existsSync(expectedHookPath);
     if (existsSync(codexConfigPath)) {
       let cfgText = '';
       try { cfgText = readFileSync(codexConfigPath, 'utf8'); } catch {}
@@ -1226,6 +1271,7 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
         codexFenced = fenced.length;
         codexMissing = fenced.filter((a) => !existsSync(a.configFile)).length;
       }
+      codexHookFenced = cfgText.includes(expectedHookPath);
     }
     try {
       codexStamp = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version;
@@ -1233,11 +1279,13 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
     log('  codex:');
     log(`    version stamp: ${codexStamp || 'none'}`);
     log(`    fenced agents: ${codexFenced}`);
+    log(`    hook bundle: ${codexHookInstalled ? 'present' : 'missing'}`);
+    log(`    hook fence: ${codexHookFenced ? 'points to ~/.codex/hooks ✓' : 'missing/stale'}`);
     if (codexMissing > 0) {
       log(`    ⚠ ${codexMissing} fenced agent(s) reference a missing .toml — run qe-framework-install to repair`);
     } else if (codexFenced > 0) {
       log('    all fenced agents resolve ✓');
     }
   }
-  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp };
+  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp, codexHookInstalled, codexHookFenced };
 }

@@ -41,7 +41,7 @@ test('install writes one PreToolUse hook block with trust guidance and no bypass
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: (line) => logs.push(line), syncManifest: false });
 
   const config = readConfig(homeDir);
-  const expectedEntry = path.join(homeDir, '.claude', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+  const expectedEntry = path.join(homeDir, '.codex', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
 
   assert.ok(config.includes(QE_HOOKS_FENCE_BEGIN), 'hooks fence begin present');
   assert.ok(config.includes(QE_HOOKS_FENCE_END), 'hooks fence end present');
@@ -52,6 +52,7 @@ test('install writes one PreToolUse hook block with trust guidance and no bypass
   assert.ok(config.includes('timeout = 30'), 'timeout present');
   assert.ok(config.includes('statusMessage = "QE safety guard"'), 'status message present');
   assert.ok(config.includes(`node \\\"${expectedEntry}\\\"`), 'command references installed standalone hook path');
+  assert.ok(fs.existsSync(expectedEntry), 'standalone Codex hook script is installed under ~/.codex/hooks');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'exactly one PreToolUse block');
   assert.ok(logs.includes('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.'), 'trust guidance log emitted');
   assert.ok(!config.includes('--dangerously-bypass-hook-trust'), 'does not bypass hook trust');
@@ -139,6 +140,7 @@ test('cleanup removes only QE hooks fence and preserves user config sections', (
   assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 0, 'hooks fence removed after cleanup');
   assert.equal(countNeedle(config, QE_HOOKS_FENCE_END), 0, 'hooks fence end removed after cleanup');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 0, 'PreToolUse block removed after cleanup');
+  assert.ok(!fs.existsSync(path.join(homeDir, '.codex', 'hooks')), 'Codex hook bundle removed after cleanup');
   assert.ok(config.includes('model = "gpt-5"'), 'user model preserved');
   assert.ok(config.includes('[mcp_servers.myServer]'), 'user mcp section preserved');
   assert.ok(config.includes('[projects."/work/myproject"]'), 'user project section preserved');

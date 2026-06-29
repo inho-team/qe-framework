@@ -44,6 +44,11 @@ Codex hook block messages render Codex-native skill commands with the `$`
 prefix, for example `$Qcommit`, `$Qbranch`, and `$Mbump`. Claude hook block
 messages keep the Claude slash-command prefix.
 
+Codex HUD support is intentionally **not** documented as hook parity. Codex has
+no native `statusLine` hook equivalent here; QE installs `~/.codex/scripts/qe-hud.mjs`
+as a command proxy that renders the same HUD from project state for manual,
+shell-prompt, or tmux-status use.
+
 ## Why PreToolUse matcher stays `*` (not narrowed)
 
 It is tempting to narrow `PreToolUse` to `Bash|Write|Edit` so it only runs before
