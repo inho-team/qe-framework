@@ -61,7 +61,7 @@ Phase context: {from ROADMAP.md active phase}
 Format: Markdown with checklist items
 ```
 
-**Fallback guarantee**: If `.qe/sivs-config.json` does not exist, all stages default to Claude. This ensures zero impact on existing Claude-only workflows.
+**Fallback guarantee**: If `.qe/sivs-config.json` does not exist, all stages default to Claude. This preserves existing single-engine workflows while Codex routing remains available through SIVS config.
 
 ## Workflow
 

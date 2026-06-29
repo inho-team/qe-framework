@@ -138,11 +138,11 @@ claude --plugin-dir /path/to/qe-framework
 In Claude, you only need to remember two commands:
 
 ```
-/Qinit    # Set up project, choose engine routing (Claude-only or Claude+Codex)
+/Qinit    # Set up project, choose engine routing (Claude, Codex, or hybrid)
 /Qplan    # Start working — the framework guides you through every next step
 ```
 
-`/Qinit` asks how you want to assign engines to each stage (Spec, Implement, Verify, Supervise). Pick Claude-only or mix in Codex — your choice. After that, `/Qplan` takes over and tells you exactly what to run next.
+`/Qinit` asks how you want to assign engines to each stage (Spec, Implement, Verify, Supervise). Pick a single engine or mix Claude and Codex — your choice. After that, `/Qplan` takes over and tells you exactly what to run next.
 
 In Codex, use the same skill names with the Codex skill prefix:
 
@@ -221,7 +221,7 @@ Pick a setup with one command:
 
 ```
 /Qsivs-config verify codex --background true # long verify job in Codex background
-/Qsivs-config set --all claude               # force Claude-only
+/Qsivs-config set --all claude               # route every stage to Claude
 /Qsivs-config                                # see current setup
 /Qsivs-config --help                         # full options
 ```

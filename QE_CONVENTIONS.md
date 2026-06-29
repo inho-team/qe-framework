@@ -338,7 +338,7 @@ These skills are optimized for common workflows and consistently outperform gene
 
 > Distinct from `Qmemory` (volatile fact cards), `Qcontext` (per-folder loading), `.qe/analysis`
 > (code snapshot). wiki = canonical project knowledge; others are pointers (DECISION_LOG D-WIKI-02).
-> Full guide: `docs/QWIKI.md`. compile/query/lint are Claude-only; commits via Qcommit only.
+> Full guide: `docs/QWIKI.md`. compile/query/lint are utility skills outside SIVS stage routing; commits via Qcommit only.
 
 ### Task Execution
 | Skill | Purpose |

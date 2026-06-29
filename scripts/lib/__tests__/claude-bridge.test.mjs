@@ -54,7 +54,7 @@ test('getClaudeCommand renders stage commands and rejects unknown stages', () =>
   assert.throws(() => getClaudeCommand('missing'), /Unknown stage/);
 });
 
-test('resolveReverseEngine delegates to Claude only when CLI is authenticated', () => {
+test('resolveReverseEngine delegates to Claude when CLI is authenticated', () => {
   withFakeClaude(`#!/bin/sh
 if [ "$1" = "auth" ] && [ "$2" = "status" ]; then
   printf '{"loggedIn":true,"authMethod":"test"}'

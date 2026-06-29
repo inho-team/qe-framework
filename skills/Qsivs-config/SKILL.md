@@ -180,7 +180,7 @@ Schema:      core/schemas/svs-config.schema.json
 - Engine must be one of: `claude`, `codex`
 - Effort must be one of: `low`, `medium`, `high`, `max`, `xhigh`
   - `low` / `medium` / `high` — Both Claude and Codex
-  - `max` — Claude only (maps to Codex `xhigh` automatically)
+  - `max` — Claude label; maps to Codex `xhigh` automatically
   - `xhigh` — Codex only (maps to Claude `max` automatically)
 - Model must be a non-empty string
 - Background must be boolean (`true` or `false`) and only affects Codex routing

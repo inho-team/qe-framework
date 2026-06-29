@@ -52,7 +52,7 @@ field (see Backward routing).
   log `crossmodel=false` with the reason, **re-run that one agent on Claude
   (`general-purpose`)**, and mark the gate result `degraded` → at least **WARN**
   (the strongest critic ran same-engine, so independence is reduced; never let a
-  best-effort upgrade silently PASS as if cross-model). A best-effort upgrade
+  optional upgrade silently PASS as if cross-model). An optional upgrade
   **never blocks** the mandatory gate.
 - **Double failure:** if the Claude re-run also errors, the gate result is
   **WARN-blocked** (NOT PASS) requiring explicit user override, with an audit

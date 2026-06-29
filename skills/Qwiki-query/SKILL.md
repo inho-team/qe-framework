@@ -11,7 +11,7 @@ recommendedModel: haiku
 `.qe/wiki/` 레이어에서 정보를 검색하는 2단계 검색 스킬.
 Phase A(라우팅)와 Phase B(검색)를 분리하여 불필요한 샤드 읽기를 최소화한다.
 
-**이 스킬은 SIVS 스테이지가 아니다 (Claude-only).** SIVS stage 설정에 등재하지 않는다.
+**이 스킬은 SIVS 스테이지가 아니다.** SIVS stage 설정에 등재하지 않는다.
 
 ## Phase A: ROUTE (라우터·aliases만, 샤드 읽기 금지)
 
@@ -103,7 +103,7 @@ shards_read: []
 - Phase A에서 샤드 파일 읽기 금지 (라우터+aliases.md만).
 - 1-hop 제한: 링크 추적 최대 1단계.
 - 경로 traversal 차단: 파일백 slug 등 외부 입력은 `path.resolve` + `.qe/wiki` prefix 검사.
-- SIVS 비대상: Claude-only 스킬.
+- SIVS 비대상 utility skill.
 
 ## 참고
 - `core/wiki-conventions.template.md` — §7 라우터·§8 샤딩·§13 provenance 규약

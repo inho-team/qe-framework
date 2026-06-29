@@ -97,7 +97,7 @@ test('codex command emits background flag when requested', () => {
   );
 });
 
-test('default SIVS config keeps Claude-only when Codex is unavailable', () => {
+test('default SIVS config keeps every stage on Claude when Codex is unavailable', () => {
   assert.deepEqual(getDefaultSivsConfig({ codexAvailable: false }), {
     spec: { engine: 'claude' },
     implement: { engine: 'claude' },

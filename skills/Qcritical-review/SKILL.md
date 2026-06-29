@@ -251,11 +251,11 @@ self-reference gate** (invoked by Qgenerate-spec Step 2.6) instead upgrades
 1. **Baseline (always runs):** all Spec agents are same-engine sub-agents
    (`subagent_type: "general-purpose"`). Fully functional with **no codex
    installed** — independence comes from fresh context + adversarial role.
-2. **Auto-upgrade (best-effort):** detect codex reachability via
+2. **Auto-upgrade:** detect codex reachability via
    `getCodexPluginInfo()` / `isCodexReachable()` from
    `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer**
    to `subagent_type: "codex:codex-rescue"` for a truly independent engine.
-3. **Graceful degrade:** if codex is absent or unreachable, silently keep the
+3. **Same-engine fallback:** if codex is absent or unreachable, silently keep the
    same-engine baseline. **Codex is never a required dependency.**
 
 This makes the strongest critic genuinely independent when possible, while
@@ -265,7 +265,7 @@ setup — which is exactly the self-reference case this gate exists to defend.
 The same automatic upgrade applies to the **Verify gate** (cross-model target =
 Devil's Advocate) and the **Supervise gate** (cross-model target = Merge Blocker).
 
-**Cross-model failure fallback (all gates):** a best-effort upgrade must never
+**Cross-model failure fallback (all gates):** an optional upgrade must never
 block a mandatory gate or silently pass as if it were cross-model.
 - If the codex sub-agent errors or times out → log `crossmodel=false` + reason,
   **re-run that one agent on Claude** (`general-purpose`), and mark the gate

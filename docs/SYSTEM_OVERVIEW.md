@@ -168,8 +168,9 @@ Auto-refreshed when `/Qrefresh` runs.
   and the Codex `PreToolUse` hook fence.
 - Codex base -> Claude engine uses the reverse bridge surface
   (`Qclaude-rescue` / `claude_bridge.mjs`) when available.
-- Automatic Claude Agent tool delegation is not exact Codex parity; Codex uses
-  native subagents through the client adapter, with role-separated inline execution only when a runtime lacks the required primitive.
+- Agent delegation is normalized through the QE client adapter: Claude uses the
+  Agent tool, while Codex uses generated native subagents and role-separated
+  inline execution only when a runtime lacks the required primitive.
 
 ---
 
@@ -247,7 +248,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 - **SIVS config CLI** (`/Qsivs-config`) — quick engine routing changes
 - **165 skills** (was 93 in v5.0) — 71 coding expert skills added
 - **Auto-refresh integration** — `/Qrefresh` keeps context files up to date
-- **Claude-first simplicity** — zero external dependencies required
+- **Dual-client simplicity** — Claude and Codex assets install from the same package
 
 ---
 

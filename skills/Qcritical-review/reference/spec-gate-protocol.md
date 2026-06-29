@@ -22,10 +22,10 @@ Cognitive modes referenced here are defined in [thinking-modes.md](./thinking-mo
 ## Agents (Spec stage)
 
 Spawned through the agent adapter. Claude uses parallel Agent tool calls; Codex
-uses native subagents when explicitly available. If Codex cannot provide
-equivalent automatic delegation, run the roles inline and mark the gate
-`codex-inline-degrade`; reviewers must not see each other's output when the
-client can enforce isolation.
+uses generated native subagents when available. If a runtime cannot provide
+automatic delegation, run the roles with role-separated inline execution and
+record `mode=role-separated-inline`; reviewers must not see each other's output
+when the client can enforce isolation.
 
 | Agent | Mode | Source of questions |
 |-------|------|---------------------|
@@ -44,24 +44,23 @@ opportunistically:
 1. **Baseline (always):** all agents run as same-engine sub-agents
    (`subagent_type: "general-purpose"`). This is fully functional with no codex
    installed — structural independence via fresh context + adversarial role.
-2. **Auto cross-model upgrade (best-effort):** detect codex reachability via
+2. **Auto cross-model upgrade:** detect codex reachability via
    `getCodexPluginInfo()` / `isCodexReachable()` from
    `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer**
    (the most adversarial agent) to `subagent_type: "codex:codex-rescue"` for a
    genuinely independent engine. The other agents stay on Claude.
-3. **Graceful degrade:** if codex is not installed or unreachable, silently fall
-   back to the same-engine baseline. Codex is **never** a required dependency.
+3. **Same-engine fallback:** if codex is not installed or unreachable, silently
+   fall back to the same-engine baseline. Codex is **never** a required dependency.
 
 For a Codex-native base session, "same-engine sub-agents" means native Codex
-subagents when they are explicitly available. If they are unavailable, the Lead
-runs the three roles inline, records `crossmodel=degraded`, and reports
-`codex-inline-degrade` because isolated parallel reviewer contexts were not
-available.
+subagents when they are available. If they are unavailable, the Lead runs the
+three roles with role-separated inline execution and records
+`mode=role-separated-inline` plus the isolation limits.
 
 No configuration is needed for either path — the upgrade is automatic when codex
 is present.
 
-**Cross-model failure fallback:** a best-effort upgrade must never block the
+**Cross-model failure fallback:** an optional cross-model upgrade must never block the
 mandatory gate or silently pass as if it were cross-model.
 - If the codex sub-agent errors or times out → log `crossmodel=false` + reason,
   **re-run the Critical Reviewer on Claude** (`general-purpose`), and mark the

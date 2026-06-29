@@ -58,7 +58,7 @@ It is the default implementer-stage entry point in the canonical QE workflow.
 - In `single-model`, it uses the Haiku Wave execution path.
 - In `hybrid`, `multi-model`, or `tiered-model`, it should prefer the configured implementer runner.
 
-That makes `/Qatomic-run` the bridge between the original Claude-only system and the newer role-based orchestration model.
+That makes `/Qatomic-run` the bridge between the original single-client system and the newer role-based orchestration model.
 
 ## Why Multi-Model Exists
 

@@ -66,7 +66,7 @@ Extract subcommand (`show` | `on` | `off` | `summary`), client flags (`--codex` 
 ### Step 1: Resolve paths
 1. **Claude script path** — Resolve the absolute path of `hooks/scripts/statusline.mjs` relative to this plugin (walk up from the skill directory until `hooks/scripts/statusline.mjs` exists). Store as `SCRIPT_ABS`. Because `SCRIPT_ABS` is absolute, a single global install runs correctly from any project directory.
 2. **Codex command path** — Prefer `$HOME/.codex/scripts/qe-hud.mjs`; if absent, resolve repo/plugin `scripts/qe-hud.mjs`. Store as `CODEX_HUD_ABS`.
-3. **Settings path** — Claude only: `--project` → `<PROJECT_ROOT>/.claude/settings.json` (project root resolved via the detection walk above); otherwise (default, or `--user`) → `$HOME/.claude/settings.json`.
+3. **Claude settings path** — `--project` → `<PROJECT_ROOT>/.claude/settings.json` (project root resolved via the detection walk above); otherwise (default, or `--user`) → `$HOME/.claude/settings.json`.
 
 ### Step 2: Route by subcommand
 

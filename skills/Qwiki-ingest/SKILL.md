@@ -81,7 +81,7 @@ status: uncompiled
 
 ## 불변식
 - raw 파일 불변: 한 번 `raw/` 또는 `raw/assets/`에 들어간 원본은 수정하지 않는다.
-- 이 스킬은 SIVS 스테이지가 아니다 (Claude-only). SIVS stage 설정에 등재하지 않는다.
+- 이 스킬은 SIVS 스테이지가 아니다. SIVS stage 설정에 등재하지 않는다.
 - 외부 입력 기반 경로는 항상 `path.resolve` + `.qe/wiki` 루트 prefix 검사를 거친다.
 
 ## 참고

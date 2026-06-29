@@ -11,7 +11,7 @@ recommendedModel: sonnet
 `.qe/wiki/` 레이어의 8가지 점검(구조 6 + conventions↔router + 신선도)을 실행하고, 높은
 확신도(high-confidence) 문제는 자동 수정, 나머지는 보고서로 제시한다.
 
-**이 스킬은 SIVS 스테이지가 아니다 (Claude-only).** SIVS stage 설정에 등재하지 않는다.
+**이 스킬은 SIVS 스테이지가 아니다.** SIVS stage 설정에 등재하지 않는다.
 
 ---
 
@@ -144,7 +144,7 @@ high-confidence 항목만:
 
 ## 불변식
 - 자동 수정은 high-confidence 항목만 — 모순·샤드 분기·tier는 사람 판단 필요.
-- SIVS 비대상: Claude-only 스킬.
+- SIVS 비대상 utility skill.
 - wiki-router.mjs가 실행 권위: conventions 불일치 시 router가 옳다.
 
 ## 참고

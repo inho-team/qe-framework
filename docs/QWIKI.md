@@ -57,7 +57,7 @@ summaries, decisions — that should compound across sessions. It does **not** r
 
 - **Commits**: `/Qwiki-compile` commits **only via Qcommit → Ecommit-executor** — raw
   `git commit` is hard-blocked by the PreToolUse hook (D-WIKI-01).
-- **SIVS**: compile/query/lint are **Claude-only** (not SIVS stages).
+- **SIVS**: compile/query/lint are utility skills outside SIVS stage routing.
 - **SessionStart hook**: shows `[Wiki] N uncompiled …` when `.qe/wiki/inbox` has sources.
 - **HUD**: the opt-in `wiki` preset (`/Qhud on --preset wiki`) shows topic + inbox counts.
   Existing presets are unchanged.

@@ -114,10 +114,10 @@ $Qcode-run-task
 
 Runs the review/verification loop.
 
-When a workflow relies on Claude Agent tool auto-delegation, Codex either uses
-an explicitly invoked native Codex subagent or runs inline with a visible
-`codex-inline-degrade` note. That is the measured support boundary, not exact
-Agent tool parity.
+When a workflow relies on agent delegation, QE normalizes the behavior through
+the client adapter. Claude uses the Agent tool; Codex uses generated native
+subagents and falls back to role-separated inline execution only when a runtime
+lacks the required primitive.
 
 ## 4. Mode Selection
 
@@ -174,7 +174,7 @@ Current runtime behavior:
 
 | Available tools | Suggested mode | Suggested default mapping |
 |-----------------|----------------|---------------------------|
-| Claude only | `single-model` | Claude owns all roles |
+| Claude single-engine | `single-model` | Claude owns all roles |
 | Tiered Claude | `tiered-model` | planner/supervisor = Opus, implementer/reviewer = Sonnet, low-tier helper = Haiku |
 | Tiered Codex | `tiered-model` | planner/supervisor = GPT-5.4, implementer/reviewer = GPT-5-Codex, low-tier helper = GPT-5-Codex-Mini |
 | Claude + Codex | `hybrid` | implementer = Codex, others = Claude |

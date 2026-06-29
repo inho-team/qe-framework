@@ -11,7 +11,7 @@ recommendedModel: sonnet
 `.qe/wiki/inbox/`의 미처리 소스를 읽어 wiki 페이지(source/entity/concept)를 합성하고,
 라우터·인덱스·overview를 갱신한 뒤 Qcommit으로 커밋하는 핵심 처리 루프.
 
-**중요: 이 스킬은 SIVS 스테이지가 아니다 (Claude-only).** SIVS stage 설정에 등재하지 않는다.
+**중요: 이 스킬은 SIVS 스테이지가 아니다.** SIVS stage 설정에 등재하지 않는다.
 **raw `git commit` 호출 금지.** 커밋은 반드시 Qcommit → Ecommit-executor 경유.
 
 ## 실행 절차
@@ -117,7 +117,7 @@ Qcommit에 전달할 정보:
 - raw 파일 불변: `raw/`에 이동된 파일은 수정하지 않는다.
 - Qcommit 경유 커밋: raw `git commit` 절대 금지.
 - 경로 traversal 차단: 외부 입력 기반 경로는 반드시 `path.resolve` + `.qe/wiki` prefix 검사.
-- SIVS 비대상: Claude-only 스킬. stage 설정 미등재.
+- SIVS 비대상 utility skill. stage 설정 미등재.
 
 ## 참고
 - `core/wiki-conventions.template.md` — frontmatter·라우터·샤딩·provenance 규약

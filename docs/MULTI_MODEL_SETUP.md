@@ -118,7 +118,7 @@ Preset summary examples:
 |--------|---------|-------------|----------|------------|
 | Tiered Claude | Claude `opus` | Claude `sonnet` | Claude `sonnet` | Claude `opus` |
 | Tiered Codex | Codex `gpt-5.4` | Codex `gpt-5-codex` | Codex `gpt-5-codex` | Codex `gpt-5.4` |
-| Claude only | Claude `sonnet` | Claude `sonnet` | Claude `sonnet` | Claude `opus` |
+| Claude single-engine | Claude `sonnet` | Claude `sonnet` | Claude `sonnet` | Claude `opus` |
 | Claude + Codex | Claude `sonnet` | Codex `gpt-5-codex` | Claude `sonnet` | Claude `opus` |
 | Claude + Gemini | Claude `sonnet` | Claude `sonnet` | Gemini `gemini-2.5-pro` | Claude `opus` |
 | Claude + Codex + Gemini | Claude `sonnet` | Codex `gpt-5-codex` | Gemini `gemini-2.5-pro` | Claude `opus` |
