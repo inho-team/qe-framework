@@ -62,6 +62,7 @@ TASK MANAGEMENT
   /Qrefresh                Refresh project analysis
   /Qresume                 Restore previous session context
   /Qcompact                Save context / session handoff ($Qcompact on Codex)
+  /Quser-action            Track external actions the user must perform
   /Qarchive                Archive completed tasks
   /Mmigrate-tasks          Migrate task files to .qe/
 

@@ -45,6 +45,7 @@
 | `/Qmcp-sync` | When MCP settings should be shared across Claude, Codex, and Gemini. | Keeps one QE-managed MCP registry and syncs clients from it. |
 | `/Qsecret` | When API keys or tokens must be stored or used safely. | Keeps plaintext secrets out of the repo while supporting secure env injection. |
 | `/Qissue` | When the user wants to file a bug report, feature request, or question against the qe-framework repo. | Single-command issue filing via `gh` CLI with one-time PAT onboarding. |
+| `/Quser-action` / `$Quser-action` | When Claude or Codex needs the user to perform an external action. | Creates durable `.qe/user-actions/` requests for hook trust, login, 2FA, secrets entry, console work, or acceptance checks. |
 | `/Qupdate` | When the QE framework, its Codex assets, or the codex-plugin-cc bridge need updating. | One command: updates the framework body (Claude + Codex) and checks/updates the codex-plugin-cc bridge. |
 | `/Qmistake` | When user points out a mistake or corrects behavior. | Records to .qe/MISTAKE.md, loaded every session start. |
 | `/Qversion` | When you need to check the current framework version. | Displays version info and recent changelog. |

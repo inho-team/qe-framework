@@ -119,6 +119,11 @@ the client adapter. Claude uses the Agent tool; Codex uses generated native
 subagents and falls back to role-separated inline execution only when a runtime
 lacks the required primitive.
 
+When a workflow needs something the model cannot do directly, use
+`/Quser-action` (`$Quser-action` on Codex). It writes a durable
+`.qe/user-actions/pending/*.md` request with the exact user action, expected
+result, and unblock instructions instead of losing the request in chat.
+
 ## 4. Mode Selection
 
 ### `single-model`
