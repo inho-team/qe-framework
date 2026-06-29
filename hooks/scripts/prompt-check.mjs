@@ -5,6 +5,7 @@ import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { createHash } from 'crypto';
+import { spawn } from 'child_process';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { parseHelpFlag } from './lib/help-flag-parser.mjs';
@@ -304,38 +305,54 @@ try {
 }
 
 // --- Session auto-naming (AI-driven) + topic-change refresh ---
-// The hook is not an LLM, so it cannot read the work itself — it only injects a
-// one-line instruction and lets Claude name/rename the session from the actual
-// task. Two phases keyed off the per-session sessionName binding:
-//   1. No name yet  → ask Claude to name it from this request (capped at 2 nudges
-//      so an un-named session never spams every turn).
-//   2. Already named → count prompts; every NAME_REFRESH_EVERY prompts, ask
-//      Claude to RENAME *only* if the topic has clearly shifted (conservative —
-//      keep the name during a continuous task to avoid flicker across sessions).
+// The hook is not an LLM and must not block, so it can't read the work or wait
+// on a model itself. Instead it spawns a fully detached worker (session-namer.mjs)
+// that reads recent transcript turns, asks Haiku for a Korean name, and writes it
+// via writeSessionName — which the active-session registry surfaces so other
+// terminals recognize each other by name. Two phases keyed off the per-session
+// binding:
+//   1. No name yet  → spawn mode=name every turn; the worker's 60s file lock
+//      throttles actual Haiku calls to ~once/min, so this is cheap.
+//   2. Already named → count prompts; every NAME_REFRESH_EVERY prompts spawn
+//      mode=rename, which renames ONLY on a clear topic shift (worker returns
+//      KEEP otherwise) to avoid flicker across terminals.
 // State lives in unified-state under session_name_meta, scoped to the sid so a
-// new terminal starts its own counter. Fail-open: advisory only.
+// new terminal starts its own counter. Fully fail-open: spawn is detached+unref,
+// errors are swallowed, naming never blocks the prompt.
 const NAME_REFRESH_EVERY = 5;
-const MAX_NONAME_NUDGES = 2;
 try {
-  const sid = readCurrentSid(cwd);
+  // Opt-out: set `session_naming_disabled: true` in QE config to stop sending
+  // transcript prose to the Haiku naming call entirely.
+  const sid = cfg.session_naming_disabled ? null : readCurrentSid(cwd);
   if (sid) {
     const sessionRef = readCurrentSessionId(cwd) || sid;
     const currentName = readSessionName(cwd, sessionRef);
+    const transcriptPath = data.transcript_path || '';
+    const namerPath = join(__dirname, 'lib', 'session-namer.mjs');
     const meta = (state.session_name_meta && state.session_name_meta.sid === sid)
       ? state.session_name_meta
-      : { sid, noNameNudges: 0, promptsSinceNamed: 0 };
+      : { sid, promptsSinceNamed: 0 };
+
+    const spawnNamer = (mode) => {
+      try {
+        const child = spawn(
+          process.execPath,
+          [namerPath, cwd, sessionRef, mode, transcriptPath, currentName || ''],
+          { detached: true, stdio: 'ignore' },
+        );
+        child.unref();
+      } catch {
+        // fail-open: a failed spawn just means no auto-name this turn
+      }
+    };
 
     if (!currentName) {
-      if (meta.noNameNudges < MAX_NONAME_NUDGES) {
-        hints.push('[SESSION-NAME] 이 세션에 이름이 없습니다. 이번 요청의 핵심 업무를 한국어 4~6단어로 요약해 /Qsession-name set <이름> 을 한 번 실행하세요. 같은 작업을 계속하는 동안엔 다시 묻지 않습니다.');
-        meta.noNameNudges += 1;
-      }
+      spawnNamer('name');
       meta.promptsSinceNamed = 0;
     } else {
-      meta.noNameNudges = 0;
       meta.promptsSinceNamed = (meta.promptsSinceNamed || 0) + 1;
       if (meta.promptsSinceNamed >= NAME_REFRESH_EVERY) {
-        hints.push('[SESSION-NAME] 현재 세션 이름은 "' + currentName + '"입니다. 지금 진행 중인 업무가 이 이름과 명확히 다른 주제로 전환됐다면 /Qsession-name set <새 이름> 으로 갱신하세요. 같은 작업의 연속이면 그대로 두세요(불필요한 변경 금지).');
+        spawnNamer('rename');
         meta.promptsSinceNamed = 0;
       }
     }
