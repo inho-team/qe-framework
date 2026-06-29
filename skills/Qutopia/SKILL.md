@@ -10,14 +10,23 @@ recommendedModel: haiku
 
 ## Modes
 
-| Command | Behavior |
-|---------|----------|
-| `/Qutopia` | Auto mode — classify simple/complex, auto-select work or qa |
-| `/Qutopia --work` | Force work mode (spec pipeline, no quality loop) |
-| `/Qutopia --qa` | Force qa mode (spec pipeline + quality loop) |
-| `/Qutopia --ralph` | Ralph loop — auto-repeat PSE Chain until VERIFY_CHECKLIST is fully complete |
-| `/Qutopia --ralph off` | Stop Ralph loop (manual interrupt) |
-| `/Qutopia off` | Disable autonomous mode |
+| Claude | Codex | Behavior |
+|--------|-------|----------|
+| `/Qutopia` | `$Qutopia` | Auto mode — classify simple/complex, auto-select work or qa |
+| `/Qutopia --work` | `$Qutopia --work` | Force work mode (spec pipeline, no quality loop) |
+| `/Qutopia --qa` | `$Qutopia --qa` | Force qa mode (spec pipeline + quality loop) |
+| `/Qutopia --ralph` | `$Qutopia --ralph` | Ralph loop — auto-repeat PSE Chain until VERIFY_CHECKLIST is fully complete |
+| `/Qutopia --ralph off` | `$Qutopia --ralph off` | Stop Ralph loop (manual interrupt) |
+| `/Qutopia off` | `$Qutopia off` | Disable autonomous mode |
+| `/Qutopia status` | `$Qutopia status` | Show current state |
+
+## Client Adapter Compatibility
+
+- **Command rendering**: user-visible follow-up commands MUST use the active client prefix (`/Q...` for Claude, `$Q...` for Codex).
+- **Confirmation skipping**: use the QE interaction adapter. Claude `AskUserQuestion` prompts and Codex plain-text choices both auto-select the first recommended option when Utopia is enabled, except destructive/irreversible choices.
+- **Delegation**: Claude uses Agent-tool/Claude plugin surfaces where specified. Codex uses native Codex subagents when available; otherwise preserve role separation inline and mark the fallback.
+- **State contract**: write `.qe/state/utopia-state.json` as the skill contract. Hooks read both that file and `unified-state.json.utopia_state` for backward compatibility.
+- **Permissions**: Claude may merge broad permissions into `.claude/settings.json`. Codex has no `.claude/settings.json`; do not write Claude settings just because the active client is Codex. Codex autonomy relies on its session policy plus QE hook rails.
 
 ## Dynamic Workflow Escalation
 
@@ -25,11 +34,10 @@ When a task has 10+ checklist items or involves massive multi-file changes, PSE 
 
 1. **Auto-detect**: If the classified task has ≥10 items or touches ≥10 files, suggest: "This task is large enough for a dynamic workflow. Try: 'Create a workflow for this task' or use ultracode effort."
 2. **Manual trigger**: The user can say "ultracode" or set effort to ultracode to auto-trigger workflow creation.
-3. **Pair with /goal**: For unattended runs, combine `/goal` with the workflow: `/goal all tests pass, or stop after 30 turns`
+3. **Pair with a session goal when available**: For unattended runs, Claude can combine `/goal` with the workflow, for example `/goal all tests pass, or stop after 30 turns`. Codex sessions should use their native goal/session mechanism when available.
 4. **Fallback**: If the user prefers PSE, proceed with `--work` or `--qa` as normal.
 
-See `docs/CLAUDE_CODE_FEATURES.md` for full /workflows and /goal reference.
-| `/Qutopia status` | Show current state |
+See `docs/CLAUDE_CODE_FEATURES.md` for Claude `/workflows` and `/goal` reference.
 
 ## What It Does
 
@@ -44,7 +52,7 @@ Creates `.qe/state/utopia-state.json`:
 ```
 
 When `enabled: true`, ALL skills/agents:
-- Skip `AskUserQuestion` — auto-select first (recommended) option
+- Skip interaction prompts — auto-select first (recommended) option
 - Auto-approve in Qrun-task, auto-generate in Qgenerate-spec
 - Auto-commit via Qcommit after task completion
 
@@ -54,7 +62,8 @@ When `enabled: true`, ALL skills/agents:
 (플라이휠; Milestone 2 적재는 Phase 6).
 
 ### 2. Auto-allow Tool Permissions
-Merge into `.claude/settings.json`:
+
+Claude client: merge into `.claude/settings.json`:
 ```json
 {
   "permissions": {
@@ -66,9 +75,11 @@ Merge into `.claude/settings.json`:
 }
 ```
 
+Codex client: do **not** write `.claude/settings.json`. Keep autonomy in `.qe/state/utopia-state.json` and rely on Codex session policy plus QE PreToolUse rails. If Codex exposes a native permission config in the active runtime, update only that Codex-native surface and preserve existing user settings.
+
 ### 3. Request Routing
 
-#### Default mode (`/Qutopia`, no flag)
+#### Default mode (`Qutopia`, no flag)
 
 ```
 Request → Classify complexity → SIMPLE → Execute directly
@@ -110,7 +121,7 @@ Request → Gate → Qgenerate-spec → Qrun-task → Verify ─┐
 
 - State file: `"mode": "work"`, max reinforcements: 50
 - Multiple tasks: spawn `Etask-executor` agents in parallel
-- Single task: invoke `/Qrun-task {UUID}` in autonomous mode
+- Single task: invoke `{adapter.commandPrefix}Qrun-task {UUID}` in autonomous mode
 
 #### `--qa` mode
 
@@ -122,7 +133,7 @@ Request → Gate → Qgenerate-spec → Qrun-task → Qcode-run-task → Verify 
 
 - State file: `"mode": "qa"`, max reinforcements: 80
 - After each task completes:
-  - Code tasks: `/Qcode-run-task` (test → review → fix → retest, max 3 cycles)
+  - Code tasks: `{adapter.commandPrefix}Qcode-run-task` (test → review → fix → retest, max 3 cycles)
   - **All tasks: VERIFY_CHECKLIST item-by-item verification is MANDATORY** — each item must be verified with a concrete action (file check, grep, build, test). "Build passed" alone does NOT satisfy verification. This step CANNOT be skipped in --qa mode.
   - Code + security keywords (auth/crypto/payment/JWT/password/secret/token/credential/bcrypt): auto-invoke `Esecurity-officer` before marking verification complete
 - Cross-task audit (after ALL tasks complete): see below
@@ -161,7 +172,7 @@ State file: `.qe/state/ralph-state.json` — persists across stop events.
 
 **Context pressure handling:**
 When `tool_calls > 200` in a single loop iteration, the loop automatically:
-1. Invokes `/Qcompact` to compress context
+1. Invokes `{adapter.commandPrefix}Qcompact` to compress context
 2. Resumes from the next remaining item with the preserved ralph-state
 
 **Progress output** (every loop cycle):
@@ -173,7 +184,7 @@ When `tool_calls > 200` in a single loop iteration, the loop automatically:
 
 **Mutual exclusion:** `--ralph` is **mutually exclusive** with `--work` and `--qa` flags. Internally it selects one of them automatically. Specifying `--ralph --work` is an error.
 
-**Manual interrupt:** `/Qutopia --ralph off` clears ralph-state and exits persistent mode immediately.
+**Manual interrupt:** `{adapter.commandPrefix}Qutopia --ralph off` clears ralph-state and exits persistent mode immediately.
 
 ### Retry Loop (both work and qa)
 
@@ -285,16 +296,20 @@ After ALL tasks in a session complete, run cross-task consistency check:
    - **Branch**: refuse to run on a protected branch (`main`/`master`). Auto-create and switch to a sandbox branch `utopia/<timestamp>` and record the pre-run SHA for rollback.
    - **Scope summary**: print what the task is expected to touch (files/dirs) before any change is made.
 2. Create `.qe/state/utopia-state.json` with `{ enabled, mode, allowUnsafe: false }`.
-3. Read `.claude/settings.json` (create if not exists); merge `permissions.allow` (preserve existing).
+3. Apply client-specific permissions:
+   - Claude: read `.claude/settings.json` (create if not exists); merge `permissions.allow` (preserve existing).
+   - Codex: do not create or modify `.claude/settings.json`; keep Codex-native configuration unchanged unless a Codex permission surface is explicitly present and understood.
 4. Report: `Utopia mode ON ({mode}) on branch utopia/<ts> — autonomous pipeline active`
 
 ### After a run
 - Print a **diff report**: `git diff --stat <pre-run-sha>..HEAD`.
 - Print the **rollback command**: `git reset --hard <pre-run-sha>` (and `git branch -D utopia/<ts>` to drop the sandbox).
 
-### Disable (`/Qutopia off`)
+### Disable (`Qutopia off`)
 1. Update state file: `enabled: false`
-2. Remove `permissions.allow` from settings
+2. Remove only the client-specific permissions that Qutopia added:
+   - Claude: remove Qutopia-added entries from `.claude/settings.json`, preserving unrelated user permissions.
+   - Codex: leave unrelated Codex config intact; clear only Qutopia state.
 3. Report: `Utopia mode OFF — confirmations restored`
 
 ## Safety — enforced rails (not just guidance)
@@ -312,13 +327,13 @@ The rails are **completely inert** in normal (non-autonomous) sessions.
 all rails. This is **dangerous — never use it in a shared/company repo.**
 
 - Spec pipeline creates an audit trail even in autonomous mode
-- User can always `/Qutopia off`
+- User can always run `{adapter.commandPrefix}Qutopia off`
 
 See `docs/HOOKS.md` → "Utopia safety rails" for the full enforcement reference.
 
 ## How Skills Check Utopia Mode
 ```
 Read .qe/state/utopia-state.json
-If enabled: true → skip AskUserQuestion, auto-select first option
+If enabled: true → skip interaction prompts, auto-select first option
 If enabled: false or missing → normal behavior
 ```

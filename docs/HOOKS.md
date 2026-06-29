@@ -120,7 +120,7 @@ a single rule, prefer `.qe/state/skill-bypass.json` instead.
 
 ## Utopia safety rails
 
-When autonomous mode (`/Qutopia`) is active (`.qe/state/utopia-state.json` →
+When autonomous mode (`/Qutopia` on Claude, `$Qutopia` on Codex) is active (`.qe/state/utopia-state.json` →
 `enabled: true`), the PreToolUse hook calls `hooks/scripts/lib/utopia-guard.mjs` and
 **hard-blocks** irreversible / high-blast-radius actions before they run:
 
@@ -137,7 +137,7 @@ When autonomous mode (`/Qutopia`) is active (`.qe/state/utopia-state.json` →
 The rail call is wrapped in try/catch, so a guard error fails open.
 
 **Escape hatch:** `allowUnsafe: true` in `.qe/state/utopia-state.json` disables every
-rail. Dangerous — never use in a shared/company repo. The `/Qutopia` Enable flow also
+rail. Dangerous — never use in a shared/company repo. The Qutopia Enable flow also
 requires a clean tree, refuses protected branches (auto-creates a `utopia/<ts>` sandbox
 branch), prints a scope summary up front, and a diff report + rollback command after.
 

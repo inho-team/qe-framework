@@ -243,12 +243,13 @@ See [SECRETS.md](SECRETS.md) for commands and backend behavior.
 
 When `.qe/state/utopia-state.json` is `enabled: true`:
 
-- `AskUserQuestion` calls auto-select the **first (recommended)** option.
+- Interaction prompts auto-select the **first (recommended)** option.
 - `Qgenerate-spec` skips the "Generate & Execute / Generate Only / Needs Revision" prompt and proceeds to Atomic-Run.
 - `Qrun-task` skips Step 2 approval and moves files straight to `in-progress`.
 - `Qcommit` runs automatically after task completion.
 - `--ralph` loops the PSE Chain until `VERIFY_CHECKLIST` is fully green, without human gate between rounds.
-- `.claude/settings.json` gains broad tool permissions: `Bash(*)`, `Agent(*)`, `WebFetch`, `WebSearch`, `NotebookEdit`.
+- Claude: `.claude/settings.json` gains broad tool permissions: `Bash(*)`, `Agent(*)`, `WebFetch`, `WebSearch`, `NotebookEdit`.
+- Codex: `.claude/settings.json` is not modified; autonomy is controlled by QE state plus the active Codex session policy and QE hook rails.
 
 ### Commands
 
@@ -272,7 +273,7 @@ Do not enable Qutopia unless you can honestly say yes to every one of these:
 4. **You're not on a shared branch.** Never enable Qutopia while sitting on `main`/`master` on a team repo. Create a feature branch first.
 5. **You accept auto-commit and (with `--ralph`) auto-iteration** without re-confirmation per round.
 
-If any of these is false, keep Qutopia OFF and accept the prompts — the 10 extra minutes of `AskUserQuestion` wait is cheaper than one wrong push.
+If any of these is false, keep Qutopia OFF and accept the prompts — the 10 extra minutes of interaction wait is cheaper than one wrong push.
 
 ### Safe patterns
 

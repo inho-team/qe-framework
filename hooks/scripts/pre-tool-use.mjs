@@ -40,7 +40,8 @@ try {
   process.exit(0);
 }
 
-const cwd = data.cwd || data.directory || process.cwd();
+const rootToolInput = data.tool_input || data.toolInput || {};
+const cwd = data.cwd || data.directory || rootToolInput.workdir || rootToolInput.cwd || process.cwd();
 const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const hints = [];
@@ -48,6 +49,22 @@ let mutatedInput = null;
 
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
+
+function readStandaloneUtopiaState(root) {
+  const filePath = join(root, '.qe', 'state', 'utopia-state.json');
+  if (!existsSync(filePath)) return null;
+  try {
+    const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+    if (parsed && parsed.enabled === true) return parsed;
+  } catch {
+    return null;
+  }
+  return null;
+}
+
+function isShellTool(name) {
+  return ['Bash', 'Shell', 'shell', 'exec_command'].includes(name);
+}
 
 // --- ContextMemo Enforcement (Hard Block on redundant reads) ---
 if (toolName === 'Read') {
@@ -528,7 +545,7 @@ if (toolName === 'Agent') {
 
 // --- Qutopia QA mode: verify loop reminder ---
 const currentCalls = stats.tool_calls;
-const utopia = state.utopia_state;
+const utopia = state.utopia_state || readStandaloneUtopiaState(cwd);
 if (utopia && utopia.enabled && utopia.mode === 'qa') {
   const lastReminder = stats._last_verify_reminder || 0;
   if (currentCalls - lastReminder >= 10) {
@@ -547,11 +564,11 @@ if (utopia && utopia.enabled && utopia.mode === 'qa') {
 
 // --- Qutopia safety rails (hard block while autonomous mode is active) ---
 // Inert in normal sessions: only runs when utopia_state.enabled and not overridden.
-if (utopia && utopia.enabled && !utopia.allowUnsafe && ['Bash', 'Write', 'Edit'].includes(toolName)) {
+if (utopia && utopia.enabled && !utopia.allowUnsafe && (isShellTool(toolName) || ['Write', 'Edit'].includes(toolName))) {
   try {
     const { evaluateUtopiaAction } = await import('./lib/utopia-guard.mjs');
     const verdict = evaluateUtopiaAction({
-      toolName,
+      toolName: isShellTool(toolName) ? 'Bash' : toolName,
       toolInput: data.tool_input || data.toolInput || {},
       cwd,
     });

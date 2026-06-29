@@ -320,7 +320,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 - **Skip interaction prompts** and auto-pick the first (recommended) option
 - **Auto-approve** `Qrun-task` execution and `Qgenerate-spec` outputs
 - **Auto-commit** (and, with `--ralph`, loop until `VERIFY_CHECKLIST` is fully green)
-- Merge broad tool permissions (`Bash(*)`, `Agent(*)`, `WebFetch`, …) into `.claude/settings.json`
+- On Claude, merge broad tool permissions (`Bash(*)`, `Agent(*)`, `WebFetch`, …) into `.claude/settings.json`; on Codex, keep autonomy in QE state and rely on Codex session policy plus QE hook rails
 
 **Why this is dangerous.** The "recommended" option is not always what *you* would pick. In an ambiguous spec or a mixed-scope commit, the default can silently commit wrong files, push to `main`, or chain into irreversible steps. Qutopia trades your oversight for wall-clock speed.
 

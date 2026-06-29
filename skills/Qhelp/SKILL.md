@@ -41,15 +41,15 @@ QE Framework (Query Executor) — Quick Reference
 
 WORKFLOW
   /Qgenerate-spec          Create task spec documents
-  /Qrun-task [UUID]        Execute tasks with verification
+  /Qrun-task [UUID]        Execute tasks with verification ($Qrun-task on Codex)
   /Qcommit                 Commit & push (human-style, no AI traces)
   /Qupdate                 Update QE (Claude + Codex) and codex-plugin-cc bridge
-  /Qutopia [on|off]        Toggle fully autonomous mode
+  /Qutopia [on|off]        Toggle fully autonomous mode ($Qutopia on Codex)
 
 DEVELOPMENT
   /Qsystematic-debugging   Root cause analysis before fixing
   /Qtest-driven-development TDD: red-green-refactor cycle
-  /Qcode-run-task          Quality loop: test → review → fix
+  /Qcode-run-task          Quality loop: test → review → fix ($Qcode-run-task on Codex)
   /Qfrontend-design        Production-grade UI components
   /Qspringboot-security    Spring Security best practices
   /Qdatabase-schema-designer Database schema design
@@ -61,7 +61,7 @@ TASK MANAGEMENT
   /Qinit                   Initialize QE in a project
   /Qrefresh                Refresh project analysis
   /Qresume                 Restore previous session context
-  /Qcompact                Save context / session handoff
+  /Qcompact                Save context / session handoff ($Qcompact on Codex)
   /Qarchive                Archive completed tasks
   /Mmigrate-tasks          Migrate task files to .qe/
 

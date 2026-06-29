@@ -35,3 +35,28 @@ test('Codex lifecycle wrapper rewrites slash skill commands in hook output', () 
     rmSync(scriptAbs, { force: true });
   }
 });
+
+test('Codex lifecycle wrapper promotes tool_input.workdir to hook cwd', () => {
+  const temp = mkdtempSync(join(tmpdir(), 'qe-codex-wrapper-workdir-'));
+  const scriptRel = 'scripts/__tmp-codex-wrapper-cwd-target.mjs';
+  const scriptAbs = join(ROOT, scriptRel);
+  try {
+    writeFileSync(scriptAbs, [
+      "process.stdout.write(JSON.stringify({ continue: true, cwd: process.cwd() }));",
+    ].join('\n'), 'utf8');
+
+    const result = spawnSync(process.execPath, [WRAPPER, 'PreToolUse', scriptRel], {
+      input: JSON.stringify({
+        tool_name: 'exec_command',
+        tool_input: { workdir: temp, command: 'pwd' },
+      }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0);
+    assert.match(result.stdout, new RegExp(temp.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  } finally {
+    rmSync(temp, { recursive: true, force: true });
+    rmSync(scriptAbs, { force: true });
+  }
+});

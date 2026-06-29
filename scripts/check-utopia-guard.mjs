@@ -79,14 +79,18 @@ function runPre(cwd, payload) {
   const r = spawnSync('node', [PRE], { input: JSON.stringify({ cwd, ...payload }), encoding: 'utf8' });
   return { code: r.status, stderr: r.stderr || '' };
 }
-/** Build a temp git repo (feature branch) with optional unified-state utopia_state. */
-function tempRepo(utopiaState) {
+/** Build a temp git repo (feature branch) with optional Utopia state. */
+function tempRepo(utopiaState, { standalone = false } = {}) {
   const d = mkdtempSync(join(tmpdir(), 'qe-utopia-')); cleanup.push(d);
   mkdirSync(join(d, '.git'), { recursive: true });
   writeFileSync(join(d, '.git', 'HEAD'), 'ref: refs/heads/feature\n');
   if (utopiaState) {
     mkdirSync(join(d, '.qe', 'state'), { recursive: true });
-    writeFileSync(join(d, '.qe', 'state', 'unified-state.json'), JSON.stringify({ utopia_state: utopiaState }));
+    if (standalone) {
+      writeFileSync(join(d, '.qe', 'state', 'utopia-state.json'), JSON.stringify(utopiaState));
+    } else {
+      writeFileSync(join(d, '.qe', 'state', 'unified-state.json'), JSON.stringify({ utopia_state: utopiaState }));
+    }
   }
   return d;
 }
@@ -96,6 +100,23 @@ const pushCall = { tool_name: 'Bash', tool_input: { command: 'git push origin fe
 {
   const r = runPre(tempRepo({ enabled: true }), pushCall);
   expect(r.code === 2 && /Utopia rail/.test(r.stderr), `[integration] active utopia should block git push (exit ${r.code})`);
+}
+// standalone .qe/state/utopia-state.json is the Qutopia skill contract and must also enable rails
+{
+  const r = runPre(tempRepo({ enabled: true }, { standalone: true }), pushCall);
+  expect(r.code === 2 && /Utopia rail/.test(r.stderr), `[integration] standalone utopia-state should block git push (exit ${r.code})`);
+}
+// Codex shell tools may arrive as exec_command with workdir in tool_input instead of top-level cwd
+{
+  const cwd = tempRepo({ enabled: true }, { standalone: true });
+  const r = spawnSync('node', [PRE], {
+    input: JSON.stringify({
+      tool_name: 'exec_command',
+      tool_input: { command: 'git push origin feature', workdir: cwd },
+    }),
+    encoding: 'utf8',
+  });
+  expect(r.status === 2 && /Utopia rail/.test(r.stderr || ''), `[integration] Codex exec_command should use workdir and block git push (exit ${r.status})`);
 }
 // inactive utopia → git push NOT blocked by the rail (normal session unaffected)
 {
@@ -120,4 +141,4 @@ if (failures.length) {
   for (const f of failures) console.error(`  ✗ ${f}`);
   process.exit(1);
 }
-console.log('check-utopia-guard: PASS (classifiers + branch + 4 integration: push/sensitive-write/inactive/allowUnsafe)');
+console.log('check-utopia-guard: PASS (classifiers + branch + 6 integration: unified/standalone/codex-workdir/inactive/allowUnsafe)');
