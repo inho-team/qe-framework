@@ -16,7 +16,7 @@ recommendedModel: haiku
 Synchronizes the current project with a reference (standard/template) project.
 Classifies each changed file by sync category, shows a report, and applies selective merges based on user choices.
 
-> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool. Never output options as plain text.
+> **MANDATORY:** All user confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 
 ## Examples
 
@@ -40,7 +40,7 @@ User: "merge upstream changes automatically"
 
 1. Check if user provided an explicit path (quoted or inline).
 2. If not, check `.qe/config.json` or `.qe/sync.json` for `standardProjectPath`.
-3. If still not found, use `AskUserQuestion` to ask: "Enter the path to the reference/standard project."
+3. If still not found, use the interaction adapter to ask: "Enter the path to the reference/standard project."
 4. Verify the path exists. If not, report error and stop.
 
 ---
@@ -123,7 +123,7 @@ Output the report only. No file changes.
 - Report a summary of applied vs skipped files.
 
 ### --interactive mode (default when no flag given)
-For each file group, use `AskUserQuestion` with these options:
+For each file group, use the interaction adapter with these options:
 
 **Standard update group:**
 - Apply all (N files)
@@ -157,7 +157,7 @@ After file merges are applied, detect renamed or changed function signatures bet
 3. For each call site in the current project that uses an old name:
    - Report the file and line number.
    - Propose the renamed call.
-4. Use `AskUserQuestion`: "Apply these N API renames automatically?" (Yes / Review each / Skip).
+4. Use the interaction adapter: "Apply these N API renames automatically?" (Yes / Review each / Skip).
 5. Apply approved renames via targeted file edits (preserve surrounding code).
 
 ---
@@ -192,7 +192,7 @@ Suggest running Qcommit after review.
 |------|----------|
 | `--dry-run` | Report only, no changes |
 | `--auto` | Apply safe merges without per-file prompts |
-| `--interactive` | Per-file decisions via AskUserQuestion (default) |
+| `--interactive` | Per-file decisions via the interaction adapter (default) |
 
 ---
 

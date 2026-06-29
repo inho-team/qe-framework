@@ -50,9 +50,9 @@ For a "User Export" feature:
 - Need progress indicator for large exports?
 ```
 
-## Tool Usage: AskUserQuestion
+## Tool Usage: QE Interaction Adapter
 
-Use `AskUserQuestion` when questions have a finite set of likely answers. Use open-ended follow-up when answers are unbounded.
+Use the QE interaction adapter when questions have a finite set of likely answers. Use open-ended follow-up when answers are unbounded.
 
 ### When to Use Structured Options
 
@@ -94,27 +94,27 @@ Use open-ended questions to understand the problem space:
 1. "Tell me about this feature in your own words"
 2. "What problem are we solving?"
 
-Then use `AskUserQuestion` to narrow down:
+Then use the interaction adapter to narrow down:
 - Target users (single select from identified personas)
 - Usage frequency (Daily, Weekly, Monthly, Rarely)
 - Priority (Must-have, Should-have, Nice-to-have)
 
 ### Phase 2: Details
-Use `AskUserQuestion` for scope and constraint decisions:
+Use the interaction adapter for scope and constraint decisions:
 - Scope: MVP vs Full vs Phased (single select)
 - Key capabilities (multi-select from discovered items)
 
 Then open-ended: "Walk me through the user journey"
 
 ### Phase 3: Edge Cases
-Use `AskUserQuestion` for technical trade-offs:
+Use the interaction adapter for technical trade-offs:
 - Error handling approach (Retry, Fail fast, Queue, Notify)
 - Data limits (multi-select thresholds)
 
 Then open-ended: "What happens when [X] fails?"
 
 ### Phase 4: Validation
-Present spec summary, then use `AskUserQuestion`:
+Present spec summary, then use the interaction adapter:
 - "Does this capture your requirements?" (Yes / Needs changes / Major gaps)
 - Per-requirement priority confirmation if needed
 
@@ -144,7 +144,7 @@ This ensures the Feature Forge interview starts with concrete technical context 
 | Phase | Focus | Tool |
 |-------|-------|------|
 | Pre-Discovery | Technical context | Task Teammates with skills |
-| Discovery | Problem, users, value | Open-ended → AskUserQuestion |
-| Details | Journey, scope, constraints | AskUserQuestion → Open-ended |
-| Edge Cases | Failures, limits, security | AskUserQuestion → Open-ended |
-| Validation | Summary, gaps | AskUserQuestion |
+| Discovery | Problem, users, value | Open-ended → interaction adapter |
+| Details | Journey, scope, constraints | interaction adapter → Open-ended |
+| Edge Cases | Failures, limits, security | interaction adapter → Open-ended |
+| Validation | Summary, gaps | interaction adapter |

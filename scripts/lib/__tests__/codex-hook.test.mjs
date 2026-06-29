@@ -6,7 +6,7 @@ import { fileURLToPath } from 'node:url';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
-const HOOK_PATH = path.join(REPO_ROOT, 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+const HOOK_PATH = path.join(REPO_ROOT, 'hooks', 'scripts', 'codex', 'lifecycle-codex.mjs');
 
 function runHook(command, overrides = {}) {
   const payload = {
@@ -20,14 +20,14 @@ function runHook(command, overrides = {}) {
     permission_mode: 'default',
     ...overrides,
   };
-  return spawnSync(process.execPath, [HOOK_PATH], {
+  return spawnSync(process.execPath, [HOOK_PATH, 'PreToolUse', 'scripts/pre-tool-use.mjs'], {
     input: JSON.stringify(payload),
     encoding: 'utf8',
   });
 }
 
 function runRawHook(input) {
-  return spawnSync(process.execPath, [HOOK_PATH], {
+  return spawnSync(process.execPath, [HOOK_PATH, 'PreToolUse', 'scripts/pre-tool-use.mjs'], {
     input,
     encoding: 'utf8',
   });

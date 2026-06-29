@@ -29,7 +29,7 @@ The SIVS (Spec → Implement → Verify → Supervise) Loop is the framework's c
 After `/Qgenerate-spec` creates spec documents, explicitly show:
 - **What was created**: CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST (plans only)
 - **What is NOT yet done**: actual output files (code, docs, analysis results)
-- Then ask user via `AskUserQuestion` whether to run `/Qrun-task` immediately.
+- Then ask user via the QE interaction adapter whether to run the active-client `Qrun-task` command immediately.
 
 ### 2. Task Type Banner
 In `/Qrun-task` Step 2, display a prominent type banner at the TOP of the summary before any details:
@@ -43,7 +43,7 @@ This ensures the user knows exactly what will happen before approving.
 ### 3. Automatic Remediation Loop
 When supervision returns **FAIL**, the REMEDIATION flow runs automatically:
 - Create REMEDIATION_REQUEST → delegate to Etask-executor → re-execute → re-verify → re-supervise
-- Maximum 3 iterations, **no AskUserQuestion between iterations**
+- Maximum 3 iterations, **no interaction prompt between iterations**
 - User is contacted only upon PASS/PARTIAL (completion) or after 3 failed iterations (escalation)
 
 ### 4. Minimal User Contact Points
@@ -51,11 +51,11 @@ The user is contacted at exactly these points — everything else is automatic:
 
 | # | When | Tool |
 |---|------|------|
-| (a) | Spec generation confirmation | AskUserQuestion (Qgenerate-spec Step 3) |
-| (b) | Immediate execution prompt | AskUserQuestion (Qgenerate-spec Step 5) |
-| (c) | Task execution approval | AskUserQuestion (Qrun-task Step 2) |
+| (a) | Spec generation confirmation | interaction adapter (Qgenerate-spec Step 3) |
+| (b) | Immediate execution prompt | interaction adapter (Qgenerate-spec Step 5) |
+| (c) | Task execution approval | interaction adapter (Qrun-task Step 2) |
 | (d) | Task completion | Completion report (Qrun-task Step 5) |
-| (e) | 3x supervision failure | Escalation AskUserQuestion (Qrun-task Step 4.5) |
+| (e) | 3x supervision failure | escalation interaction prompt (Qrun-task Step 4.5) |
 
 Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progress are all automatic.
 
@@ -98,7 +98,7 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 - **Protect sensitive information**: Never expose PATs, passwords, or API keys in logs, responses, or files.
 - **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
 - **Confirm only high-impact file operations**: Ask the user for permission before destructive, irreversible, or unusually broad file operations. Routine in-scope edits should proceed with minimal interruption.
-- **Utopia mode check**: Before calling AskUserQuestion, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. For complex requests (3+ steps, multi-file, new features), automatically route through `Qgenerate-spec → Qrun-task → verify` pipeline. Simple task criteria: see `skills/Qutopia/SKILL.md` SIMPLE classification. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
+- **Utopia mode check**: Before prompting through the interaction adapter, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. For complex requests (3+ steps, multi-file, new features), automatically route through `Qgenerate-spec → Qrun-task → verify` pipeline. Simple task criteria: see `skills/Qutopia/SKILL.md` SIMPLE classification. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
 - **Pre-execution Gate**: In Utopia --work / --qa modes, before autonomous execution of complex tasks, check if the prompt has concrete anchor signals (file paths, function names, issue numbers, etc.). If the prompt is vague (no anchors + ≤15 words), redirect to Qgenerate-spec normal flow for proper scoping. Users can bypass with `force:` or `!` prefix. See the "Pre-execution Gate" section in Qgenerate-spec SKILL.md for details.
 
 ---

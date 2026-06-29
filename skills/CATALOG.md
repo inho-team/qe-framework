@@ -1,21 +1,23 @@
 # QE Framework Skill Catalog
 
 > **MANDATORY READ FOR AGENTS**: Before performing any complex task manually, search this catalog for a matching skill. Prioritize using skills over manual labor to ensure consistency and speed.
+>
+> **Client prefix contract**: Claude renders QE skills as `/Q...`; Codex renders the same skills as `$Q...`.
 
 ## Master Orchestrator (Primary Entry Point)
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qplan` | When starting any project or milestone. | **Master entry point.** Manages the Plan-Spec-Execute (PSE) Loop. |
+| `/Qplan` / `$Qplan` | When starting any project or milestone. | **Master entry point.** Manages the Plan-Spec-Execute (PSE) Loop. |
 
 ## Core Components (Internal PSE Chain)
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qgs` | Alias for `/Qgenerate-spec`. | Generates Haiku-Ready atomic specs. |
-| `/Qatomic-run` | When a TASK_REQUEST contains atomic items. | High-speed Haiku Wave execution. |
-| `/Qrt` | Alias for `/Qrun-task`. | Standard task execution engine. |
-| `/Qsummary` | When work summary is needed. | High-density status reporting. |
+| `/Qgs` / `$Qgs` | Alias for `Qgenerate-spec`. | Generates Haiku-Ready atomic specs. |
+| `/Qatomic-run` / `$Qatomic-run` | When a TASK_REQUEST contains atomic items. | High-speed Haiku Wave execution. |
+| `/Qrt` / `$Qrt` | Alias for `Qrun-task`. | Standard task execution engine. |
+| `/Qsummary` / `$Qsummary` | When work summary is needed. | High-density status reporting. |
 
 ## Specialized Quality & Debugging
 

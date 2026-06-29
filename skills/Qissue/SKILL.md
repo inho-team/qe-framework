@@ -9,9 +9,9 @@ recommendedModel: haiku
 # Qissue — File GitHub Issues from the CLI
 
 ## Role
-Let qe-framework users open GitHub issues without leaving the terminal. The skill wraps the `gh` CLI, handles one-time token onboarding via `gh auth login --with-token`, and drives issue creation through `AskUserQuestion` prompts. No custom token storage, no HTTP client — the skill delegates entirely to `gh`.
+Let qe-framework users open GitHub issues without leaving the terminal. The skill wraps the `gh` CLI, handles one-time token onboarding via `gh auth login --with-token`, and drives issue creation through the QE interaction adapter. No custom token storage, no HTTP client — the skill delegates entirely to `gh`.
 
-> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool. Do NOT output options as plain text.
+> **MANDATORY:** All user confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 > **NEVER** echo the raw PAT into the terminal, log files, or any committed artifact.
 
 ## Defaults
@@ -53,7 +53,7 @@ gh auth status 2>&1
   `https://github.com/settings/personal-access-tokens/new`
   Select repository `inho-team/qe-framework` (or your target) and grant **Issues: Read and write**.
 
-Then use `AskUserQuestion` with two options — include the classic URL in the question description so the user can open it directly from the prompt:
+Then use the interaction adapter with two options — include the classic URL in the question description so the user can open it directly from the prompt:
 
 - **"I have a PAT ready"** → jump to Step 1.2.
 - **"Open the token page for me"** → restate the classic URL as the primary action, remind the user to pick **`public_repo`** (or **`repo`** for private targets), then re-run `/Qissue` after copying the token.
@@ -62,7 +62,7 @@ Scope recap:
 - Public target (default `inho-team/qe-framework`): **`public_repo`**.
 - Private target (via `--repo`): **`repo`**.
 
-**Step 1.2 — Collect the PAT securely.** Use `AskUserQuestion` with a single free-text question. Mark the question clearly so the user knows the value will be piped, not saved in the repo.
+**Step 1.2 — Collect the PAT securely.** Use the interaction adapter with a single free-text question. Mark the question clearly so the user knows the value will be piped, not saved in the repo.
 
 > When reading the user's answer, do **not** echo it back, do **not** write it to any file in the project, do **not** include it in log output. Treat the value as write-only into `gh auth login --with-token`.
 
@@ -70,7 +70,7 @@ Scope recap:
 
 ```bash
 (
-  PAT="<value from AskUserQuestion, passed in at invocation time only>"
+  PAT="<value from interaction adapter, passed in at invocation time only>"
   printf '%s' "$PAT" | gh auth login --with-token
   unset PAT
 )
@@ -91,7 +91,7 @@ On failure (bad token, wrong scopes, network), surface the `gh` error message ve
 
 ## Step 2: Compose the issue
 
-**Step 2.1 — Pick an issue type.** Use `AskUserQuestion` with three options:
+**Step 2.1 — Pick an issue type.** Use the interaction adapter with three options:
 
 | Label | Description |
 |-------|-------------|
@@ -129,7 +129,7 @@ Append:
 
 ## Step 3: Submit
 
-Default target repo is `inho-team/qe-framework`. If the invocation included `--repo owner/name`, validate the shape against `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` before using it; reject anything else and ask again via `AskUserQuestion`.
+Default target repo is `inho-team/qe-framework`. If the invocation included `--repo owner/name`, validate the shape against `^[A-Za-z0-9._-]+/[A-Za-z0-9._-]+$` before using it; reject anything else and ask again via the interaction adapter.
 
 ```bash
 gh issue create \
@@ -142,7 +142,7 @@ gh issue create \
 **Shell-construction rules (mandatory).** `gh` does not re-shell its flag values, but the skill must never build the call via string interpolation that gives the shell a second pass:
 
 - **Forbidden**: `bash -c "gh issue create --title $TITLE ..."`, `sh -c "..."`, `eval`, backtick/`$()` substitution of user input.
-- **Required**: pass `$TITLE` / `$BODY_WITH_METADATA` as **direct shell variables** whose values came straight from `AskUserQuestion` — no concatenation into a single command string.
+- **Required**: pass `$TITLE` / `$BODY_WITH_METADATA` as **direct shell variables** whose values came straight from the interaction adapter — no concatenation into a single command string.
 - **Required**: use the `--flag="$VALUE"` form (with `=`) so the value is inline-bound to the flag even if it begins with `-`. Do **not** use `--flag -- "$VALUE"` — `gh` (Cobra) treats `--` as end-of-flags, and `gh issue create` does not accept positional args, so it fails with `unknown arguments`.
 - **Required**: `$TARGET_REPO` is only ever the post-regex-validated literal above.
 
@@ -157,7 +157,7 @@ If `gh` returns an error, surface it verbatim and map common cases per the Troub
 ## Will
 
 - Use `gh` CLI exclusively for auth and issue creation.
-- Use `AskUserQuestion` for every user input (PAT, type, title, body, retries).
+- Use the interaction adapter for every user input (PAT, type, title, body, retries).
 - Default target to `inho-team/qe-framework` and accept `--repo owner/name` override.
 - Auto-append environment metadata (QE version, OS, Node) to every issue body.
 - Print the created issue URL as the last line of output.
@@ -179,7 +179,7 @@ If `gh` returns an error, surface it verbatim and map common cases per the Troub
 User: "Qissue에 버그 리포트 올리고 싶어"
 → Qissue:
    1. gh 설치/인증 확인
-   2. 미인증 시 PAT 입력 (AskUserQuestion, 1회성)
+   2. 미인증 시 PAT 입력 (interaction adapter, 1회성)
    3. 타입=bug 선택
    4. 제목 · 본문 수집
    5. 환경 정보 자동 첨부

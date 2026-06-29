@@ -254,7 +254,10 @@ function callTool(name, args = {}) {
 
   if (name === 'qe_framework_help') {
     return toolResponse({
-      workflow: ['/Qplan', '/Qgs', '/Qatomic-run', '/Qcode-run-task'],
+      workflow: {
+        claude: ['/Qplan', '/Qgs', '/Qatomic-run', '/Qcode-run-task'],
+        codex: ['$Qplan', '$Qgs', '$Qatomic-run', '$Qcode-run-task'],
+      },
       docs: ['docs/USAGE_GUIDE.md', 'docs/MULTI_MODEL_SETUP.md', 'docs/SECRETS.md'],
       note: 'Claude uses plugin skills directly. Codex and Gemini should use this QE MCP server to discover QE skills, agents, and workflow docs.',
     });

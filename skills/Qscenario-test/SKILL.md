@@ -15,7 +15,7 @@ recommendedModel: haiku
 Generate test scenarios from existing implementations, execute them, and verify results.
 This is the **verification stage** after Qrun-task completes — it tests what was built, not builds what was specced.
 
-> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool.
+> **MANDATORY:** All user confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 
 ## Pipeline Position
 

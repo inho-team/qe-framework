@@ -64,7 +64,7 @@ Otherwise infer:
 | `### Added` has entries OR `### Changed` has substantive entries | **minor** |
 | Only `### Fixed` or `### Security` entries | **patch** |
 
-**Always confirm with `AskUserQuestion`** before proceeding — present the inferred level + reasoning + the actual changelog content.
+**Always confirm through the QE interaction adapter** before proceeding — present the inferred level + reasoning + the actual changelog content.
 
 ### Step 3 — Calculate new version
 
@@ -153,7 +153,7 @@ git tag -a v{NEW_VERSION} -m "{one-line summary extracted from CHANGELOG section
 
 Tag message: first non-empty line of the new version's CHANGELOG section, or `Release v{NEW_VERSION}` if no clear summary.
 
-### Step 9 — User confirmations (two questions via AskUserQuestion)
+### Step 9 — User confirmations (two questions via the interaction adapter)
 
 **Q1 — Push?**
 - Push `main` + `v{NEW_VERSION}` tag to `origin`

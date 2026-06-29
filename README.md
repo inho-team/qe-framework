@@ -95,7 +95,7 @@ claude plugin install qe-framework@inho-team-qe-framework
 
 That installs Claude assets and, when `~/.codex` exists, synchronizes Codex
 assets too: 105 native skills, 27 generated agent TOML files, copied scripts,
-and a managed `PreToolUse` hook fence pointing at the installed QE hook bundle.
+and a managed lifecycle hook fence pointing at the installed QE hook bundle.
 After a Codex install, run `/hooks` inside Codex once to review and trust the QE
 safety hook.
 
@@ -151,6 +151,8 @@ $Qinit
 $Qplan
 ```
 
+Every follow-up command should keep the active client prefix: Claude `/Q...`, Codex `$Q...`.
+
 Shared QE skills render follow-up commands with the active client prefix:
 Claude uses `/Q...`; Codex uses `$Q...`.
 
@@ -162,14 +164,14 @@ Claude uses `/Q...`; Codex uses `$Q...`.
 
 The 4-step pipeline that drives all work:
 
-| Step | Skill | What it does |
-|------|-------|-------------|
-| **Plan** | `/Qplan` | Roadmap, phases, requirements |
-| **Spec** | `/Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
-| **Execute** | `/Qatomic-run` | Parallel Wave execution with Haiku Teammates |
-| **Verify** | `/Qcode-run-task` | Test → review → fix quality loop |
+| Step | Claude | Codex | What it does |
+|------|--------|-------|-------------|
+| **Plan** | `/Qplan` | `$Qplan` | Roadmap, phases, requirements |
+| **Spec** | `/Qgs` | `$Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
+| **Execute** | `/Qatomic-run` | `$Qatomic-run` | Parallel Wave execution with Haiku Teammates |
+| **Verify** | `/Qcode-run-task` | `$Qcode-run-task` | Test → review → fix quality loop |
 
-`/Qrun-task` is the sequential fallback when tasks can't be parallelized.
+`/Qrun-task` (`$Qrun-task` on Codex) is the sequential fallback when tasks can't be parallelized.
 
 Codex uses the same PSE skills with `$Q...`. The QE client adapter maps Claude
 Agent-tool workflows onto Codex native subagents and falls back to role-separated
@@ -290,7 +292,9 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 > other 170+ are an opt-in library that ships in the *same package* — no extra installs,
 > no separate plugins. New here? Learn these and ignore the rest until you need them:
 >
-> `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qatomic-run` · `/Qcode-run-task` · `/Qsivs-config`
+> Claude: `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qatomic-run` · `/Qcode-run-task` · `/Qsivs-config`
+>
+> Codex: `$Qinit` · `$Qcontext` · `$Qplan` · `$Qgs` · `$Qatomic-run` · `$Qcode-run-task` · `$Qsivs-config`
 >
 > *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The breadth is a curated library, not a packaging burden — one install, progressive disclosure.)*
 
@@ -307,13 +311,13 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 | **Docs & Output** | `Qdocx` `Qpdf` `Qpptx` `Qxlsx` `Qdoc-converter` `Qdoc-comment` | 6 |
 | **Academic** | `Qgrad-paper-write` `Qgrad-research-plan` `Qgrad-seminar-prep` `Qgrad-thesis-manage` | 4 |
 | **Research** | `Qautoresearch` `Qfact-checker` `Qsource-verifier` `Qdata-analysis` | 4 |
-| **More** | `/Qfind-skills` or `/Qhelp` to discover all | 54+ |
+| **More** | `/Qfind-skills` or `/Qhelp` on Claude; `$Qfind-skills` or `$Qhelp` on Codex | 54+ |
 
-#### ⚠️ Autonomous Mode (`/Qutopia`) — Use With Caution
+#### ⚠️ Autonomous Mode (`/Qutopia` / `$Qutopia`) — Use With Caution
 
-`/Qutopia` flips a session-level switch (`.qe/state/utopia-state.json`) that makes **every** subsequent skill:
+`Qutopia` flips a session-level switch (`.qe/state/utopia-state.json`) that makes **every** subsequent skill:
 
-- **Skip `AskUserQuestion`** and auto-pick the first (recommended) option
+- **Skip interaction prompts** and auto-pick the first (recommended) option
 - **Auto-approve** `Qrun-task` execution and `Qgenerate-spec` outputs
 - **Auto-commit** (and, with `--ralph`, loop until `VERIFY_CHECKLIST` is fully green)
 - Merge broad tool permissions (`Bash(*)`, `Agent(*)`, `WebFetch`, …) into `.claude/settings.json`
@@ -328,7 +332,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 **Do NOT enable Qutopia for:** exploratory work, new project kick-offs, ambiguous requirements, first-time tools, or anything on a shared/production branch.
 
-**Recommended lifecycle:** `/Qutopia status` → `/Qutopia` (or `--work` / `--qa`) → do one bounded task → `/Qutopia off`. Leaving it on across sessions is how accidents happen.
+**Recommended lifecycle:** Claude `/Qutopia status` -> `/Qutopia` (or `--work` / `--qa`) -> `/Qutopia off`; Codex `$Qutopia status` -> `$Qutopia` -> `$Qutopia off`. Leaving it on across sessions is how accidents happen.
 
 ### Coding Expert Skills (71 experts)
 

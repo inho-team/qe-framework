@@ -1,7 +1,8 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync } from 'fs';
+import { existsSync, readFileSync, statSync } from 'fs';
+import { join } from 'path';
 import { emitBlock } from '../lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from '../lib/shell-scanner.mjs';
 
@@ -45,10 +46,33 @@ if (typeof cmd !== 'string' || cmd.length === 0) {
   process.exit(0);
 }
 
+const cwd = data.cwd || data.directory || toolInput.workdir || toolInput.cwd || process.cwd();
+let bypassSkill = null;
+try {
+  const bypassFile = join(cwd, '.qe', 'state', 'skill-bypass.json');
+  if (existsSync(bypassFile)) {
+    const bypass = JSON.parse(readFileSync(bypassFile, 'utf8'));
+    const ts = bypass.ts || statSync(bypassFile).mtimeMs;
+    if (bypass && bypass.active && (Date.now() - ts) < 120000) {
+      bypassSkill = bypass.skill || null;
+    }
+  }
+} catch {
+  bypassSkill = null;
+}
+
+function isBypassed(skill) {
+  return bypassSkill === skill || (skill === 'Qcommit' && bypassSkill === 'Mbump');
+}
+
 const view = executableView(cmd);
 
 // Same normal-mode Bash hard-block predicates as hooks/scripts/pre-tool-use.mjs.
 if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
+  if (isBypassed('Qcommit')) {
+    console.log(JSON.stringify({ continue: true }));
+    process.exit(0);
+  }
   emitBlock({
     skill: 'Qcommit',
     reason: 'Raw git commit is blocked. Use $Qcommit instead.',
@@ -58,6 +82,10 @@ if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
 }
 
 if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
+  if (isBypassed('Qbranch')) {
+    console.log(JSON.stringify({ continue: true }));
+    process.exit(0);
+  }
   emitBlock({
     skill: 'Qbranch',
     reason: 'Raw gh pr create is blocked. Use $Qbranch instead.',
@@ -69,6 +97,10 @@ if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
 const writesPluginJson =
   /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
 if (writesPluginJson && /version/.test(cmd)) {
+  if (isBypassed('Mbump')) {
+    console.log(JSON.stringify({ continue: true }));
+    process.exit(0);
+  }
   emitBlock({
     skill: 'Mbump',
     reason: 'Direct version editing is blocked. Use $Mbump instead.',
@@ -78,6 +110,10 @@ if (writesPluginJson && /version/.test(cmd)) {
 }
 
 if (matchesExecutable(cmd, /\b(?:sed|perl|ruby)\s+(?:-[a-zA-Z]*i|--in-place)\b/)) {
+  if (isBypassed('_edit_tool')) {
+    console.log(JSON.stringify({ continue: true }));
+    process.exit(0);
+  }
   emitBlock({
     skill: '_edit_tool',
     reason: 'In-place edit (sed/perl/ruby -i) is blocked. Use the Edit tool instead.',

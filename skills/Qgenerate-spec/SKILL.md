@@ -9,7 +9,7 @@ recommendedModel: haiku
 # Project Spec Document Generation (Qplan Component)
 
 ## Role
-You are a specialist document writer acting as a **sub-component of the `/Qplan` ecosystem**. Your primary goal is to transform a high-level roadmap Phase into **Haiku-Ready Atomic Tasks**.
+You are a specialist document writer acting as a **sub-component of the `Qplan` ecosystem**. Your primary goal is to transform a high-level roadmap Phase into **Haiku-Ready Atomic Tasks**.
 
 ## Role Constraints (Absolute Rules)
 - When this skill is invoked, focus exclusively on writing the 3 spec documents.
@@ -80,7 +80,7 @@ Before collecting user info, identify the strategic context:
    - Else (no slug resolvable): fall back to legacy flat `.qe/planning/ROADMAP.md` + `STATE.md` and proceed as before.
 2. **Check Roadmap**: When a slug is resolved, read `.qe/planning/plans/{slug}/ROADMAP.md` and `plans/{slug}/STATE.md`. When falling back, read the flat files.
 3. **Identify Phase**: If an active Phase exists in the resolved STATE.md, use its **Success Criteria** and **Requirement IDs** as the primary source of truth for the spec.
-4. **Missing Roadmap**: If no plan is resolvable and no flat roadmap exists either, **STOP** and suggest running `/Qplan` first to maintain the PSE Chain integrity.
+4. **Missing Roadmap**: If no plan is resolvable and no flat roadmap exists either, **STOP** and suggest running `{adapter.commandPrefix}Qplan` first to maintain the PSE Chain integrity.
 
 ### Step 1.5: Brainstorming Gate (conditional, scale-aware)
 
@@ -90,7 +90,7 @@ Before gathering spec details, run a lightweight ambiguity check. If the incomin
 
 **Gate condition** = `ambiguous(requirement) AND scale ≥ Small`.
 
-- **Scale** is judged with the same heuristic as `/Qplan` Step 0.7 (Micro / Small / Full / Workflow). **Micro tasks always skip this gate.**
+- **Scale** is judged with the same heuristic as `Qplan` Step 0.7 (Micro / Small / Full / Workflow). **Micro tasks always skip this gate.**
 - **Ambiguity** is true when **any 2 of these 3 objective signals** hold:
   1. **Core verb/noun unspecified** — the action or the target object is vague ("개선해", "정리해", "make it better") with no concrete subject.
   2. **No acceptance criteria** — nothing in the request or the resolved Phase Success Criteria states how "done" is verified.

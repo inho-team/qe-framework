@@ -17,7 +17,7 @@ regression tests, heals failures, and reports findings.
 > **Core principle (do not violate):** one agent = one bounded role. Explorer must NOT read source
 > (true black-box). Reporter writes comments only. See `reference/agents.md`.
 
-> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool.
+> **MANDATORY:** All user confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 
 ## When to Use / Not Use
 

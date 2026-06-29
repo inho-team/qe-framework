@@ -22,8 +22,8 @@ what they do, how they fail, and how to dial down their intervention.
 `hooks/hooks.json` defines the Claude-side lifecycle contract. Codex receives the
 same QE safety and routing contract through Codex-native assets installed under
 `~/.codex`: skills in `~/.codex/skills`, agents in `~/.codex/agents`, scripts in
-`~/.codex/scripts`, plus a managed native `PreToolUse` hook entry in
-`~/.codex/config.toml` pointing at the installed QE hook bundle.
+`~/.codex/scripts`, plus managed native hook entries in `~/.codex/config.toml`
+pointing at the installed QE hook bundle.
 
 After installing or refreshing the Codex assets, run `/hooks` in Codex once and
 explicitly trust the QE hook bundle. Do not rely on hook-trust bypass as a normal
@@ -31,26 +31,26 @@ workflow; the supported path is explicit trust review.
 
 | Event | Codex implementation | Codex-side behavior |
 |-------|----------------------|---------------------|
-| PreToolUse | native hook | Native Codex `PreToolUse` hard safety hook. The installer matches `Bash`, `Shell`, `shell`, and `exec_command`; trust must be granted before the hook bundle is active. |
-| SessionStart | AGENTS/startup contract | AGENTS.md plus installed skills provide once-per-run bootstrap context, routing policy, and client prefix rules. |
-| UserPromptSubmit | skill interaction adapter | Skills use the interaction adapter: Claude uses `AskUserQuestion`; Codex uses equivalent concise choices or deterministic non-interactive defaults. |
-| PostToolUse | installed scripts/state checks | Codex workflows use installed scripts and state checks for materialization, result handling, and follow-up validation. |
-| PreCompact | Codex compaction policy | Codex uses its native compaction policy and QE handoff/summary skills for recoverable continuation. |
-| Stop | persistent-state protocol | QE persistent state and verification checklists prevent premature completion in both clients. |
-| Notification | notify/script integration | Codex uses installed scripts plus configured notify integration where available. |
-| TeammateIdle | native subagent/workflow polling | Codex native subagents and polling/state files preserve teammate progress checks. |
-| TaskCompleted | completion-state protocol | QE task/checklist state records completion and drives follow-up verification across both clients. |
+| PreToolUse | native hook + Codex wrapper | Runs the QE safety/context guard through `hooks/scripts/codex/lifecycle-codex.mjs`. |
+| SessionStart | native hook + Codex wrapper | Runs QE bootstrap context and client-prefix reminders when Codex emits the event. |
+| UserPromptSubmit | native hook + interaction adapter | Runs prompt routing when Codex emits the event; skills still use the interaction adapter for client-neutral choices. |
+| PostToolUse | native hook + Codex wrapper | Runs memo/lint/build-lock/security follow-up checks for tool outputs. |
+| PreCompact | native hook + Codex wrapper | Runs QE compaction handoff rules where Codex exposes the event. |
+| Stop | native hook + Codex wrapper | Runs stop-time verification, sweep, style, and persistence checks. |
+| Notification | native hook + Codex wrapper | Runs configured notification handling where available. |
+| TeammateIdle | native hook + Codex wrapper | Runs teammate idle handling where available. |
+| TaskCompleted | native hook + Codex wrapper | Runs completion-state maintenance where available. |
 
 Codex hook block messages render Codex-native skill commands with the `$`
 prefix, for example `$Qcommit`, `$Qbranch`, and `$Mbump`. Claude hook block
 messages keep the Claude slash-command prefix.
 
-Important boundary: the Codex native hook currently registered by QE is
-`PreToolUse` for shell-like tools (`Bash`, `Shell`, `shell`, `exec_command`).
-It can block dangerous shell actions, but it cannot inspect ordinary assistant
-handoff text. A wrong Codex handoff such as `/Qgs ...` must therefore be
-prevented by skill templates, the interaction adapter, and regression checks,
-not by the hook.
+The Codex lifecycle wrapper forwards the original hook payload to the shared QE
+hook script, sets `QE_CLIENT=codex`, and rewrites slash-command hints (`/Q...`)
+to Codex commands (`$Q...`) in stdout/stderr. If a Codex runtime version does not
+emit a particular lifecycle event, the corresponding entry is inert; the fallback
+is the installed skill/state/interaction-adapter contract, not a narrower hook
+surface.
 
 Codex HUD support is installed as `~/.codex/scripts/qe-hud.mjs`, a command proxy
 that renders the same HUD from project state for manual, shell-prompt, or

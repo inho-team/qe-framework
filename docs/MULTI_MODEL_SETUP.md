@@ -161,12 +161,12 @@ flowchart LR
 | `verification-report.md` | `.qe/ai-team/artifacts/` | supervisor | Final decision (pass/partial/fail/escalate) + evidence/remediation. |
 
 ## Getting Started Checklist
-1. **Scaffold**: Run `/Qinit`, opt into multi-model scaffolding, and confirm directories plus placeholder artifacts exist.
+1. **Scaffold**: Run `/Qinit` on Claude or `$Qinit` on Codex, opt into multi-model scaffolding, and confirm directories plus placeholder artifacts exist.
 2. **Configure**: Edit `.qe/ai-team/config/team-config.json` for your runners; re-run `scripts/validate_ai_team_config.mjs`.
-3. **Plan**: Run `/Qplan`, ensure planner updates `.qe/planning/*`, and write `role-spec.md` + `task-bundle.json`.
-4. **Spec**: Run `/Qgenerate-spec` (Qgs); it mirrors new tasks into the planner artifacts after generating TASK_REQUEST/VERIFY_CHECKLIST files.
-5. **Implement**: Use `/Qatomic-run` (or `/Qrun-task` when necessary). Implementer must append to `implementation-report.md` before handing off.
-6. **Verify**: `/Qcode-run-task` enforces reviewer (`review-report.md`) and supervisor (`verification-report.md`) gates before marking tasks complete.
+3. **Plan**: Run `/Qplan` on Claude or `$Qplan` on Codex, ensure planner updates `.qe/planning/*`, and write `role-spec.md` + `task-bundle.json`.
+4. **Spec**: Run `/Qgenerate-spec` or `/Qgs` on Claude, `$Qgenerate-spec` or `$Qgs` on Codex; it mirrors new tasks into the planner artifacts after generating TASK_REQUEST/VERIFY_CHECKLIST files.
+5. **Implement**: Use `/Qatomic-run` on Claude or `$Qatomic-run` on Codex (or `Qrun-task` with the same client prefix when necessary). Implementer must append to `implementation-report.md` before handing off.
+6. **Verify**: `/Qcode-run-task` on Claude or `$Qcode-run-task` on Codex enforces reviewer (`review-report.md`) and supervisor (`verification-report.md`) gates before marking tasks complete.
 7. **Iterate**: Planner reopens scope by editing planner artifacts; implementer/reviewer never overwrite planner-owned files without that signal.
 
 Following these steps activates the minimal orchestration layer described in `core/MULTI_MODEL_ORCHESTRATION.md` while keeping legacy workflows intact for single-model projects.

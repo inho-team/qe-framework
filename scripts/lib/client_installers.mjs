@@ -393,6 +393,15 @@ function stripQeHooksFence(text) {
   return collapsed.join('\n');
 }
 
+function parseCodexHookEvents(configText, expectedHookPath) {
+  if (!configText || !expectedHookPath || !configText.includes(expectedHookPath)) return [];
+  const begin = configText.indexOf(QE_CODEX_HOOKS_BEGIN);
+  const end = configText.indexOf(QE_CODEX_HOOKS_END);
+  if (begin === -1 || end === -1 || end <= begin) return [];
+  const fence = configText.slice(begin, end);
+  return [...new Set([...fence.matchAll(/\[\[hooks\.([A-Za-z0-9_-]+)\]\]/g)].map((m) => m[1]))];
+}
+
 /**
  * Codex renamed [features].codex_hooks to [features].hooks. Migrate the user
  * config in-place during install so repeated sessions do not emit deprecation
@@ -859,8 +868,20 @@ function renderCodexAgentConfigBlock(agentsDir, entries) {
   return lines.join('\n');
 }
 
+const CODEX_LIFECYCLE_HOOKS = [
+  { event: 'SessionStart', script: 'scripts/session-start.mjs', timeout: 10, statusMessage: 'QE session bootstrap' },
+  { event: 'PreToolUse', matcher: '*', script: 'scripts/pre-tool-use.mjs', timeout: 5, statusMessage: 'QE safety guard' },
+  { event: 'PreCompact', script: 'scripts/pre-compact.mjs', timeout: 10, statusMessage: 'QE compaction guard' },
+  { event: 'PostToolUse', matcher: '^(Write|Edit|Bash|Shell|shell|exec_command)$', script: 'scripts/post-tool-use.mjs', timeout: 15, statusMessage: 'QE post-tool checks' },
+  { event: 'Stop', script: 'scripts/stop-handler.mjs', timeout: 5, statusMessage: 'QE stop guard' },
+  { event: 'UserPromptSubmit', script: 'scripts/prompt-check.mjs', timeout: 8, statusMessage: 'QE prompt router' },
+  { event: 'Notification', script: 'scripts/notification.mjs', timeout: 5, statusMessage: 'QE notification handler' },
+  { event: 'TeammateIdle', script: 'scripts/teammate-idle.mjs', timeout: 10, statusMessage: 'QE teammate idle handler' },
+  { event: 'TaskCompleted', script: 'scripts/task-completed.mjs', timeout: 10, statusMessage: 'QE task completion handler' },
+];
+
 function resolveInstalledCodexHookPath(homeDir, log = () => {}) {
-  return join(homeDir, '.codex', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+  return join(homeDir, '.codex', 'hooks', 'scripts', 'codex', 'lifecycle-codex.mjs');
 }
 
 /**
@@ -870,21 +891,20 @@ function resolveInstalledCodexHookPath(homeDir, log = () => {}) {
  * @returns {string} Multi-line TOML block
  */
 function renderCodexHooksConfigBlock(entryPath) {
-  return [
-    QE_CODEX_HOOKS_BEGIN,
-    '',
-    '[[hooks.PreToolUse]]',
-    'matcher = "^(Bash|Shell|shell|exec_command)$"',
-    '',
-    '[[hooks.PreToolUse.hooks]]',
-    'type = "command"',
-    `command = ${quoteToml(`node "${entryPath}"`)}`,
-    'timeout = 30',
-    'statusMessage = "QE safety guard"',
-    '',
-    QE_CODEX_HOOKS_END,
-    '',
-  ].join('\n');
+  const lines = [QE_CODEX_HOOKS_BEGIN, ''];
+  for (const hook of CODEX_LIFECYCLE_HOOKS) {
+    lines.push(`[[hooks.${hook.event}]]`);
+    if (hook.matcher) lines.push(`matcher = ${quoteToml(hook.matcher)}`);
+    lines.push('');
+    lines.push(`[[hooks.${hook.event}.hooks]]`);
+    lines.push('type = "command"');
+    lines.push(`command = ${quoteToml(`node "${entryPath}" "${hook.event}" "${hook.script}"`)}`);
+    lines.push(`timeout = ${hook.timeout}`);
+    lines.push(`statusMessage = ${quoteToml(hook.statusMessage)}`);
+    lines.push('');
+  }
+  lines.push(QE_CODEX_HOOKS_END, '');
+  return lines.join('\n');
 }
 
 const CODEX_SKILL_DESCRIPTION_MAX = 220;
@@ -1273,9 +1293,7 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
         codexMissing = fenced.filter((a) => !existsSync(a.configFile)).length;
       }
       codexHookFenced = cfgText.includes(expectedHookPath);
-      if (codexHookFenced && /\[\[hooks\.PreToolUse\]\]/.test(cfgText)) {
-        codexHookEvents.push('PreToolUse');
-      }
+      codexHookEvents = parseCodexHookEvents(cfgText, expectedHookPath);
     }
     try {
       codexStamp = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version;

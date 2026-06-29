@@ -27,7 +27,7 @@ Parse the user's complaint/correction. Extract:
 
 ### Step 2: Confirm with User
 
-Use `AskUserQuestion` to confirm before recording:
+Use the QE interaction adapter to confirm before recording:
 
 ```
 Mistake identified:
@@ -103,7 +103,7 @@ Promote **auto-extracted** recurring failure patterns into the registry (Phase 4
    counts each pattern by **distinct task_uuid**, and writes recurring ones
    (≥ 2 distinct tasks) to `.qe/learning/mistake-candidates.md`.
 2. Read `.qe/learning/mistake-candidates.md`. For each candidate, present it via
-   `AskUserQuestion` exactly as in **Step 2** above — the user decides whether it is a
+   the interaction adapter exactly as in **Step 2** above — the user decides whether it is a
    genuine systemic mistake worth recording.
 3. On confirmation, write it through the normal **Step 3** path (M{NNN} entry in
    `.qe/MISTAKE.md`). Skip candidates the user rejects.

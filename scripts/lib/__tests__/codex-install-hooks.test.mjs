@@ -33,7 +33,7 @@ function countNeedle(text, needle) {
   return text.split(needle).length - 1;
 }
 
-test('install writes one PreToolUse hook block with trust guidance and no bypass flag', (t) => {
+test('install writes the full Codex lifecycle hook fence with trust guidance and no bypass flag', (t) => {
   const homeDir = makeCodexHome('# user config\n');
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
   const logs = [];
@@ -41,24 +41,29 @@ test('install writes one PreToolUse hook block with trust guidance and no bypass
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: (line) => logs.push(line), syncManifest: false });
 
   const config = readConfig(homeDir);
-  const expectedEntry = path.join(homeDir, '.codex', 'hooks', 'scripts', 'codex', 'pre-tool-use-codex.mjs');
+  const expectedEntry = path.join(homeDir, '.codex', 'hooks', 'scripts', 'codex', 'lifecycle-codex.mjs');
 
   assert.ok(config.includes(QE_HOOKS_FENCE_BEGIN), 'hooks fence begin present');
   assert.ok(config.includes(QE_HOOKS_FENCE_END), 'hooks fence end present');
-  assert.ok(config.includes('[[hooks.PreToolUse]]'), 'PreToolUse table present');
-  assert.ok(config.includes('matcher = "^(Bash|Shell|shell|exec_command)$"'), 'shell tool matcher variants present');
-  assert.ok(config.includes('[[hooks.PreToolUse.hooks]]'), 'nested hook command table present');
+  for (const event of ['SessionStart', 'PreToolUse', 'PreCompact', 'PostToolUse', 'Stop', 'UserPromptSubmit', 'Notification', 'TeammateIdle', 'TaskCompleted']) {
+    assert.ok(config.includes(`[[hooks.${event}]]`), `${event} table present`);
+    assert.ok(config.includes(`[[hooks.${event}.hooks]]`), `${event} nested hook command table present`);
+    assert.ok(config.includes(`\\\"${event}\\\"`) || config.includes(`"${event}"`), `${event} command argument present`);
+  }
+  assert.ok(config.includes('matcher = "*"'), 'PreToolUse wildcard matcher present');
+  assert.ok(config.includes('matcher = "^(Write|Edit|Bash|Shell|shell|exec_command)$"'), 'PostToolUse matcher variants present');
   assert.ok(config.includes('type = "command"'), 'command hook type present');
-  assert.ok(config.includes('timeout = 30'), 'timeout present');
-  assert.ok(config.includes('statusMessage = "QE safety guard"'), 'status message present');
+  assert.ok(config.includes('timeout = 15'), 'PostToolUse timeout present');
+  assert.ok(config.includes('statusMessage = "QE safety guard"'), 'PreToolUse status message present');
   assert.ok(config.includes(`node \\\"${expectedEntry}\\\"`), 'command references installed standalone hook path');
-  assert.ok(fs.existsSync(expectedEntry), 'standalone Codex hook script is installed under ~/.codex/hooks');
+  assert.ok(fs.existsSync(expectedEntry), 'standalone Codex lifecycle hook wrapper is installed under ~/.codex/hooks');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'exactly one PreToolUse block');
+  assert.equal(countNeedle(config, '[[hooks.'), 18, 'nine hook events and nine nested hook command tables');
   assert.ok(logs.includes('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.'), 'trust guidance log emitted');
   assert.ok(!config.includes('--dangerously-bypass-hook-trust'), 'does not bypass hook trust');
 });
 
-test('repeated install keeps exactly one hooks fence and one PreToolUse block', (t) => {
+test('repeated install keeps exactly one hooks fence and one lifecycle block per event', (t) => {
   const homeDir = makeCodexHome('# user config\n');
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
@@ -68,6 +73,7 @@ test('repeated install keeps exactly one hooks fence and one PreToolUse block', 
   assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 1, 'one hooks fence after reinstall twice');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'one PreToolUse block after reinstall twice');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse.hooks]]'), 1, 'one nested PreToolUse hook block after reinstall twice');
+  assert.equal(countNeedle(config, '[[hooks.TaskCompleted]]'), 1, 'one TaskCompleted block after reinstall twice');
 });
 
 test('install migrates deprecated codex_hooks feature flag', (t) => {

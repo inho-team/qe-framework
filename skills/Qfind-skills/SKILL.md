@@ -46,7 +46,9 @@ WebFetch https://github.com/<owner>/<repo>/blob/main/skills/<skill-name>/SKILL.m
 
 ### Step 3: Confirm Installation Location
 
-**MUST use `AskUserQuestion` tool** (do NOT output as plain text):
+**MUST use the QE interaction adapter**:
+- Claude adapter: `AskUserQuestion`
+- Codex interactive adapter: concise plain-text choices with the same labels
 
 - **Global**: `~/.claude/skills/<skill-name>/SKILL.md` — available in all projects
 - **Local**: `.claude/skills/<skill-name>/SKILL.md` — available in the current project only

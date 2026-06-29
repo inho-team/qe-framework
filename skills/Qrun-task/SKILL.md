@@ -8,7 +8,7 @@ recommendedModel: haiku
 # Task Execution Skill (PSE Chain Fallback)
 
 ## Role
-Execute tasks based on spec documents. This is a **secondary execution engine** within the `/Qplan` PSE Chain, used when tasks cannot be fully atomized for `/Qatomic-run`.
+Execute tasks based on spec documents. This is a **secondary execution engine** within the `Qplan` PSE Chain, used when tasks cannot be fully atomized for `Qatomic-run`.
 
 > **MANDATORY:** All user confirmations MUST use the interaction adapter. Claude MUST use the `AskUserQuestion` tool. Codex interactive may use concise plain-text choices. Codex non-interactive selects the documented recommended default only when the action is reversible and reports the default.
 
@@ -21,13 +21,13 @@ Execute tasks based on spec documents. This is a **secondary execution engine** 
 - **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Relationship to the Primary Chain
-- Canonical path: `/Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task`.
-- Prefer `/Qatomic-run` whenever the checklist can be partitioned; use `/Qrun-task` when tasks are non-atomic, long-form, or explicitly routed for remediation.
-- Even in fallback mode, still hand off to `/Qcode-run-task` to maintain the verification and supervision gate.
+- Canonical path: `{adapter.commandPrefix}Qplan -> {adapter.commandPrefix}Qgs -> {adapter.commandPrefix}Qatomic-run -> {adapter.commandPrefix}Qcode-run-task`.
+- Prefer `{adapter.commandPrefix}Qatomic-run` whenever the checklist can be partitioned; use `{adapter.commandPrefix}Qrun-task` when tasks are non-atomic, long-form, or explicitly routed for remediation.
+- Even in fallback mode, still hand off to `{adapter.commandPrefix}Qcode-run-task` to maintain the verification and supervision gate.
 
 ## Workflow
 ```
-/Qgenerate-spec → /Qrun-task → Read → Summarize → Approve → Execute → Verify → ✅ Done
+Qgenerate-spec -> Qrun-task -> Read -> Summarize -> Approve -> Execute -> Verify -> Done
 ```
 
 ## Directory Structure

@@ -15,19 +15,22 @@ The framework exists to force explicit handoffs between these stages.
 QE uses the Plan -> Spec -> Execute loop as the default path:
 
 ```text
-/Qplan -> /Qgs -> /Qatomic-run
+Claude: /Qplan -> /Qgs -> /Qatomic-run
+Codex:  $Qplan -> $Qgs -> $Qatomic-run
 ```
 
 That is followed by the quality gate:
 
 ```text
-/Qcode-run-task
+Claude: /Qcode-run-task
+Codex:  $Qcode-run-task
 ```
 
 Together, the canonical flow is:
 
 ```text
-/Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
+Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 ```
 
 ## Design Principles

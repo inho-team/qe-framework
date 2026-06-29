@@ -50,14 +50,14 @@ Codex:  $Qinit → $Qcontext init → $Qplan → $Qgs → $Qatomic-run → $Qcod
         Setup     Context          Plan     Spec    Execute       Verify
 ```
 
-| Step | Skill | Purpose |
-|------|-------|---------|
-| Setup | `/Qinit` | Initialize project, directory structure, conventions |
-| Context | `/Qcontext init` | Set up folder-aware context partitioning |
-| Plan | `/Qplan` | Create roadmap, phases, requirements |
-| Spec | `/Qgs` | Generate TASK_REQUEST + VERIFY_CHECKLIST |
-| Execute | `/Qatomic-run` | Implement via parallel Haiku Wave |
-| Verify | `/Qcode-run-task` | Test → review → fix quality loop |
+| Step | Claude | Codex | Purpose |
+|------|--------|-------|---------|
+| Setup | `/Qinit` | `$Qinit` | Initialize project, directory structure, conventions |
+| Context | `/Qcontext init` | `$Qcontext init` | Set up folder-aware context partitioning |
+| Plan | `/Qplan` | `$Qplan` | Create roadmap, phases, requirements |
+| Spec | `/Qgs` | `$Qgs` | Generate TASK_REQUEST + VERIFY_CHECKLIST |
+| Execute | `/Qatomic-run` | `$Qatomic-run` | Implement via parallel Haiku Wave |
+| Verify | `/Qcode-run-task` | `$Qcode-run-task` | Test → review → fix quality loop |
 
 ---
 

@@ -1,6 +1,6 @@
 ---
 name: Qatomic-run
-description: "Parallel Haiku-wave engine — partitions a TASK_REQUEST into independent atomic items and dispatches them concurrently to multiple Haiku teammates, merging results through a Lead session. Branch points: use THIS when the checklist has MANY (>=5) independent atomic items with non-overlapping file ownership and low complexity; use Qrun-task for sequential execution of non-atomic or order-dependent items; use Qcode-run-task after code lands to run the test-review-fix loop. Canonical PSE path: /Qplan → /Qgs → /Qatomic-run → /Qcode-run-task."
+description: "Parallel Haiku-wave engine — partitions a TASK_REQUEST into independent atomic items and dispatches them concurrently to multiple Haiku teammates, merging results through a Lead session. Branch points: use THIS when the checklist has MANY (>=5) independent atomic items with non-overlapping file ownership and low complexity; use Qrun-task for sequential execution of non-atomic or order-dependent items; use Qcode-run-task after code lands to run the test-review-fix loop. Canonical PSE path: Qplan → Qgs → Qatomic-run → Qcode-run-task."
 invocation_trigger: "When a TASK_REQUEST contains many atomic items that can be executed in parallel by low-reasoning agents."
 recommendedModel: sonnet
 tier: core
@@ -49,12 +49,12 @@ After all atomic items are done, determine the next step based on task type:
 - The Lead-owned full build/test verification is subject to the PreToolUse build admission gate; if blocked for low memory or a competing build, wait and retry instead of launching another build.
 - Workers MUST NOT invoke `{adapter.commandPrefix}Qcode-run-task` or project build/test commands directly.
 - **`type: code`** → the single Lead-owned verification handoff is `{adapter.commandPrefix}Qcode-run-task` for test → review → fix quality loop.
-- **`type: docs` / `type: analysis` / deletion-heavy tasks** → run SIVS Loop verification (VERIFY_CHECKLIST check + supervision) directly, skip `/Qcode-run-task`.
+- **`type: docs` / `type: analysis` / deletion-heavy tasks** → run SIVS Loop verification (VERIFY_CHECKLIST check + supervision) directly, skip `{adapter.commandPrefix}Qcode-run-task`.
 
 ## Execution Rules
 - **Wave**: Group independent items from `TASK_REQUEST` into execution waves. Wave N+1 starts only after Wave N is verified.
 - **File Ownership**: No two teammates can modify the same file within the same wave. Lead (Sonnet) must partition files before spawning.
-- **Haiku-First**: Always use `haiku` for teammates. If an item requires Sonnet, it's not "Atomic" and should be handled by standard `/Qrt`.
+- **Haiku-First**: Always use `haiku` for teammates. If an item requires Sonnet, it's not "Atomic" and should be handled by standard `{adapter.commandPrefix}Qrt`.
 - **Context Integrity**: Use `ContextMemo` to ensure teammates have current state without redundant I/O.
 
 ## Worktree Isolation (`--worktree`, opt-in)
@@ -86,7 +86,7 @@ Before spawning Haiku teammates, resolve SIVS engine routing:
      2. If NOT available: show warning and fallback to standard Haiku swarm execution.
 3. Check for legacy config: call `detectLegacyConfig()`. If non-null, display migration warning.
 
-**Note**: When using Codex engine, wave-based parallelism is not used — Codex handles task partitioning internally. The Verify stage (validation) and quality loop (`/Qcode-run-task`) still run after Codex completes.
+**Note**: When using Codex engine, wave-based parallelism is not used — Codex handles task partitioning internally. The Verify stage (validation) and quality loop (`{adapter.commandPrefix}Qcode-run-task`) still run after Codex completes.
 
 **Codex Materialization Check (Mandatory after Codex Done):**
 Codex may return `Done` before files are actually written (async companion pattern). The notification hook (`notification.mjs`) handles initial detection and writes state to `unified-state.json` under the `codex_materialization` key.

@@ -21,7 +21,7 @@ Requirements specialist conducting structured workshops to define comprehensive 
 
 ## Role Definition
 
-> **MANDATORY:** All user questions and confirmations MUST use the `AskUserQuestion` tool. Do NOT output options or questions as plain text — always call the tool.
+> **MANDATORY:** All user questions and confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 
 Operate with two perspectives:
 - **PM Hat**: Focused on user value, business goals, success metrics
@@ -37,10 +37,10 @@ Operate with two perspectives:
 
 ## Core Workflow
 
-1. **Discover** - Use `AskUserQuestion` to understand the feature goal, target users, and user value. Present structured choices where possible (e.g., user types, priority level).
-2. **Interview** - Systematic questioning from both PM and Dev perspectives using `AskUserQuestion` for structured choices and open-ended follow-ups. Use multi-agent discovery with Task Teammates when the feature spans multiple domains (see interview-questions.md for guidance).
+1. **Discover** - Use the interaction adapter to understand the feature goal, target users, and user value. Present structured choices where possible (e.g., user types, priority level).
+2. **Interview** - Systematic questioning from both PM and Dev perspectives using the interaction adapter for structured choices and open-ended follow-ups. Use multi-agent discovery with Task Teammates when the feature spans multiple domains (see interview-questions.md for guidance).
 3. **Document** - Write EARS-format requirements
-4. **Validate** - Use `AskUserQuestion` to review acceptance criteria with stakeholder, presenting key trade-offs as structured choices
+4. **Validate** - Use the interaction adapter to review acceptance criteria with stakeholder, presenting key trade-offs as structured choices
 5. **Plan** - Create implementation checklist
 
 ## Reference Guide
@@ -58,7 +58,7 @@ Load detailed guidance based on context:
 ## Constraints
 
 ### MUST DO
-- Use `AskUserQuestion` tool for structured elicitation (priority, scope, format choices)
+- Use the interaction adapter for structured elicitation (priority, scope, format choices)
 - Use open-ended questions only when choices cannot be predetermined
 - Conduct thorough interview before writing spec
 - Use EARS format for all functional requirements
@@ -68,7 +68,7 @@ Load detailed guidance based on context:
 - Ask for clarification on ambiguous requirements
 
 ### MUST NOT DO
-- Output interview questions as plain text when `AskUserQuestion` can provide structured options
+- Bypass the interaction adapter for structured options
 - Generate spec without conducting interview
 - Accept vague requirements ("make it fast")
 - Skip security considerations

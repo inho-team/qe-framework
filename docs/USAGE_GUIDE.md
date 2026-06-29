@@ -103,7 +103,7 @@ $Qatomic-run
 - `hybrid` / `multi-model`: configured implementer runner path
 - `tiered-model`: high-tier planning/judgment with cheaper lower-tier execution
 
-Use `/Qrun-task` instead when the work is not meaningfully atomic.
+Use `/Qrun-task` (`$Qrun-task` on Codex) instead when the work is not meaningfully atomic.
 
 ### Verify
 
@@ -235,9 +235,9 @@ Capabilities:
 
 See [SECRETS.md](SECRETS.md) for commands and backend behavior.
 
-## 10. Autonomous Mode (`/Qutopia`) — ⚠️ Read Before Enabling
+## 10. Autonomous Mode (`/Qutopia` / `$Qutopia`) — ⚠️ Read Before Enabling
 
-`/Qutopia` turns on a session-level flag that tells **every** QE skill to stop asking questions and drive itself. It is the single fastest way to finish a well-scoped task, and also the single fastest way to commit the wrong files, push to `main`, or chain into destructive operations you didn't approve.
+`Qutopia` turns on a session-level flag that tells **every** QE skill to stop asking questions and drive itself. It is the single fastest way to finish a well-scoped task, and also the single fastest way to commit the wrong files, push to `main`, or chain into destructive operations you didn't approve.
 
 ### What it actually does
 
@@ -252,15 +252,15 @@ When `.qe/state/utopia-state.json` is `enabled: true`:
 
 ### Commands
 
-| Command | Behavior |
-|---------|----------|
-| `/Qutopia status` | Show current state — run this **before** toggling |
-| `/Qutopia` | Auto-classify SIMPLE vs COMPLEX, pick work/qa mode |
-| `/Qutopia --work` | Spec → Run → Verify (no quality loop) |
-| `/Qutopia --qa` | Spec → Run → Verify + full code-quality loop |
-| `/Qutopia --ralph` | Loop until VERIFY_CHECKLIST is fully checked (⚠ no human gate between rounds) |
-| `/Qutopia --ralph off` | Stop Ralph loop |
-| `/Qutopia off` | Disable — **always run this before ending the session** |
+| Claude | Codex | Behavior |
+|--------|-------|----------|
+| `/Qutopia status` | `$Qutopia status` | Show current state — run this **before** toggling |
+| `/Qutopia` | `$Qutopia` | Auto-classify SIMPLE vs COMPLEX, pick work/qa mode |
+| `/Qutopia --work` | `$Qutopia --work` | Spec -> Run -> Verify (no quality loop) |
+| `/Qutopia --qa` | `$Qutopia --qa` | Spec -> Run -> Verify + full code-quality loop |
+| `/Qutopia --ralph` | `$Qutopia --ralph` | Loop until VERIFY_CHECKLIST is fully checked (no human gate between rounds) |
+| `/Qutopia --ralph off` | `$Qutopia --ralph off` | Stop Ralph loop |
+| `/Qutopia off` | `$Qutopia off` | Disable — **always run this before ending the session** |
 
 ### ⚠️ Pre-flight Checklist (ALL must be true)
 
@@ -292,13 +292,13 @@ If any of these is false, keep Qutopia OFF and accept the prompts — the 10 ext
 
 ```
 git checkout -b feat/<scope>       # isolate blast radius
-/Qutopia status                    # confirm it's OFF
-/Qplan "do X"                      # interactive planning (still wants you in the loop here)
-/Qgs Phase 1: ...                  # generates TASK_REQUEST + VERIFY_CHECKLIST
+<prefix>Qutopia status             # confirm it's OFF; prefix is / on Claude, $ on Codex
+<prefix>Qplan "do X"               # interactive planning (still wants you in the loop here)
+<prefix>Qgs Phase 1: ...           # generates TASK_REQUEST + VERIFY_CHECKLIST
 # Review the generated spec manually — this is your last chance to catch wrong defaults
-/Qutopia --work                    # NOW flip the switch, for this bounded run only
+<prefix>Qutopia --work             # NOW flip the switch, for this bounded run only
 # ... skills execute without prompting ...
-/Qutopia off                       # ALWAYS disable when the bounded run ends
+<prefix>Qutopia off                # ALWAYS disable when the bounded run ends
 git log && git diff origin/main    # audit what Qutopia committed before pushing
 ```
 

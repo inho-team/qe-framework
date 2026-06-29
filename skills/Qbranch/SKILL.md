@@ -11,7 +11,7 @@ recommendedModel: haiku
 ## Role
 Manages the full branch lifecycle: create branch, commit changes (via Qcommit), push, and open PR. Prevents direct push to main.
 
-> **MANDATORY:** All user confirmations MUST use the `AskUserQuestion` tool. Do NOT output options as plain text — always call the tool.
+> **MANDATORY:** All user confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 
 ## Examples
 

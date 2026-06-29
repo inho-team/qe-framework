@@ -28,7 +28,7 @@ This architecture ensures:
 
 ## Position in the PSE Chain
 
-The SIVS Loop is the **quality gate** that runs inside the Execute and Verify steps of the PSE Chain (`/Qplan → /Qgs → /Qatomic-run → /Qcode-run-task`). The PSE Chain is the user-facing workflow; the SIVS Loop is the internal quality mechanism that ensures each task meets its spec.
+The SIVS Loop is the **quality gate** that runs inside the Execute and Verify steps of the PSE Chain (`/Qplan → /Qgs → /Qatomic-run → /Qcode-run-task` on Claude; `$Qplan → $Qgs → $Qatomic-run → $Qcode-run-task` on Codex). The PSE Chain is the user-facing workflow; the SIVS Loop is the internal quality mechanism that ensures each task meets its spec.
 
 ---
 

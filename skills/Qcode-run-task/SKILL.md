@@ -31,11 +31,11 @@ review/fix 전, `test -d .qe/wiki`가 참이면 변경 파일 관련 누적 지�
 반영(`tier: reviewed` 우선). **`.qe/wiki/`가 없으면 명령 실행 없이 조용히 skip**(비-wiki 무영향).
 
 ## Prerequisites
-- Step 3 (implementation execution) of `/Qrun-task` is complete
+- Step 3 (implementation execution) of `Qrun-task` is complete
 - Task has `type: code` specified in TASK_REQUEST
 - TASK_REQUEST and VERIFY_CHECKLIST documents exist
 
-In the primary `Qplan` chain, `/Qcode-run-task` is the verification stage that follows `/Qatomic-run`.
+In the primary `Qplan` chain, `Qcode-run-task` is the verification stage that follows `Qatomic-run`.
 
 ## Workflow Overview
 

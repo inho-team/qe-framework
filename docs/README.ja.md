@@ -9,7 +9,8 @@ QE Framework は Claude Code と Codex の両方を対象にしたスペック�
 基本フロー:
 
 ```text
-/Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
+Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 ```
 
 この文書は日本語のランディングページです。詳細は役割ごとに分割された文書を参照してください。
@@ -93,10 +94,8 @@ $Qinit
 3. ワークフローを開始
 
 ```text
-/Qplan
-/Qgs
-/Qatomic-run
-/Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
+Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 ```
 
 ## 参考
@@ -104,9 +103,9 @@ $Qinit
 - quota 制限で runner が使えない場合は `--role-override` で一時的に再割り当てします。
 - この override は現在の実行だけに適用され、`team-config.json` は書き換えません。
 
-## ⚠️ 自律実行モード (`/Qutopia`)
+## ⚠️ 自律実行モード (`/Qutopia` / `$Qutopia`)
 
-`/Qutopia` は **すべての確認プロンプトをスキップ** して自動で進行させるセッションスイッチです。作業は速くなりますが、誤ったファイルのコミットや `main` への直接 push といったリスクも伴います。
+`Qutopia` は **すべての確認プロンプトをスキップ** して自動で進行させるセッションスイッチです。Claude では `/Qutopia`、Codex では `$Qutopia` を使います。作業は速くなりますが、誤ったファイルのコミットや `main` への直接 push といったリスクも伴います。
 
 **有効化前の必須チェック**:
 1. 要件が明確か（アトミックな checklist あり）
@@ -115,4 +114,4 @@ $Qinit
 4. 共有ブランチ（`main`/`master`）ではないか
 5. 自動コミット・自動イテレーションを許容できるか
 
-全ガイドと ON/OFF の推奨パターンは [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling) を参照してください。**セッション終了前に必ず `/Qutopia off` を実行**してください。
+全ガイドと ON/OFF の推奨パターンは [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling) を参照してください。**セッション終了前に Claude は `/Qutopia off`、Codex は `$Qutopia off` を実行**してください。
