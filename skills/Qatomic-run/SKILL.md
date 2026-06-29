@@ -14,8 +14,8 @@ A coordination skill that orchestrates multiple **Haiku Teammates** to execute a
 ## Client Adapter Compatibility
 
 - **Claude**: use Agent Teams / Agent tool as described below.
-- **Codex native**: use native Codex subagents only when explicitly available in the session. Codex skills do not automatically spawn Claude Agent tool teammates.
-- **Codex inline fallback**: when no equivalent native subagent dispatch exists, the Lead session executes the wave inline and reports `codex-inline-degrade` with lost guarantees: no true parallelism, no isolated teammate context, and no per-teammate atomic commit.
+- **Codex native**: use native Codex subagents through the installed agent TOML.
+- **Codex client adapter**: if the active Codex runtime lacks subagent dispatch, preserve the role contract with role-separated inline execution and mark the fallback explicitly.
 - **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Workflow
@@ -29,7 +29,7 @@ Read the `TASK_REQUEST` and identify items suitable for parallel execution:
 ### Step 2: Wave Initiation
 Create an **Agent Team** through the agent adapter:
 - Claude: use the `Agent` tool.
-- Codex: use native Codex subagents when explicitly available; otherwise run inline with `codex-inline-degrade`.
+- Codex: use native Codex subagents through the client adapter; otherwise preserve the role contract with role-separated inline execution.
 - Dispatch Haiku Teammates through a per-wave cap of `min(cpuCount - 2, 3)`; on low-core machines the effective runtime cap is clamped to at least 1.
 - Queue additional atomic items FIFO. A queued item starts only after an active teammate completes.
 - Assign **one Haiku Teammate per active atomic item** within that cap.

@@ -169,7 +169,7 @@ Auto-refreshed when `/Qrefresh` runs.
 - Codex base -> Claude engine uses the reverse bridge surface
   (`Qclaude-rescue` / `claude_bridge.mjs`) when available.
 - Automatic Claude Agent tool delegation is not exact Codex parity; Codex uses
-  explicit native subagents when available or `codex-inline-degrade`.
+  native subagents through the client adapter, with role-separated inline execution only when a runtime lacks the required primitive.
 
 ---
 

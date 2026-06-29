@@ -76,8 +76,9 @@ You only say **what you want**. How to ask the right question, how to verify the
 
 ## Install
 
-QE Framework's baseline install is the **Claude Code plugin**. Codex-native
-assets are also installed when `~/.codex` exists; see
+QE Framework installs as a **dual-target Claude + Codex framework**. The Claude
+plugin is the distribution anchor, and Codex-native assets are installed when
+`~/.codex` exists; see
 [`docs/INSTALL.md`](docs/INSTALL.md) and the measured
 [`VERIFICATION_MATRIX.md`](.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
 for the support boundary.
@@ -92,12 +93,11 @@ claude plugin marketplace add inho-team/qe-framework
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-That's it for Claude. All <!--qe:skills-->105<!--/qe:skills--> skills,
-<!--qe:agents-->27<!--/qe:agents--> agents, and hooks are active immediately.
-For Codex, run the installer/refresh path from this repository or package; it
-writes native skills, generated agent TOML, and a managed `PreToolUse` hook fence
-when `~/.codex` exists. After a Codex install, run `/hooks` inside Codex once to
-review and trust the QE safety hook.
+That installs Claude assets and, when `~/.codex` exists, synchronizes Codex
+assets too: 105 native skills, 27 generated agent TOML files, copied scripts,
+and a managed `PreToolUse` hook fence pointing at the installed QE hook bundle.
+After a Codex install, run `/hooks` inside Codex once to review and trust the QE
+safety hook.
 
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
@@ -171,10 +171,10 @@ The 4-step pipeline that drives all work:
 
 `/Qrun-task` is the sequential fallback when tasks can't be parallelized.
 
-Codex uses the same PSE skills with `$Q...`. Where Claude can auto-delegate
-through the Agent tool, Codex uses explicit native subagents when available or
-reports `codex-inline-degrade` and runs the roles inline. That is usable support,
-not exact Agent tool parity.
+Codex uses the same PSE skills with `$Q...`. The QE client adapter maps Claude
+Agent-tool workflows onto Codex native subagents and falls back to role-separated
+inline execution only when the active Codex runtime does not expose a required
+native subagent primitive.
 
 ### SIVS Loop (Quality Gate)
 

@@ -790,9 +790,9 @@ function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHin
     '',
     'This file was generated from a QE Framework Claude agent markdown file.',
     '',
-    '- Claude Agent tool auto-delegation and Codex native subagent invocation are not the same primitive.',
+    '- QE maps Claude Agent-tool workflows to Codex native subagents through the client adapter.',
     '- Invoke this agent explicitly from Codex when native subagents are available.',
-    '- If a workflow cannot invoke a native Codex subagent, run the role inline and report `codex-inline-degrade`.',
+    '- If a Codex runtime lacks a required subagent primitive, preserve the role contract with role-separated inline execution and mark the fallback explicitly.',
   ];
   if (modelHint) lines.push(`- Source recommendedModel hint: \`${modelHint}\`.`);
   if (reasoningEffortHint) lines.push(`- Source reasoning effort hint: \`${reasoningEffortHint}\`.`);

@@ -21,8 +21,8 @@ An assistant that ensures quality by performing a **test → review → fix → 
 ## Client Adapter Compatibility
 
 - **Claude**: default delegation uses `Eqa-orchestrator` via Agent tool.
-- **Codex native**: use native Codex subagents if explicitly available.
-- **Codex inline fallback**: if equivalent automatic delegation is unavailable, run the QA roles inline and report `codex-inline-degrade`.
+- **Codex native**: use native Codex subagents through the installed agent TOML.
+- **Codex client adapter**: if equivalent automatic delegation is unavailable, preserve the QA role contract with role-separated inline execution and mark the fallback explicitly.
 - **Command rendering**: examples and handoffs use `adapter.commandPrefix`.
 
 ## Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만)
@@ -77,8 +77,8 @@ Step 5: Report results
 **After Eqa-orchestrator returns**, proceed directly to Step 5 (Report Results) using the returned summary.
 
 On Codex, use a native Codex subagent if one is explicitly available. Otherwise
-run the same test/review/fix roles inline and label the report
-`codex-inline-degrade`.
+preserve the test/review/fix role contract with role-separated inline execution
+and mark the fallback explicitly.
 
 ## Manual Execution Procedure (Opt-in)
 
@@ -199,7 +199,7 @@ Even if tests pass, perform a **Coverage Gap Audit**:
    - "Stop" → report current state and exit
 
 3. If a fix is needed:
-   - Delegate the fix to the `Ecode-debugger` sub-agent via Agent tool on Claude, or native Codex subagent/inline degraded fix on Codex
+   - Delegate the fix to the `Ecode-debugger` sub-agent via Agent tool on Claude, or native Codex subagent / role-separated inline fix on Codex
    - Pass on delegation: test failure details + review Critical items + related code
    - After fix is complete, **return to Step 2 (test)** → loop counter +1
 
@@ -319,7 +319,7 @@ After the adversarial gate passes (Step 4.9), run contract conformance verificat
 | Verdict | Action |
 |---------|--------|
 | **ALL PASS** | Proceed to Step 5 (Report) |
-| **Any FAIL** | Treat as Step 4 failure — show findings via the interaction adapter: "Fix contract drift" / "Accept as-is (accept FAIL)" / "Stop". On "Fix", delegate to `Ecode-debugger` on Claude or native Codex subagent/inline degraded fix on Codex, then return to Step 2 (loop counter +1). |
+| **Any FAIL** | Treat as Step 4 failure — show findings via the interaction adapter: "Fix contract drift" / "Accept as-is (accept FAIL)" / "Stop". On "Fix", delegate to `Ecode-debugger` on Claude or native Codex subagent / role-separated inline fix on Codex, then return to Step 2 (loop counter +1). |
 
 **Output example:**
 ```

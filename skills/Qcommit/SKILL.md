@@ -16,7 +16,7 @@ Actual commit work is delegated to the `Ecommit-executor` sub-agent.
 
 - **Claude**: delegate commit execution to `Ecommit-executor` via Agent tool.
 - **Codex native**: explicitly invoke the native Codex `Ecommit-executor` agent when available.
-- **Codex inline fallback**: if native subagent invocation is unavailable, run the same commit protocol inline and report `codex-inline-degrade`. The inline path must still obey the bypass-flag sequence in `agents/Ecommit-executor.md`.
+- **Codex client adapter**: if native subagent invocation is unavailable, preserve the role contract with role-separated inline execution. The inline path must still obey the bypass-flag sequence in `agents/Ecommit-executor.md`.
 - **Command rendering**: user-facing follow-up commands use the active client's prefix (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Examples
@@ -79,7 +79,7 @@ refactor: extract DB connection pool configuration
 
 - Claude: ALL git operations MUST be delegated to the `Ecommit-executor` agent via the Agent tool.
 - Codex native: use the native `Ecommit-executor` agent when available.
-- Codex inline fallback: if no native subagent invocation is available, run the Ecommit-executor protocol inline and visibly report `codex-inline-degrade`.
+- Codex inline fallback: if no native subagent invocation is available, run the Ecommit-executor protocol with role-separated inline execution and mark the fallback explicitly.
 
 ### Step 1: Delegate to Ecommit-executor
 Call the `Ecommit-executor` agent through the agent adapter with the following information:
@@ -89,7 +89,7 @@ Call the `Ecommit-executor` agent through the agent adapter with the following i
 
 The `Ecommit-executor` agent handles everything: status check, diff analysis, commit message writing, staging, committing, and optionally pushing.
 
-On Codex inline fallback, read `agents/Ecommit-executor.md` and execute the same
+On Codex role-separated inline fallback, read `agents/Ecommit-executor.md` and execute the same
 steps in the current session. Do not skip the separate skill-bypass flag write
 immediately before `git commit`.
 

@@ -108,7 +108,7 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
     assert.ok(content.includes('sandbox_mode = "workspace-write"'), `${toml} contains sandbox_mode`);
     assert.ok(content.includes('developer_instructions = """'), `${toml} contains developer_instructions`);
     assert.ok(content.includes('# Codex Native Agent Compatibility'), `${toml} contains compatibility note`);
-    assert.ok(content.includes('codex-inline-degrade'), `${toml} explains inline degradation`);
+    assert.ok(content.includes('role-separated inline execution'), `${toml} explains inline fallback`);
   }
 
   // config.toml must have exactly ONE QE fence
@@ -312,7 +312,7 @@ test('(g) Codex agent renderer preserves metadata hints and escapes TOML strings
   assert.ok(content.includes('Literal triple double quote: \\"\\"\\"'), 'triple double quote escaped');
   assert.ok(content.includes("Literal triple single quote: '''"), 'triple single quote preserved safely');
   assert.ok(content.includes('Windows path: C:\\\\tmp\\\\agent'), 'backslashes escaped');
-  assert.ok(content.includes('codex-inline-degrade'), 'compatibility note included');
+  assert.ok(content.includes('role-separated inline execution'), 'compatibility note included');
 });
 
 test('(h) Codex skill install compacts long descriptions without changing source or body', (t) => {
@@ -355,20 +355,20 @@ test('(h) Codex skill install compacts long descriptions without changing source
   );
 });
 
-test('(i) delegating PSE skills document Codex native and inline-degrade behavior', () => {
+test('(i) delegating PSE skills document Codex native client-adapter behavior', () => {
   const qcommit = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcommit', 'SKILL.md'), 'utf8');
   const qcodeRunTask = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcode-run-task', 'SKILL.md'), 'utf8');
   const qcriticalReview = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcritical-review', 'SKILL.md'), 'utf8');
 
   assert.ok(qcommit.includes('Codex native'), 'Qcommit documents Codex native path');
-  assert.ok(qcommit.includes('codex-inline-degrade'), 'Qcommit documents inline degrade');
+  assert.ok(qcommit.includes('role-separated inline'), 'Qcommit documents inline fallback');
   assert.ok(qcommit.includes('Ecommit-executor'), 'Qcommit keeps Ecommit-executor delegation');
 
   assert.ok(qcodeRunTask.includes('Codex native'), 'Qcode-run-task documents Codex native path');
-  assert.ok(qcodeRunTask.includes('codex-inline-degrade'), 'Qcode-run-task documents inline degrade');
+  assert.ok(qcodeRunTask.includes('role-separated inline'), 'Qcode-run-task documents inline fallback');
   assert.ok(qcodeRunTask.includes('Eqa-orchestrator'), 'Qcode-run-task keeps Claude orchestrator path');
 
   assert.ok(qcriticalReview.includes('Codex native'), 'Qcritical-review documents Codex native path');
-  assert.ok(qcriticalReview.includes('codex-inline-degrade'), 'Qcritical-review documents inline degrade');
+  assert.ok(qcriticalReview.includes('role-separated inline'), 'Qcritical-review documents inline fallback');
   assert.ok(qcriticalReview.includes('role-separated inline passes'), 'Qcritical-review documents inline reviewer fallback');
 });

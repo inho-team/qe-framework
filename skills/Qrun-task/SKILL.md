@@ -17,7 +17,7 @@ Execute tasks based on spec documents. This is a **secondary execution engine** 
 - **Claude**: approvals and next-task prompts use `AskUserQuestion`; implementation delegation uses the Agent tool where specified.
 - **Codex interactive**: approvals and next-task prompts use concise plain-text choices.
 - **Codex non-interactive**: chained tasks may continue; otherwise default to the safe recommended action and report it. Destructive ambiguity must stop.
-- **Agent delegation**: if Codex cannot invoke an equivalent native subagent, run inline and report `codex-inline-degrade`.
+- **Agent delegation**: Codex uses native subagents through the client adapter; if the runtime lacks the required primitive, preserve the role contract with role-separated inline execution and mark the fallback explicitly.
 - **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Relationship to the Primary Chain
@@ -54,7 +54,7 @@ Before executing task items, resolve SIVS engine routing:
 
 **Codex Implement Delegation:**
 - Claude base session: use `codex:codex-rescue` subagent via Agent tool for autonomous execution
-- Codex base session: use the native Codex execution path; if native subagent delegation is unavailable, run inline and report `codex-inline-degrade`
+- Codex base session: use the native Codex execution path; if native subagent delegation is unavailable, use role-separated inline execution and mark the fallback explicitly
 - Pass TASK_REQUEST content as the task prompt
 - Codex operates in `--write` mode (can modify files)
 - After Codex returns Done, run **Materialization Check** before proceeding

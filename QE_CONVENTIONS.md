@@ -88,10 +88,10 @@ All handoffs must render through the active-client prefix. Do not show a
 slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
 `$Q...`.
 
-Codex is also not exact Claude Agent tool parity: when a skill depends on
-automatic Agent tool delegation, Codex should use explicit native subagents when
-available or report `codex-inline-degrade` and run the role-separated workflow
-inline.
+Codex compatibility is handled through the QE client adapter: Claude uses Agent
+tool delegation, while Codex uses native subagents when available and preserves
+the same role contract with role-separated inline execution only when the active
+Codex runtime lacks the required subagent primitive.
 
 ---
 

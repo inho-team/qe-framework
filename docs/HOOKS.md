@@ -17,37 +17,37 @@ what they do, how they fail, and how to dial down their intervention.
 | TeammateIdle | — | `teammate-idle.mjs` | 10s | no |
 | TaskCompleted | — | `task-completed.mjs` | 10s | no |
 
-## Codex hook parity
+## Codex Compatibility Contract
 
-`hooks/hooks.json` defines the Claude-side lifecycle contract. Codex parity is
-documented conservatively here: only `PreToolUse` is treated as a native Codex
-hook with hard safety semantics. The rest are shims, no-ops, or explicit
-future-research gaps.
+`hooks/hooks.json` defines the Claude-side lifecycle contract. Codex receives the
+same QE safety and routing contract through Codex-native assets installed under
+`~/.codex`: skills in `~/.codex/skills`, agents in `~/.codex/agents`, scripts in
+`~/.codex/scripts`, plus managed hook entries in `~/.codex/config.toml` pointing
+at the installed QE hook bundle.
 
 After installing or refreshing the Codex assets, run `/hooks` in Codex once and
-explicitly trust the QE hook bundle. Do not document or rely on hook-trust
-bypass as a normal workflow; the supported path is explicit trust review.
+explicitly trust the QE hook bundle. Do not rely on hook-trust bypass as a normal
+workflow; the supported path is explicit trust review.
 
-| Event | Codex parity class | Codex-side description |
-|-------|--------------------|------------------------|
-| PreToolUse | native-supported | Native Codex `PreToolUse` hard safety hook. The installer matches `Bash`, `Shell`, `shell`, and `exec_command`; trust must be granted before the hook bundle is active. |
-| SessionStart | shim | `AGENTS.md` / startup-instruction shim. Use it for once-per-run bootstrap text, not as a claim of exact lifecycle parity. |
-| UserPromptSubmit | shim | Prompt/instruction shim for routing and hints. This is not exact Codex event parity. |
-| PostToolUse | shim | Post-tool observation shim. Use follow-up instructions or hints after tool completion. |
-| PreCompact | future-research | No exact Codex parity is documented in this repo yet. Treat it as a future investigation item. |
-| Stop | shim | Stop/persistence shim driven by instructions or session state, not a guaranteed native stop event. |
-| Notification | shim | Notification shim. Use native alerts or `notify` integration when available; otherwise it can degrade to no-op. |
-| TeammateIdle | unsupported-noop | No exact Codex parity today. Use polling only if a workflow needs periodic follow-up; otherwise leave it as no-op. |
-| TaskCompleted | unsupported-noop | No exact Codex parity today. Use polling or completion-state checks; do not present it as native event support. |
+| Event | Codex implementation | Codex-side behavior |
+|-------|----------------------|---------------------|
+| PreToolUse | native hook | Native Codex `PreToolUse` hard safety hook. The installer matches `Bash`, `Shell`, `shell`, and `exec_command`; trust must be granted before the hook bundle is active. |
+| SessionStart | AGENTS/startup contract | AGENTS.md plus installed skills provide once-per-run bootstrap context, routing policy, and client prefix rules. |
+| UserPromptSubmit | skill interaction adapter | Skills use the interaction adapter: Claude uses `AskUserQuestion`; Codex uses equivalent concise choices or deterministic non-interactive defaults. |
+| PostToolUse | installed scripts/state checks | Codex workflows use installed scripts and state checks for materialization, result handling, and follow-up validation. |
+| PreCompact | Codex compaction policy | Codex uses its native compaction policy and QE handoff/summary skills for recoverable continuation. |
+| Stop | persistent-state protocol | QE persistent state and verification checklists prevent premature completion in both clients. |
+| Notification | notify/script integration | Codex uses installed scripts plus configured notify integration where available. |
+| TeammateIdle | native subagent/workflow polling | Codex native subagents and polling/state files preserve teammate progress checks. |
+| TaskCompleted | completion-state protocol | QE task/checklist state records completion and drives follow-up verification across both clients. |
 
 Codex hook block messages render Codex-native skill commands with the `$`
 prefix, for example `$Qcommit`, `$Qbranch`, and `$Mbump`. Claude hook block
 messages keep the Claude slash-command prefix.
 
-Codex HUD support is intentionally **not** documented as hook parity. Codex has
-no native `statusLine` hook equivalent here; QE installs `~/.codex/scripts/qe-hud.mjs`
-as a command proxy that renders the same HUD from project state for manual,
-shell-prompt, or tmux-status use.
+Codex HUD support is installed as `~/.codex/scripts/qe-hud.mjs`, a command proxy
+that renders the same HUD from project state for manual, shell-prompt, or
+tmux-status use.
 
 ## Why PreToolUse matcher stays `*` (not narrowed)
 
