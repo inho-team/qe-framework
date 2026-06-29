@@ -17,11 +17,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
-- Codex HUD command support: `$Qhud` can now surface the QE HUD through the
-  installed `~/.codex/scripts/qe-hud.mjs` proxy, reusing the Claude HUD renderer
-  for shell prompt, tmux status, or manual display even though Codex has no
-  native `statusLine` hook.
-
 ### Changed
 
 ### Fixed
@@ -29,6 +24,15 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Removed
 
 ### Security
+
+## [7.5.0] - 2026-06-29
+
+### Added
+
+- Codex HUD command support: `$Qhud` can now surface the QE HUD through the
+  installed `~/.codex/scripts/qe-hud.mjs` proxy, reusing the Claude HUD renderer
+  for shell prompt, tmux status, or manual display even though Codex has no
+  native `statusLine` hook.
 
 ## [7.4.0] - 2026-06-29
 
