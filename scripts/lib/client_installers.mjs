@@ -1259,6 +1259,7 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
   let codexStamp = null;
   let codexHookInstalled = false;
   let codexHookFenced = false;
+  let codexHookEvents = [];
   if (existsSync(codexDir)) {
     const codexConfigPath = join(codexDir, 'config.toml');
     const expectedHookPath = resolveInstalledCodexHookPath(homeDir);
@@ -1272,6 +1273,9 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
         codexMissing = fenced.filter((a) => !existsSync(a.configFile)).length;
       }
       codexHookFenced = cfgText.includes(expectedHookPath);
+      if (codexHookFenced && /\[\[hooks\.PreToolUse\]\]/.test(cfgText)) {
+        codexHookEvents.push('PreToolUse');
+      }
     }
     try {
       codexStamp = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version;
@@ -1281,11 +1285,12 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
     log(`    fenced agents: ${codexFenced}`);
     log(`    hook bundle: ${codexHookInstalled ? 'present' : 'missing'}`);
     log(`    hook fence: ${codexHookFenced ? 'points to ~/.codex/hooks ✓' : 'missing/stale'}`);
+    log(`    hook events: ${codexHookEvents.length ? codexHookEvents.join(', ') : 'none'}`);
     if (codexMissing > 0) {
       log(`    ⚠ ${codexMissing} fenced agent(s) reference a missing .toml — run qe-framework-install to repair`);
     } else if (codexFenced > 0) {
       log('    all fenced agents resolve ✓');
     }
   }
-  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp, codexHookInstalled, codexHookFenced };
+  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp, codexHookInstalled, codexHookFenced, codexHookEvents };
 }

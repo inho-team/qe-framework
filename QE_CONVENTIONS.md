@@ -16,7 +16,7 @@ All skills, agents, and documents in this framework MUST use these standard term
 | Quality gate | **SIVS Loop** | ~~SVS Loop~~ | Inner quality gate within Execute/Verify steps |
 | Parallel execution group | **Wave** | ~~Swarm~~ | Independent items grouped for concurrent execution |
 | Parallel agent | **Teammate** | ~~Subagent~~ (internal only) | Haiku Teammate = Haiku-model agent in a Wave |
-| Spec generation skill | **Qgs** | Qgenerate-spec (internal full name) | User always sees `/Qgs` |
+| Spec generation skill | **Qgs** | Qgenerate-spec (internal full name) | Render as `/Qgs` in Claude and `$Qgs` in Codex |
 | Skill internal stages | **Step** | — | Step 1, Step 2, ... inside a skill |
 | Project roadmap stages | **Phase** | — | Phase 1, Phase 2, ... in `.qe/planning/` |
 | Parallel batch within Phase | **Wave** | — | Wave 1.1, Wave 1.2, ... within a Phase |
@@ -31,10 +31,10 @@ Codex:  $Qplan  →  $Qgs  →  $Qatomic-run  →  $Qcode-run-task
         Plan       Spec      Execute          Verify
 ```
 
-- **Plan**: Define roadmap, phases, requirements (`/Qplan`)
-- **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`/Qgs`)
-- **Execute**: Implement checklist items via Wave execution (`/Qatomic-run`)
-- **Verify**: Test → review → fix quality loop (`/Qcode-run-task`)
+- **Plan**: Define roadmap, phases, requirements (`Qplan`)
+- **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgs`)
+- **Execute**: Implement checklist items via Wave execution (`Qatomic-run`)
+- **Verify**: Test → review → fix quality loop (`Qcode-run-task`)
 
 ### SIVS Loop (inner quality gate)
 
@@ -66,11 +66,11 @@ PSE Chain (user workflow)
 
 | PSE Step | Skill | Role |
 |----------|-------|------|
-| Plan | `/Qplan` | Roadmap, phases, requirements |
-| Spec | `/Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
-| Execute | `/Qatomic-run` | Wave execution with Haiku Teammates (default) |
-| Execute | `/Qrun-task` | Sequential execution (fallback for non-atomic tasks) |
-| Verify | `/Qcode-run-task` | Test → review → fix quality loop |
+| Plan | `Qplan` | Roadmap, phases, requirements |
+| Spec | `Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
+| Execute | `Qatomic-run` | Wave execution with Haiku Teammates (default) |
+| Execute | `Qrun-task` | Sequential execution (fallback for non-atomic tasks) |
+| Verify | `Qcode-run-task` | Test → review → fix quality loop |
 
 ---
 
@@ -87,6 +87,10 @@ prefix is client-specific.
 All handoffs must render through the active-client prefix. Do not show a
 slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
 `$Q...`.
+
+Skill templates should use `{adapter.commandPrefix}Qskill` for user-visible
+handoffs. In a Codex session this means the final copyable command MUST start
+with `$`, not `/`.
 
 Codex compatibility is handled through the QE client adapter: Claude uses Agent
 tool delegation, while Codex uses native subagents when available and preserves
@@ -130,7 +134,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 구현 코드의 테스트 및 품질 검증
-Next: /Qcode-run-task a1b2c3d4
+Next: {adapter.commandPrefix}Qcode-run-task a1b2c3d4
 ```
 
 ### Non-code Task Complete Example
@@ -145,7 +149,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
 Codex CLI 브릿지 연동 및 fallback 로직 구현
-다음: /Qgs sivs-migration: Codex Bridge
+다음: {adapter.commandPrefix}Qgs sivs-migration: Codex Bridge
 ```
 (Note 1: the `{slug} · ` prefix identifies which plan this belongs to, enabling multi-terminal parallelism. Legacy flat-file projects omit the prefix and use `Phase N: …` as the address.)
 (Note 2: `Next:` label above is shown in Korean as `다음:` because the task description is in Korean. Always localize the label to match user input language.)
@@ -161,7 +165,7 @@ Roadmap
 
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
-All phases done. Finalize with /Qcommit
+All phases done. Finalize with {adapter.commandPrefix}Qcommit
 ```
 
 Codex finalization example:

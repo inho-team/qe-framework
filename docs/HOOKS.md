@@ -22,8 +22,8 @@ what they do, how they fail, and how to dial down their intervention.
 `hooks/hooks.json` defines the Claude-side lifecycle contract. Codex receives the
 same QE safety and routing contract through Codex-native assets installed under
 `~/.codex`: skills in `~/.codex/skills`, agents in `~/.codex/agents`, scripts in
-`~/.codex/scripts`, plus managed hook entries in `~/.codex/config.toml` pointing
-at the installed QE hook bundle.
+`~/.codex/scripts`, plus a managed native `PreToolUse` hook entry in
+`~/.codex/config.toml` pointing at the installed QE hook bundle.
 
 After installing or refreshing the Codex assets, run `/hooks` in Codex once and
 explicitly trust the QE hook bundle. Do not rely on hook-trust bypass as a normal
@@ -44,6 +44,13 @@ workflow; the supported path is explicit trust review.
 Codex hook block messages render Codex-native skill commands with the `$`
 prefix, for example `$Qcommit`, `$Qbranch`, and `$Mbump`. Claude hook block
 messages keep the Claude slash-command prefix.
+
+Important boundary: the Codex native hook currently registered by QE is
+`PreToolUse` for shell-like tools (`Bash`, `Shell`, `shell`, `exec_command`).
+It can block dangerous shell actions, but it cannot inspect ordinary assistant
+handoff text. A wrong Codex handoff such as `/Qgs ...` must therefore be
+prevented by skill templates, the interaction adapter, and regression checks,
+not by the hook.
 
 Codex HUD support is installed as `~/.codex/scripts/qe-hud.mjs`, a command proxy
 that renders the same HUD from project state for manual, shell-prompt, or

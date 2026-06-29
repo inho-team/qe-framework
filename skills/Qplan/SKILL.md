@@ -1,6 +1,6 @@
 ---
 name: Qplan
-description: "Planning skill for any task — from a single bug fix to a full project. Assesses scale automatically and creates the right level of plan. Does NOT implement code — hand off to /Qgs for spec generation."
+description: "Planning skill for any task — from a single bug fix to a full project. Assesses scale automatically and creates the right level of plan. Does NOT implement code — hand off to Qgs for spec generation."
 invocation_trigger: "When the user wants to plan any work — small fixes, single features, or full projects. Also when moving to the next phase."
 recommendedModel: opus
 tier: core
@@ -15,10 +15,10 @@ You are the planner. Your job is to understand what the user wants to do, create
 The QE framework enforces a strict chain. Each skill handles ONE step and guides the user to the next:
 
 ```
-/Qplan (PLAN) → /Qgs (SPEC) → /Qatomic-run (EXECUTE) → /Qcode-run-task (VERIFY)
+{adapter.commandPrefix}Qplan (PLAN) → {adapter.commandPrefix}Qgs (SPEC) → {adapter.commandPrefix}Qatomic-run (EXECUTE) → {adapter.commandPrefix}Qcode-run-task (VERIFY)
 ```
 
-**Your responsibility is PLAN only. You MUST NOT write code, invoke /Qgs, or invoke /Qatomic-run.**
+**Your responsibility is PLAN only. You MUST NOT write code, invoke `{adapter.commandPrefix}Qgs`, or invoke `{adapter.commandPrefix}Qatomic-run`.**
 
 ## Pre-check: QE Framework Initialization
 
@@ -31,19 +31,19 @@ Before starting planning, verify that the QE framework is set up:
 - **STOP** and display:
   ```
   ⚠️ QE framework is not initialized.
-  Please run /Qinit first to set up the project.
+  Please run {adapter.commandPrefix}Qinit first to set up the project.
 
-  /Qinit handles project info collection, auto-analysis, and SIVS engine configuration in one step.
+  Qinit handles project info collection, auto-analysis, and SIVS engine configuration in one step.
   ```
-- Do NOT proceed with planning. Wait for the user to run `/Qinit` first.
+- Do NOT proceed with planning. Wait for the user to run `{adapter.commandPrefix}Qinit` first.
 
 **If both exist**, proceed to Step 0.5.
 
 ### Step 0.5: Codex Plugin Version Check (Silent)
 
 If `.qe/sivs-config.json` exists and any stage uses `"codex"`, call `getCodexPluginInfo()` from `scripts/lib/codex_bridge.mjs`:
-- **Not installed**: Show warning: "Codex engine configured but codex-plugin-cc is not installed. Run `/Qupdate` to install, or stages will fallback to Claude."
-- **Installed but stale (>30 days)**: Show hint: "codex-plugin-cc v{version} installed {N} days ago. Run `/Qupdate` to check for updates."
+- **Not installed**: Show warning: "Codex engine configured but codex-plugin-cc is not installed. Run `{adapter.commandPrefix}Qupdate` to install, or stages will fallback to Claude."
+- **Installed but stale (>30 days)**: Show hint: "codex-plugin-cc v{version} installed {N} days ago. Run `{adapter.commandPrefix}Qupdate` to check for updates."
 - **Installed and fresh**: No output, proceed silently.
 
 If no sivs-config.json or all stages are Claude, skip this check entirely.
@@ -84,7 +84,7 @@ Determine the task scale:
 **Micro Plan** (estimated < 30 min of work):
 1. Confirm the task with the user in 1-2 lines.
 2. Skip roadmap, phases, and research — but still derive the slug (Step 0.6) and run Step 3.5 (Session Binding) so the HUD and consumer skills can find this plan.
-3. Go directly to handoff with `Next Command: /Qgs {slug}: {task}`.
+3. Go directly to handoff with `Next Command: {adapter.commandPrefix}Qgs {slug}: {task}`.
 
 **Small Plan** (one feature / one component):
 1. Brief discovery: ask 1-2 clarifying questions max.
@@ -120,7 +120,7 @@ Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:
 ### Step 3: Activate Phase & Hand Off (MANDATORY)
 - **Activate Phase**: Write `.qe/planning/plans/{slug}/STATE.md` with the active phase line `- **Active Phase**: Phase {N} — {PhaseName}`.
 - **Materialize goal ledger** (Full Planning — needs ROADMAP Waves): once ROADMAP + STATE exist, run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` then `… render-state --slug {slug}`. This derives an append-only `goals.json` + `ledger.jsonl` from the ROADMAP Waves and regenerates STATE.md's `## Phase Progress` from them — never hand-maintain that block.
-- **STOP HERE**: Do NOT invoke /Qgs or /Qatomic-run. You MUST display the full Handoff section below — including the `Next Command:` block. Without it, the user has no way to proceed.
+- **STOP HERE**: Do NOT invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qatomic-run`. You MUST display the full Handoff section below — including the `Next Command:` block. Without it, the user has no way to proceed.
 
 ### Step 3.5: Session Binding (MANDATORY — all scales)
 
@@ -148,7 +148,7 @@ See: docs/CLAUDE_CODE_FEATURES.md
 **If the user confirms they want to proceed with PSE**, continue to Step 4 and display the standard Handoff section.
 
 ### Step 4 (Post-Execution): Verification & Transition
-After execution is complete (by /Qatomic-run + /Qcode-run-task), review the results:
+After execution is complete (by `{adapter.commandPrefix}Qatomic-run` + `{adapter.commandPrefix}Qcode-run-task`), review the results:
 - **Gap Handling (Decimal Phase)**: If critical gaps or bugs remain, generate a **Decimal Phase** (e.g., Phase 1.1).
 - **Retrospective**: Before moving to the next whole phase, generate `.qe/planning/plans/{slug}/phases/{X}/RETROSPECTIVE.md`.
 - **Transition**: Move to the next phase only after all MUST-HAVEs, UAT items, and the Retro are done.
@@ -189,7 +189,7 @@ Plan:  {slug}
 Roadmap:  👉 Phase 1  →  ○ Phase 2  →  ○ Phase 3
           {Name1}        {Name2}        {Name3}
 
-PSE Chain:  ✅ /Qplan  →  👉 /Qgs  →  /Qatomic-run  →  /Qcode-run-task
+PSE Chain:  ✅ {adapter.commandPrefix}Qplan  →  👉 {adapter.commandPrefix}Qgs  →  {adapter.commandPrefix}Qatomic-run  →  {adapter.commandPrefix}Qcode-run-task
 ```
 
 ### Section 2: Plan Summary
@@ -223,14 +223,14 @@ PSE Chain:  ✅ /Qplan  →  👉 /Qgs  →  /Qatomic-run  →  /Qcode-run-task
 {Phase 한 줄 요약 — 사용자 입력 언어로}
 {다음 명령 라벨 — 사용자 입력 언어로, 예: "다음 명령:" / "Next Command:" / "次のコマンド:"}
 
-  /Qgs {slug}: {짧은 별칭}
+  {adapter.commandPrefix}Qgs {slug}: {짧은 별칭}
 ```
 
 **Rules:**
 - **`{slug}`는 Step 0.6에서 자동 생성한 이 plan의 식별자다.** Phase 번호가 아니라 slug가 1차 ID — Qgs/Qrun-task는 slug로 plan을 resolve한다.
 - `{짧은 별칭}`: 현재 Phase의 짧은 이름만 쓴다 (예: "인증 모듈", "JPA Audit"). Phase의 전체 설명/요구사항/긴 문장을 복사하지 않는다. 최대 6단어.
 - **라벨 언어는 사용자 입력 언어를 따른다**. 사용자가 한글로 말하면 "다음 명령:", 영어로 말하면 "Next Command:".
-- Fallback 줄(`If that doesn't work: /Qgenerate-spec ...`)은 **쓰지 않는다** — `/Qgs`는 `/Qgenerate-spec`의 공식 alias이므로 중복이다.
+- Fallback 줄(`If that doesn't work: {adapter.commandPrefix}Qgenerate-spec ...`)은 **쓰지 않는다** — `Qgs`는 `Qgenerate-spec`의 공식 alias이므로 중복이다.
 - 이 블록이 **응답의 마지막**이어야 한다. 뒤에 설명/대안 금지. **`Next Command` 블록 없이 응답이 끝나면 handoff 실패다.**
 
 ## Will
@@ -240,6 +240,6 @@ PSE Chain:  ✅ /Qplan  →  👉 /Qgs  →  /Qatomic-run  →  /Qcode-run-task
 
 ## Will Not
 - Write or modify source code.
-- Invoke /Qgs or /Qatomic-run directly.
+- Invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qatomic-run` directly.
 - Skip the handoff or bury the next command in prose.
 - End a response without the `Next Command:` block — this is a hard failure.

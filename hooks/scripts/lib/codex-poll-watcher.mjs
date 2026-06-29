@@ -101,7 +101,7 @@ function writeTimeoutSignal(elapsedSec) {
     timeout: true,
     timestamp: new Date().toISOString(),
     elapsedSec,
-    message: `No changes detected after ${Math.round(elapsedSec / 60)} minutes. Use AskUserQuestion to ask: (a) Extend +1h (b) Retry Codex (c) Fallback to Claude (d) Check process`,
+    message: `No changes detected after ${Math.round(elapsedSec / 60)} minutes. Use the QE interaction adapter to ask: (a) Extend +1h (b) Retry Codex (c) Fallback to Claude (d) Check process`,
   };
   writeFileSync(SIGNAL_FILE, JSON.stringify(signal, null, 2) + '\n', 'utf-8');
   log(`TIMEOUT signal written after ${elapsedSec}s`);

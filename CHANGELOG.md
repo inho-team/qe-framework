@@ -33,6 +33,9 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   installed `~/.codex/scripts/qe-hud.mjs` proxy, reusing the Claude HUD renderer
   for shell prompt, tmux status, or manual display even though Codex has no
   native `statusLine` hook.
+- QE interaction adapter contract and helpers now define client-specific command
+  rendering and choice handling, so Claude and Codex skills can share one
+  logical question schema while rendering `/Q...` or `$Q...` correctly.
 
 ## [7.4.0] - 2026-06-29
 
