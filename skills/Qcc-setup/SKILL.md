@@ -1,6 +1,6 @@
 ---
 name: Qcc-setup
-description: 'Sets up Claude Code and Codex shell aliases (cc, ccc, ccd, cx, cxd) for quick terminal launch. Supports macOS/Linux (zsh/bash) and Windows (PowerShell). Use when the user wants "claude shortcut", "codex shortcut", "cc alias", "cx alias", "shell alias setup", or "terminal shortcut".'
+description: 'Sets up Claude Code and Codex shell aliases (cc, ccc, ccd, cx, cxd, cxde) for quick terminal launch. Supports macOS/Linux (zsh/bash) and Windows (PowerShell). Use when the user wants "claude shortcut", "codex shortcut", "cc alias", "cx alias", "shell alias setup", or "terminal shortcut".'
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku
 ---
@@ -19,11 +19,13 @@ Registers shell aliases so users can launch Claude Code and Codex with short com
 | `ccc` | `claude --chrome` | Chrome browser integration mode |
 | `ccd` | `claude --dangerously-skip-permissions --chrome` | Skip permissions + Chrome integration |
 | `cx` | `codex` | Launch Codex |
-| `cxd` | `codex --dangerously-bypass-approvals-and-sandbox` | Skip all approvals + sandbox (Codex equivalent of `ccd`) |
+| `cxd` | `codex --dangerously-bypass-approvals-and-sandbox` | Skip all approvals + sandbox, interactive (Codex equivalent of `ccd`) |
+| `cxde` | `codex exec --dangerously-bypass-approvals-and-sandbox` | Same bypass, non-interactive (`codex exec`) — for scripts/automation |
 
 > Codex has no `--chrome` equivalent, so there is no `cxc`. The bypass flag is
 > `--dangerously-bypass-approvals-and-sandbox` (EXTREMELY DANGEROUS — only for externally
-> sandboxed environments). Confirm with the user before adding `cxd`.
+> sandboxed environments). `cxd` is the interactive TUI; `cxde` is the non-interactive
+> `codex exec` form for scripts/CI. Confirm with the user before adding `cxd`/`cxde`.
 
 ## Workflow
 
@@ -45,7 +47,7 @@ Registers shell aliases so users can launch Claude Code and Codex with short com
 
 #### Check for Existing Aliases
 1. Read the target config file
-2. Search for existing `alias cc=`, `alias ccc=`, `alias ccd=`, `alias cx=`, `alias cxd=` lines
+2. Search for existing `alias cc=`, `alias ccc=`, `alias ccd=`, `alias cx=`, `alias cxd=`, `alias cxde=` lines
 3. If any exist, inform the user and ask whether to overwrite or skip
 
 #### Append Aliases
@@ -59,6 +61,7 @@ alias ccd="claude --dangerously-skip-permissions --chrome"
 # Codex shortcuts
 alias cx="codex"
 alias cxd="codex --dangerously-bypass-approvals-and-sandbox"
+alias cxde="codex exec --dangerously-bypass-approvals-and-sandbox"
 ```
 
 For **fish** shell, use:
@@ -70,6 +73,7 @@ abbr -a ccd claude --dangerously-skip-permissions --chrome
 # Codex shortcuts
 abbr -a cx codex
 abbr -a cxd codex --dangerously-bypass-approvals-and-sandbox
+abbr -a cxde codex exec --dangerously-bypass-approvals-and-sandbox
 ```
 
 #### Apply
@@ -83,7 +87,7 @@ Run `source <config-file>` to apply immediately.
 
 #### Check for Existing Aliases
 1. Read the profile file
-2. Search for existing `function cc`, `function ccc`, `function ccd`, `function cx`, `function cxd` definitions
+2. Search for existing `function cc`, `function ccc`, `function ccd`, `function cx`, `function cxd`, `function cxde` definitions
 3. If any exist, inform the user and ask whether to overwrite or skip
 
 #### Append Functions
@@ -97,6 +101,7 @@ function ccd { claude --dangerously-skip-permissions --chrome $args }
 # Codex shortcuts
 function cx { codex $args }
 function cxd { codex --dangerously-bypass-approvals-and-sandbox $args }
+function cxde { codex exec --dangerously-bypass-approvals-and-sandbox $args }
 ```
 
 > Note: PowerShell `Set-Alias` cannot pass arguments, so `function` is used instead.
@@ -114,8 +119,9 @@ Claude Code & Codex shortcuts installed!
   cc  → claude
   ccc → claude --chrome
   ccd → claude --dangerously-skip-permissions --chrome
-  cx  → codex
-  cxd → codex --dangerously-bypass-approvals-and-sandbox
+  cx   → codex
+  cxd  → codex --dangerously-bypass-approvals-and-sandbox
+  cxde → codex exec --dangerously-bypass-approvals-and-sandbox
 
 Restart your terminal or run `source <config>` to apply.
 ```
