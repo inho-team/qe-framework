@@ -151,7 +151,7 @@ export function isCodexPluginAvailable() {
 /**
  * Get codex command for a given SIVS stage
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
- * @param {object} options - { model?: string, effort?: string, background?: boolean }
+ * @param {object} options - { model?: string, effort?: string, background?: boolean (ignored / foreground-only) }
  * @returns {object} { command: string, description: string }
  */
 export function getCodexCommand(stage, options = {}) {
@@ -186,9 +186,11 @@ export function getCodexCommand(stage, options = {}) {
   if (options.effort) {
     command += ` --effort ${options.effort}`;
   }
-  if (options.background) {
-    command += ' --background';
-  }
+  // [foreground-only] Codex background execution is disabled. Even when the
+  // background flag is provided, never emit --background; only synchronous
+  // foreground execution is allowed so stdout always returns to the conversation.
+  // Restore the old conditional block here if background mode is re-enabled.
+  void options.background;
 
   return { command, description };
 }

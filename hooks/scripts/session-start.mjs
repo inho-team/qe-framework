@@ -246,16 +246,14 @@ if (existsSync(stylePath) || existsSync(qeDir)) {
   );
 }
 
-// Inject the Codex Runtime Policy as a COMPACT POINTER. Codex run in the
-// background writes only to per-job log files and never streams into the
-// conversation — so the default is foreground, and any background run must be
-// retrieved before the turn ends. Full rule lives in QE_CONVENTIONS.md.
+// Inject the Codex Runtime Policy as a COMPACT POINTER. Codex background mode is
+// disabled; Codex must run foreground-only so stdout lands in the conversation.
+// Full rule lives in QE_CONVENTIONS.md.
 if (existsSync(conventionsPath) || existsSync(qeDir)) {
   messages.push(
-    '[QE CODEX RUNTIME] Run Codex (codex:codex-rescue, SIVS codex routing) in the FOREGROUND by ' +
-    'default so its stdout lands in the conversation — no --background for short tasks. ' +
-    'For long jobs only: run background, then surface output via /codex:status → ' +
-    '/codex:result <job-id> before ending the turn — never leave a Codex result unretrieved. ' +
+    '[QE CODEX RUNTIME] Run Codex (codex:codex-rescue, SIVS codex routing) in the FOREGROUND ONLY — ' +
+    'call it synchronously so its full stdout lands in the conversation. Background mode is DISABLED: ' +
+    'never pass --background, never poll for Codex results. Codex behaves like a blocking subagent. ' +
     'Full rule: QE_CONVENTIONS.md → Codex Runtime Policy.'
   );
 }
