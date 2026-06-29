@@ -300,7 +300,47 @@ test('(g) Codex agent renderer preserves metadata hints and escapes TOML strings
   assert.ok(content.includes('codex-inline-degrade'), 'compatibility note included');
 });
 
-test('(h) delegating PSE skills document Codex native and inline-degrade behavior', () => {
+test('(h) Codex skill install compacts long descriptions without changing source or body', (t) => {
+  const homeDir = makeCodexHome();
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-skill-compact-repo-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  const skillDir = path.join(repoRoot, 'skills', 'Qlong-skill');
+  fs.mkdirSync(skillDir, { recursive: true });
+  const sourceSkill = [
+    '---',
+    'name: Qlong-skill',
+    'description: This skill has a deliberately verbose description with many implementation details, routing hints, examples, caveats, distinctions from adjacent skills, and extra prose that would otherwise consume too much Codex skill context budget. Use when testing Codex skill installer compaction, validating context budget behavior, or preserving routing triggers while shortening metadata.',
+    '---',
+    '',
+    '# Qlong-skill',
+    '',
+    'Body content must remain intact.',
+    '',
+  ].join('\n');
+  fs.writeFileSync(path.join(skillDir, 'SKILL.md'), sourceSkill, 'utf8');
+
+  const logs = [];
+  installCodexAssets({ repoRoot, homeDir, log: (line) => logs.push(line), syncManifest: false });
+
+  const installed = fs.readFileSync(path.join(homeDir, '.codex', 'skills', 'Qlong-skill', 'SKILL.md'), 'utf8');
+  const sourceAfter = fs.readFileSync(path.join(skillDir, 'SKILL.md'), 'utf8');
+  const desc = installed.match(/^description:\s*(.+)$/m)?.[1] || '';
+
+  assert.equal(sourceAfter, sourceSkill, 'source skill is unchanged');
+  assert.ok(desc.length <= 235, 'installed description line is compact');
+  assert.ok(desc.includes('Use when testing Codex skill installer compaction'), 'routing trigger is preserved');
+  assert.ok(installed.includes('Body content must remain intact.'), 'skill body is preserved');
+  assert.ok(
+    logs.includes('[codex-install] compacted 1 Codex skill description(s) for context budget.'),
+    'compaction log emitted',
+  );
+});
+
+test('(i) delegating PSE skills document Codex native and inline-degrade behavior', () => {
   const qcommit = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcommit', 'SKILL.md'), 'utf8');
   const qcodeRunTask = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcode-run-task', 'SKILL.md'), 'utf8');
   const qcriticalReview = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcritical-review', 'SKILL.md'), 'utf8');

@@ -92,13 +92,15 @@ The execution engine that runs inside Execute and Verify steps:
 | **Verify** | Validation (no coding) | `VERIFY_CHECKLIST.md` |
 | **Supervise** | Quality gate + approval | `SUPERVISION_REPORT.md` |
 
-**Engine Routing** — each stage independently routes to Claude (default) or Codex:
+**Engine Routing** — each stage independently routes to Claude or Codex. Without
+Codex, all stages use Claude. When Codex is available, Implement and Verify
+prefer Codex by default while Spec and Supervise stay Claude-led:
 
 ```json
 {
   "spec":      { "engine": "claude" },
   "implement": { "engine": "codex", "model": "gpt-5.4", "effort": "high" },
-  "verify":    { "engine": "claude" },
+  "verify":    { "engine": "codex", "background": true },
   "supervise": { "engine": "claude" }
 }
 ```
@@ -155,10 +157,10 @@ Auto-refreshed when `/Qrefresh` runs.
 
 ## Provider Routing
 
-### Default (Claude-only)
-- All SIVS stages use Claude
-- No external dependencies
-- Full functionality out of the box
+### Defaults
+- Without Codex: all SIVS stages use Claude.
+- With Codex: Spec/Supervise stay Claude-led; Implement/Verify prefer Codex.
+- Explicit `.qe/sivs-config.json` entries override the environment-aware defaults.
 
 ### Codex Paths
 - Claude base -> Codex engine uses the `codex-plugin-cc` bridge.

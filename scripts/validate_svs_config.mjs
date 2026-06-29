@@ -2,21 +2,15 @@
 
 import fs from 'fs';
 import path from 'path';
+import { getDefaultSivsConfig } from './lib/codex_bridge.mjs';
 
 const CONFIG_PATH = path.join(process.cwd(), '.qe', 'sivs-config.json');
 const LEGACY_CONFIG_PATH = path.join(process.cwd(), '.qe', 'svs-config.json');
 
-const DEFAULTS = {
-  spec: { engine: 'claude' },
-  implement: { engine: 'claude' },
-  verify: { engine: 'claude' },
-  supervise: { engine: 'claude' }
-};
-
 const ALLOWED_ENGINES = ['claude', 'codex'];
 const ALLOWED_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
 const ALLOWED_TOP_LEVEL_KEYS = new Set(['spec', 'implement', 'verify', 'supervise']);
-const ALLOWED_STAGE_KEYS = new Set(['engine', 'model', 'effort', 'compaction']);
+const ALLOWED_STAGE_KEYS = new Set(['engine', 'model', 'effort', 'background', 'compaction']);
 
 /**
  * Validate configuration object against SIVS schema
@@ -46,7 +40,7 @@ function validateConfig(config) {
       // Check allowed keys in stage
       for (const key of Object.keys(stageConfig)) {
         if (!ALLOWED_STAGE_KEYS.has(key)) {
-          errors.push(`${stage}.${key} is not allowed. Allowed: engine, model, effort`);
+          errors.push(`${stage}.${key} is not allowed. Allowed: engine, model, effort, background, compaction`);
         }
       }
 
@@ -68,6 +62,13 @@ function validateConfig(config) {
       if (stageConfig.effort !== undefined) {
         if (!ALLOWED_EFFORTS.includes(stageConfig.effort)) {
           errors.push(`${stage}.effort must be one of [${ALLOWED_EFFORTS.join(', ')}], got "${stageConfig.effort}"`);
+        }
+      }
+
+      // Validate background
+      if (stageConfig.background !== undefined) {
+        if (typeof stageConfig.background !== 'boolean') {
+          errors.push(`${stage}.background must be a boolean, got ${typeof stageConfig.background}`);
         }
       }
 
@@ -107,12 +108,14 @@ function validateConfig(config) {
  * Merge user config with defaults
  */
 function resolveConfig(config) {
+  const defaults = getDefaultSivsConfig();
   const resolved = {};
   for (const stage of ['spec', 'implement', 'verify', 'supervise']) {
     resolved[stage] = {
-      engine: config[stage]?.engine ?? DEFAULTS[stage].engine,
+      engine: config[stage]?.engine ?? defaults[stage].engine,
       ...(config[stage]?.model && { model: config[stage].model }),
-      ...(config[stage]?.effort && { effort: config[stage].effort })
+      ...(config[stage]?.effort && { effort: config[stage].effort }),
+      ...(config[stage]?.background !== undefined && { background: config[stage].background })
     };
   }
   return resolved;
@@ -132,6 +135,9 @@ function formatConfig(config) {
     }
     if (stageConfig.effort) {
       details.push(`effort: ${stageConfig.effort}`);
+    }
+    if (stageConfig.background !== undefined) {
+      details.push(`background: ${stageConfig.background}`);
     }
     if (details.length > 0) {
       line += ` (${details.join(', ')})`;

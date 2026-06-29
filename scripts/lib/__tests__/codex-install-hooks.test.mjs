@@ -69,6 +69,54 @@ test('repeated install keeps exactly one hooks fence and one PreToolUse block', 
   assert.equal(countNeedle(config, '[[hooks.PreToolUse.hooks]]'), 1, 'one nested PreToolUse hook block after reinstall twice');
 });
 
+test('install migrates deprecated codex_hooks feature flag', (t) => {
+  const homeDir = makeCodexHome([
+    '[features]',
+    'codex_hooks = true',
+    '',
+  ].join('\n'));
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+  const logs = [];
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: (line) => logs.push(line), syncManifest: false });
+
+  const config = readConfig(homeDir);
+  assert.ok(config.includes('[features]'), 'features table preserved');
+  assert.ok(config.includes('hooks = true'), 'new hooks feature flag present');
+  assert.ok(!config.includes('codex_hooks'), 'deprecated codex_hooks flag removed');
+  assert.ok(
+    logs.includes('[codex-install] migrated deprecated [features].codex_hooks to [features].hooks.'),
+    'migration log emitted',
+  );
+});
+
+test('install removes deprecated codex_hooks when hooks feature flag already exists', (t) => {
+  const homeDir = makeCodexHome([
+    '[features]',
+    'hooks = true',
+    'codex_hooks = false',
+    '',
+  ].join('\n'));
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  const config = readConfig(homeDir);
+  assert.equal(countNeedle(config, 'hooks = true'), 1, 'existing hooks feature flag preserved once');
+  assert.ok(!config.includes('codex_hooks'), 'deprecated codex_hooks flag removed');
+});
+
+test('install migrates deprecated dotted codex_hooks feature flag', (t) => {
+  const homeDir = makeCodexHome('features.codex_hooks = true\n');
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  const config = readConfig(homeDir);
+  assert.ok(config.includes('features.hooks = true'), 'new dotted hooks feature flag present');
+  assert.ok(!config.includes('features.codex_hooks'), 'deprecated dotted codex_hooks flag removed');
+});
+
 test('cleanup removes only QE hooks fence and preserves user config sections', (t) => {
   const preExistingConfig = [
     'model = "gpt-5"',

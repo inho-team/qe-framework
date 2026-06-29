@@ -90,7 +90,7 @@ Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy ver
       },
       {
         "label": "Claude + Codex Hybrid",
-        "description": "단계별 엔진을 선택합니다. codex-plugin-cc 필요."
+        "description": "Spec/Supervise는 Claude 주도, Implement/Verify는 Codex 선호. codex-plugin-cc 필요."
       },
       {
         "label": "나중에 설정",
@@ -114,19 +114,19 @@ Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy ver
 2. For each SIVS stage, ask through the interaction adapter to select engine:
 
    **Spec Stage**: "Select engine for Spec stage"
-   - Claude (Recommended) — Claude generates spec document
+   - Claude (Recommended) — Claude generates spec document and may delegate bounded repo search/context gathering to Codex
    - Codex — Codex generates spec via `/codex:rescue`
 
    **Implement Stage**: "Select engine for Implement stage"
-   - Claude (Recommended) — Claude agent implements changes
-   - Codex — Codex implements via `/codex:rescue --write`
+   - Codex (Recommended) — Codex implements via `/codex:rescue --write`
+   - Claude — Claude agent implements changes
 
    **Verify Stage**: "Select engine for Verify stage"
-   - Claude (Recommended) — Claude validates implementation results
-   - Codex — Codex verifies via `/codex:rescue --verify`
+   - Codex (Recommended) — Codex verifies via `/codex:rescue --verify`
+   - Claude — Claude validates implementation results
 
    **Supervise Stage**: "Select engine for Supervise stage"
-   - Claude (Recommended) — Claude domain supervisor reviews
+   - Claude (Recommended) — Claude domain supervisor reviews and may ask Codex for a bounded second opinion
    - Codex — Codex reviews via `/codex:review`
 
 3. Create `.qe/sivs-config.json` based on selections:
@@ -134,13 +134,14 @@ Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy ver
    {
      "spec": { "engine": "claude" },
      "implement": { "engine": "codex" },
-     "verify": { "engine": "claude" },
+     "verify": { "engine": "codex" },
      "supervise": { "engine": "claude" }
    }
    ```
 4. If Codex is selected for any stage, ask additional questions:
    - **Model** (Optional): Specify Codex model (default: not set → use codex-plugin-cc default)
    - **Effort** (Optional): Reasoning effort level (`low` / `medium` / `high` / `xhigh`, default: not set)
+   - **Background** (Optional): `true` for long Implement/Verify jobs. If enabled, the session must retrieve results with `/codex:status` and `/codex:result <job-id>` before final reporting.
 5. Validate the generated configuration by running the framework validator from the plugin root (the `qe:validate` npm script only exists inside the framework repo, **not** in the target project — invoking it via the plugin path validates the project's `.qe/sivs-config.json` from any cwd):
    ```bash
    node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"

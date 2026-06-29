@@ -13,6 +13,11 @@ A CLI-style skill for viewing and modifying `.qe/sivs-config.json`.
 Allows quick changes to which engine (claude/codex) handles each SIVS stage,
 with optional model and effort overrides.
 
+Default routing is environment-aware: without Codex, all stages run on Claude;
+with Codex available, Spec and Supervise stay Claude-led while Implement and
+Verify prefer Codex to reduce Claude session token pressure. Explicit
+`.qe/sivs-config.json` entries override those defaults stage-by-stage.
+
 > **Note — verification gates are always on.** This config only chooses the
 > *engine* per stage. The mandatory **stage verification gates** (the
 > self-reference defense; PHILOSOPHY.md Mandatory Obligation #8) run regardless of
@@ -52,6 +57,7 @@ Parse the user's input after `/Qsivs-config` as positional and flag arguments:
 |------|-------------|---------|
 | `--model <name>` | Set model override | `--model gpt-5.4` |
 | `--effort <level>` | Set effort level (low/medium/high/max/xhigh) | `--effort high` |
+| `--background <true|false>` | For Codex stages, allow background mode | `--background true` |
 | `--all` | Apply to all stages (with `set` or `reset`) | `reset --all` |
 
 ## Execution Procedure
@@ -74,7 +80,7 @@ SIVS Engine Routing (.qe/sivs-config.json)
   Stage        Engine   Model          Effort
   spec         claude   -              -
   implement    codex    gpt-5.4        high
-  verify       claude   -              -
+  verify       codex    -              -
   supervise    claude   -              -
 
 Codex plugin: installed (v1.2.3)
@@ -95,6 +101,7 @@ If any stage uses codex but plugin is not installed, append:
    - If engine provided: set `{stage}.engine`
    - If `--model` provided: set `{stage}.model`
    - If `--effort` provided: set `{stage}.effort`
+   - If `--background` provided: set `{stage}.background`
    - If `--all`: apply to all 4 stages
 6. Write `.qe/sivs-config.json`
 7. Display the updated config (same format as `show`)
@@ -103,6 +110,7 @@ If any stage uses codex but plugin is not installed, append:
 ```
 /Qsivs-config set implement codex              # implement -> codex
 /Qsivs-config set implement codex --model gpt-5.4 --effort high
+/Qsivs-config set verify codex --background true
 /Qsivs-config set spec claude                  # spec -> claude
 /Qsivs-config set --all codex --effort medium  # all stages -> codex
 ```
@@ -123,7 +131,7 @@ treat it as an implicit `set`:
 **Examples:**
 ```
 /Qsivs-config reset implement     # reset implement to default
-/Qsivs-config reset --all         # delete config, all stages -> claude default
+/Qsivs-config reset --all         # delete config, use environment-aware defaults
 ```
 
 ### Step HELP: Display usage guide
@@ -146,10 +154,12 @@ Engines: claude | codex
 Options:
   --model <name>     Model override (e.g., gpt-5.4, gpt-5-codex-mini)
   --effort <level>   Reasoning effort: low | medium | high | xhigh
+  --background <bool> Codex background mode: true | false
   --all              Apply to all stages
 
 Examples:
   /Qsivs-config implement codex --model gpt-5.4 --effort high
+  /Qsivs-config verify codex --background true
   /Qsivs-config set --all claude
   /Qsivs-config reset --all
   /Qsivs-config spec claude
@@ -166,13 +176,14 @@ Schema:      core/schemas/svs-config.schema.json
 
 ## Validation Rules
 - Stage must be one of: `spec`, `implement`, `verify`, `supervise`
-  - **Stage options:** `engine`, `model`, `effort`, `compaction`
+  - **Stage options:** `engine`, `model`, `effort`, `background`, `compaction`
 - Engine must be one of: `claude`, `codex`
 - Effort must be one of: `low`, `medium`, `high`, `max`, `xhigh`
   - `low` / `medium` / `high` — Both Claude and Codex
   - `max` — Claude only (maps to Codex `xhigh` automatically)
   - `xhigh` — Codex only (maps to Claude `max` automatically)
 - Model must be a non-empty string
+- Background must be boolean (`true` or `false`) and only affects Codex routing
 - On invalid input, show the error and print `--help` output
 - If setting engine to `codex`, check `isCodexPluginAvailable()` and warn if not installed (but still save the config)
 

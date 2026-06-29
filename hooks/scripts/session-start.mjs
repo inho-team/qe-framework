@@ -246,14 +246,15 @@ if (existsSync(stylePath) || existsSync(qeDir)) {
   );
 }
 
-// Inject the Codex Runtime Policy as a COMPACT POINTER. Codex background mode is
-// disabled; Codex must run foreground-only so stdout lands in the conversation.
-// Full rule lives in QE_CONVENTIONS.md.
+// Inject the Codex Runtime Policy as a COMPACT POINTER. Codex is preferred for
+// token-heavy implementation/verification when available; background is allowed
+// only with explicit result retrieval. Full rule lives in QE_CONVENTIONS.md.
 if (existsSync(conventionsPath) || existsSync(qeDir)) {
   messages.push(
-    '[QE CODEX RUNTIME] Run Codex (codex:codex-rescue, SIVS codex routing) in the FOREGROUND ONLY — ' +
-    'call it synchronously so its full stdout lands in the conversation. Background mode is DISABLED: ' +
-    'never pass --background, never poll for Codex results. Codex behaves like a blocking subagent. ' +
+    '[QE CODEX RUNTIME] Prefer Codex for SIVS Implement/Verify and bounded repo search when available; ' +
+    'keep Spec/Supervise Claude-led unless explicitly routed otherwise. Use foreground for short Codex tasks. ' +
+    'For long Codex jobs, --background is allowed only if you retrieve results with /codex:status and ' +
+    '/codex:result <job-id> before final reporting. Keep Codex output concise: files, lines, summary, next action. ' +
     'Full rule: QE_CONVENTIONS.md → Codex Runtime Policy.'
   );
 }

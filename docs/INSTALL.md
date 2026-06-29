@@ -78,7 +78,11 @@ asset, is left untouched. Empty directories are pruned.
 Codex install and hook behavior is covered by temp-HOME tests:
 `scripts/lib/__tests__/codex-install.test.mjs` and
 `scripts/lib/__tests__/codex-install-hooks.test.mjs`. These tests also preserve
-user-authored `mcp_servers` and project config outside QE-managed fences.
+user-authored `mcp_servers` and project config outside QE-managed fences. During
+install, any deprecated `[features].codex_hooks` setting in `~/.codex/config.toml`
+is migrated to `[features].hooks` to avoid Codex startup warnings. Codex skill
+copies also compact long frontmatter descriptions while preserving the skill body,
+so Codex spends less of its skills context budget on metadata.
 
 ## Not yet: `--profile minimal|full`
 

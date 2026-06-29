@@ -42,15 +42,14 @@ Command rendering rules:
 
 ## SIVS Engine Routing
 
-Before executing the spec generation workflow, check if SIVS engine configuration exists:
+Before executing the spec generation workflow, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. Check `spec.engine` value:
-   - **`"claude"` (default)**: Proceed with the standard workflow below. No changes.
+2. Call `resolveEngine("spec", config)`.
+   - **`"claude"` (default)**: Proceed with the standard workflow below. Claude owns the spec, but may delegate bounded repo search/context gathering to Codex when useful.
    - **`"codex"`**: Delegate spec generation to Codex via codex-plugin-cc:
-     1. Call `resolveEngine("spec", config)` to check availability.
-     2. If codex-plugin-cc is available: invoke `/codex:rescue` with the project context and task description as input. Parse the returned spec into TASK_REQUEST and VERIFY_CHECKLIST format.
-     3. If codex-plugin-cc is NOT available: show warning message and fallback to Claude (standard workflow).
+     1. If codex-plugin-cc is available: invoke the returned command with the project context and task description as input. Parse the returned spec into TASK_REQUEST and VERIFY_CHECKLIST format.
+     2. If codex-plugin-cc is NOT available: show warning message and fallback to Claude (standard workflow).
 3. Check for legacy config: call `detectLegacyConfig()`. If non-null, display the migration warning to the user before proceeding.
 
 **Codex Spec Delegation Format:**

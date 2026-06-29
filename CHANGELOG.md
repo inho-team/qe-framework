@@ -17,9 +17,26 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- Environment-aware SIVS Codex defaults: when Codex is available, Implement and
+  Verify now prefer Codex while Spec and Supervise stay Claude-led. The runtime
+  policy also allows configurable Codex background mode for long Implement/Verify
+  jobs, with mandatory result retrieval before final reporting.
+- `Qsivs-config` now accepts a per-stage `background` option and documents the
+  Codex-assisted Spec/Supervise pattern for token-heavy Claude sessions.
+- `Qcc-setup` documents a `cxde` shortcut for non-interactive `codex exec` with
+  the same explicit bypass mode as `cxd`.
+
 ### Changed
 
+- SIVS execution guidance now resolves routing through `resolveEngine()` instead
+  of assuming static Claude defaults, so Codex-capable sessions receive Codex
+  delegation hints for Implement/Verify even without an explicit config file.
+
 ### Fixed
+
+- Codex asset installation migrates deprecated `[features].codex_hooks` config
+  keys to `[features].hooks`, preventing repeated Codex startup warnings while
+  preserving user-authored config outside QE-managed fences.
 
 ### Removed
 

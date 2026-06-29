@@ -9,7 +9,9 @@ import {
   DELEGATION_TRUNCATION_MARKER,
   buildDelegationContext,
   buildDelegationPayload,
+  getDefaultSivsConfig,
   getCodexCommand,
+  resolveEngine,
 } from '../codex_bridge.mjs';
 
 function fixtureDir() {
@@ -86,6 +88,53 @@ test('delegation payload keeps command shape and includes artifact context', () 
   assert.match(payload.context, /payload task body/);
   assert.equal(payload.warnings.length, 0);
   assert.equal(payload.artifacts.length, 1);
+});
+
+test('codex command emits background flag when requested', () => {
+  assert.equal(
+    getCodexCommand('implement', { background: true }).command,
+    '/codex:rescue --write --background'
+  );
+});
+
+test('default SIVS config keeps Claude-only when Codex is unavailable', () => {
+  assert.deepEqual(getDefaultSivsConfig({ codexAvailable: false }), {
+    spec: { engine: 'claude' },
+    implement: { engine: 'claude' },
+    verify: { engine: 'claude' },
+    supervise: { engine: 'claude' },
+  });
+});
+
+test('default SIVS config prefers Codex for implement and verify when available', () => {
+  assert.deepEqual(getDefaultSivsConfig({ codexAvailable: true }), {
+    spec: { engine: 'claude' },
+    implement: { engine: 'codex' },
+    verify: { engine: 'codex' },
+    supervise: { engine: 'claude' },
+  });
+});
+
+test('resolveEngine applies Codex-aware defaults and preserves explicit overrides', () => {
+  assert.equal(resolveEngine('implement', {}, { codexAvailable: true }).engine, 'codex');
+  assert.equal(resolveEngine('verify', {}, { codexAvailable: true }).engine, 'codex');
+  assert.equal(resolveEngine('spec', {}, { codexAvailable: true }).engine, 'claude');
+  assert.equal(resolveEngine('supervise', {}, { codexAvailable: true }).engine, 'claude');
+  assert.equal(resolveEngine('implement', {}, { codexAvailable: false }).engine, 'claude');
+  assert.deepEqual(resolveEngine('implement', { implement: { engine: 'claude' } }, { codexAvailable: true }), {
+    engine: 'claude',
+  });
+});
+
+test('resolveEngine carries Codex background config into commands', () => {
+  const result = resolveEngine(
+    'verify',
+    { verify: { engine: 'codex', background: true, effort: 'high' } },
+    { codexAvailable: true }
+  );
+
+  assert.equal(result.engine, 'codex');
+  assert.equal(result.command.command, '/codex:rescue --verify --effort high --background');
 });
 
 test('audit metadata record has artifact list and byte counts but no body content', () => {

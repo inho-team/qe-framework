@@ -42,6 +42,11 @@
           "enum": ["low", "medium", "high", "xhigh", "max"],
           "description": "Reasoning effort level (Claude: low/medium/high/max, Codex: low/medium/high/xhigh)"
         },
+        "background": {
+          "type": "boolean",
+          "default": false,
+          "description": "For Codex stages, run through codex-plugin-cc background mode and retrieve results with /codex:status and /codex:result"
+        },
         "compaction": {
           "type": "object",
           "additionalProperties": false,

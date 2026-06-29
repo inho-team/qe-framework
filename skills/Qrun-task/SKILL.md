@@ -39,18 +39,17 @@ Execute tasks based on spec documents. This is a **secondary execution engine** 
 
 ## SIVS Engine Routing
 
-Before executing task items, check SIVS engine configuration:
+Before executing task items, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. Check `implement.engine` value for the **Implement** stage (actual coding):
-   - **`"claude"` (default)**: Proceed with the standard execution workflow. No changes.
+2. Call `resolveEngine("implement", config)` for the **Implement** stage (actual coding). If Codex is installed and no explicit config overrides it, Implement resolves to Codex by default.
+   - **`"claude"`**: Proceed with the standard execution workflow. No changes.
    - **`"codex"`**: Delegate implementation to Codex via codex-plugin-cc:
-     1. Call `resolveEngine("implement", config)` to check availability.
-     2. If available: invoke `/codex:rescue` with `--write` flag, passing the TASK_REQUEST checklist items as the task description. Codex will modify files directly.
-     3. If NOT available: show warning and fallback to Claude execution.
-3. Check `verify.engine` value for the **Verify** stage (validation only):
-   - **`"claude"` (default)**: Claude validates implementation results against VERIFY_CHECKLIST.
-   - **`"codex"`**: Codex validates via `/codex:rescue --verify`.
+     1. Invoke the returned command (normally `/codex:rescue --write`, plus configured flags), passing the TASK_REQUEST checklist items as the task description. Codex will modify files directly.
+     2. If NOT available: show warning and fallback to Claude execution.
+3. Call `resolveEngine("verify", config)` for the **Verify** stage (validation only). If Codex is installed and no explicit config overrides it, Verify resolves to Codex by default.
+   - **`"claude"`**: Claude validates implementation results against VERIFY_CHECKLIST.
+   - **`"codex"`**: Codex validates via the returned command (normally `/codex:rescue --verify`).
 4. Check for legacy config: call `detectLegacyConfig()`. If non-null, display migration warning.
 
 **Codex Implement Delegation:**

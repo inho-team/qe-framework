@@ -394,6 +394,69 @@ function stripQeHooksFence(text) {
 }
 
 /**
+ * Codex renamed [features].codex_hooks to [features].hooks. Migrate the user
+ * config in-place during install so repeated sessions do not emit deprecation
+ * warnings. If both keys exist, keep hooks and remove the deprecated key.
+ */
+function migrateDeprecatedCodexHookFeature(text) {
+  const lines = text.split(/\r?\n/);
+  let inFeatures = false;
+  let featureHooksPresent = false;
+  let featureCodexHooksIndex = -1;
+  let dottedHooksPresent = false;
+  let dottedCodexHooksIndex = -1;
+
+  for (let i = 0; i < lines.length; i++) {
+    const trimmed = lines[i].trim();
+    if (/^\[[^\]]+\]/.test(trimmed)) {
+      inFeatures = trimmed === '[features]';
+    }
+
+    if (inFeatures && /^\s*hooks\s*=/.test(lines[i])) {
+      featureHooksPresent = true;
+    } else if (inFeatures && /^\s*codex_hooks\s*=/.test(lines[i])) {
+      featureCodexHooksIndex = i;
+    } else if (/^\s*features\.hooks\s*=/.test(lines[i])) {
+      dottedHooksPresent = true;
+    } else if (/^\s*features\.codex_hooks\s*=/.test(lines[i])) {
+      dottedCodexHooksIndex = i;
+    }
+  }
+
+  let changed = false;
+  const removeIndexes = [];
+  if (featureCodexHooksIndex !== -1) {
+    if (featureHooksPresent) {
+      removeIndexes.push(featureCodexHooksIndex);
+    } else {
+      lines[featureCodexHooksIndex] = lines[featureCodexHooksIndex].replace(
+        /^(\s*)codex_hooks(\s*=)/,
+        '$1hooks$2',
+      );
+    }
+    changed = true;
+  }
+
+  if (dottedCodexHooksIndex !== -1) {
+    if (dottedHooksPresent) {
+      removeIndexes.push(dottedCodexHooksIndex);
+    } else {
+      lines[dottedCodexHooksIndex] = lines[dottedCodexHooksIndex].replace(
+        /^(\s*)features\.codex_hooks(\s*=)/,
+        '$1features.hooks$2',
+      );
+    }
+    changed = true;
+  }
+
+  for (const index of removeIndexes.sort((a, b) => b - a)) {
+    lines.splice(index, 1);
+  }
+
+  return { text: lines.join('\n'), changed };
+}
+
+/**
  * Remove orphaned QE assets from ~/.codex during uninstall.
  *
  * Safety contract:
@@ -790,6 +853,81 @@ function renderCodexHooksConfigBlock(entryPath) {
   ].join('\n');
 }
 
+const CODEX_SKILL_DESCRIPTION_MAX = 220;
+
+function normalizeSkillDescription(value) {
+  return value
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/\\"/g, '"')
+    .replace(/\\'/g, "'")
+    .replace(/\s+/g, ' ');
+}
+
+function truncateDescription(value, maxLength = CODEX_SKILL_DESCRIPTION_MAX) {
+  if (value.length <= maxLength) return value;
+  const clipped = value.slice(0, Math.max(0, maxLength - 1));
+  const boundary = clipped.search(/\s+\S*$/);
+  return `${clipped.slice(0, boundary > 80 ? boundary : clipped.length).trimEnd()}…`;
+}
+
+function compactSkillDescriptionForCodex(description) {
+  const normalized = normalizeSkillDescription(description);
+  if (normalized.length <= CODEX_SKILL_DESCRIPTION_MAX) return normalized;
+
+  const triggerMatch = normalized.match(/\b(Use when|Use for|Invoke for|Trigger phrases:)\b/i);
+  if (!triggerMatch) return truncateDescription(normalized);
+
+  const summary = truncateDescription(
+    normalized.slice(0, triggerMatch.index).replace(/\s*(Distinct from|Complements|Supports)\b.*$/i, '').trim(),
+    100,
+  );
+  const trigger = truncateDescription(normalized.slice(triggerMatch.index), CODEX_SKILL_DESCRIPTION_MAX - summary.length - 1);
+  return truncateDescription(`${summary} ${trigger}`);
+}
+
+function compactCodexSkillMarkdown(markdown) {
+  if (!markdown.startsWith('---\n')) return { markdown, changed: false };
+  const end = markdown.indexOf('\n---', 4);
+  if (end === -1) return { markdown, changed: false };
+
+  const frontmatter = markdown.slice(4, end);
+  const nextFrontmatter = frontmatter.replace(/^description:\s*(.+)$/m, (line, rawDescription) => {
+    const compact = compactSkillDescriptionForCodex(rawDescription);
+    if (normalizeSkillDescription(rawDescription) === compact) return line;
+    return `description: ${JSON.stringify(compact)}`;
+  });
+
+  if (nextFrontmatter === frontmatter) return { markdown, changed: false };
+  return { markdown: `---\n${nextFrontmatter}${markdown.slice(end)}`, changed: true };
+}
+
+function copyCodexSkillDirectory(src, dest) {
+  let compacted = 0;
+  let stat;
+  try { stat = lstatSync(src); } catch { return compacted; }
+  if (stat.isSymbolicLink()) return compacted;
+  if (stat.isDirectory()) {
+    ensureDir(dest);
+    let entries = [];
+    try { entries = readdirSync(src); } catch {}
+    for (const entry of entries) {
+      compacted += copyCodexSkillDirectory(join(src, entry), join(dest, entry));
+    }
+    return compacted;
+  }
+
+  ensureDir(dirname(dest));
+  if (src.endsWith(`${sep}SKILL.md`)) {
+    const source = readFileSync(src, 'utf8');
+    const result = compactCodexSkillMarkdown(source);
+    writeFileSync(dest, result.markdown, 'utf8');
+    return result.changed ? 1 : 0;
+  }
+  copyFileSync(src, dest);
+  return compacted;
+}
+
 /**
  * Synchronise the codex-cleanup-manifest.json to include every skill name
  * currently in the repo `skills/` directory. Union with existing entries,
@@ -910,6 +1048,7 @@ export function installCodexAssets({
 
   // ----- Skills -----
   let skillCount = 0;
+  let compactedSkillDescriptions = 0;
   if (existsSync(skillsSrcDir)) {
     ensureDir(codexSkillsDir);
     let entries = [];
@@ -924,11 +1063,14 @@ export function installCodexAssets({
       // cleanupCodexAssets so uninstall leaves nothing behind. Skips CATALOG.md
       // and support dirs (coding-experts) that have no SKILL.md.
       if (!stat.isDirectory() || !existsSync(join(src, 'SKILL.md'))) continue;
-      copyRecursive(src, dest);
+      compactedSkillDescriptions += copyCodexSkillDirectory(src, dest);
       log(`[codex-install] skill: ${entry} -> ${codexSkillsDir}`);
       skillCount++;
     }
     log(`[codex-install] ${skillCount} skill(s) installed for Codex.`);
+    if (compactedSkillDescriptions > 0) {
+      log(`[codex-install] compacted ${compactedSkillDescriptions} Codex skill description(s) for context budget.`);
+    }
     // Keep manifest in sync so cleanupCodexAssets can remove these skills later.
     // Skippable so tests never mutate the tracked repo manifest (test isolation).
     if (syncManifest) syncCleanupManifest(repoRoot, log);
@@ -980,7 +1122,11 @@ export function installCodexAssets({
     log(`[codex-install] config.toml backed up -> ${backupPath}`);
   }
   const installedHookPath = resolveInstalledCodexHookPath(homeDir, log);
-  const stripped = stripQeHooksFence(stripQeAgentFence(currentConfig));
+  const migratedHookFeature = migrateDeprecatedCodexHookFeature(currentConfig);
+  if (migratedHookFeature.changed) {
+    log('[codex-install] migrated deprecated [features].codex_hooks to [features].hooks.');
+  }
+  const stripped = stripQeHooksFence(stripQeAgentFence(migratedHookFeature.text));
   const blocks = [stripped];
   if (agentEntries.length > 0) {
     blocks.push(renderCodexAgentConfigBlock(codexAgentsDir, agentEntries));

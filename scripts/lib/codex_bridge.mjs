@@ -151,7 +151,7 @@ export function isCodexPluginAvailable() {
 /**
  * Get codex command for a given SIVS stage
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
- * @param {object} options - { model?: string, effort?: string, background?: boolean (ignored / foreground-only) }
+ * @param {object} options - { model?: string, effort?: string, background?: boolean }
  * @returns {object} { command: string, description: string }
  */
 export function getCodexCommand(stage, options = {}) {
@@ -186,13 +186,34 @@ export function getCodexCommand(stage, options = {}) {
   if (options.effort) {
     command += ` --effort ${options.effort}`;
   }
-  // [foreground-only] Codex background execution is disabled. Even when the
-  // background flag is provided, never emit --background; only synchronous
-  // foreground execution is allowed so stdout always returns to the conversation.
-  // Restore the old conditional block here if background mode is re-enabled.
-  void options.background;
+  if (options.background) {
+    command += ' --background';
+  }
 
   return { command, description };
+}
+
+/**
+ * Resolve the implicit SIVS defaults for the current environment.
+ *
+ * Claude owns spec and final supervision by default. When Codex is available,
+ * implementation and verification prefer Codex to reduce Claude session token
+ * pressure. Explicit `.qe/sivs-config.json` entries still override these
+ * defaults stage-by-stage.
+ *
+ * @param {object} [options] - { codexAvailable?: boolean }
+ * @returns {object} default SIVS config
+ */
+export function getDefaultSivsConfig(options = {}) {
+  const codexAvailable = options.codexAvailable ?? isCodexPluginAvailable();
+  const defaults = {
+    spec: { engine: 'claude' },
+    implement: { engine: codexAvailable ? 'codex' : 'claude' },
+    verify: { engine: codexAvailable ? 'codex' : 'claude' },
+    supervise: { engine: 'claude' },
+  };
+
+  return defaults;
 }
 
 /**
@@ -216,10 +237,15 @@ export function buildDelegationPayload(stage, options = {}) {
  * Resolve which engine to use for a given SIVS stage
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
  * @param {object} config - parsed sivs-config.json object (or empty for defaults)
+ * @param {object} [options] - { codexAvailable?: boolean } test/config override
  * @returns {object} { engine: string, warning?: string, command?: object }
  */
-export function resolveEngine(stage, config = {}) {
-  const stageConfig = config[stage] || { engine: 'claude' };
+export function resolveEngine(stage, config = {}, options = {}) {
+  const defaultConfig = getDefaultSivsConfig(options);
+  const stageConfig = {
+    ...(defaultConfig[stage] || { engine: 'claude' }),
+    ...(config[stage] || {}),
+  };
   const engine = stageConfig.engine || 'claude';
 
   if (engine === 'claude') {
@@ -227,7 +253,8 @@ export function resolveEngine(stage, config = {}) {
   }
 
   if (engine === 'codex') {
-    if (isCodexPluginAvailable()) {
+    const codexAvailable = options.codexAvailable ?? isCodexPluginAvailable();
+    if (codexAvailable) {
       return {
         engine: 'codex',
         command: getCodexCommand(stage, stageConfig)

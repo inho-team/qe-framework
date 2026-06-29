@@ -76,15 +76,14 @@ By default Qatomic-run executes waves **in-place** on the current working tree. 
 
 ## SIVS Engine Routing
 
-Before spawning Haiku teammates, check SIVS engine configuration:
+Before spawning Haiku teammates, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. Check `implement.engine` value:
-   - **`"claude"` (default)**: Proceed with the standard Haiku swarm execution. No changes.
+2. Call `resolveEngine("implement", config)`. If Codex is installed and no explicit config overrides it, Implement resolves to Codex by default.
+   - **`"claude"`**: Proceed with the standard Haiku swarm execution. No changes.
    - **`"codex"`**: Delegate implementation to Codex via codex-plugin-cc instead of Haiku swarm:
-     1. Call `resolveEngine("implement", config)` to check availability.
-     2. If available: invoke `/codex:rescue` with the full TASK_REQUEST checklist as a single task. Codex handles all items internally (no wave splitting needed).
-     3. If NOT available: show warning and fallback to standard Haiku swarm execution.
+     1. If available: invoke the returned command with the full TASK_REQUEST checklist as a single task. Codex handles all items internally (no wave splitting needed).
+     2. If NOT available: show warning and fallback to standard Haiku swarm execution.
 3. Check for legacy config: call `detectLegacyConfig()`. If non-null, display migration warning.
 
 **Note**: When using Codex engine, wave-based parallelism is not used — Codex handles task partitioning internally. The Verify stage (validation) and quality loop (`/Qcode-run-task`) still run after Codex completes.

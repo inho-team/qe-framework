@@ -239,8 +239,10 @@ All skills MUST respond in the same language the user used in their most recent 
 
 ### Codex Runtime Policy
 When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
-- **Foreground only** — always call Codex synchronously (never `--background`) so its full stdout lands in the conversation. Codex behaves like a blocking subagent; its output must never be invisible to the user.
-- **Background is disabled** — the SIVS bridge (`scripts/lib/codex_bridge.mjs`) does not emit `--background`, even if a stage config requests it. Do not poll `/codex:status` / `/codex:result` for SIVS-routed Codex work; there is no background job to retrieve.
+- **Stage defaults** — without Codex, all SIVS stages use Claude. When Codex is available, Spec and Supervise stay Claude-led while Implement and Verify prefer Codex; explicit `.qe/sivs-config.json` entries can override this.
+- **Spec/Supervise assistance** — Claude owns requirements and final judgment, but should actively use Codex for bounded repo search, context gathering, test diagnosis, and second-opinion review when that reduces Claude token load.
+- **Runtime mode is selectable** — foreground is preferred for short Codex tasks so stdout lands in the conversation. Background is allowed for long Implement/Verify jobs only when the session retrieves results with `/codex:status` and `/codex:result <job-id>` before final reporting.
+- **Concise Codex output** — ask Codex for relevant files, line numbers, summaries, and next actions; do not paste raw bulk search output back into Claude unless necessary.
 
 ---
 

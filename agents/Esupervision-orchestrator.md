@@ -45,19 +45,18 @@ Supervise always sees verified work. Full protocol:
 
 ## SIVS Engine Routing
 
-Before starting supervision, check SIVS engine configuration:
+Before starting supervision, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. Check `supervise.engine` value:
-   - **`"claude"` (default)**: Proceed with standard domain-specific supervision routing (Ecode-quality-supervisor, Esecurity-officer, etc.). No changes.
+2. Call `resolveEngine("supervise", config)`.
+   - **`"claude"` (default)**: Proceed with standard domain-specific supervision routing (Ecode-quality-supervisor, Esecurity-officer, etc.). Claude owns the final judgment, but may ask Codex for a bounded second opinion when useful.
    - **`"codex"`**: Delegate code review to Codex via codex-plugin-cc:
-     1. Call `resolveEngine("supervise", config)` to check availability.
-     2. If available: invoke `/codex:review` for standard review, or `/codex:adversarial-review` for deeper analysis.
-     3. Parse Codex review output and map to supervision verdict:
+     1. If available: invoke `/codex:review` for standard review, or `/codex:adversarial-review` for deeper analysis.
+     2. Parse Codex review output and map to supervision verdict:
         - No issues found → PASS
         - Minor issues → PARTIAL (with findings)
         - Critical issues → FAIL (trigger remediation)
-     4. If NOT available: show warning and fallback to Claude supervision.
+     3. If NOT available: show warning and fallback to Claude supervision.
 
 **Codex Supervision Mapping:**
 | Codex Review Output | Supervision Verdict |

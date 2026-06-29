@@ -158,22 +158,21 @@ if (toolName === 'Skill') {
     if (sivsStage) {
       try {
         const bridgePath = join(__dirname, '..', '..', 'scripts', 'lib', 'codex_bridge.mjs');
-        const { loadSivsConfig, isCodexReachable } = await import(
+        const { loadSivsConfig, resolveEngine } = await import(
           pathToFileURL(bridgePath).href
         );
         const sivsConfig = loadSivsConfig();
-        const stageEntry = sivsConfig && sivsConfig[sivsStage];
-        if (stageEntry && stageEntry.engine === 'codex') {
-          const reachable = isCodexReachable(state);
-          if (reachable.reachable) {
+        const routing = resolveEngine(sivsStage, sivsConfig);
+        if (routing.engine === 'codex') {
+          if (!routing.warning) {
             hints.push(
-              `[SIVS MANDATORY] ${sivsStage} stage is configured for Codex engine. ` +
+              `[SIVS CODEX-PREFERRED] ${sivsStage} stage resolves to Codex engine. ` +
               `You MUST delegate to codex:codex-rescue subagent. Do NOT implement directly with Write/Edit. ` +
-              `Do NOT spawn Claude-only agents (Etask-executor) for this stage.`
+              `Do NOT spawn Claude-only agents (Etask-executor) for this stage unless the user explicitly overrides routing.`
             );
           } else {
             hints.push(
-              `[SIVS FALLBACK] ${sivsStage} stage configured for codex but codex is unreachable (${reachable.reason}). ` +
+              `[SIVS FALLBACK] ${sivsStage} stage resolved to codex but codex is unreachable (${routing.warning}). ` +
               `Claude fallback is allowed for this invocation.`
             );
           }

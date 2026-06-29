@@ -199,18 +199,18 @@ Runs inside Execute and Verify steps:
 
 The problem with single-model workflows: the same model that writes the spec also implements it, reviews it, and approves it. That's self-grading.
 
-QE solves this by letting you **assign a different engine to each SIVS stage**. Claude handles all stages by default, but routing is bidirectional: a Claude base session can route Codex stages through `codex-plugin-cc`, and a Codex base session can route Claude stages back through `Qclaude-rescue` plus `claude_bridge.mjs` (the reverse of `codex-plugin-cc`'s `/codex:rescue`).
+QE solves this by letting you **assign a different engine to each SIVS stage**. Without Codex, Claude handles all stages. When Codex is available, Implement and Verify prefer Codex by default to reduce Claude session token pressure, while Spec and Supervise remain Claude-led unless you explicitly reroute them. Routing is bidirectional: a Claude base session can route Codex stages through `codex-plugin-cc`, and a Codex base session can route Claude stages back through `Qclaude-rescue` plus `claude_bridge.mjs` (the reverse of `codex-plugin-cc`'s `/codex:rescue`).
 
 You decide what fits your project. Some examples:
 
 ```
 Solo developer, simple project:
   Spec → Claude    Implement → Claude    Verify → Claude    Supervise → Claude
-  (default — just use Claude for everything, zero config needed)
+  (no Codex installed — just use Claude for everything, zero config needed)
 
-Speed-focused team:
-  Spec → Claude    Implement → Codex     Verify → Claude    Supervise → Claude
-  (Claude thinks, Codex codes fast, Claude reviews)
+Claude session token saver:
+  Spec → Claude    Implement → Codex     Verify → Codex     Supervise → Claude
+  (default when Codex is available — Claude thinks, Codex does heavy execution)
 
 Maximum independence:
   Spec → Claude    Implement → Codex     Verify → Claude    Supervise → Codex
@@ -220,8 +220,8 @@ Maximum independence:
 Pick a setup with one command:
 
 ```
-/Qsivs-config implement codex --effort high  # just change one stage
-/Qsivs-config set --all claude               # back to Claude-only
+/Qsivs-config verify codex --background true # long verify job in Codex background
+/Qsivs-config set --all claude               # force Claude-only
 /Qsivs-config                                # see current setup
 /Qsivs-config --help                         # full options
 ```
@@ -495,7 +495,7 @@ Config file: `.qe/sivs-config.json`
 {
   "spec":      { "engine": "claude" },
   "implement": { "engine": "codex", "model": "gpt-5.4", "effort": "high" },
-  "verify":    { "engine": "claude" },
+  "verify":    { "engine": "codex", "background": true },
   "supervise": { "engine": "claude" }
 }
 ```
