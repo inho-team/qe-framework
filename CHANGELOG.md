@@ -17,9 +17,25 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- `Qmcp-ensure` shared MCP preflight workflow for installing the external
+  `@inho-team/qe-mcp` companion, initializing the registry, and checking health
+  before MCP-backed skills proceed.
+- Subagent lifecycle cleanup reporting contract, user documentation, and
+  deterministic `check-subagent-lifecycle` guard for stale `Waiting for ...`
+  cleanup cases.
+
 ### Changed
 
+- MCP-related skills now route shared prerequisite checks through
+  `Qmcp-ensure` instead of maintaining duplicated per-skill preflight blocks.
+- Qcode-run-task, Qatomic-run, Qcritical-review, and Eqa-orchestrator now require
+  final lifecycle summaries that report `open handles: 0` or stale warnings.
+
 ### Fixed
+
+- Completed subagent handles now have explicit wait/collect/close reporting
+  guidance so users can distinguish normal slow waits from stale cleanup
+  warnings.
 
 ### Removed
 
