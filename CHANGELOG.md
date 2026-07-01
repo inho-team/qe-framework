@@ -21,6 +21,14 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+### Removed
+
+### Security
+
+## [8.2.3] - 2026-07-01
+
+### Fixed
+
 - `Qupdate` and `Qmcp-ensure` now sync the QE MCP companion into supported
   client configs, and SessionStart repairs missing `qeExpertLibrary`
   registration after v7 to v8 upgrades when `qe-mcp` is already installed.
