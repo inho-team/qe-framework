@@ -166,6 +166,14 @@ Each agent MUST return a structured analysis:
 
 Collect all 3 agent reports and produce a unified verdict:
 
+Before aggregation, collect each reviewer result via `wait_agent` or the active
+client equivalent, then close every completed reviewer handle with `close_agent`
+or the active client equivalent. Reviewer handles that exceed their timeout are
+reported as `stale` with role, stage, and timeout reason. The final report must
+state `open handles: 0` or include stale warning entries. A close cleanup warning
+does not override a PASS/WARN/FAIL verdict unless the reviewer result was not
+collected.
+
 ```
 Critical Review Report
 ══════════════════════
@@ -195,6 +203,10 @@ Action Items:
   1. [CRITICAL] Handle division by zero in calculate_average()
   2. [MEDIUM] Add error handling for timeout scenario
   3. [MEDIUM] Document concurrent access behavior
+
+Subagent Lifecycle:
+  open handles: 0
+  stale warnings: none
 ```
 
 ### Step 5: Verdict Rules
@@ -222,6 +234,10 @@ Display the full report, then ask:
    - The required output format
    - Instruction: "Be adversarial. Your job is to find problems, not confirm quality."
 3. Agents must NOT be told what other agents are looking for
+4. The Lead must track each spawned reviewer handle until it is waited,
+   collected, and closed. `Waiting for ...` is normal only before the reviewer
+   exits or times out; after that point, label it as a stale warning in the
+   report.
 
 ### Engine Routing per Mode
 

@@ -15,6 +15,7 @@ Use this file to find the right document quickly.
 - Execution harness validation plan: [../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md](../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md)
 - Interaction adapter contract: [../core/INTERACTION_ADAPTER.md](../core/INTERACTION_ADAPTER.md)
 - Lifecycle adapter contract: [../core/LIFECYCLE_ADAPTER.md](../core/LIFECYCLE_ADAPTER.md)
+- Subagent lifecycle cleanup: [SUBAGENT_LIFECYCLE.md](SUBAGENT_LIFECYCLE.md)
 - Phase 1 adapter contract: [../.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md](../.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md)
 - Claude/Codex measured parity matrix: [../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md](../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
 - Claude/Codex public-doc parity report: [../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md](../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md)

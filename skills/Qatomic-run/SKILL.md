@@ -43,6 +43,14 @@ As Haiku teammates complete their tasks:
 - Lead session (Opus/Sonnet) reads all `SUMMARY_*.md` files.
 - Synthesize changes without re-reading entire files unless a merge conflict occurs.
 - Aggregate all changes into the main working branch.
+- Collect each worker result through `wait_agent` or the active client
+  equivalent, then close completed worker handles with `close_agent` or the
+  active client equivalent before the wave is considered synthesized.
+- For every worker, record lifecycle status as `completed`, `failed`,
+  `timed-out`, or `stale`. A close cleanup failure is a warning unless the
+  worker result was never collected.
+- Before the final report, confirm `open handles: 0` or include stale warning
+  entries with handle id, worker role, item number, and timeout reason.
 
 ### Step 4: Post-Execution Gate
 After all atomic items are done, determine the next step based on task type:
@@ -57,6 +65,11 @@ After all atomic items are done, determine the next step based on task type:
 - **File Ownership**: No two teammates can modify the same file within the same wave. Lead (Sonnet) must partition files before spawning.
 - **Haiku-First**: Always use `haiku` for teammates. If an item requires Sonnet, it's not "Atomic" and should be handled by standard `{adapter.commandPrefix}Qrt`.
 - **Context Integrity**: Use `ContextMemo` to ensure teammates have current state without redundant I/O.
+- **Lifecycle Cleanup**: A wave is not complete until all completed/failed
+  worker handles have been waited, their results collected, and close cleanup
+  attempted. `Waiting for ...` is normal only while a worker is still active; if
+  the worker exceeded its exit condition or the close step cannot complete,
+  label it as stale in the wave summary.
 
 ## Worktree Isolation (`--worktree`, opt-in)
 
@@ -130,6 +143,8 @@ Execution Complete: {TaskName}
   Waves: {N}
   Items: {X}/{Y} completed
   Teammates: {Z}
+  Subagent lifecycle: open handles: 0
+  Stale warnings: {none | handle id, worker, reason}
 ```
 
 ### When `type: code`

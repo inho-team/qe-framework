@@ -81,6 +81,25 @@ selects the Codex model tier derived from the source `recommendedModel`.
 Otherwise preserve the test/review/fix role contract with role-separated inline
 execution and mark the fallback explicitly.
 
+### Delegated Handle Lifecycle
+
+When Qcode-run-task delegates the QA loop, the Lead owns the subagent handle
+lifecycle even if `Eqa-orchestrator` owns the internal test/review/fix loop.
+
+1. Track the `Eqa-orchestrator` handle with role, task UUID, and loop limit.
+2. Wait for completion with `wait_agent` or the active client equivalent.
+3. Collect the returned test/review/fix summary before making any pass/fail
+   judgment.
+4. Close the completed handle with `close_agent` or the active client equivalent
+   before Step 5 final report.
+5. Step 5 must report `open handles: 0`, or list stale warning entries when a
+   timeout or close cleanup failure leaves a handle open.
+
+If `Waiting for ...` remains visible after the orchestrator has completed, treat
+it as a lifecycle warning and record the stale handle id/status. Do not treat
+close cleanup failure alone as implementation failure unless the QA result was
+not collected.
+
 ## Manual Execution Procedure (Opt-in)
 
 ### Step 1: Collect Context
@@ -119,6 +138,11 @@ Spawn **both agents in parallel** through the active agent adapter. Claude may u
 - Notes from TASK_REQUEST (constraints)
 
 **Collect results from both** before proceeding to Step 4:
+
+Before aggregating the results, close each completed reviewer/tester handle with
+`close_agent` or the active client equivalent. If one handle times out while the
+other returns, label the timeout as stale, preserve the collected result, and
+include the open handles count in the iteration report.
 
 **Collect review results:**
 ```
@@ -360,6 +384,10 @@ Summarize and report final results.
 
 ### Changed Files (final)
 - [file list]
+
+### Subagent Lifecycle
+- open handles: 0
+- stale warnings: [none | handle id, role, reason]
 ```
 
 ## Qrun-task Integration

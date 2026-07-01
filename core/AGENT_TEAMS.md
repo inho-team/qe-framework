@@ -74,6 +74,27 @@ The lead evaluates the request and spawns separate Claude Code instances.
 
 ## Multi-Agent Collaboration Standard
 
+### 0. Subagent Handle Lifecycle
+Any workflow that spawns subagents through the active client adapter owns the
+handle lifecycle until the final report is rendered.
+
+1. Record every spawned handle with the worker role, task item, start time, and
+   expected exit condition.
+2. Use `wait_agent` or the active client equivalent to collect each completed,
+   failed, or timed-out result before synthesis.
+3. After a result is collected, call `close_agent` or the active client
+   equivalent for every completed handle before writing the final report.
+4. If close cleanup fails, do not mark the whole task failed solely because of
+   cleanup. Record a warning with the handle id, role, and last known status.
+5. The final report must include lifecycle status: `open handles: 0` or a
+   `stale warning` entry that explains which handle is still open and why.
+
+`Waiting for ...` means the lead is still waiting for a live handle or timeout
+window. It is normal while the worker is active. It becomes stale when the
+worker's exit condition has passed, the process is known dead, or no progress is
+observed past the workflow timeout. Stale waits are reported as warnings unless
+their missing result blocks task correctness.
+
 ### 1. Lead/Team Relationship
 In any multi-agent execution (Subagents or Agent Teams), roles are strictly defined:
 - **Lead Agent**: Responsible for high-level strategy, dependency analysis, and final synthesis. Owns "Shared Files" (e.g., `package.json`).

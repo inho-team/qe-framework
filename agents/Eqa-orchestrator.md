@@ -34,6 +34,26 @@ Fallback / degradation:
 1. Sequential subagent or inline execution is acceptable when parallel delegation is unavailable.
 2. Preserve the same loop limit and pass/fail criteria in every mode.
 
+## Subagent Lifecycle Status
+
+Eqa-orchestrator owns lifecycle reporting for any internal test/review/fix
+subagents it starts.
+
+1. Track every internal handle by role, iteration, and expected exit condition.
+2. Wait for each role result with `wait_agent` or the active client equivalent
+   before judging the iteration.
+3. After collecting a result, close the completed handle with `close_agent` or
+   the active client equivalent.
+4. If native subagents are unavailable and the loop runs as `degraded-inline`,
+   report `mode=degraded-inline` and `open handles: 0`.
+5. The final summary returned to Qcode-run-task must include lifecycle status:
+   `open handles: 0` or stale warning entries with role, iteration, and reason.
+
+`Waiting for ...` is expected while an internal role is still active. If a role
+has timed out, crashed, or already returned but close cleanup did not finish,
+label it as stale. Close cleanup warnings do not fail the QA loop by themselves;
+missing test/review/fix results can still fail the loop.
+
 ## Invocation Conditions
 - **Default**: Qcode-run-task delegates the quality loop to this agent by default (not opt-in)
 - When Qrun-task executes `type: code` tasks in autonomous mode (ultra)
@@ -62,6 +82,7 @@ After the loop completes, return a summary only:
 - Final test result
 - Review result
 - List of changes made
+- Subagent lifecycle status (`open handles: 0` or stale warnings)
 
 ## Token Optimization Benefit
 Running the quality loop in the main context consumes a large number of tokens over 3 iterations. By delegating to Eqa-orchestrator, only the final summary is returned to the main context, reducing token consumption.
@@ -118,9 +139,11 @@ Before requesting team creation, partition files:
    - Test Engineer: writes/runs tests, shares results via messages
    - Reviewer: reviews code quality, shares findings via messages
 3. **Synthesis**: Lead collects all teammate findings
-4. **Fix phase**: Lead executes fixes sequentially (no parallel file edits)
-5. **Re-verify**: If fixes were made, request new parallel verification round
-6. **Exit**: Same conditions as Subagent mode (pass or 3 iterations)
+4. **Handle cleanup**: Lead closes completed teammate/subagent handles and
+   records stale warnings before final synthesis
+5. **Fix phase**: Lead executes fixes sequentially (no parallel file edits)
+6. **Re-verify**: If fixes were made, request new parallel verification round
+7. **Exit**: Same conditions as Subagent mode (pass or 3 iterations)
 
 ### Fallback
 If Agent Teams is not enabled, team creation fails, or teammates are unresponsive, fall back to the existing sequential Subagent workflow (Ecode-test-engineer → Ecode-reviewer). On Codex, prefer native Codex subagents first; if unavailable, preserve the role contract inline and mark `degraded-inline`.
