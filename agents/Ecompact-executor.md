@@ -23,7 +23,7 @@ node -e "import('./hooks/scripts/lib/session-resolver.mjs').then(m => console.lo
 ```
 
 ## Trigger Conditions
-- **Automatic**: When MODE_TokenEfficiency detects entry into the Yellow zone (75%+)
+- **Automatic**: When MODE_TokenEfficiency detects entry into the `CONTEXT_BUDGET.md` warning zone (70%+ of the active context window by default)
 - **Delegated**: When called by the Qcompact skill
 - **Restore**: When called by the Qresume skill
 

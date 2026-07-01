@@ -23,7 +23,7 @@ shortcut only; the resolver functions below remain the source of truth.
 ### Automatic Mode (Background Call)
 Ecompact-executor detects context pressure and runs automatically in the background.
 - Saves quietly without notifying the user
-- Triggered when entering MODE_TokenEfficiency Yellow zone (75%+)
+- Triggered when entering the `CONTEXT_BUDGET.md` warning zone (70%+ of the active context window by default)
 - Saves current state to `.qe/context/sessions/{sid}/snapshot.md`
 - Accumulates decisions in `.qe/context/sessions/{sid}/decisions.md`
 

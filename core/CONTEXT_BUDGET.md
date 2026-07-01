@@ -7,6 +7,20 @@
 Defines how to prioritize information when context window space is limited.
 Used by Ecompact-executor when saving snapshots and by all agents when deciding what to include in context.
 
+<!-- qe:context-policy
+{
+  "green_max_tokens": 100000,
+  "warning_tokens": 140000,
+  "critical_tokens": 170000,
+  "warning_ratio": 0.70,
+  "critical_ratio": 0.85,
+  "default_window_tokens": 200000,
+  "extended_window_tokens": 1000000,
+  "tier_split_tokens": 400000,
+  "debounce_tool_calls": 5
+}
+-->
+
 ## Budget Allocation
 
 | Priority | Allocation | Category | Examples |
@@ -37,22 +51,22 @@ The split is ordered by recoverability cost. If Critical context is absent, the 
 
 ## Context Pressure Zones
 
-| Zone | Input Tokens | Action |
-|------|--------------|--------|
-| Green | 0 - 100k | Normal operation |
-| Yellow | 100k - 140k | Prefer `.qe/analysis/` summaries; trigger semantic compression |
-| Orange | 140k - 170k | **Auto-Triggered**: Context monitor emits directive to invoke `Ecompact-executor` |
-| Red | 170k+ | **Auto-Triggered (Mandatory)**: Context monitor forces immediate compaction |
+| Zone | 200k Window | Ratio | 1M Window | Action |
+|------|-------------|-------|-----------|--------|
+| Green | 0 - 100k | 0 - 50% | 0 - 500k | Normal operation |
+| Yellow | 100k - 140k | 50 - 70% | 500k - 700k | Prefer `.qe/analysis/` summaries; prepare semantic compression |
+| Orange | 140k - 170k | 70 - 85% | 700k - 850k | **Auto-Triggered**: Context monitor emits directive to invoke `Ecompact-executor` |
+| Red | 170k+ | 85%+ | 850k+ | **Auto-Triggered (Mandatory)**: Context monitor forces immediate compaction |
 
-**Why these token-based boundaries:**
-- **Green (0-100k)**: Most tasks operate safely within the first 100k tokens (50% of a 200k window). Full context is preserved.
-- **Yellow (100k-140k)**: Token accumulation accelerates. Switching to `.qe/analysis/` summaries and triggering `Ecompact-executor`'s **Semantic Compression** (Haiku-tier summary) at 140k ensures context integrity before the window is too full.
-- **Orange (140k-170k)**: At 140k tokens, the window is ~70% full. The context monitor **automatically** emits a system directive instructing Claude to invoke `Ecompact-executor`. This is no longer advisory -- the hook outputs an `ACTION REQUIRED` message with the exact Agent tool invocation to run.
-- **Red (170k+)**: Beyond 170k tokens (~85%), context drift and truncation become imminent. The context monitor emits a **MANDATORY** stop directive. All current work pauses until compaction completes. This directive overrides the cooldown period.
+**Why these ratio-based boundaries:**
+- **Green (0-50%)**: Most tasks operate safely within the first half of the active model window. Full context is preserved.
+- **Yellow (50-70%)**: Token accumulation accelerates. Switch to `.qe/analysis/` summaries and prepare `Ecompact-executor` semantic compression before the window is too full.
+- **Orange (70-85%)**: At 70% of the active context window, the monitor **automatically** emits a system directive instructing Claude to invoke `Ecompact-executor`. This is no longer advisory -- the hook outputs an `ACTION REQUIRED` message with the exact Agent tool invocation to run.
+- **Red (85%+)**: Beyond 85%, context drift and truncation become imminent. The context monitor emits a **MANDATORY** stop directive. All current work pauses until compaction completes. This directive overrides the cooldown period.
 
 ## Auto-Compaction Behavior
 
-When context pressure reaches the Orange zone (140k tokens), the `context-monitor.mjs` hook automatically:
+When context pressure reaches the Orange zone (70% of the active context window), the `context-monitor.mjs` hook automatically:
 
 1. **Emits a system directive** (not just an advisory) instructing Claude to invoke `Ecompact-executor` via the Agent tool.
 2. **Records the trigger** in `unified-state.json` under the `contextCompaction` key:
@@ -60,7 +74,7 @@ When context pressure reaches the Orange zone (140k tokens), the `context-monito
    - `autoTriggered`: `true` (distinguishes from manual invocations)
    - `cooldownUntil`: ISO timestamp 5 minutes after the trigger (prevents repeated firing)
 3. **Enforces a 5-minute cooldown** after each trigger to avoid redundant compaction cycles.
-4. **CRITICAL overrides cooldown**: At 170k tokens, the mandatory directive fires regardless of cooldown state.
+4. **CRITICAL overrides cooldown**: At 85% of the active context window, the mandatory directive fires regardless of cooldown state.
 
 ### Cooldown Rationale
 Without cooldown, every tool call between 140k and the completion of compaction would re-emit the directive, flooding the context with duplicate instructions. The 5-minute window gives `Ecompact-executor` enough time to complete its snapshot save before the monitor checks again.

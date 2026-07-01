@@ -2,27 +2,43 @@
 // See https://github.com/Yeachan-Heo/oh-my-claudecode for original.
 'use strict';
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync, renameSync, unlinkSync, statSync, openSync, readSync, closeSync } from 'fs';
 import { join, dirname } from 'path';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
+import { CONTEXT_POLICY_DEFAULTS } from './context-policy.mjs';
 
 const BLOCKS_FILE = 'context-blocks.json';
 const CACHE_FILE = 'context-cache.json';
-const CACHE_TTL_MS = 60 * 1000; // statusline fires frequently; 60s is safe staleness
+const CACHE_TTL_MS = 60 * 1000; // live context readings are short-lived
 const TAIL_BYTES = 8192; // read last 8 KB of transcript for efficiency
 
+function cacheFileForScope(scope) {
+  if (!scope || typeof scope !== 'object') return CACHE_FILE;
+  const client = typeof scope.client === 'string' && scope.client ? scope.client : 'unknown';
+  const sessionId = typeof scope.sessionId === 'string' && scope.sessionId
+    ? scope.sessionId
+    : (typeof scope.session_id === 'string' && scope.session_id ? scope.session_id : '');
+  const modelId = typeof scope.modelId === 'string' && scope.modelId ? normalizeModelId(scope.modelId) : '';
+  const key = [client, sessionId || 'no-session', modelId || 'no-model'].join(':');
+  const digest = createHash('sha1').update(key).digest('hex').slice(0, 16);
+  return `context-cache.${digest}.json`;
+}
+
+function cachePath(projectDir, scope) {
+  return join(projectDir, '.qe', 'state', cacheFileForScope(scope));
+}
+
 /**
- * Write the authoritative ratio reported by Claude Code (statusline payload's
- * `context_window.used_percentage`) to disk so the Stop hook can consume it.
+ * Write a live context-window ratio to disk so the Stop hook can consume it.
  * Optionally persists the true context-window limit (200k vs 1M) so the
  * transcript fallback can pick the right denominator even after the cache
  * goes stale. Best-effort — silently skips on any error.
  *
  * @param {string} projectDir project root
- * @param {number} usedPercentage 0..100 from statusline payload
+ * @param {number} usedPercentage 0..100 from a live context-window payload
  * @param {number} [limit] true context-window token limit (see deriveContextLimit)
  */
-export function writeCachedRatio(projectDir, usedPercentage, limit) {
+export function writeCachedRatio(projectDir, usedPercentage, limit, scope) {
   if (!projectDir || typeof usedPercentage !== 'number') return;
   try {
     const dir = join(projectDir, '.qe', 'state');
@@ -36,18 +52,18 @@ export function writeCachedRatio(projectDir, usedPercentage, limit) {
       // can't re-derive it (e.g. total_input_tokens absent → deriveContextLimit
       // returns null) must NOT clobber the cached limit by overwriting the file
       // with a bare {ratio, ts}. Dropping it reopens the sub-200k 1M blind spot.
-      const prev = readCachedLimit(projectDir);
+      const prev = readCachedLimit(projectDir, scope);
       if (prev) payload.limit = prev;
     }
     const tmp = join(dir, `.tmp-ctx-${randomBytes(6).toString('hex')}.json`);
     writeFileSync(tmp, JSON.stringify(payload), 'utf8');
-    renameSync(tmp, join(dir, CACHE_FILE));
+    renameSync(tmp, cachePath(projectDir, scope));
   } catch { /* best-effort */ }
 }
 
 /**
  * Persist ONLY the true context-window limit, merging into any existing cache
- * entry without disturbing a fresh ratio/ts. This is the statusline-independent
+ * entry without disturbing a fresh ratio/ts. This is the session-guidance
  * path: when a transcript reading deterministically proves the 1M tier (observed
  * tokens past the 200k base), callers record it here so every later reading in
  * the session — including sub-200k dips after a compaction — uses the right
@@ -57,12 +73,12 @@ export function writeCachedRatio(projectDir, usedPercentage, limit) {
  * @param {string} projectDir project root
  * @param {number} limit true context-window token limit (e.g. 1000000)
  */
-export function writeCachedLimit(projectDir, limit) {
+export function writeCachedLimit(projectDir, limit, scope) {
   if (!projectDir || typeof limit !== 'number' || limit <= 0) return;
   try {
     const dir = join(projectDir, '.qe', 'state');
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-    const p = join(dir, CACHE_FILE);
+    const p = cachePath(projectDir, scope);
     let payload = {};
     if (existsSync(p)) {
       try { payload = JSON.parse(readFileSync(p, 'utf8')) || {}; } catch { payload = {}; }
@@ -76,8 +92,8 @@ export function writeCachedLimit(projectDir, limit) {
 }
 
 /**
- * Read the cached true context-window limit (in tokens) persisted by the
- * statusline alongside the ratio. Unlike {@link readCachedRatio} this does NOT
+ * Read the cached true context-window limit (in tokens) persisted alongside
+ * the ratio. Unlike {@link readCachedRatio} this does NOT
  * enforce the staleness TTL: a model's window size is constant for the whole
  * session, so an "old" limit is still correct. This is what lets the transcript
  * fallback in context-guard / context-monitor pick the right denominator
@@ -88,10 +104,10 @@ export function writeCachedLimit(projectDir, limit) {
  * @param {string} projectDir
  * @returns {number|null} limit in tokens, or null when absent/invalid.
  */
-export function readCachedLimit(projectDir) {
+export function readCachedLimit(projectDir, scope) {
   if (!projectDir) return null;
   try {
-    const p = join(projectDir, '.qe', 'state', CACHE_FILE);
+    const p = cachePath(projectDir, scope);
     if (!existsSync(p)) return null;
     const obj = JSON.parse(readFileSync(p, 'utf8'));
     if (typeof obj?.limit !== 'number' || obj.limit <= 0) return null;
@@ -101,22 +117,24 @@ export function readCachedLimit(projectDir) {
 
 /**
  * Read an explicitly configured context-window limit, independent of the
- * statusline. This is the escape hatch for setups where the HUD statusline is
- * not wired up: with no statusline, the cache is never populated and the
+ * live payload. This is the escape hatch for setups where the cache is not
+ * populated and the
  * derive/back-solve path never runs, so a 1M run is silently scored against the
  * 200k default and over-warns from ~140k tokens. Precedence:
  *   1. QE_CONTEXT_LIMIT env var (per-shell override)
  *   2. .qe/config.json → hooks.context_window_limit (committed, project-wide)
  *
  * @param {string} projectDir
+ * @param {{includeProjectConfig?: boolean}} [opts]
  * @returns {number|null} configured limit in tokens, or null when unset/invalid.
  */
-export function readConfiguredLimit(projectDir) {
+export function readConfiguredLimit(projectDir, opts = {}) {
   const envVal = process.env.QE_CONTEXT_LIMIT;
   if (envVal) {
     const parsed = parseInt(envVal, 10);
     if (Number.isFinite(parsed) && parsed > 0) return parsed;
   }
+  if (opts.includeProjectConfig === false) return null;
   if (!projectDir) return null;
   try {
     const p = join(projectDir, '.qe', 'config.json');
@@ -125,6 +143,61 @@ export function readConfiguredLimit(projectDir) {
     const v = cfg?.hooks?.context_window_limit ?? cfg?.context_window_limit;
     if (typeof v === 'number' && v > 0) return v;
   } catch { /* best-effort */ }
+  return null;
+}
+
+function collectJsonlFiles(dir, out = []) {
+  try {
+    for (const entry of readdirSync(dir, { withFileTypes: true })) {
+      const full = join(dir, entry.name);
+      if (entry.isDirectory()) collectJsonlFiles(full, out);
+      else if (entry.isFile() && entry.name.endsWith('.jsonl')) out.push(full);
+    }
+  } catch {
+    return out;
+  }
+  return out;
+}
+
+function extractCodexWindow(file, threadId) {
+  try {
+    const lines = readFileSync(file, 'utf8').split('\n');
+    let found = null;
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      let entry;
+      try { entry = JSON.parse(line); } catch { continue; }
+      const payload = entry?.payload;
+      if (!payload || typeof payload !== 'object') continue;
+      if (threadId && payload.turn_id && payload.turn_id !== threadId) continue;
+      const value = typeof payload.info?.model_context_window === 'number'
+        ? payload.info.model_context_window
+        : payload.model_context_window;
+      if (typeof value === 'number' && value > 0) found = value;
+    }
+    return found;
+  } catch {
+    return null;
+  }
+}
+
+export function readNativeCodexWindow() {
+  const home = process.env.CODEX_HOME || (process.env.HOME ? join(process.env.HOME, '.codex') : '');
+  if (!home) return null;
+  const sessionsDir = join(home, 'sessions');
+  if (!existsSync(sessionsDir)) return null;
+  const threadId = process.env.CODEX_THREAD_ID || '';
+  const files = collectJsonlFiles(sessionsDir)
+    .map((file) => {
+      try { return { file, mtime: statSync(file).mtimeMs }; } catch { return null; }
+    })
+    .filter(Boolean)
+    .sort((a, b) => b.mtime - a.mtime)
+    .slice(0, 40);
+  for (const { file } of files) {
+    const value = extractCodexWindow(file, threadId);
+    if (value) return value;
+  }
   return null;
 }
 
@@ -184,13 +257,13 @@ export function readDetectedLimit(projectDir, modelId) {
  * Persist a DETERMINISTICALLY detected context-window limit to the durable,
  * model-keyed `.qe/config.json` store read by {@link readDetectedLimit}. This is
  * the backbone of self-correction: once any consumer proves the true tier
- * (statusline back-solve, or an observed token count past the 200k base), it is
+ * (payload back-solve, or an observed token count past the 200k base), it is
  * remembered across sessions AND across state-folder wipes, so the detection
  * happens once rather than every cold start.
  *
  * Merge-safe (preserves other `hooks` keys and top-level config), atomic, and a
- * no-op when the value is unchanged (avoids write churn on every statusline
- * frame). Callers pass only the confidently-resolved tier (e.g. 1000000) — never
+ * no-op when the value is unchanged. Callers pass only the confidently-resolved
+ * tier (e.g. 1000000) — never
  * a guessed default. Best-effort: silently skips on any error or unusable id.
  *
  * @param {string} projectDir
@@ -226,7 +299,7 @@ export function writeDetectedLimit(projectDir, modelId, limit) {
 }
 
 /**
- * Derive the true context-window token limit from a statusline `context_window`
+ * Derive the true context-window token limit from a live `context_window`
  * payload by back-solving `limit = total_input_tokens / (used_percentage/100)`
  * and snapping to the nearest canonical tier.
  *
@@ -238,7 +311,7 @@ export function writeDetectedLimit(projectDir, modelId, limit) {
  * the integer percentage). The 400k split sits in the empty gap between tiers,
  * so even worst-case percentage rounding can't push one tier across it.
  *
- * @param {object} cw - the `context_window` object from the statusline payload.
+ * @param {object} cw - the `context_window` object from a live payload.
  * @returns {number|null} 200000 or 1000000, or null when underivable.
  */
 export function deriveContextLimit(cw) {
@@ -248,18 +321,40 @@ export function deriveContextLimit(cw) {
   if (typeof pct !== 'number' || pct <= 0) return null;
   if (typeof input !== 'number' || input <= 0) return null;
   const raw = input / (pct / 100);
-  return raw > 400000 ? 1000000 : 200000;
+  return raw > CONTEXT_POLICY_DEFAULTS.tier_split_tokens
+    ? CONTEXT_POLICY_DEFAULTS.extended_window_tokens
+    : CONTEXT_POLICY_DEFAULTS.default_window_tokens;
 }
 
-// Points by which the statusline payload must exceed the transcript reading
+/**
+ * Resolve the limit for a live context frame.
+ *
+ * Live payload back-solving wins over stored values because stored cache/config can
+ * be stale from a previous model tier. This prevents a stale 200k file from
+ * pinning a current 1M session to the wrong denominator.
+ *
+ * @param {string} projectDir project root
+ * @param {object} cw live context_window payload
+ * @param {string} [modelId] hooks-payload model id
+ * @returns {number|null}
+ */
+export function resolveLiveContextLimit(projectDir, cw, modelId, scope) {
+  return deriveContextLimit(cw)
+    ?? readConfiguredLimit(projectDir, { includeProjectConfig: false })
+    ?? readDetectedLimit(projectDir, modelId)
+    ?? readCachedLimit(projectDir, scope)
+    ?? null;
+}
+
+// Points by which the live payload must exceed the transcript reading
 // before we treat the payload as stale (the post-/clear / post-compact case).
 // Normal sessions track within a few points, so a 15-point gap is well clear of
 // rounding/timing noise yet small enough to catch a real reset.
 export const STALE_DISPLAY_MARGIN = 15;
 
 /**
- * Reconcile the percentage the statusline should DISPLAY from two sources: the
- * Claude Code payload reading and a transcript-derived reading.
+ * Reconcile the percentage from two sources: a live payload reading and a
+ * transcript-derived reading.
  *
  * After `/clear` (or `/compact`) Claude Code can keep reporting the pre-reset
  * percentage for a while, while the fresh transcript already reflects the real,
@@ -269,7 +364,7 @@ export const STALE_DISPLAY_MARGIN = 15;
  * It never inflates a payload reading, so a healthy high-context session is left
  * untouched.
  *
- * @param {number} payloadPct integer 0–100 from the statusline payload, or null
+ * @param {number} payloadPct integer 0–100 from a live payload, or null
  * @param {number} transcriptPct integer 0–100 derived from the transcript, or null
  * @param {number} [margin] override the staleness threshold (points)
  * @returns {number|null} the percentage to display
@@ -285,10 +380,10 @@ export function reconcileDisplayPercentage(payloadPct, transcriptPct, margin = S
  * @param {string} projectDir
  * @returns {number|null} ratio in [0, 1]
  */
-export function readCachedRatio(projectDir) {
+export function readCachedRatio(projectDir, scope) {
   if (!projectDir) return null;
   try {
-    const p = join(projectDir, '.qe', 'state', CACHE_FILE);
+    const p = cachePath(projectDir, scope);
     if (!existsSync(p)) return null;
     const obj = JSON.parse(readFileSync(p, 'utf8'));
     if (typeof obj?.ratio !== 'number' || typeof obj?.ts !== 'number') return null;
@@ -300,9 +395,9 @@ export function readCachedRatio(projectDir) {
 /**
  * Drop the cached usage ratio while preserving the TTL-exempt window limit.
  *
- * The ratio cache is project-global (not per-session) and exists only as a
- * <60s bridge of the statusline's *current* authoritative reading to the Stop
- * hook / auto-compaction monitor. At a session boundary — most importantly
+ * The ratio cache is scoped by client/session/model and exists only as a
+ * <60s bridge of the current live reading to the Stop hook / auto-compaction
+ * monitor. At a session boundary — most importantly
  * `/clear`, which resets the conversation to ~0 while Claude Code keeps
  * reporting the pre-clear percentage for one more frame — that cached ratio is
  * stale-high and would make context-guard / context-monitor raise false
@@ -315,10 +410,10 @@ export function readCachedRatio(projectDir) {
  *
  * @param {string} projectDir project root
  */
-export function invalidateCachedRatio(projectDir) {
+export function invalidateCachedRatio(projectDir, scope) {
   if (!projectDir) return;
   try {
-    const p = join(projectDir, '.qe', 'state', CACHE_FILE);
+    const p = cachePath(projectDir, scope);
     if (!existsSync(p)) return;
     let obj;
     try { obj = JSON.parse(readFileSync(p, 'utf8')); } catch { obj = null; }
@@ -387,9 +482,9 @@ function writeBlocks(stateDir, blocks) {
  * @returns {number} token limit
  */
 export function modelIdToLimit(modelId) {
-  if (!modelId || typeof modelId !== 'string') return 200000;
-  if (/\[1m\]|-1m\b|1m$/i.test(modelId)) return 1000000;
-  return 200000;
+  if (!modelId || typeof modelId !== 'string') return CONTEXT_POLICY_DEFAULTS.default_window_tokens;
+  if (/\[1m\]|-1m\b|1m$/i.test(modelId)) return CONTEXT_POLICY_DEFAULTS.extended_window_tokens;
+  return CONTEXT_POLICY_DEFAULTS.default_window_tokens;
 }
 
 /**
@@ -516,7 +611,7 @@ export function estimateUsage(transcriptPath, opts) {
  * @returns {number} resolved token limit
  */
 function resolveLimit({ explicitLimit, hintModelId, transcriptModelId, observedTokens }) {
-  // 1. Caller-supplied limit (e.g. the statusline-cached true window) is authoritative.
+  // 1. Caller-supplied limit (e.g. the cached true window) is authoritative.
   if (typeof explicitLimit === 'number' && explicitLimit > 0) return explicitLimit;
   // 2. Explicit user override via env beats any id-based guess.
   const envVal = process.env.QE_CONTEXT_LIMIT;
@@ -531,14 +626,14 @@ function resolveLimit({ explicitLimit, hintModelId, transcriptModelId, observedT
   // either source keeps the marker, instead of letting a stripped hint win.
   const hintLimit = hintModelId ? modelIdToLimit(hintModelId) : 0;
   const txLimit = transcriptModelId ? modelIdToLimit(transcriptModelId) : 0;
-  let limit = Math.max(hintLimit, txLimit, 200000);
+  let limit = Math.max(hintLimit, txLimit, CONTEXT_POLICY_DEFAULTS.default_window_tokens);
   // 4. Safety net: Claude Code strips the `[1m]` marker from both the hint and
   // the transcript model field, so a bare id resolves to the 200k base even on
   // a 1M run. A reading already past that base can only be the larger variant
   // (the lineup has no middle tier) — upgrade deterministically. This MUST run
   // even when a hint was given, otherwise the bare-id 200k short-circuits it.
   if (typeof observedTokens === 'number' && observedTokens > limit) {
-    limit = 1000000;
+    limit = CONTEXT_POLICY_DEFAULTS.extended_window_tokens;
   }
   return limit;
 }

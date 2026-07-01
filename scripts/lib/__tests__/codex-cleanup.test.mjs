@@ -238,7 +238,29 @@ test('(d) non-QE content fully preserved after purge', (t) => {
 });
 
 // ---------------------------------------------------------------------------
-// (e) Manifest-absent QE-like prefix user skill preserved (no SKILL.md check needed,
+// (e) External-owner pointers are not framework cleanup targets.
+// ---------------------------------------------------------------------------
+
+test('(e) external-owner pointer skill is preserved after purge', (t) => {
+  const homeDir = makeHome({
+    skills: ['Qdesign', 'Qrun-task'],
+  });
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  const result = cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
+  const skillsDir = path.join(homeDir, '.codex', 'skills');
+
+  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qrun-task')), 'current framework skill removed');
+  assert.ok(fs.existsSync(path.join(skillsDir, 'Qdesign')), 'external qe-mcp-owned skill preserved');
+  assert.equal(
+    result.skills.some((p) => p.endsWith(`${path.sep}Qdesign`)),
+    false,
+    'external pointer omitted from cleanup result',
+  );
+});
+
+// ---------------------------------------------------------------------------
+// (f) Manifest-absent QE-like prefix user skill preserved (no SKILL.md check needed,
 //     but also not in manifest -> preserved regardless).
 // ---------------------------------------------------------------------------
 

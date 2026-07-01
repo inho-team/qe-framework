@@ -1,16 +1,6 @@
 {
-  "_comment": "Historical superset of all known QE skill paths ever shipped to ~/.codex/skills/. Entries may be top-level names or repo-relative nested paths. Seeded from (a) current repo skills/ SKILL.md paths and (b) observed ~/.codex/skills/ QE catalog as of Phase 2 audit (172 entries observed, ~59 orphans). M* entries are legacy installed admin skills now sourced from qe-admin-mcp, not from this repo's default skills tree. Used by cleanupCodexAssets() to identify removal candidates — a dir is only removed if its manifest entry resolves under ~/.codex/skills/ AND contains SKILL.md.",
-  "skills": [
-    "Mbump",
-    "Mcreate-agent",
-    "Mcreate-skill",
-    "Mmigrate-tasks",
-    "Mqe-audit",
-    "Mrefactor-agent-md",
-    "Mrelease",
-    "Mtest-skill",
-    "QCodexUpdate",
-    "Qagentation",
+  "_comment": "Codex cleanup manifest. currentFrameworkSkills is the exact set installCodexAssets() writes from qe-framework/skills. legacyCleanupSkills are historical QE-installed skill dirs that cleanupCodexAssets() may remove from ~/.codex/skills when SKILL.md is present, but they are not qe-framework package payload. externalOwnerPointers are intentionally not cleanup targets for current framework install; they are owned by qe-mcp expert-library or another plugin/remote source.",
+  "currentFrameworkSkills": [
     "Qalias",
     "Qarchive",
     "Qatomic-run",
@@ -21,24 +11,17 @@
     "Qcode-run-task",
     "Qcommit",
     "Qcompact",
-    "Qcontent-research-writer",
     "Qcontext",
     "Qcritical-review",
     "Qdebate",
-    "Qdesign",
-    "Qdesign-audit",
-    "Qdesign-studio",
     "Qdoctor",
-    "Qfact-checker",
     "Qfind-skills",
     "Qgc",
     "Qgenerate-spec",
     "Qgs",
     "Qhelp",
-    "Qhumanizer",
     "Qinit",
     "Qissue",
-    "Qmcp-builder",
     "Qmcp-ensure",
     "Qmcp-setup",
     "Qmcp-sync",
@@ -51,26 +34,91 @@
     "Qqa-test-planner",
     "Qrefresh",
     "Qresume",
-    "Qrt",
     "Qrun-task",
     "Qscenario-test",
     "Qsecret",
     "Qsivs-config",
-    "Qsource-verifier",
-    "Qstitch-apply",
-    "Qstitch-cli",
     "Qsweep",
     "Qupdate",
     "Quser-action",
     "Qutopia",
     "Qverify-contract",
     "Qversion",
-    "Qvisual-qa",
-    "Qvisual-redesign",
     "Qwiki-compile",
     "Qwiki-ingest",
     "Qwiki-lint",
     "Qwiki-query",
     "Qwriting-clearly"
+  ],
+  "legacyCleanupSkills": [
+    "Mbump",
+    "Mcreate-agent",
+    "Mcreate-skill",
+    "Mmigrate-tasks",
+    "Mqe-audit",
+    "Mrefactor-agent-md",
+    "Mrelease",
+    "Mtest-skill",
+    "QCodexUpdate",
+    "Qhumanizer",
+    "Qmcp-builder",
+    "Qrt"
+  ],
+  "externalOwnerPointers": [
+    {
+      "name": "Qagentation",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qagentation/SKILL.md"
+    },
+    {
+      "name": "Qcontent-research-writer",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qcontent-research-writer/SKILL.md"
+    },
+    {
+      "name": "Qdesign",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qdesign/SKILL.md"
+    },
+    {
+      "name": "Qdesign-audit",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qdesign-audit/SKILL.md"
+    },
+    {
+      "name": "Qdesign-studio",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qdesign-studio/SKILL.md"
+    },
+    {
+      "name": "Qfact-checker",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qfact-checker/SKILL.md"
+    },
+    {
+      "name": "Qsource-verifier",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qsource-verifier/SKILL.md"
+    },
+    {
+      "name": "Qstitch-apply",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qstitch-apply/SKILL.md"
+    },
+    {
+      "name": "Qstitch-cli",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qstitch-cli/SKILL.md"
+    },
+    {
+      "name": "Qvisual-qa",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qvisual-qa/SKILL.md"
+    },
+    {
+      "name": "Qvisual-redesign",
+      "owner": "qe-mcp expert-library",
+      "path": "expert-library/packs/core-experts/skills/Qvisual-redesign/SKILL.md"
+    }
   ]
 }

@@ -1,7 +1,7 @@
 /**
  * wiki-status.mjs — `.qe/wiki/` 레이어 상태 조회 (단일 권위, 성능 제한)
  *
- * session-start 훅과 HUD wiki 요소가 공유한다. 둘 다 매 세션/매 리드로마다
+ * session-start 훅과 wiki 상태 조회가 공유한다. 둘 다 매 세션/매 리드로마다
  * 실행되므로 **재귀 디렉터리 walk 금지** — 얕은 readdirSync 한두 번 + existsSync
  * 단락만 사용한다. wiki가 없으면 즉시 null/0을 반환해 부재 비용을 최소화한다.
  *
@@ -59,7 +59,7 @@ export function countTopics(projectRoot) {
 }
 
 /**
- * wiki 레이어 요약. `.qe/wiki/`가 아예 없으면 null (HUD/훅이 무출력하도록).
+ * wiki 레이어 요약. `.qe/wiki/`가 아예 없으면 null을 반환한다.
  *
  * @param {string} projectRoot 프로젝트 루트 절대경로
  * @returns {{ topics: number, inbox: number }|null}

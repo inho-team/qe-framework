@@ -91,11 +91,6 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
   assert.ok(tomlFiles.length > 0, 'at least one agent .toml installed');
 
   assert.ok(fs.existsSync(scriptsDir), '~/.codex/scripts/ created');
-  assert.ok(
-    !fs.existsSync(path.join(scriptsDir, 'qe-hud.mjs')),
-    'qe-hud.mjs is not installed after HUD skill hard prune',
-  );
-
   // Each .toml must contain name, model routing when source metadata exists,
   // compatibility note, and developer_instructions.
   for (const toml of tomlFiles.slice(0, 3)) {
@@ -142,6 +137,34 @@ test('(b) idempotent: install twice → exactly one fence, no duplicate skill di
   // Skills: no error thrown means overwrite succeeded (files should still be present)
   const skillsDir = path.join(homeDir, '.codex', 'skills');
   assert.ok(fs.existsSync(skillsDir), '~/.codex/skills/ still exists after second install');
+});
+
+test('(b2) reinstall removes stray duplicate QE agent sections', (t) => {
+  const staleConfig = [
+    'model = "gpt-5"',
+    '',
+    '[agents."Eanalysis-supervisor"]',
+    'description = "stale"',
+    'config_file = "/tmp/stale.toml"',
+    '',
+    QE_FENCE_BEGIN,
+    '',
+    '[agents."Eanalysis-supervisor"]',
+    'description = "old fenced"',
+    'config_file = "/tmp/old.toml"',
+    '',
+    QE_FENCE_END,
+  ].join('\n');
+  const homeDir = makeCodexHome({ configToml: staleConfig });
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  const configContent = fs.readFileSync(path.join(homeDir, '.codex', 'config.toml'), 'utf8');
+  const matches = configContent.match(/\[agents\."Eanalysis-supervisor"\]/g) || [];
+  assert.equal(matches.length, 1, 'exactly one Eanalysis-supervisor section remains');
+  assert.ok(!configContent.includes('/tmp/stale.toml'), 'stray stale QE agent section removed');
+  assert.ok(!configContent.includes('/tmp/old.toml'), 'old fenced QE agent section removed');
 });
 
 // ---------------------------------------------------------------------------

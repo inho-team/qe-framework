@@ -17,9 +17,21 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- Shared `CONTEXT_BUDGET.md` policy metadata now drives context pressure
+  thresholds across hooks and docs.
+
 ### Changed
 
+- Context pressure is now evaluated as a ratio of the active model window, with
+  per-client/session/model cache scoping for concurrent Claude and Codex
+  terminals.
+- HUD/statusline runtime files and tests are no longer shipped in the framework
+  payload.
+
 ### Fixed
+
+- Codex context handling now reads native `model_context_window` session logs
+  and no longer treats 1M/200k assumptions as universal constants.
 
 ### Removed
 
@@ -125,10 +137,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
-- Codex HUD command support: `$Qhud` can now surface the QE HUD through the
-  installed `~/.codex/scripts/qe-hud.mjs` proxy, reusing the Claude HUD renderer
-  for shell prompt, tmux status, or manual display even though Codex has no
-  native `statusLine` hook.
 - QE interaction adapter contract and helpers now define client-specific command
   rendering and choice handling, so Claude and Codex skills can share one
   logical question schema while rendering `/Q...` or `$Q...` correctly.
@@ -191,10 +199,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   it from the current task via `/Qsession-name set`; once named, every few prompts
   it re-checks and renames only on a clear topic shift, so a continuous task keeps
   a stable name. State is tracked per session id in unified-state.
-- The default HUD is now a uniform two-row layout: row 1 shows session name,
-  the context gauge, and SIVS routing; row 2 shows the 5h/7d rate-limit quotas
-  and the model. The renderer gained a `newline` marker so any preset can split
-  across multiple terminal rows; presets without the marker stay single-row.
 - Stale `.qe/analysis` is now auto-refreshed by a detached background job on
   session start, so project context stays fresh without a manual `/Qrefresh`.
 
@@ -251,7 +255,7 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   chars) recorded in `.qe/state/sessions-registry.json`, so concurrent
   terminals are aware of each other. SessionStart injects the current name and
   other active sessions into context, Stop cleans the entry, stale rows (>2h)
-  and invalid SIDs are pruned, and a new HUD `session-name` element plus the
+  and invalid SIDs are pruned, and the
   `/Qsession-name` skill (show / set / list) surface it.
 
 ### Changed
@@ -387,7 +391,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [7.3.0] - 2026-06-25
 
 ### Added
-- Per-session summary element for the HUD statusline.
 - Skill-usage telemetry: a forward counter plus a never-used skills report.
 - Stop-hook OUTPUT_STYLE drama gate.
 
@@ -532,14 +535,13 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 - **Qcompact ↔ Qresume resume path unified**: a manual `/Qcompact` handoff saves under `.qe/handoffs/sessions/{sid}/`, but `/Qresume` only scanned `.qe/context/sessions/{sid}/`, so a later session could not find the handoff it had just written. Resume now resolves through a single shared `resolveResumeContext()` (`hooks/scripts/lib/session-resolver.mjs`) that both skills cite; `listSessionBuckets()` unions the context and handoff domains so handoff-only buckets surface in `--list`; and a lone `compact-trigger.json` no longer suppresses fallback to a real handoff stored under a prior sid.
 - **Qwiki library hardened** against path-traversal and routing edge cases in `scripts/lib/wiki-router.mjs` and related wiki paths.
-- Stale HUD tests repaired after the `wiki` element landed: the renderer `ELEMENTS` registry is now exported and the preset guard derives its known-element set from it (so a new element can no longer silently break the guard), and the session-render assertion checks element order and content rather than exact progress-bar glyphs.
 
 ## [7.2.2] - 2026-06-22
 
 ### Added
 
 - `Qmcp-setup`: added Playwright (`@playwright/mcp`) and Chrome DevTools (`chrome-devtools-mcp`) browser servers to the recommended-MCP catalog, fixing the previously dangling `/Qmcp-setup playwright` reference in `Qvisual-redesign`.
-- **Qwiki — project knowledge wiki** (Karpathy LLM-Wiki pattern over `.qe/wiki/`): new skills `Qwiki-ingest` / `Qwiki-compile` / `Qwiki-query` / `Qwiki-lint`, a zero-dep canonicalization+sharding authority (`scripts/lib/wiki-router.mjs`), page templates + conventions seed (`core/wiki-conventions.template.md`, `core/wiki-templates/`), an opt-in HUD `wiki` preset, a SessionStart inbox-queue notice, and a usage guide (`docs/QWIKI.md`). Synthesize-once/accumulate knowledge with provenance + intent-routing; commits go through Qcommit only; compile/query/lint are Claude-only. Boundary vs Qmemory/Qcontext/`.qe/analysis` recorded in DECISION_LOG D-WIKI-02.
+- **Qwiki — project knowledge wiki** (Karpathy LLM-Wiki pattern over `.qe/wiki/`): new skills `Qwiki-ingest` / `Qwiki-compile` / `Qwiki-query` / `Qwiki-lint`, a zero-dep canonicalization+sharding authority (`scripts/lib/wiki-router.mjs`), page templates + conventions seed (`core/wiki-conventions.template.md`, `core/wiki-templates/`), a SessionStart inbox-queue notice, and a usage guide (`docs/QWIKI.md`). Synthesize-once/accumulate knowledge with provenance + intent-routing; commits go through Qcommit only; compile/query/lint are Claude-only. Boundary vs Qmemory/Qcontext/`.qe/analysis` recorded in DECISION_LOG D-WIKI-02.
 - **Qwiki knowledge flywheel** (DECISION_LOG D-WIKI-03): the wiki now feeds AI judgment and compounds. **Consume** — `scripts/lib/wiki-retrieve.mjs` routes minimal relevant pages into the core PSE skills (Qplan/Qgs/Qrun-task/Qcode-run-task/Qutopia) and an opt-in UserPromptSubmit hint; tier-aware (reviewed > auto) with `flag:contradiction` exclusion. **Populate** — `scripts/lib/wiki-seed.mjs` + Qinit opt-in bootstrap seed DECISION_LOG/MISTAKE/RETROSPECTIVE as `provenance: inferred` (Socratic-gated, never `--batch`); analysis & query-filebacks excluded to prevent self-ingestion. **Govern** — `scripts/lib/wiki-freshness.mjs` + Qwiki-lint CHECK 8 detect code↔wiki drift via `.qe/analysis` mtime. All paths are **zero-impact when `.qe/wiki/` is absent** (existing behavior byte-identical).
 
 ### Changed
@@ -591,7 +593,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
-- HUD context element now renders a `[███░░░░] N%` gauge bar alongside the percentage, tinted by usage threshold.
 
 ### Changed
 
@@ -599,13 +600,10 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
-- False context-pressure warnings after `/clear` or `/compact`. The statusline now reconciles a stale Claude Code payload percentage against the transcript ground truth (deflate-only via `reconcileDisplayPercentage`), and session start invalidates the stale project-global ratio cache (`invalidateCachedRatio`) while preserving the model-constant window limit.
 
 ## [7.1.5] - 2026-06-14
 
 ### Fixed
-- **False context-pressure warnings on 1M-context runs without the HUD statusline** — the 1M-tier detection added in 7.1.1/7.1.2 (`deriveContextLimit` back-solve) only runs inside `statusline.mjs`, so when the HUD statusline is **not** configured, `.qe/state/context-cache.json` is never written. With no cache, `context-guard` (Stop) and `context-monitor` (PreToolUse) fall back to transcript estimation, where the model id arrives stripped of its `[1m]` marker (e.g. `claude-opus-4-8`) → `modelIdToLimit` → 200k. A 1M session was therefore scored against a 200k denominator and falsely flagged WARNING from ~140k tokens (≈14% of its real window). Fixed by adding a statusline-independent override, `readConfiguredLimit()`, read by both hooks: `QE_CONTEXT_LIMIT` env var, then `.qe/config.json → hooks.context_window_limit`. Set `{ "hooks": { "context_window_limit": 1000000 } }` to score correctly with no HUD.
-- **`writeCachedRatio` clobbered the TTL-exempt window limit** — the function overwrites the whole cache file, so any statusline redraw frame where `deriveContextLimit` returned null (e.g. `total_input_tokens` momentarily absent) dropped a previously persisted `limit`, reopening the sub-200k 1M blind spot. It now reads and preserves the existing limit when a fresh one isn't supplied.
 - **`addMemory({priority:"permanent"})` no longer silently expires after 7 days** (#6) — `TTL_MAP.permanent` is `null` (the no-expiry sentinel), but `const ttl = TTL_MAP[priority] ?? TTL_MAP.normal` treated that `null` as "missing" and fell back to the 7-day `normal` TTL, so memories deliberately marked permanent were pruned by `getActiveMemories()`/`pruneExpired()` after a week. Switched to key-presence (`priority in TTL_MAP ? TTL_MAP[priority] : TTL_MAP.normal`) so the sentinel survives. Added `hooks/scripts/lib/__tests__/project-memory.test.mjs` covering permanent/high/normal/low/default/unknown TTL assignment.
 
 ## [7.1.4] - 2026-06-14
@@ -632,7 +630,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ## [7.1.1] - 2026-06-11
 
 ### Fixed
-- **Context pressure false alarms on 1M-context models** — the HUD (sourced from Claude Code's authoritative reading) correctly showed ~20% while `context-monitor`/`context-guard` warned at ~84% for the same session. When the cached ratio went stale and Claude Code had stripped the `[1m]` marker from the model id, the transcript fallback divided live tokens by the 200k default (e.g. 168k/200k = 84%) instead of the true 1M window. The statusline now back-solves the real window limit (`total_input_tokens / used_percentage`) and persists it alongside the ratio, so the fallback in both hooks keeps the correct denominator (168k/1M ≈ 17%) even after the cache expires. New `deriveContextLimit()` / `readCachedLimit()` helpers in `context-meter.mjs`, plus regression coverage.
 
 ## [7.1.0] - 2026-06-11
 
@@ -655,7 +652,7 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 - `Edependency-auditor` agent — dependency security/license/outdated auditing
 - `Eperformance-profiler` agent — build/runtime performance profiling
 - Skill Budget monitoring via `skill-budget.mjs` with SessionStart overflow warning
-- Harness metrics (6 metrics) via `metrics-collector.mjs`, telemetry JSONL, trace logger, HUD panel
+- Harness metrics (6 metrics) via `metrics-collector.mjs`, telemetry JSONL, trace logger
 - `effort-compat.mjs` — budget_tokens to effort mapping with Claude/Codex cross-engine translation
 - SIVS config schema: effort `max` value, compaction settings
 - Plugin marketplace metadata v2 alignment (category, tags, compatibility, features)
@@ -713,7 +710,6 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 - 6 harness engineering metrics: Task Resolution Rate, Code Churn, Verification Tax, Harness Constraint Effect, Defect Escape Rate, Pass@1 — collected via `metrics-collector.mjs`
 - Session telemetry JSONL export via `telemetry.mjs` — daily `.qe/telemetry/` files
 - Agent decision trace logger via `trace-logger.mjs` — `.qe/traces/` JSONL files
-- HUD metrics summary panel (`metrics-panel.mjs`)
 - Agent Teams v2 config with JSON Schema (`agent-teams.schema.json`) — 16 fields including effort, isolation, color
 - Import System documentation (`docs/IMPORT_SYSTEM.md`)
 - Upgrade guide v7 (`docs/UPGRADE_GUIDE_v7.md`)
@@ -759,19 +755,13 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 ### Added
 - **Mtest-skill batch mode + verdict cache** — new `--batch <glob>` path in `skills/Mtest-skill/SKILL.md` backed by `scripts/run_mtest_skill.mjs`. The runner expands a repo-relative glob (e.g. `skills/Q*`), replays the routing workflow per SKILL.md, and prints a markdown results table to stdout (optionally mirrored via `--out`). Verdicts are memoised through `hooks/scripts/lib/mtest-cache.mjs` keyed by sha256 of the canonicalised SKILL.md content; entries live under `.qe/mtest-cache/{hash}.json` (gitignored). Content-addressed invalidation: editing a SKILL.md automatically orphans its previous entry so the next batch run re-evaluates. Single-skill invocations still bypass the cache for interactive audits. Cuts the cost of 107-skill sweeps from "always re-run everything" to "only re-run what changed".
 - **Named Plan layout** — planning state moves from flat `.qe/planning/{ROADMAP,STATE,REQUIREMENTS}.md` into per-plan directories `.qe/planning/plans/{slug}/`. Multiple terminals can now run `/Qplan` in parallel without clobbering each other's state. Qplan auto-derives the slug from the task prompt (no user prompt); consumer skills resolve the active plan via session binding → `ACTIVE_PLAN` pointer → flat fallback. Legacy flat-file projects keep working unchanged.
-- **Session → Plan bridge** — `hooks/scripts/session-start.mjs` writes `.qe/state/current-session.json` so model-side skills can discover their own `session_id` and bind plans to terminals. HUD `phase` element reads `session_id` from the statusline payload to resolve `{slug} · Phase N`.
+- **Session → Plan bridge** — `hooks/scripts/session-start.mjs` writes `.qe/state/current-session.json` so model-side skills can discover their own `session_id` and bind plans to terminals.
 - `hooks/scripts/lib/plan-resolver.mjs` — shared resolver for `resolveActivePlanSlug` / `resolveStatePath` / `resolveRoadmapPath` with strict slug validation against path traversal.
 - Qcritical-review: integrate OMC 9-step protocol (Pre-commitment / Multi-perspective / Pre-Mortem / Ambiguity Scan / Devil's Advocate / Self-audit / Realist / Adversarial / Gap Analysis) — adapted from oh-my-claudecode (MIT)
 - Etracer agent: evidence-based causal trace lane (Observation/Inference separation, 6-tier evidence, ≥2 hypotheses, disconfirmation, next probe) — adapted from oh-my-claudecode (MIT)
 - Safety hooks: post-tool-failure-guard (5-retry alternative-approach prompt), persistence-safety (max iterations + stale guard), context-guard (75/95% threshold + MAX_BLOCKS=2) — adapted from oh-my-claudecode (MIT)
-- **HUD element architecture** — `hud-renderer.mjs` split into `hud/elements/*.mjs` (context, rate-limits, model, tokens, sivs, phase, task, model-ratio) + a preset-driven composer. Adding a new HUD element is now a single file + one preset edit.
-- **Qhud `--preset <name>` flag** — pick element ordering at install time. Presets: `session` (default, v6.6.3 shape), `focused` (ctx/phase/task/sivs), `qe` (planning-layer only), `mix` (includes model-ratio), `full` (everything).
-- **New HUD element: `phase`** — reads `.qe/planning/STATE.md` and surfaces the current Active Phase (e.g., `P: Phase 1`). Renders nothing when idle.
-- **New HUD element: `task`** — reads the most-recent pending `TASK_REQUEST_*.md` and surfaces its UUID + title (e.g., `T: abc12345 Build landing page`). Renders nothing when no pending tasks.
-- **New HUD element: `model-ratio`** — session-wide token distribution across Opus / Sonnet / Haiku / Codex that sums to exactly 100 (e.g., `O:42·S:31·H:12·X:15`). Reads the JSONL transcript at `data.transcript_path`, buckets by `message.model`; Claude turns invoking codex tool_use (`mcp__codex*` / `codex:rescue`) go into the `X` bucket as a delegation-cost proxy.
 
 ### Changed
-- `hooks/scripts/lib/hud-renderer.mjs` is now a compatibility shim that re-exports the old public surface (`safe`, `formatTokens`, `pickContextUsed`, `pickRateLimits`, `pickModelName`, `pickSessionTokens`, `renderSivsLetters`, `renderHud`). New code should import from `hud/renderer.mjs` + individual elements.
 - `formatTokens` now uses capital `M` for millions (`1.5M`) and promotes `999_500+` to `M` to avoid rendering `1000k`.
 - **11 skill descriptions tuned with branch-point clarifications** (Phase 3 audit HIGH items) — design cluster (Qdesign, Qdesign-audit, Qdesign-studio, Qfrontend-design, Qvisual-qa, Qvisual-redesign, Qweb-design-guidelines) and task-exec cluster (Qrun-task, Qcode-run-task, Qatomic-run, Qrt). Each description now names sibling skills and states "use THIS when X / use Y when Z" so LLM-driven routing can disambiguate the overlapping "design" / "task" / "review" keyword clusters. Local replay (`run_mtest_skill.mjs`) score unchanged (it reads `triggers`/`keywords`, not `description`); LLM-driven re-measurement tracked separately. Before/after per-skill detail: `.qe/audit/high-priority-applied.md` (gitignored).
 
@@ -788,18 +778,13 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 - `CHANGELOG.md` + `/Mrelease` skill establishing batched release workflow. Commits now accumulate entries under `[Unreleased]`; release is a deliberate action, not a per-commit side effect.
 - **Qhelp Mode B** — `/Qhelp {skillName}` reads the target skill's SKILL.md and generates a 4-section summary (Summary / When to use / What it does / Usage) in the user's language. Uses `.qe/profile/language.md` for locale detection.
 - **Universal `--help` flag** — typing `/Qxxx --help` or `/Qxxx -h` for any Q- or M-prefix skill is detected in the prompt-check hook and routed to `/Qhelp {skillName}`. Backed by `hooks/scripts/lib/help-flag-parser.mjs`.
-- **Qhud Phase 2** — HUD now displays Anthropic rate-limit usage (`5h` / `7d`) and model label (`Opus`/`Sonnet`/`Haiku`), plus an ANSI-sanitizing `safe()` helper that strips escape sequences from untrusted payload fields before emission.
 
 ### Changed
 - Mbump is now a sub-step of `/Mrelease`; direct `/Mbump` invocation still works for explicit overrides but is no longer the recommended release path.
-- **Qhud** — context percentage now displays *used* (e.g. `ctx 16%`) instead of *remaining*. Color thresholds: green `<50`, yellow `50–80`, red `≥80`. Inverse of prior behavior; matches common "capacity used" UX.
-- **Qhud** — SIVS routing always renders as 4-letter `C/C/C/C` (spec/implement/verify/supervise, `C=claude X=codex`). The previous "claude" compact label for all-Claude configs is removed in favor of stable positional display.
-- **Internal API rename** in `hooks/scripts/lib/hud-renderer.mjs`: `pickContextRemaining()` → `pickContextUsed()` (return semantics inverted). Hook-internal lib; no external callers known.
 
 ## [6.6.2] - 2026-04-24
 
 ### Added
-- QE HUD statusline primitive (`Qhud`, `hud-renderer.mjs`, `statusline.mjs`).
 
 ### Fixed
 - `comment-checker` JSDoc walk — dynamic lookback replaces fixed 5-line window so long JSDoc blocks (8+ lines) no longer trigger false "undocumented" warnings.

@@ -59,8 +59,7 @@ summaries, decisions — that should compound across sessions. It does **not** r
   `git commit` is hard-blocked by the PreToolUse hook (D-WIKI-01).
 - **SIVS**: compile/query/lint are utility skills outside SIVS stage routing.
 - **SessionStart hook**: shows `[Wiki] N uncompiled …` when `.qe/wiki/inbox` has sources.
-- **HUD**: the opt-in `wiki` preset (`/Qhud on --preset wiki`) shows topic + inbox counts.
-  Existing presets are unchanged.
+- **SessionStart hook**: reports uncompiled wiki inbox counts inside the session.
 - **Provenance**: every factual claim backlinks `[[sources/...]]` (extracted / inferred /
   ambiguous / web-enriched). The Socratic gate holds inferred/ambiguous/contradictions for
   human confirmation before `tier: reviewed`.

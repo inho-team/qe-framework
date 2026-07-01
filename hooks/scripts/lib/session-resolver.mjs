@@ -82,7 +82,7 @@ export function shortenSid(raw) {
 
 /**
  * Normalize a human-readable session name for storage/display. The value is
- * intentionally small because it is shown in SessionStart context and HUD.
+ * intentionally small because it is shown in SessionStart context.
  *
  * @param {unknown} raw
  * @returns {string}
@@ -129,7 +129,7 @@ export function readCurrentSid(projectRoot) {
 
 /**
  * Read the raw Claude session id from the project-global pointer file.
- * This preserves existing plan/HUD bindings keyed by full UUID while callers
+ * This preserves existing plan bindings keyed by full UUID while callers
  * that need the 8-char sid can still use readCurrentSid().
  *
  * @param {string} projectRoot
@@ -208,7 +208,7 @@ export function ensureSessionDirs(projectRoot, sid) {
 
 /**
  * Candidate binding ids for `.qe/planning/.sessions/{id}.json`. Historical
- * plan/HUD code uses the full Claude UUID; new session-awareness surfaces use
+ * plan code uses the full Claude UUID; new session-awareness surfaces use
  * the 8-char sid. Readers try both, writers preserve an existing UUID binding
  * if present so activePlanSlug/summary are not split across files.
  *

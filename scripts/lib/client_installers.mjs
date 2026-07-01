@@ -283,14 +283,24 @@ export function uninstallClaudeAssets({ repoRoot = REPO_ROOT, homeDir = homedir(
 // ---------------------------------------------------------------------------
 
 /**
- * Load the KNOWN-QE-SKILL-NAMES set from the shipped manifest.
+ * Load the known QE-installed skill names from the shipped manifest.
+ * currentFrameworkSkills are installed by this package; legacyCleanupSkills are
+ * historical install targets that may still exist under ~/.codex/skills. The
+ * externalOwnerPointers section is intentionally excluded from cleanup.
+ *
  * Returns a Set<string>. On parse error, returns an empty set and warns.
  */
-function loadKnownSkillNames(log = () => {}) {
+function loadCleanupSkillNames(log = () => {}) {
   const manifestPath = join(MODULE_DIR, 'codex-cleanup-manifest.json');
   try {
     const raw = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    const arr = Array.isArray(raw) ? raw : (Array.isArray(raw.skills) ? raw.skills : []);
+    const arr = Array.isArray(raw)
+      ? raw
+      : [
+          ...(Array.isArray(raw.currentFrameworkSkills) ? raw.currentFrameworkSkills : []),
+          ...(Array.isArray(raw.legacyCleanupSkills) ? raw.legacyCleanupSkills : []),
+          ...(Array.isArray(raw.skills) ? raw.skills : []),
+        ];
     return new Set(arr);
   } catch (e) {
     log(`[WARN] cleanupCodexAssets: could not load manifest at ${manifestPath}: ${e.message}`);
@@ -340,19 +350,17 @@ function parseQeAgentFence(text) {
  * Collapses runs of >1 blank line left behind into a single blank line.
  */
 function stripQeAgentFence(text) {
-  const lines = text.split(/\r?\n/);
-  const beginIdx = lines.findIndex((l) => l.trim() === QE_CODEX_CONFIG_BEGIN);
-  const endIdx = lines.findIndex((l) => l.trim() === QE_CODEX_CONFIG_END);
-  if (beginIdx === -1 || endIdx === -1) return text; // no-op
+  let lines = text.split(/\r?\n/);
+  while (true) {
+    const beginIdx = lines.findIndex((l) => l.trim() === QE_CODEX_CONFIG_BEGIN);
+    const endIdx = lines.findIndex((l, index) => index >= beginIdx && l.trim() === QE_CODEX_CONFIG_END);
+    if (beginIdx === -1 || endIdx === -1) break;
+    lines = [...lines.slice(0, beginIdx), ...lines.slice(endIdx + 1)];
+  }
 
-  const before = lines.slice(0, beginIdx);
-  const after = lines.slice(endIdx + 1);
-  const merged = [...before, ...after];
-
-  // Collapse runs of >1 blank line into a single blank line.
   const collapsed = [];
   let prevBlank = false;
-  for (const line of merged) {
+  for (const line of lines) {
     const isBlank = line.trim() === '';
     if (isBlank && prevBlank) continue;
     collapsed.push(line);
@@ -360,6 +368,25 @@ function stripQeAgentFence(text) {
   }
 
   return collapsed.join('\n');
+}
+
+function stripQeAgentSections(text, agentNames = []) {
+  const names = new Set(agentNames);
+  if (names.size === 0) return text;
+
+  const lines = text.split(/\r?\n/);
+  const out = [];
+  for (let index = 0; index < lines.length;) {
+    const header = lines[index].match(/^\[agents\."([^"]+)"\]$/) || lines[index].match(/^\[agents\.([^\]]+)\]$/);
+    if (header && names.has(header[1])) {
+      index += 1;
+      while (index < lines.length && !/^\[[^\]]+\]$/.test(lines[index])) index += 1;
+      continue;
+    }
+    out.push(lines[index]);
+    index += 1;
+  }
+  return out.join('\n').replace(/\n{3,}/g, '\n\n');
 }
 
 /**
@@ -499,7 +526,7 @@ export function cleanupCodexAssets({
   const effectiveDryRun = purge !== true; // purge===true -> real deletion
 
   // ----- Skills: manifest match + SKILL.md presence -----
-  const knownSkillNames = loadKnownSkillNames(log);
+  const knownSkillNames = loadCleanupSkillNames(log);
   const skillsDir = join(codexDir, 'skills');
   const skillsToRemove = [];
   const scriptsDir = join(codexDir, 'scripts');
@@ -1046,21 +1073,33 @@ function syncCleanupManifest(repoRoot, log = () => {}) {
   const manifestPath = join(MODULE_DIR, 'codex-cleanup-manifest.json');
   const skillsDir = join(repoRoot, 'skills');
 
-  let existing = { skills: [] };
+  let existing = { currentFrameworkSkills: [], legacyCleanupSkills: [], externalOwnerPointers: [] };
   try {
     existing = JSON.parse(readFileSync(manifestPath, 'utf8'));
-    if (!Array.isArray(existing.skills)) existing.skills = [];
+    if (!Array.isArray(existing.currentFrameworkSkills)) existing.currentFrameworkSkills = [];
+    if (!Array.isArray(existing.legacyCleanupSkills)) existing.legacyCleanupSkills = [];
+    if (!Array.isArray(existing.externalOwnerPointers)) existing.externalOwnerPointers = [];
   } catch { /* first run or parse error — start fresh */ }
 
   const current = collectSkillSourceDirs(skillsDir).map((entry) => entry.rel);
 
-  // Union: preserve historical entries, add new ones, dedup, sort
-  const merged = [...new Set([...existing.skills, ...current])].sort();
+  const currentFrameworkSkills = [...new Set(current)].sort();
+  const legacyCleanupSkills = [...new Set(existing.legacyCleanupSkills)].sort();
+  const currentSet = new Set(currentFrameworkSkills);
+  const externalOwnerPointers = existing.externalOwnerPointers
+    .filter((entry) => entry && typeof entry.name === 'string' && !currentSet.has(entry.name))
+    .sort((a, b) => a.name.localeCompare(b.name));
 
-  const next = { ...existing, skills: merged };
+  const next = {
+    ...existing,
+    currentFrameworkSkills,
+    legacyCleanupSkills,
+    externalOwnerPointers,
+  };
+  delete next.skills;
   try {
     writeFileSync(manifestPath, JSON.stringify(next, null, 2) + '\n', 'utf8');
-    log(`[codex-install] manifest synced: ${merged.length} skills`);
+    log(`[codex-install] manifest synced: ${currentFrameworkSkills.length} current skill(s), ${legacyCleanupSkills.length} legacy cleanup skill(s)`);
   } catch (e) {
     log(`[WARN] installCodexAssets: could not write manifest: ${e.message}`);
   }
@@ -1217,7 +1256,8 @@ export function installCodexAssets({
   if (migratedHookFeature.changed) {
     log('[codex-install] migrated deprecated [features].codex_hooks to [features].hooks.');
   }
-  const stripped = stripQeHooksFence(stripQeAgentFence(migratedHookFeature.text));
+  const agentNames = agentEntries.map((entry) => entry.name);
+  const stripped = stripQeAgentSections(stripQeHooksFence(stripQeAgentFence(migratedHookFeature.text)), agentNames);
   const blocks = [stripped];
   if (agentEntries.length > 0) {
     blocks.push(renderCodexAgentConfigBlock(codexAgentsDir, agentEntries));

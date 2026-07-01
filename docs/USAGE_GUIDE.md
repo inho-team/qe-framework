@@ -42,8 +42,8 @@ safety hook (Codex requires you to trust hook definitions; the installer never a
 - ✅ Supported: skill/agent install and safety guards are implemented on Codex. The
   Codex `PreToolUse` guard blocks raw `git commit`, `gh pr create`, in-place
   `sed -i`, and direct `plugin.json` version writes after the hook bundle is trusted.
-- ✅ Supported as command: `$Qhud`/`~/.codex/scripts/qe-hud.mjs` renders the QE HUD
-  for Codex shell/tmux/manual use. This is not native statusline hook parity.
+- ✅ Supported: runtime guidance is delivered inside the session through SessionStart
+  context and hook messages.
 - ⚠️ Degrades: skills that delegate to E-agents run **inline** on Codex — Codex only spawns
   sub-agents on explicit request (`/agent`), not via automatic skill delegation. The agents are
   installed and available for manual `/agent` invocation.
@@ -147,7 +147,7 @@ Claude adapter:
 - commandPrefix = /
 - interaction prompts use the Claude question surface
 - delegated execution may use the Claude Agent tool
-- status uses the Claude statusLine surface
+- status guidance uses session context and hook messages
 ```
 
 ### Step 3. Add the Codex adapter behavior
@@ -160,7 +160,7 @@ Codex adapter:
 - installed skills live under ~/.codex/skills
 - generated native agents live under ~/.codex/agents
 - lifecycle safety uses the Codex hook fence and wrapper scripts
-- HUD support uses qe-hud when native statusline parity is unavailable
+- status guidance uses session context and hook messages
 ```
 
 ### Step 4. Write user commands as paired or adapter-neutral examples

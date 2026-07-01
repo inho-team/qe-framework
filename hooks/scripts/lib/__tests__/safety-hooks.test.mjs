@@ -24,13 +24,19 @@ import {
   writeCachedLimit,
   readCachedRatio,
   readCachedLimit,
+  readNativeCodexWindow,
   invalidateCachedRatio,
   readConfiguredLimit,
   deriveContextLimit,
+  resolveLiveContextLimit,
   modelIdToLimit,
   reconcileDisplayPercentage,
   STALE_DISPLAY_MARGIN,
 } from '../context-meter.mjs';
+import {
+  estimateContextSeverity,
+  loadContextPolicy,
+} from '../context-policy.mjs';
 
 // ============================================================================
 // retry-counter tests
@@ -274,8 +280,17 @@ test('context-meter: resetBlocks clears the entry', (t) => {
 // context-meter: model-aware window limit (200k vs 1M) tests
 // ============================================================================
 
+test('context-policy: loads canonical thresholds from CONTEXT_BUDGET.md', () => {
+  const policy = loadContextPolicy();
+  assert.strictEqual(policy.warning_tokens, 140000);
+  assert.strictEqual(policy.critical_tokens, 170000);
+  assert.strictEqual(estimateContextSeverity(139999, policy), 'none');
+  assert.strictEqual(estimateContextSeverity(140000, policy), 'warning');
+  assert.strictEqual(estimateContextSeverity(170000, policy), 'critical');
+});
+
 test('deriveContextLimit: 20% at ~200k input → 1M tier', () => {
-  // The exact field shape Claude Code passes to the statusline on a 1M model.
+  // The exact field shape of a live context-window payload on a 1M model.
   assert.strictEqual(deriveContextLimit({ used_percentage: 20, total_input_tokens: 200000 }), 1000000);
 });
 
@@ -294,6 +309,19 @@ test('deriveContextLimit: returns null when underivable', () => {
   assert.strictEqual(deriveContextLimit({ used_percentage: 0, total_input_tokens: 100 }), null);
   assert.strictEqual(deriveContextLimit({ used_percentage: 20 }), null);
   assert.strictEqual(deriveContextLimit(null), null);
+});
+
+test('resolveLiveContextLimit: live 1M payload overrides stale stored 200k', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  writeCachedLimit(dir, 200000);
+  const limit = resolveLiveContextLimit(
+    dir,
+    { used_percentage: 20, total_input_tokens: 200000 },
+    'claude-opus-4-8',
+  );
+  assert.strictEqual(limit, 1000000);
 });
 
 test('readCachedLimit: round-trips the persisted limit', (t) => {
@@ -356,7 +384,7 @@ test('invalidateCachedRatio: drops the ratio but preserves the window limit', (t
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-  // A statusline frame caches a high ratio plus the back-solved 1M limit.
+  // A live frame caches a high ratio plus the back-solved 1M limit.
   writeCachedRatio(dir, 84, 1000000);
   assert.ok(readCachedRatio(dir) !== null, 'ratio should be present before invalidate');
 
@@ -427,8 +455,8 @@ test('readConfiguredLimit: null when neither env nor config sets a limit', (t) =
   assert.strictEqual(readConfiguredLimit(dir), null);
 });
 
-test('regression: no-statusline 1M run at 150k tokens is scored against 1M via config', (t) => {
-  // The exact failure this whole change targets: HUD off → cache never written →
+test('regression: unverified 1M run at 150k tokens is scored against 1M via config', (t) => {
+  // The exact failure this change targets: cache absent →
   // transcript model id stripped to "claude-opus-4-8" → would resolve to 200k →
   // 150k/200k = 0.75 false WARNING. With the config override it's 150k/1M = 0.15.
   // Hermetic: a real session exports QE_CONTEXT_LIMIT, which resolveLimit honours
@@ -454,10 +482,10 @@ test('regression: no-statusline 1M run at 150k tokens is scored against 1M via c
 });
 
 test('regression: 168k tokens on a 1M model is NOT mis-read as 84%', (t) => {
-  // Reproduces the HUD-20%-vs-warning-84% split: a 1M-context run sitting at
+  // Reproduces the false-warning split: a 1M-context run sitting at
   // ~168k tokens. Without the true limit, estimateUsageRatio divides by the
   // 200k default (168k/200k = 0.84 → false CRITICAL). With the cached 1M limit
-  // it reads the true ~17% occupancy that the HUD shows.
+  // it reads the true ~17% occupancy.
   // Hermetic: clear the ambient QE_CONTEXT_LIMIT a real session exports, else the
   // env override (resolveLimit step 2) makes the "naive" path resolve to 1M too.
   const _qcl = process.env.QE_CONTEXT_LIMIT;
@@ -478,10 +506,10 @@ test('regression: 168k tokens on a 1M model is NOT mis-read as 84%', (t) => {
   const naive = estimateUsageRatio(file, { modelId: 'claude-opus-4-8' });
   assert.strictEqual(naive, 168000 / 200000); // 0.84 — the false reading
 
-  // Fixed path: the statusline-cached true limit overrides the denominator.
+  // Fixed path: the cached true limit overrides the denominator.
   const corrected = estimateUsageRatio(file, { modelId: 'claude-opus-4-8', modelLimit: 1000000 });
-  assert.strictEqual(corrected, 168000 / 1000000); // 0.168 — matches the HUD
-  assert.ok(corrected < 0.7, 'corrected ratio must be below the WARNING threshold');
+  assert.strictEqual(corrected, 168000 / 1000000); // 0.168
+  assert.ok(corrected < 0.2, 'corrected ratio must reflect the 1M denominator');
 });
 
 test('modelIdToLimit: [1m] marker → 1M, plain id → 200k default', () => {
@@ -536,7 +564,7 @@ test('writeCachedLimit: persists the limit and survives without a ratio (sticky)
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
-  // No statusline ever ran — write the deterministically detected 1M tier.
+  // No live ratio was cached — write the deterministically detected 1M tier.
   writeCachedLimit(dir, 1000000);
   assert.strictEqual(readCachedLimit(dir), 1000000);
 
@@ -544,6 +572,63 @@ test('writeCachedLimit: persists the limit and survives without a ratio (sticky)
   // limit write must not invent a ratio (readCachedLimit-only, TTL-exempt).
   writeCachedRatio(dir, 5, 1000000);
   assert.strictEqual(readCachedLimit(dir), 1000000);
+});
+
+test('context-meter: scoped cache isolates concurrent client/session windows', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const claude = { client: 'claude', sessionId: 'claude-1m', modelId: 'claude-opus-4-8[1m]' };
+  const codex = { client: 'codex', sessionId: 'codex-200k', modelId: 'gpt-test' };
+
+  writeCachedLimit(dir, 1000000, claude);
+  writeCachedLimit(dir, 200000, codex);
+  writeCachedRatio(dir, 20, 1000000, claude);
+  writeCachedRatio(dir, 75, 200000, codex);
+
+  assert.strictEqual(readCachedLimit(dir, claude), 1000000);
+  assert.strictEqual(readCachedLimit(dir, codex), 200000);
+  assert.strictEqual(readCachedRatio(dir, claude), 0.2);
+  assert.strictEqual(readCachedRatio(dir, codex), 0.75);
+
+  invalidateCachedRatio(dir, claude);
+  assert.strictEqual(readCachedRatio(dir, claude), null);
+  assert.strictEqual(readCachedLimit(dir, claude), 1000000);
+  assert.strictEqual(readCachedRatio(dir, codex), 0.75);
+  assert.strictEqual(readCachedLimit(dir, codex), 200000);
+});
+
+test('context-meter: reads Codex native model_context_window from session log', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-test-'));
+  const prevHome = process.env.CODEX_HOME;
+  const prevThread = process.env.CODEX_THREAD_ID;
+  t.after(() => {
+    if (prevHome === undefined) delete process.env.CODEX_HOME;
+    else process.env.CODEX_HOME = prevHome;
+    if (prevThread === undefined) delete process.env.CODEX_THREAD_ID;
+    else process.env.CODEX_THREAD_ID = prevThread;
+    fs.rmSync(dir, { recursive: true, force: true });
+  });
+
+  const sessionDir = path.join(dir, 'sessions', '2026', '07', '01');
+  fs.mkdirSync(sessionDir, { recursive: true });
+  fs.writeFileSync(
+    path.join(sessionDir, 'rollout-test.jsonl'),
+    [
+      JSON.stringify({
+        type: 'event_msg',
+        payload: { type: 'task_started', turn_id: 'thread-a', model_context_window: 121600 },
+      }),
+      JSON.stringify({
+        type: 'event_msg',
+        payload: { type: 'token_count', turn_id: 'thread-b', info: { model_context_window: 258400 } },
+      }),
+    ].join('\n') + '\n',
+  );
+
+  process.env.CODEX_HOME = dir;
+  process.env.CODEX_THREAD_ID = 'thread-b';
+  assert.strictEqual(readNativeCodexWindow(), 258400);
 });
 
 // ============================================================================

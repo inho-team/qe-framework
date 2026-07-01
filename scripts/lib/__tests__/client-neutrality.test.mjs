@@ -77,7 +77,7 @@ test('client-neutrality guard allows Claude adapter sections', (t) => {
     '',
     '## Claude Adapter',
     '',
-    'Claude uses AskUserQuestion and statusLine here.',
+    'Claude uses AskUserQuestion here.',
   ].join('\n'), 'utf8');
 
   const findings = scanFiles(root, ['docs/sample.md']);

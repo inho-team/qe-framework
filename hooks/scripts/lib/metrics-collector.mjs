@@ -65,7 +65,7 @@ export function recordVerificationTime(metrics, verifyMs, implementMs) {
 /**
  * Generate a human-readable metrics summary string.
  * @param {Object} metrics - Current metrics object
- * @returns {string} Summary line for HUD display
+ * @returns {string} Summary line for session display
  */
 export function getMetricsSummary(metrics) {
   if (!metrics || metrics.tasksTotal === 0) return '';

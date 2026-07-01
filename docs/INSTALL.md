@@ -32,7 +32,7 @@ packaged. Runtime capability is broader than that package anchor:
 | Skills | plugin/standalone assets under `~/.claude` | native skills under `~/.codex/skills` |
 | Agents | Markdown agents under `~/.claude/agents` | TOML native agents under `~/.codex/agents` |
 | Hooks | Claude Code plugin hook registration | managed Codex hook fences in `~/.codex/config.toml` |
-| HUD | Claude `statusLine` adapter | `qe-hud` command/proxy |
+| Status guidance | Session context and hook messages | Session context and hook messages |
 | SIVS bridge | Claude can delegate Codex stages through `codex-plugin-cc` | Codex can use native skills, native agents, and reverse Claude bridge surfaces when present |
 
 This means installation docs should not treat `.claude-plugin` as a runtime

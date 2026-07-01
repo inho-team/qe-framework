@@ -135,16 +135,16 @@ test('writeDetectedLimit: collapses a marker-variant key into the canonical stri
   }
 });
 
-test('checkContextPressure: [1m]-marked config key → 180k scores NONE (the real-world bug)', () => {
+test('checkContextPressure: [1m]-marked config key → 130k scores NONE (the real-world bug)', () => {
   const dir = tmpProject();
   try {
     writeConfig(dir, { context_window_limits: { 'claude-opus-4-8[1m]': 1000000 } });
-    const transcriptPath = writeTranscript(dir, 180000, 'claude-opus-4-8');
+    const transcriptPath = writeTranscript(dir, 130000, 'claude-opus-4-8');
     const res = checkContextPressure(dir, { tool_calls: 0 }, {}, {
       transcriptPath,
       modelId: 'claude-opus-4-8',
     });
-    assert.equal(res.severity, 'none', 'marked key now verifies the 1M tier → no false alarm');
+    assert.equal(res.severity, 'none', 'marked key now verifies the 1M tier → no false alarm below 140k');
     assert.equal(res.message, null, 'no estimate warning');
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -174,16 +174,16 @@ test('checkContextPressure: unverified 200k-guess at 90% → downgraded to WARNI
   }
 });
 
-test('checkContextPressure: detected 1M tier → same 180k tokens scores NONE (no false alarm)', () => {
+test('checkContextPressure: detected 1M tier → 130k tokens scores NONE (no false alarm)', () => {
   const dir = tmpProject();
   try {
     writeConfig(dir, { context_window_limits: { 'claude-opus-4-8': 1000000 } });
-    const transcriptPath = writeTranscript(dir, 180000, 'claude-opus-4-8');
+    const transcriptPath = writeTranscript(dir, 130000, 'claude-opus-4-8');
     const res = checkContextPressure(dir, { tool_calls: 0 }, {}, {
       transcriptPath,
       modelId: 'claude-opus-4-8',
     });
-    assert.equal(res.severity, 'none', '180k of 1M is ~18% → no pressure');
+    assert.equal(res.severity, 'none', '130k stays below the CONTEXT_BUDGET warning threshold');
     assert.equal(res.message, null, 'no directive emitted');
   } finally {
     rmSync(dir, { recursive: true, force: true });
@@ -199,7 +199,7 @@ test('checkContextPressure: deterministic >200k reading verifies + persists dura
       transcriptPath,
       modelId: 'claude-opus-4-8',
     });
-    // 220k of 1M = 22% → below warning threshold → NONE.
+    // 220k proves the 1M tier; ratio policy scores it as 22%, below warning.
     assert.equal(res.severity, 'none', '22% of a proven 1M window is calm');
     // And the detection was persisted durably for next session / cold start.
     assert.equal(readDetectedLimit(dir, 'claude-opus-4-8'), 1000000, 'durably remembered');

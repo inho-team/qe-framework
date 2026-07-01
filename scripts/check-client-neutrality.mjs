@@ -15,8 +15,6 @@ const DEFAULT_TARGETS = [
   'hooks/scripts/pre-tool-use.mjs',
   'hooks/scripts/notification.mjs',
   'hooks/scripts/codex/lifecycle-codex.mjs',
-  'hooks/scripts/statusline.mjs',
-  'hooks/scripts/codex/hud-codex.mjs',
 ];
 
 const DOC_TARGETS = [
@@ -35,7 +33,6 @@ const PATTERNS = [
   { name: 'AskUserQuestion', regex: /\bAskUserQuestion\b/g, fix: 'Use interaction adapter in generic text; keep AskUserQuestion under Claude adapter only.' },
   { name: 'Agent tool', regex: /\bAgent tool\b/g, fix: 'Use agent adapter in generic text; keep Agent tool under Claude adapter only.' },
   { name: 'Agent Teams', regex: /\bAgent Teams\b/g, fix: 'Label Agent Teams as a Claude adapter capability.' },
-  { name: 'statusLine', regex: /\bstatusLine\b/g, fix: 'Label statusLine as Claude adapter behavior.' },
   { name: 'CLAUDE.md', regex: /\bCLAUDE\.md\b/g, fix: 'Use project instruction artifact unless the file is specifically Claude adapter behavior.' },
   { name: '.claude path', regex: /(^|[^A-Za-z0-9_-])\.claude(\/|[A-Za-z0-9_.-]*)/g, fix: 'Use provider adapter path or label the Claude adapter path.' },
 ];
@@ -49,7 +46,7 @@ const ADAPTER_LABELS = [
   'distribution-metadata',
   'localized-pending',
   'degraded-inline',
-  'Status/HUD',
+  'StatusProjected',
   'Codex Adapter',
   'Claude Adapter',
 ];
@@ -144,7 +141,6 @@ function isAllowedLine({ line, heading, relPath, prevLine = '', nextLine = '' })
   if (relPath === 'docs/INSTALL.md' && line.includes('~/.claude')) return true;
   if (relPath === 'docs/INSTALL.md' && line.includes('.claude-plugin')) return true;
   if (relPath.includes('/codex/')) return true;
-  if (relPath.endsWith('statusline.mjs')) return true;
   if (/^\s*\/\//.test(line)) return true;
   if (/toolName\s*={2,3}\s*['"]AskUserQuestion['"]/.test(line)) return true;
   if (/^\s*\/\//.test(line) && /(Detection|Guard|tool calls|Agent tool calls|Agent Teams)/.test(line)) return true;

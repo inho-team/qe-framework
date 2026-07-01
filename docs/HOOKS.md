@@ -58,10 +58,8 @@ emit a particular lifecycle event, the corresponding entry is inert; the fallbac
 is the installed skill/state/interaction-adapter contract, not a narrower hook
 surface.
 
-Codex HUD support is installed as `~/.codex/scripts/qe-hud.mjs`, a command proxy
-that renders the same HUD from project state for manual, shell-prompt, or
-tmux-status use. This is a `proxy` lifecycle surface under
-`core/LIFECYCLE_ADAPTER.md`, not a native `statusLine` claim.
+Runtime status is surfaced inside the session through SessionStart context and
+hook messages, so Claude and Codex share the same visible guidance path.
 
 ## Safety-Critical Parity
 

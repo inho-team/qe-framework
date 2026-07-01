@@ -41,7 +41,6 @@
 - 6 harness engineering metrics (Task Resolution, Code Churn, Verification Tax, Constraint Effect, Defect Escape, Pass@1)
 - Session telemetry JSONL export (.qe/telemetry/)
 - Agent decision tracing (.qe/traces/)
-- HUD metrics summary panel
 
 ### Phase 6: Documentation
 - CLAUDE.md updated with v7.0 numbers and pointers

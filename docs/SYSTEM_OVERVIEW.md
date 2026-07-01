@@ -187,7 +187,7 @@ active client adapter. See `core/LIFECYCLE_ADAPTER.md` and
 | PostToolUse | Claude plugin hook | Codex wrapper/shim when available |
 | Stop | Claude plugin hook | Codex wrapper/shim when available |
 | Notification | Claude plugin hook | Codex wrapper/shim when available |
-| Status/HUD | Claude `statusLine` | No native Codex statusline |
+| Status guidance | Session context and hook messages | Session context and hook messages |
 
 Safety-critical behavior, especially raw commit/version guards and autonomous
 mode rails, must be equivalent. Non-safety events can degrade, but they must be
@@ -315,7 +315,6 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 - `metrics-collector.mjs`: Session-scoped metric aggregation
 - `telemetry.mjs`: JSONL telemetry export (.qe/telemetry/)
 - `trace-logger.mjs`: Agent decision tracing (.qe/traces/)
-- HUD metrics panel (`metrics-panel.mjs`)
 - Claude SessionEnd + TaskCompleted hooks wired to metrics/telemetry
 
 ### New lib Modules
@@ -328,4 +327,3 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 | metrics-collector | hooks/scripts/lib/ | Harness metrics aggregation |
 | telemetry | hooks/scripts/lib/ | JSONL telemetry writer |
 | trace-logger | hooks/scripts/lib/ | Agent decision trace logger |
-| metrics-panel | hooks/scripts/lib/hud/elements/ | HUD metrics display |

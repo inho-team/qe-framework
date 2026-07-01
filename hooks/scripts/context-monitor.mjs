@@ -8,16 +8,16 @@
  * invoke Ecompact-executor when pressure thresholds are crossed.
  *
  * Behavior:
- * - At 70% of the window (WARNING): Emits ACTION REQUIRED directive with Agent
+ * - At 70% of the active context window (WARNING): Emits ACTION REQUIRED directive with Agent
  *   tool invocation instructions for Ecompact-executor.
- * - At 85% of the window (CRITICAL): Emits MANDATORY stop-and-compact directive.
+ * - At 85% of the active context window (CRITICAL): Emits MANDATORY stop-and-compact directive.
  *   Overrides cooldown.
  *
  * Design notes:
- * - Pressure is judged as a RATIO of the live context window, not as an
- *   absolute token count. The ratio is sourced the same way the HUD and the
- *   Stop hook (context-guard) source it — via context-meter:
- *     1. readCachedRatio() — Claude Code's authoritative statusline reading.
+ * - Pressure zones are governed by core/CONTEXT_BUDGET.md and evaluated as
+ *   ratios of the active model window. The live ratio is sourced through
+ *   context-meter:
+ *     1. readCachedRatio() — recent cached live-window reading, when present.
  *     2. estimateUsageRatio() — latest transcript `usage` entry / model limit.
  *   This makes the monitor model-aware: a 1M-context model (e.g.
  *   `claude-opus-4-8[1m]`) is no longer falsely flagged "critical" at ~17% of
@@ -34,63 +34,50 @@
 import { readFileSync, existsSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
-import { loadConfig } from './lib/config.mjs';
-import { readCachedRatio, readCachedLimit, readConfiguredLimit, readDetectedLimit, writeCachedLimit, writeDetectedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
+import { readCachedRatio, readCachedLimit, readConfiguredLimit, readDetectedLimit, readNativeCodexWindow, writeCachedLimit, writeDetectedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';
+import {
+  CONTEXT_POLICY_DEFAULTS,
+  CONTEXT_SEVERITY,
+  CONTEXT_SEVERITY_ORDER,
+  estimateContextSeverityFromRatio,
+  loadContextPolicy,
+  usedTokensFromRatio,
+} from './lib/context-policy.mjs';
 
 // Cooldown period: 5 minutes after a compaction trigger
 const COMPACTION_COOLDOWN_MS = 5 * 60 * 1000;
 
-// --- Severity levels ---
-const SEVERITY = {
-  NONE: 'none',
-  WARNING: 'warning',
-  CRITICAL: 'critical',
-};
-
-// Severity ordering for escalation comparison
-const SEVERITY_ORDER = { none: 0, warning: 1, critical: 2 };
-
-// --- Default thresholds (ratio-based metrics) ---
-// Pressure is a fraction of the LIVE context window, independent of model size:
-//   WARNING  => 70% used (~30% remaining)
-//   CRITICAL => 85% used (~15% remaining)
-// Values can be overridden via .qe/config.json hooks section.
-const DEFAULT_THRESHOLDS = {
-  context_warning_ratio: 0.70,   // ~30% remaining
-  context_critical_ratio: 0.85,  // ~15% remaining
-  context_debounce_count: 5,     // suppress re-alert for N tool calls
-};
-
 /**
- * Build context pressure message with the current usage ratio.
+ * Build context pressure message with the current usage.
  * Returns a system-instruction-style directive for auto-compaction.
  *
- * @param {string} severity - SEVERITY.WARNING or SEVERITY.CRITICAL
+ * @param {string} severity - CONTEXT_SEVERITY.WARNING or CONTEXT_SEVERITY.CRITICAL
  * @param {number} ratio - Live context usage ratio in [0, 1]
  * @param {number} limit - Model context-window token limit (for labelling)
+ * @param {number} usedTokens - Live context tokens used.
  * @returns {string} Formatted directive message
  */
-function buildDirectiveMessage(severity, ratio, limit, verified = true) {
+function buildDirectiveMessage(severity, ratio, limit, usedTokens, verified = true) {
   const pct = Math.round(ratio * 100);
-  const usedK = Math.round((ratio * limit) / 1000);
+  const usedK = Math.round(usedTokens / 1000);
   const limitK = Math.round(limit / 1000);
   const label = `${pct}% (~${usedK}k / ${limitK}k tokens)`;
 
   // Unverified denominator: the true window tier was never proven this session
-  // (no statusline reading, no cached/configured/detected limit, token count
+  // (no cached/configured/detected limit, token count
   // still below the 200k base). The percentage is computed against a GUESSED
   // 200k default and may be wildly high on a 1M run \u2014 so we never hard-stop on
   // it; we surface a soft, clearly-flagged note instead.
   if (!verified) {
     return [
       `\u26A0\uFE0F CONTEXT PRESSURE (estimated): ${label}`,
-      'NOTE: window size is unverified (no statusline reading yet) \u2014 this % may be',
-      'over-stated on a 1M-context model. Confirm real usage in the HUD before compacting.',
+      'NOTE: window size is unverified \u2014 this % may be',
+      'over-stated on a 1M-context model. Confirm the active model window before compacting.',
       'No forced compaction.',
     ].join('\n');
   }
 
-  if (severity === SEVERITY.CRITICAL) {
+  if (severity === CONTEXT_SEVERITY.CRITICAL) {
     return [
       `\u{1F534} CRITICAL CONTEXT PRESSURE: ${label}`,
       'MANDATORY: Stop current work. Invoke Ecompact-executor immediately.',
@@ -108,21 +95,15 @@ function buildDirectiveMessage(severity, ratio, limit, verified = true) {
 }
 
 /**
- * Estimate context severity from the live usage ratio.
+ * Estimate context severity from live window usage.
  *
- * @param {number} ratio - Live context usage ratio in [0, 1]
- * @param {object} thresholds - Threshold configuration (ratio-based)
- * @returns {string} Severity level (SEVERITY.NONE | WARNING | CRITICAL)
+ * @param {number} ratio - Live context usage ratio.
+ * @param {number} limit - Active context-window token limit.
+ * @param {object} policy - Context policy loaded from core/CONTEXT_BUDGET.md.
+ * @returns {string} Severity level (none | warning | critical)
  */
-export function estimateSeverity(ratio, thresholds) {
-  const r = typeof ratio === 'number' ? ratio : 0;
-  if (r >= thresholds.context_critical_ratio) {
-    return SEVERITY.CRITICAL;
-  }
-  if (r >= thresholds.context_warning_ratio) {
-    return SEVERITY.WARNING;
-  }
-  return SEVERITY.NONE;
+export function estimateSeverity(ratio, limit, policy) {
+  return estimateContextSeverityFromRatio(ratio, limit, policy);
 }
 
 /**
@@ -138,16 +119,16 @@ export function estimateSeverity(ratio, thresholds) {
  * @param {object} thresholds
  * @returns {boolean} true if alert should be suppressed
  */
-export function shouldDebounce(currentSeverity, stats, thresholds) {
-  const lastSeverity = stats.warning_severity || SEVERITY.NONE;
+export function shouldDebounce(currentSeverity, stats, policy) {
+  const lastSeverity = stats.warning_severity || CONTEXT_SEVERITY.NONE;
   const lastWarningCall = stats.last_warning_call || 0;
-  const debounceCount = thresholds.context_debounce_count;
+  const debounceCount = policy.debounce_tool_calls;
 
   // No previous warning — never suppress
-  if (lastWarningCall === 0 && lastSeverity === SEVERITY.NONE) return false;
+  if (lastWarningCall === 0 && lastSeverity === CONTEXT_SEVERITY.NONE) return false;
 
   // Severity escalated — bypass debounce
-  if (SEVERITY_ORDER[currentSeverity] > SEVERITY_ORDER[lastSeverity]) return false;
+  if (CONTEXT_SEVERITY_ORDER[currentSeverity] > CONTEXT_SEVERITY_ORDER[lastSeverity]) return false;
 
   // Within debounce window — suppress (measured in tool calls since last warning)
   const callsSinceWarning = (stats.tool_calls || 0) - lastWarningCall;
@@ -188,26 +169,21 @@ function recordCompactionTrigger(cwd) {
 /**
  * Main entry point: evaluate context pressure and return an alert if needed.
  *
- * At 140k tokens (WARNING / Yellow zone), emits a system directive instructing
- * Claude to invoke Ecompact-executor. At 170k tokens (CRITICAL / Red zone),
+  * At 70% of the active context window (WARNING / Orange zone), emits a system directive instructing
+  * Claude to invoke Ecompact-executor. At 85% (CRITICAL / Red zone),
  * emits a mandatory stop-and-compact directive. A 5-minute cooldown prevents
  * re-triggering after a compaction has already been initiated.
  *
  * @param {string} cwd - Project working directory
  * @param {object} [preloadedStats] - Pre-read session stats (avoids duplicate file I/O)
  * @param {object} [preloadedCfg] - Pre-read config (avoids duplicate loadConfig call)
- * @param {{ transcriptPath?: string, modelId?: string }} [opts] - Live-window
+ * @param {{ transcriptPath?: string, modelId?: string, client?: string, sessionId?: string }} [opts] - Live-window
  *   hints. transcriptPath enables the fallback ratio estimate; modelId selects
  *   the correct window limit (200k vs 1M) for that estimate and for labelling.
  * @returns {{ message: string|null, severity: string, stats: object }}
  */
 export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {}) {
-  const cfg = preloadedCfg || loadConfig(cwd);
-  const thresholds = {
-    context_warning_ratio: cfg.context_warning_ratio ?? DEFAULT_THRESHOLDS.context_warning_ratio,
-    context_critical_ratio: cfg.context_critical_ratio ?? DEFAULT_THRESHOLDS.context_critical_ratio,
-    context_debounce_count: cfg.context_debounce_count ?? DEFAULT_THRESHOLDS.context_debounce_count,
-  };
+  const policy = loadContextPolicy();
 
   // Use pre-loaded stats or read from disk (fallback for standalone usage)
   let stats;
@@ -221,32 +197,38 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
       try {
         stats = JSON.parse(readFileSync(statsFile, 'utf8'));
       } catch {
-        return { message: null, severity: SEVERITY.NONE, stats };
+        return { message: null, severity: CONTEXT_SEVERITY.NONE, stats };
       }
     }
   }
 
-  // Resolve the LIVE context-usage ratio the same way the HUD / Stop hook do.
-  // Prefer Claude Code's authoritative statusline reading (model-aware); fall
+  // Resolve the live context-usage ratio. Prefer a cached live reading; fall
   // back to the latest transcript usage entry divided by the model limit.
   // The accumulated stats.usage.input_tokens sum is intentionally NOT used —
   // it grows unbounded and is not a measure of live window occupancy.
-  // The statusline persists the true window limit (200k vs 1M); prefer it so
-  // the fallback estimate and the label denominator survive a stripped `[1m]`
-  // marker. Falls back to id-based resolution when no statusline has run yet.
-  // Statusline-independent limit: the HUD-cached back-solve OR an explicit
-  // config/env override. Without either, a 1M run with no statusline configured
+  // Prefer configured/detected limits so the fallback estimate and label
+  // denominator survive a stripped `[1m]` marker.
+  // Without a configured/detected limit, a 1M run
   // would resolve to the 200k default and falsely flag "critical" at ~14% fill.
-  const cachedRatio = readCachedRatio(cwd);
-  const knownLimit = readCachedLimit(cwd) ?? readConfiguredLimit(cwd) ?? readDetectedLimit(cwd, opts.modelId);
+  const cacheScope = {
+    client: opts.client || process.env.QE_CLIENT || 'claude',
+    sessionId: opts.sessionId || '',
+    modelId: opts.modelId || '',
+  };
+  const nativeLimit = cacheScope.client === 'codex' ? readNativeCodexWindow() : null;
+  const knownLimit = nativeLimit
+    ?? readCachedLimit(cwd, cacheScope)
+    ?? readConfiguredLimit(cwd, { includeProjectConfig: false })
+    ?? readDetectedLimit(cwd, opts.modelId);
+  const cachedRatio = readCachedRatio(cwd, cacheScope);
   let ratio = cachedRatio;
   let limit = knownLimit ?? modelIdToLimit(opts.modelId);
   // A reading is trustworthy only when its denominator is PROVEN, not guessed:
-  //   - cachedRatio: Claude Code's authoritative, model-aware statusline %, or
+  //   - cachedRatio: cached live-window reading, or
   //   - knownLimit: a back-solved / configured / previously-detected window, or
   //   - a transcript reading whose tokens passed the 200k base (deterministic 1M).
   // Otherwise the limit is the bare 200k default — a guess that over-states a 1M run.
-  let limitVerified = (cachedRatio !== null) || (knownLimit !== null);
+  let limitVerified = knownLimit !== null;
   if (ratio === null) {
     const u = opts.transcriptPath
       ? estimateUsage(opts.transcriptPath, { modelId: opts.modelId, modelLimit: knownLimit ?? undefined })
@@ -258,11 +240,11 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
       // it so later sub-200k readings this session aren't mis-scored against 200k.
       // Also persist DURABLY (model-keyed, survives a state-folder wipe) so the
       // detection holds across sessions — the backbone of self-correction.
-      if (u.limit === 1000000) {
+      if (u.limit === CONTEXT_POLICY_DEFAULTS.extended_window_tokens) {
         limitVerified = true;
         if (!knownLimit) {
-          writeCachedLimit(cwd, 1000000);
-          writeDetectedLimit(cwd, opts.modelId, 1000000);
+          writeCachedLimit(cwd, CONTEXT_POLICY_DEFAULTS.extended_window_tokens, cacheScope);
+          writeDetectedLimit(cwd, opts.modelId, CONTEXT_POLICY_DEFAULTS.extended_window_tokens);
         }
       }
     } else {
@@ -270,15 +252,16 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
     }
   }
 
-  let severity = estimateSeverity(ratio, thresholds);
+  const usedTokens = usedTokensFromRatio(ratio, limit);
+  let severity = estimateSeverity(ratio, limit, policy);
   // Safety net: never escalate to a MANDATORY stop-and-compact on an unverified
   // (guessed-200k) denominator. A 1M run whose tier isn't yet proven would
   // otherwise be flagged "critical" near ~17% real fill and falsely told to halt.
-  if (!limitVerified && severity === SEVERITY.CRITICAL) {
-    severity = SEVERITY.WARNING;
+  if (!limitVerified && severity === CONTEXT_SEVERITY.CRITICAL) {
+    severity = CONTEXT_SEVERITY.WARNING;
   }
 
-  if (severity === SEVERITY.NONE) {
+  if (severity === CONTEXT_SEVERITY.NONE) {
     return { message: null, severity, stats };
   }
 
@@ -288,7 +271,7 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
     const compactionState = unified.contextCompaction;
     if (compactionState && isInCooldown(compactionState)) {
       // Even during cooldown, CRITICAL always breaks through
-      if (severity !== SEVERITY.CRITICAL) {
+      if (severity !== CONTEXT_SEVERITY.CRITICAL) {
         return { message: null, severity, stats };
       }
     }
@@ -297,13 +280,14 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   }
 
   // Debounce check (tool-call-based, separate from cooldown)
-  if (shouldDebounce(severity, stats, thresholds)) {
+  if (shouldDebounce(severity, stats, policy)) {
     return { message: null, severity, stats };
   }
 
   // Update stats with warning metadata
   stats.warning_severity = severity;
   stats.last_warning_ratio = ratio;
+  stats.last_warning_tokens = usedTokens;
   // Debounce is measured in tool calls since the last warning
   stats.last_warning_call = stats.tool_calls || 0;
 
@@ -318,7 +302,7 @@ export function checkContextPressure(cwd, preloadedStats, preloadedCfg, opts = {
   }
 
   // Build directive message from the live usage ratio
-  let message = buildDirectiveMessage(severity, ratio, limit, limitVerified);
+  let message = buildDirectiveMessage(severity, ratio, limit, usedTokens, limitVerified);
 
   // Record compaction trigger in unified-state (sets cooldown)
   recordCompactionTrigger(cwd);

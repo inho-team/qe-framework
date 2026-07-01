@@ -10,9 +10,10 @@
 
 import { readdirSync, readFileSync, existsSync } from 'fs';
 import { join } from 'path';
+import { CONTEXT_POLICY_DEFAULTS } from './context-policy.mjs';
 
 const AVG_DESCRIPTION_TOKENS = 50;
-const DEFAULT_CONTEXT_WINDOW = 1_000_000;
+const DEFAULT_CONTEXT_WINDOW = CONTEXT_POLICY_DEFAULTS.extended_window_tokens;
 
 /**
  * Calculate skill budget by counting SKILL.md files and estimating token usage.
@@ -68,7 +69,7 @@ export function calculateSkillBudget(skillsDir) {
  * Check if skill budget overflows the context window percentage.
  * @param {number} totalTokens - Estimated total tokens used by skills
  * @param {number} [contextWindowPct=0.01] - Max percentage of context window (default 1%)
- * @param {number} [contextWindow=1000000] - Context window size in tokens
+ * @param {number} [contextWindow] - Context window size in tokens; defaults to the policy extended window.
  * @returns {{ overflow: boolean, budget: number, used: number, pct: number }}
  */
 export function checkBudgetOverflow(totalTokens, contextWindowPct = 0.01, contextWindow = DEFAULT_CONTEXT_WINDOW) {

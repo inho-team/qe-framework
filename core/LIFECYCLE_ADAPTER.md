@@ -20,7 +20,7 @@ only lifecycle surface.
 | `Notification` | React to agent completion, Codex materialization, and persistent-mode signals. | partial |
 | `TeammateIdle` | Maintain team-worker progress signals where supported. | no |
 | `TaskCompleted` | Archive or summarize task completion state. | partial |
-| `Status/HUD` | Render compact runtime state for the active session. | no |
+| `StatusProjected` | Render compact runtime state for the active session through session context or hook output. | no |
 
 ## Step-by-Step Contract
 
@@ -38,7 +38,7 @@ only lifecycle surface.
 1. Claude installs hook entries from `.claude-plugin/plugin.json` and `hooks/hooks.json`.
 2. Hook commands execute scripts under `hooks/scripts/`.
 3. `PreToolUse` can hard-block by exiting with code 2.
-4. `statusLine` is a Claude-native HUD surface and executes `hooks/scripts/statusline.mjs`.
+4. Status guidance is projected through SessionStart context and hook output.
 5. Claude user-facing QE commands render as `/Q...`; maintainer-only admin workflows are exposed through `qe-admin-mcp`.
 
 ## Codex Adapter
@@ -46,7 +46,7 @@ only lifecycle surface.
 1. Codex assets install under `~/.codex/` when a Codex home exists.
 2. Codex hook entries point at `hooks/scripts/codex/lifecycle-codex.mjs`, which forwards payloads to the shared QE hook scripts with `QE_CLIENT=codex` and `QE_COMMAND_PREFIX=$`.
 3. Codex `PreToolUse` is the safety-critical parity surface for raw commit, PR creation, version edit, and related hard blocks.
-4. Codex has no Claude-style native `statusLine`; report status through normal command output rather than a HUD proxy.
+4. Status guidance is projected through SessionStart context and hook output.
 5. Codex user-facing QE commands render as `$Q...`; maintainer-only admin workflows are exposed through `qe-admin-mcp`.
 
 ## Fallback Labels
@@ -69,12 +69,12 @@ new completion authority.
 | Harness label | Meaning | Generic rendering path |
 | --- | --- | --- |
 | `HarnessModeSelected` | A SIVS stage selected an execution mode. | `PostToolUse`, `Notification`, or command output |
-| `DurableLaneStarted` | A resumable lane was created or resumed. | `PostToolUse`, `Notification`, or `Status/HUD` |
+| `DurableLaneStarted` | A resumable lane was created or resumed. | `PostToolUse`, `Notification`, or session context |
 | `LaneProgressRecorded` | The lane recorded a new runtime observation. | `PostToolUse` or command output |
 | `EvidenceCollected` | The lane recorded inspectable evidence for Verify or Supervise. | `PostToolUse`, `Notification`, or command output |
-| `LaneBlocked` | The lane cannot continue without remediation, ownership resolution, or missing evidence. | `Stop`, `Notification`, or `Status/HUD` |
+| `LaneBlocked` | The lane cannot continue without remediation, ownership resolution, or missing evidence. | `Stop`, `Notification`, or session context |
 | `LaneCompleted` | The lane finished operational work. | `Notification`, `TaskCompleted`, or command output |
-| `StatusProjected` | QE rendered a read-only view of PSE/SIVS/harness state. | `Status/HUD` or command output/proxy |
+| `StatusProjected` | QE rendered a read-only view of PSE/SIVS/harness state. | Session context or hook output |
 
 Harness label payloads should point back to `core/STATE_SPEC.md` lane records
 when a lane exists. If no lane record exists, the lifecycle message must be
@@ -92,10 +92,8 @@ client. The generic policy stays the same:
    `degraded`, or `unsupported`.
 4. Defer completion authority to TASK_REQUEST, VERIFY_CHECKLIST, and Supervise.
 
-`StatusProjected` uses a native status/HUD surface when the client exposes one.
-When no native surface exists, render the projection as command output or another
-explicit proxy. A proxy projection is valid status output, but it is not parity
-with a native HUD and must not be described that way.
+`StatusProjected` uses session context and hook output so clients share the same
+visible guidance path.
 
 ### Degraded And Unsupported Harness Behavior
 

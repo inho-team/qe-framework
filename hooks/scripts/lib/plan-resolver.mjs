@@ -2,7 +2,7 @@
  * lib/plan-resolver.mjs
  *
  * Named Plan resolver. A project can carry multiple planning streams under
- * `.qe/planning/plans/{slug}/` simultaneously, so consumers (HUD, skills)
+ * `.qe/planning/plans/{slug}/` simultaneously, so consumer skills
  * need a shared lookup for "which plan does this session care about?".
  *
  * Resolution order:
@@ -24,7 +24,7 @@ const FLAT_ROADMAP = '.qe/planning/ROADMAP.md';
 const FLAT_STATE = '.qe/planning/STATE.md';
 
 // Memoize (projectRoot, sessionId) → slug|null for the life of the Node
-// process. HUD renders and several skill paths call resolveActivePlanSlug
+// process. Several skill paths call resolveActivePlanSlug
 // multiple times per response; session_id is immutable within a Claude
 // session, so the fs reads are redundant. Null results are cached too so
 // negative lookups stay cheap. Call clearPlanResolverCache() to reset
@@ -36,7 +36,7 @@ const _cacheKey = (projectRoot, sessionId) => `${projectRoot}:${sessionId || ''}
  * Resolve the active plan slug for a session.
  *
  * @param {string} projectRoot absolute project root
- * @param {string|null} [sessionId] Claude Code session id from statusline payload
+ * @param {string|null} [sessionId] active session id
  * @returns {string|null} slug, or null when no named plan applies (caller uses legacy)
  */
 export function resolveActivePlanSlug(projectRoot, sessionId) {

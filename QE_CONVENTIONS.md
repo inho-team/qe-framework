@@ -202,10 +202,10 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 - `PROJECT.md` — project-wide vision and pillars.
 - `DECISION_LOG.md` — architectural decisions that cut across plans.
 - `research/` — reusable research reports.
-- `ACTIVE_PLAN` — single-line pointer to the most-recently-activated slug (HUD fallback).
-- `.sessions/{session_id}.json` — per-session `{ activePlanSlug, updatedAt }` binding (HUD primary).
+- `ACTIVE_PLAN` — single-line pointer to the most-recently-activated slug.
+- `.sessions/{session_id}.json` — per-session `{ activePlanSlug, updatedAt }` binding.
 
-**Plan resolution order** (used by HUD and all consumer skills):
+**Plan resolution order** (used by consumer skills):
 1. Explicit slug argument (e.g., `/Qgs auth-refactor: 인증 모듈`).
 2. `.qe/state/current-session.json` → `session_id` → `.qe/planning/.sessions/{session_id}.json` → `activePlanSlug`.
 3. `.qe/planning/ACTIVE_PLAN`.

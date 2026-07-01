@@ -4,27 +4,31 @@
 A mode that automatically switches response style based on context window pressure level.
 
 ## Activation Conditions
-- Automatic: when context usage reaches 75% or above
+- Automatic: when live input context reaches the `CONTEXT_BUDGET.md` warning threshold (70% of the active window)
 - Manual: when the user requests "compressed mode" or "be concise"
 
-## 3-Zone System (Token-Based)
+## 4-Zone System (Token-Based)
 
 ### Green (0–100k tokens) — Normal Mode
 - Detailed explanations and examples included
 - Full code blocks shown
 - Alternatives compared
 
-### Yellow (100k–140k tokens) — Compressed Mode
+### Yellow (50–70%) — Compressed Mode
 - Deliver only the essentials
 - Code blocks show only the changed portions
 - Explanations limited to 1–2 sentences
-- **Auto-Triggered**: At 140k tokens, the context monitor emits a system directive that automatically invokes `Ecompact-executor` to save a context snapshot. A 5-minute cooldown prevents repeated triggers.
 
-### Red (140k–170k+ tokens) — Survival Mode
+### Orange (70–85%) — Snapshot Mode
+- **Auto-Triggered**: At 70% of the active context window, the context monitor emits a system directive that automatically invokes `Ecompact-executor` to save a context snapshot. A 5-minute cooldown prevents repeated triggers.
+- Prefer `.qe/analysis/` summaries over raw source scans.
+- Avoid loading historical context unless it is task-critical.
+
+### Red (85%+) — Survival Mode
 - One-line answers
 - Code shown as diff only
 - Minimize reading new files
-- **Auto-Triggered (Mandatory)**: At 170k tokens, the context monitor emits a mandatory stop directive. All current work must pause while `Ecompact-executor` runs compaction. This directive overrides cooldown.
+- **Auto-Triggered (Mandatory)**: At 85% of the active context window, the context monitor emits a mandatory stop directive. All current work must pause while `Ecompact-executor` runs compaction. This directive overrides cooldown.
 - If task cannot complete after compaction, suggest handoff.
 
 

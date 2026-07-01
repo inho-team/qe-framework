@@ -98,7 +98,7 @@ Determine the task scale:
 
 **Micro Plan** (estimated < 30 min of work):
 1. Confirm the task with the user in 1-2 lines.
-2. Skip roadmap, phases, and research — but still derive the slug (Step 0.6) and run Step 3.5 (Session Binding) so the HUD and consumer skills can find this plan.
+2. Skip roadmap, phases, and research — but still derive the slug (Step 0.6) and run Step 3.5 (Session Binding) so consumer skills can find this plan.
 3. Go directly to handoff with `Next Command: {adapter.commandPrefix}Qgs {slug}: {task}`.
 
 **Small Plan** (one feature / one component):
@@ -139,14 +139,14 @@ Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:
 
 ### Step 3.5: Session Binding (MANDATORY — all scales)
 
-Bind this plan to the current terminal session so the HUD and consumer skills (Qgs/Qrun-task/Qcode-run-task/Qatomic-run) resolve to the right plan automatically.
+Bind this plan to the current terminal session so consumer skills (Qgs/Qrun-task/Qcode-run-task/Qatomic-run) resolve to the right plan automatically.
 
 1. **Project-wide pointer** (always): write `{slug}\n` into `.qe/planning/ACTIVE_PLAN`.
 2. **Session-scoped binding** (best-effort): read `.qe/state/current-session.json` written by the session-start hook. If it parses and has a `session_id`, write `.qe/planning/.sessions/{session_id}.json`:
    ```json
    { "activePlanSlug": "{slug}", "updatedAt": "{ISO-8601}" }
    ```
-   If the session file is missing or unreadable, skip silently — the pointer in step 1 is enough for the HUD fallback.
+   If the session file is missing or unreadable, skip silently — the pointer in step 1 is enough for the fallback.
 3. Create the plan directory if absent: `mkdir -p .qe/planning/plans/{slug}/phases` and `mkdir -p .qe/planning/.sessions`.
 
 ### Step 3.6: Workflow Alternative (conditional)
@@ -188,8 +188,8 @@ After execution is complete (by `{adapter.commandPrefix}Qatomic-run` + `{adapter
 | `PROJECT.md` | High-level project vision, core pillars, and milestone history. |
 | `DECISION_LOG.md` | Persistent record of architectural and strategic decisions. Decisions usually cut across plans. |
 | `research/` | Deep technical research reports and domain analysis. |
-| `ACTIVE_PLAN` | Single-line pointer to the most-recently-activated plan slug. HUD fallback. |
-| `.sessions/{session_id}.json` | Per-session binding `{ activePlanSlug, updatedAt }`. HUD primary source. |
+| `ACTIVE_PLAN` | Single-line pointer to the most-recently-activated plan slug. |
+| `.sessions/{session_id}.json` | Per-session binding `{ activePlanSlug, updatedAt }`. |
 
 **Backward compatibility**: If an existing project has flat `.qe/planning/ROADMAP.md` / `STATE.md` (pre-Named-Plan era), leave them untouched. New `{adapter.commandPrefix}Qplan` invocations always use the `plans/{slug}/` layout. Consumer skills fall back to the flat files only when no plan is resolvable.
 

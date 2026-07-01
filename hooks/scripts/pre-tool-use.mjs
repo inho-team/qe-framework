@@ -621,6 +621,8 @@ try {
   const { message: ctxMessage } = checkContextPressure(cwd, stats, cfg, {
     transcriptPath: data.transcript_path || data.transcriptPath,
     modelId: data.model?.id || data.model,
+    client: data.client || process.env.QE_CLIENT || 'claude',
+    sessionId: data.session_id || data.sessionId || '',
   });
   if (ctxMessage) hints.push(ctxMessage);
 } catch {}

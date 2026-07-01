@@ -83,28 +83,34 @@ function maybeRepairQeMcpRegistration() {
   }
 }
 
-// Drop any stale context-usage ratio cached by the statusline before this
-// session began. The cache is project-global with a 60s TTL; after a `/clear`
+const startupModelId = data.model?.id || data.model || '';
+const startupCacheScope = {
+  client: data.client || process.env.QE_CLIENT || 'claude',
+  sessionId: sessionIdFromPayload(data) || '',
+  modelId: startupModelId,
+};
+
+// Drop any stale context-usage ratio before this
+// session began. The cache is scoped by client/session/model; after a `/clear`
 // (or resume/startup) it can still hold the previous conversation's high
 // percentage, which would make context-guard / context-monitor raise false
 // context-pressure on the fresh, near-empty session. Removing it forces those
 // hooks to fall back to transcript-based estimation (the real state). The
 // window limit (200k vs 1M) is preserved — it's model-constant across /clear.
 try {
-  invalidateCachedRatio(cwd);
+  invalidateCachedRatio(cwd, startupCacheScope);
 } catch {
   // Fault tolerance — never block session start on cache housekeeping.
 }
 
 // Seed the volatile window limit from the DURABLE, model-keyed detection (if any)
 // recorded in a prior session. This closes the cold-start window: after a
-// state-folder wipe the cache has no limit, and before the first statusline
-// render nothing has re-derived it, so a 1M run would momentarily score against
+// state-folder wipe the cache has no limit, so a 1M run would momentarily score against
 // the 200k default and could raise false context-pressure on the very first
 // tool calls. Seeding from .qe/config.json (which survives the wipe) prevents it.
 try {
-  const detected = readDetectedLimit(cwd, data.model?.id || data.model);
-  if (detected) writeCachedLimit(cwd, detected);
+  const detected = readDetectedLimit(cwd, startupModelId);
+  if (detected) writeCachedLimit(cwd, detected, startupCacheScope);
 } catch {
   // Fault tolerance — seeding is best-effort.
 }

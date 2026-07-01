@@ -104,10 +104,35 @@ for (const rel of MARKDOWN_FILES) {
 // 4. Codex cleanup manifest covers every skill path installCodexAssets can write.
 {
   const manifest = JSON.parse(readFileSync(join(ROOT, 'scripts/lib/codex-cleanup-manifest.json'), 'utf8'));
-  const known = new Set(Array.isArray(manifest.skills) ? manifest.skills : []);
-  const missing = listSkillRelPaths().filter((skillPath) => !known.has(skillPath));
+  const current = Array.isArray(manifest.currentFrameworkSkills)
+    ? manifest.currentFrameworkSkills
+    : (Array.isArray(manifest.skills) ? manifest.skills : []);
+  const legacy = Array.isArray(manifest.legacyCleanupSkills) ? manifest.legacyCleanupSkills : [];
+  const external = Array.isArray(manifest.externalOwnerPointers) ? manifest.externalOwnerPointers : [];
+  const currentSet = new Set(current);
+  const actualSkills = listSkillRelPaths();
+  const actualSet = new Set(actualSkills);
+  const missing = actualSkills.filter((skillPath) => !currentSet.has(skillPath));
   if (missing.length) {
     failures.push(`codex-cleanup-manifest.json: missing ${missing.length} current skill path(s): ${missing.join(', ')}`);
+  }
+  const unexpected = current.filter((skillPath) => !actualSet.has(skillPath));
+  if (unexpected.length) {
+    failures.push(`codex-cleanup-manifest.json: currentFrameworkSkills contains non-current path(s): ${unexpected.join(', ')}`);
+  }
+  const overlappingLegacy = legacy.filter((skillPath) => currentSet.has(skillPath));
+  if (overlappingLegacy.length) {
+    failures.push(`codex-cleanup-manifest.json: legacyCleanupSkills overlaps currentFrameworkSkills: ${overlappingLegacy.join(', ')}`);
+  }
+  const badExternal = external
+    .filter((entry) => !entry || typeof entry.name !== 'string' || typeof entry.owner !== 'string' || typeof entry.path !== 'string')
+    .map((entry) => JSON.stringify(entry));
+  if (badExternal.length) {
+    failures.push(`codex-cleanup-manifest.json: malformed externalOwnerPointers entries: ${badExternal.join(', ')}`);
+  }
+  const externalOverlap = external.map((entry) => entry.name).filter((name) => currentSet.has(name));
+  if (externalOverlap.length) {
+    failures.push(`codex-cleanup-manifest.json: externalOwnerPointers overlaps currentFrameworkSkills: ${externalOverlap.join(', ')}`);
   }
 }
 
