@@ -1,6 +1,6 @@
 ---
 name: Qgs
-description: "Generate spec documents (TASK_REQUEST + VERIFY_CHECKLIST). Shortcut for Qgenerate-spec. PSE Chain Step 2: Spec. (Alias for Qgenerate-spec — all arguments passed through)"
+description: "Use when the user invokes Qgs or a Qplan handoff needs TASK_REQUEST + VERIFY_CHECKLIST generation. Alias for Qgenerate-spec. Use Qplan for roadmap; use Qatomic-run/Qrun-task after specs exist."
 user_invocable: true
 invocation_trigger: "When the user wants to generate a spec, create a task, or types /Qgs on Claude or $Qgs on Codex. Also triggered from PSE Chain handoffs after Qplan."
 recommendedModel: haiku

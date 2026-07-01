@@ -1,6 +1,6 @@
 ---
 name: Qplan
-description: "Planning skill for any task — from a single bug fix to a full project. Assesses scale automatically and creates the right level of plan. Does NOT implement code — hand off to Qgs for spec generation."
+description: "Use when the user wants to plan work, create/update a roadmap, choose phases, or move to the next phase. Use Qgs/Qgenerate-spec for TASK_REQUEST specs; use Qrun-task/Qatomic-run for execution."
 invocation_trigger: "When the user wants to plan any work — small fixes, single features, or full projects. Also when moving to the next phase."
 recommendedModel: opus
 tier: core

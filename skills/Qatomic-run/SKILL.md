@@ -1,6 +1,6 @@
 ---
 name: Qatomic-run
-description: "Parallel Haiku-wave engine — partitions a TASK_REQUEST into independent atomic items and dispatches them concurrently to multiple Haiku teammates, merging results through a Lead session. Branch points: use THIS when the checklist has MANY (>=5) independent atomic items with non-overlapping file ownership and low complexity; use Qrun-task for sequential execution of non-atomic or order-dependent items; use Qcode-run-task after code lands to run the test-review-fix loop. Canonical PSE path: Qplan → Qgs → Qatomic-run → Qcode-run-task."
+description: "Use when a TASK_REQUEST has many independent atomic items with non-overlapping file ownership and low complexity. Use Qrun-task for ordered/non-atomic work; use Qcode-run-task after code lands."
 invocation_trigger: "When a TASK_REQUEST contains many atomic items that can be executed in parallel by low-reasoning agents."
 recommendedModel: sonnet
 tier: core

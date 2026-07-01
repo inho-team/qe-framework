@@ -17,9 +17,22 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- State-aware PSE routing hints for active plans, pending task specs,
+  uncommitted implementation changes, and completed phase detection, backed by
+  deterministic prompt-check subprocess tests.
+- Catalog pressure reporting for repo skills, installed Codex skills, agents,
+  route keyword pressure, description length, and collision clusters.
+
 ### Changed
 
+- Skill routing documentation now defines state-aware soft hints, catalog
+  surface classes, slim-catalog guidance, and the high-value E-agent wrapper
+  policy.
+
 ### Fixed
+
+- TASK_LOG rows marked as implementation-complete but Qcode-pending no longer
+  count as completed phase evidence for PSE state routing.
 
 ### Removed
 

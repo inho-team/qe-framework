@@ -9,21 +9,22 @@ All skills and agents refer to this classification to determine whether a reques
 | Intent | Keywords / Patterns | Routing Target |
 |--------|---------------------|----------------|
 | **Initialization** | "init", "initialize", "setup", "start" | Qinit |
-| **Spec generation** | "spec", "plan", "create task", "task" | Qgenerate-spec |
-| **Execution** | "run", "execute", "go", "start" | Qrun-task |
+| **Planning** | "plan", "planning", "roadmap", "milestone", "phase", "계획", "로드맵" | Qplan |
+| **Spec generation** | "spec", "task request", "verify checklist", "create task", "task spec", "명세" | Qgenerate-spec |
+| **Execution** | "run task", "execute task", "sequential", "ordered checklist", "실행" | Qrun-task |
 | **Research** | "research", "compare", "which is better", "investigate" | Edeep-researcher |
 | **Debugging** | "bug", "error", "not working", "why doesn't this work" | Ecode-debugger |
 | **Review** | "review", "check", "look at this", "is this ok?" | Ecode-reviewer |
 | **Testing** | "test", "coverage" | Ecode-test-engineer |
 | **Documentation** | "docs", "explain", "README", "document" | Ecode-doc-writer |
-| **Commit** | "commit", "save", "push" | Qcommit |
-| **Refresh** | "refresh", "sync", "latest" | Qrefresh |
+| **Commit** | "commit", "push", "save changes", "커밋", "푸시" | Qcommit |
+| **Refresh** | "refresh analysis", "sync analysis", ".qe/analysis", "analysis snapshot", "분석 데이터 갱신" | Qrefresh |
 | **Plugin update** | "update plugin", "upgrade", "update qe", "update codex", "codex plugin" | Qupdate |
 | **Utopia mode** | "utopia", "autonomous", "no questions", "auto execute" | Qutopia |
-| **Help** | "help", "how to use", "show commands", "what can you do" | Qhelp |
+| **Help** | "help", "how to use", "show commands", "command catalog", "도움말" | Qhelp |
 | **Resume** | "continue", "resume", "restore" | Qresume |
-| **Handoff** | "handoff", "save state", "end session" | Qcompact (manual mode) |
-| **Planning** | "PRD", "product plan", "user story", "roadmap" | Epm-planner |
+| **Handoff** | "handoff", "save state", "save context", "end session", "컨텍스트 저장" | Qcompact |
+| **PM documents** | "PRD", "product requirements", "user story", "meeting notes", "create presentation" | Epm-planner |
 | **MCP server** | "MCP server", "Model Context Protocol", "FastMCP", "MCP SDK", "MCP integration" | Qmcp-setup |
 | **QA test plan** | "test plan", "test cases", "regression suite", "QA testing", "bug report template" | Qqa-test-planner |
 | **Humanize text** | "humanize", "remove AI writing", "make it sound natural", "AI trace" | Qwriting-clearly |

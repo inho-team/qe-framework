@@ -1,6 +1,6 @@
 ---
 name: Qcode-run-task
-description: "Post-implementation quality loop — runs the test → review → fix → retest cycle on code that was just modified, delegating to Eqa-orchestrator by default. Branch points: use THIS after code changes are already on disk and need verification (test failures, type errors, lint hits, coverage gaps); use Qrun-task to EXECUTE a spec/checklist from scratch (this skill runs automatically at the end of its code items); use Qatomic-run for parallel Haiku-wave execution of independent atomic items. Triggered automatically for type:code tasks."
+description: "Use when code changes are already on disk and need the test-review-fix-retest quality loop. Use Qrun-task to execute a spec from scratch; use Qatomic-run for independent atomic implementation waves."
 invocation_trigger: When code has been modified and needs a quality loop (test-review-fix).
 recommendedModel: haiku
 tier: core

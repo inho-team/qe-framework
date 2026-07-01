@@ -1,0 +1,314 @@
+{
+  "version": "1.0.0",
+  "description": "Deterministic benchmark fixture for qe-framework skill routing. Covers core PSE flow, lifecycle commands, git/version, research, PM, docs, testing, ambiguous disambiguation, and explicit no-route negatives with mixed English and Korean prompts.",
+  "aliases": {
+    "Qgs": "Qgenerate-spec",
+    "/Qgs": "Qgenerate-spec",
+    "$Qgs": "Qgenerate-spec",
+    "Qrt": "Qrun-task",
+    "/Qrt": "Qrun-task",
+    "$Qrt": "Qrun-task"
+  },
+  "cases": [
+    {
+      "id": "pse-plan-en",
+      "prompt": "Plan a small auth refactor and give me the next QE command.",
+      "locale": "en",
+      "category": "pse",
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
+      "confidence": 0.99,
+      "reason": "The prompt explicitly asks for planning and a next-step handoff, which matches the PSE planning entry point."
+    },
+    {
+      "id": "pse-plan-punctuation-en",
+      "prompt": "Plan: auth refactor.",
+      "locale": "en",
+      "category": "pse",
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
+      "confidence": 0.95,
+      "reason": "Punctuation next to a core planning trigger should still route to Qplan."
+    },
+    {
+      "id": "pse-spec-ko",
+      "prompt": "TASK_REQUEST랑 VERIFY_CHECKLIST 만들어줘. 로그인 버그 수정 작업이야.",
+      "locale": "ko",
+      "category": "pse",
+      "expected": "Qgenerate-spec",
+      "aliases": ["Qgenerate-spec", "Qgs"],
+      "confidence": 0.99,
+      "reason": "The user asks for TASK_REQUEST and VERIFY_CHECKLIST generation, which is the spec-writing stage."
+    },
+    {
+      "id": "pse-spec-punctuation-en",
+      "prompt": "Spec: login bug TASK_REQUEST.",
+      "locale": "en",
+      "category": "pse",
+      "expected": "Qgenerate-spec",
+      "aliases": ["Qgenerate-spec", "Qgs"],
+      "confidence": 0.95,
+      "reason": "Punctuation next to spec/task-request terms should still route to the spec generation stage."
+    },
+    {
+      "id": "pse-run-en",
+      "prompt": "Execute this TASK_REQUEST sequentially because the checklist items depend on each other.",
+      "locale": "en",
+      "category": "pse",
+      "expected": "Qrun-task",
+      "aliases": ["Qrun-task", "Qrt"],
+      "confidence": 0.98,
+      "reason": "The task is an execution request for an ordered checklist, which fits the sequential executor."
+    },
+    {
+      "id": "pse-run-punctuation-en",
+      "prompt": "Run task: execute this checklist.",
+      "locale": "en",
+      "category": "pse",
+      "expected": "Qrun-task",
+      "aliases": ["Qrun-task", "Qrt"],
+      "confidence": 0.95,
+      "reason": "Punctuation next to run-task phrasing should still route to the sequential executor."
+    },
+    {
+      "id": "pse-verify-ko",
+      "prompt": "코드 수정은 끝났어. 이제 테스트하고 리뷰하고 다시 고쳐서 검증 루프 돌려줘.",
+      "locale": "ko",
+      "category": "pse",
+      "expected": "Qcode-run-task",
+      "aliases": ["Qcode-run-task"],
+      "confidence": 0.98,
+      "reason": "The prompt asks for the post-implementation test-review-fix verification loop."
+    },
+    {
+      "id": "lifecycle-compact-ko",
+      "prompt": "세션 끝낼 거니까 지금 상태 저장하고 나중에 이어서 하게 handoff 남겨줘.",
+      "locale": "ko",
+      "category": "lifecycle",
+      "expected": "Qcompact",
+      "aliases": ["Qcompact"],
+      "confidence": 0.99,
+      "reason": "This is a direct request to save session state and prepare a handoff for later continuation."
+    },
+    {
+      "id": "lifecycle-resume-en",
+      "prompt": "Resume the last session context and show me the pending items.",
+      "locale": "en",
+      "category": "lifecycle",
+      "expected": "Qresume",
+      "aliases": ["Qresume"],
+      "confidence": 0.99,
+      "reason": "The prompt explicitly asks to restore saved context and continue prior work."
+    },
+    {
+      "id": "lifecycle-refresh-ko",
+      "prompt": ".qe/analysis 스냅샷이 낡았으니 분석 데이터만 새로 갱신해줘.",
+      "locale": "ko",
+      "category": "lifecycle",
+      "expected": "Qrefresh",
+      "aliases": ["Qrefresh"],
+      "confidence": 0.98,
+      "reason": "The request targets analysis refresh rather than code synchronization or implementation."
+    },
+    {
+      "id": "git-commit-en",
+      "prompt": "Commit and push these changes with a natural message.",
+      "locale": "en",
+      "category": "git-version",
+      "expected": "Qcommit",
+      "aliases": ["Qcommit"],
+      "confidence": 0.99,
+      "reason": "The prompt is a straightforward commit-and-push request."
+    },
+    {
+      "id": "git-commit-punctuation-en",
+      "prompt": "Commit: these changes.",
+      "locale": "en",
+      "category": "git-version",
+      "expected": "Qcommit",
+      "aliases": ["Qcommit"],
+      "confidence": 0.95,
+      "reason": "Punctuation next to a commit trigger should still route through Qcommit."
+    },
+    {
+      "id": "git-version-ko",
+      "prompt": "지금 QE Framework 버전 확인해줘.",
+      "locale": "ko",
+      "category": "git-version",
+      "expected": "Qversion",
+      "aliases": ["Qversion"],
+      "confidence": 0.99,
+      "reason": "The user explicitly asks for the current QE Framework version."
+    },
+    {
+      "id": "research-autoresearch-en",
+      "prompt": "Start an autoresearch loop to optimize build time with one benchmark metric.",
+      "locale": "en",
+      "category": "research",
+      "expected": "Qautoresearch",
+      "aliases": ["Qautoresearch"],
+      "confidence": 0.97,
+      "reason": "This is an explicit request for the autonomous experiment loop rather than general web research."
+    },
+    {
+      "id": "research-find-skill-ko",
+      "prompt": "PRD 쓰는 데 맞는 스킬 좀 찾아줘.",
+      "locale": "ko",
+      "category": "research",
+      "expected": "Qfind-skills",
+      "aliases": ["Qfind-skills"],
+      "confidence": 0.95,
+      "reason": "The user is asking to discover a suitable skill, not to produce the PRD directly."
+    },
+    {
+      "id": "research-deep-direct-agent-en",
+      "prompt": "Do deep research comparing how Codex and Claude use skills autonomously.",
+      "locale": "en",
+      "category": "research",
+      "expected": "Edeep-researcher",
+      "aliases": ["Edeep-researcher"],
+      "confidence": 0.9,
+      "reason": "Phase 3 keeps deep research as an expert-only direct E-agent fallback instead of creating Qdeepresearch."
+    },
+    {
+      "id": "research-deep-wrapper-policy-en",
+      "prompt": "Investigate whether a Qdeepresearch wrapper is needed before we add another public command.",
+      "locale": "en",
+      "category": "research",
+      "expected": "Edeep-researcher",
+      "aliases": ["Edeep-researcher"],
+      "confidence": 0.86,
+      "reason": "Wrapper policy research still uses the existing direct Edeep-researcher route; no Qdeepresearch wrapper exists in Phase 3."
+    },
+    {
+      "id": "pm-roadmap-en",
+      "prompt": "Create a roadmap for the next milestone and break the work into phases.",
+      "locale": "en",
+      "category": "pm",
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
+      "confidence": 0.96,
+      "reason": "Within core qe-framework, roadmap and phase planning belongs to Qplan."
+    },
+    {
+      "id": "pm-phase-spec-ko",
+      "prompt": "이 Phase를 실행 가능한 task spec으로 쪼개줘.",
+      "locale": "ko",
+      "category": "pm",
+      "expected": "Qgenerate-spec",
+      "aliases": ["Qgenerate-spec", "Qgs"],
+      "confidence": 0.95,
+      "reason": "The request moves from plan/phase context into executable task specification generation."
+    },
+    {
+      "id": "docs-clarity-ko",
+      "prompt": "이 보고서 문장을 더 간결하고 자연스럽게 다듬어줘.",
+      "locale": "ko",
+      "category": "docs",
+      "expected": "Qwriting-clearly",
+      "aliases": ["Qwriting-clearly"],
+      "confidence": 0.98,
+      "reason": "The request is about rewriting prose for clarity and natural style."
+    },
+    {
+      "id": "docs-help-en",
+      "prompt": "Show the QE command catalog and explain what Qcommit does.",
+      "locale": "en",
+      "category": "docs",
+      "expected": "Qhelp",
+      "aliases": ["Qhelp"],
+      "confidence": 0.97,
+      "reason": "The prompt asks for command overview and skill explanation rather than code or docs editing."
+    },
+    {
+      "id": "docs-help-punctuation-en",
+      "prompt": "Show commands: Qcommit.",
+      "locale": "en",
+      "category": "docs",
+      "expected": "Qhelp",
+      "aliases": ["Qhelp"],
+      "confidence": 0.95,
+      "reason": "Punctuation next to command-catalog phrasing should still route to Qhelp."
+    },
+    {
+      "id": "testing-plan-en",
+      "prompt": "Create a regression test plan for the checkout flow.",
+      "locale": "en",
+      "category": "testing",
+      "expected": "Qqa-test-planner",
+      "aliases": ["Qqa-test-planner"],
+      "confidence": 0.99,
+      "reason": "This is a direct QA planning request for a regression suite."
+    },
+    {
+      "id": "testing-bug-report-ko",
+      "prompt": "폼 검증 버그에 대한 QA용 버그 리포트 템플릿 작성해줘.",
+      "locale": "ko",
+      "category": "testing",
+      "expected": "Qqa-test-planner",
+      "aliases": ["Qqa-test-planner"],
+      "confidence": 0.97,
+      "reason": "The prompt targets QA documentation output, specifically a bug report template."
+    },
+    {
+      "id": "ambiguous-plan-first-en",
+      "prompt": "Let's plan the login fix first, not implement it yet.",
+      "locale": "en",
+      "category": "ambiguous",
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
+      "confidence": 0.88,
+      "reason": "Although it mentions a fix, the explicit 'plan first' and 'not implement' wording resolves the ambiguity toward planning."
+    },
+    {
+      "id": "ambiguous-save-not-commit-ko",
+      "prompt": "커밋 말고, 나중에 이어서 하게 현재 컨텍스트만 저장해줘.",
+      "locale": "ko",
+      "category": "ambiguous",
+      "expected": "Qcompact",
+      "aliases": ["Qcompact"],
+      "confidence": 0.91,
+      "reason": "The prompt explicitly rejects committing and asks only for context preservation."
+    },
+    {
+      "id": "ambiguous-refresh-not-sync-en",
+      "prompt": "Refresh project analysis only; do not sync or rewrite code.",
+      "locale": "en",
+      "category": "ambiguous",
+      "expected": "Qrefresh",
+      "aliases": ["Qrefresh"],
+      "confidence": 0.92,
+      "reason": "The prompt disambiguates toward analysis refresh and away from source synchronization or implementation."
+    },
+    {
+      "id": "negative-weather-en",
+      "prompt": "What's the weather in Busan tomorrow?",
+      "locale": "en",
+      "category": "negative",
+      "expected": null,
+      "aliases": [],
+      "confidence": 0.99,
+      "reason": "This request is outside qe-framework skill routing scope."
+    },
+    {
+      "id": "negative-lunch-ko",
+      "prompt": "점심 뭐 먹을지 추천해줘.",
+      "locale": "ko",
+      "category": "negative",
+      "expected": null,
+      "aliases": [],
+      "confidence": 0.99,
+      "reason": "This is general lifestyle advice, not a QE framework skill request."
+    },
+    {
+      "id": "negative-translate-en",
+      "prompt": "Translate this paragraph to French.",
+      "locale": "en",
+      "category": "negative",
+      "expected": null,
+      "aliases": [],
+      "confidence": 0.97,
+      "reason": "Plain translation is not a deterministic core qe-framework skill route in this benchmark."
+    }
+  ]
+}

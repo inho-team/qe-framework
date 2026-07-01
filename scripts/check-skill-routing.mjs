@@ -272,6 +272,55 @@ if (warns.length === 0) {
   for (const w of warns) console.log(' ', w);
 }
 
+// (d) Core auto-routing description quality
+console.log('\n=== CHECK (d): Core auto-routing description quality ===');
+const descriptionGuardStart = fails.length;
+const coreAutoSkills = [
+  'Qplan',
+  'Qgenerate-spec',
+  'Qgs',
+  'Qrun-task',
+  'Qatomic-run',
+  'Qcode-run-task',
+];
+const crowdedPseSkills = new Set(coreAutoSkills);
+const byDir = new Map(skillEntries.map((entry) => [entry.dir, entry]));
+
+/**
+ * Normalizes frontmatter descriptions for metadata-quality checks.
+ * @param {unknown} raw
+ * @returns {string}
+ */
+function normalizeDescription(raw) {
+  return String(raw || '')
+    .trim()
+    .replace(/^['"]|['"]$/g, '')
+    .replace(/\\"/g, '"')
+    .replace(/\\'/g, "'")
+    .replace(/\s+/g, ' ');
+}
+
+for (const name of coreAutoSkills) {
+  const entry = byDir.get(name);
+  if (!entry || !entry.fm) {
+    fails.push(`FAIL [description-quality] ${name}: core auto skill missing`);
+    continue;
+  }
+  const description = normalizeDescription(entry.fm.description);
+  if (!/^Use when\b/i.test(description)) {
+    fails.push(`FAIL [description-quality] ${name}: description must start with "Use when"`);
+  }
+  if (crowdedPseSkills.has(name) && !/\bUse Q[A-Za-z-]+\b/.test(description)) {
+    fails.push(`FAIL [description-quality] ${name}: crowded PSE description must include sibling boundary text like "Use Q..."`);
+  }
+}
+
+if (fails.length === descriptionGuardStart) {
+  console.log(`  OK: ${coreAutoSkills.length} core auto skill descriptions are intent-first with sibling boundaries`);
+} else {
+  for (const f of fails.slice(descriptionGuardStart)) console.log(' ', f);
+}
+
 // ─── Summary ────────────────────────────────────────────────────────────────
 
 console.log('\n=== SUMMARY ===');

@@ -14,6 +14,7 @@ import { readClaudeOAuthToken } from './lib/claude-token.mjs';
 // selfTest 부작용 없음. estimateTokens를 여기서 static import하면 그 위험이 생기므로 안 한다.
 import { wikiRetrieve, PUSH_FLOOR } from '../../scripts/lib/wiki-retrieve.mjs';
 import { readCurrentSid, readCurrentSessionId, readSessionName } from './lib/session-resolver.mjs';
+import { resolvePseStateHint } from './lib/pse-state-router.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -180,7 +181,10 @@ if (!isAmbiguous && !helpFlag.matched) try {
   }
 
   const matchMsg = msgLower + (translatedTerms ? ' ' + translatedTerms.toLowerCase() : '');
-  const msgWords = matchMsg.split(/\s+/);
+  const msgWords = matchMsg
+    .replace(/[^a-z0-9\u3131-\u318e\uac00-\ud7a3\u4e00-\u9fff\u3040-\u30ff]+/g, ' ')
+    .split(/\s+/)
+    .filter(Boolean);
 
   // Build bigrams for contextual matching (e.g., "create skill" vs "create command")
   const msgBigrams = [];
@@ -222,8 +226,10 @@ if (!isAmbiguous && !helpFlag.matched) try {
       const allWordsMatch = !bigramMatch && termWords.length > 1 &&
         termWords.every(tw => msgWords.includes(tw) || matchMsg.includes(tw));
 
-      // Single word exact match (word boundary)
-      const hasExactWord = termWords.some(tw => {
+      // Single-word exact match. Multi-word route terms must match as phrases
+      // or all words; otherwise broad fragments like "command" in
+      // "create-command" drown out core PSE routes.
+      const hasExactWord = termWords.length === 1 && termWords.some(tw => {
         if (tw.length <= 2) return false; // skip very short words
         return msgWords.includes(tw);
       });
@@ -286,6 +292,25 @@ if (!isAmbiguous && !helpFlag.matched) try {
   }
 } catch {
   // Fault-tolerant: skip classification on error
+}
+
+// --- PSE State Soft Hint ---
+// This is deliberately weaker than explicit commands and hard intent routes.
+// It only nudges the next PSE stage when the prompt is work-related and no
+// stronger routing surface already owns the turn.
+try {
+  const hasExplicitSkillInvocation = /(?:^|\s)(?:\$|\/)(?:Q|M)[A-Za-z0-9-]+/i.test(userMessage);
+  const hasHardIntentRoute = hints.some((hint) => hint.includes('SKILL REQUIRED'));
+  const hasSafetyIntent = /\b(commit|push|version bump|bump version|context save|save state|handoff)\b|커밋|푸시|버전\s*올|버전\s*변경|컨텍스트\s*저장|상태\s*저장/i.test(userMessage);
+
+  if (!isAmbiguous && !helpFlag.matched && !hasExplicitSkillInvocation && !hasHardIntentRoute && !hasSafetyIntent && !isGeneralNoRouteQuestion(userMessage)) {
+    const stateHint = resolvePseStateHint(cwd, { sessionId: readCurrentSessionId(cwd) });
+    if (stateHint?.message) {
+      hints.push(`[PSE] ${stateHint.message}`);
+    }
+  }
+} catch {
+  // fail-open: state hints are advisory and must never block prompt handling
 }
 
 // --- Wiki knowledge hint (push) — appended AFTER existing hints so a wiki failure can
@@ -551,4 +576,18 @@ function detectLanguage(text) {
   }
 
   return null;
+}
+
+/**
+ * Detects informational prompts that should not receive workflow nudges.
+ * @param {string} message - User message.
+ * @returns {boolean}
+ */
+function isGeneralNoRouteQuestion(message) {
+  const text = String(message || '').trim().toLowerCase();
+  if (!text) return false;
+  if (/\b(next|continue|work|task|plan|spec|execute|verify|qe|skill|route|roadmap)\b|다음|계속|작업|계획|명세|실행|검증|스킬|라우팅/.test(text)) {
+    return false;
+  }
+  return /^(what|who|when|where|why|how|tell me|explain|weather|joke)\b|오늘\s*날씨|농담|무엇|뭐야|누구|언제|어디|왜|어떻게/.test(text);
 }

@@ -1,6 +1,6 @@
 ---
 name: Epm-planner
-description: "Planning and document specialist agent. Use when the user needs to create PRDs, write user stories, plan roadmaps, draft meeting notes, analyze images, or generate documents (Word/PDF/PPT/Excel). Trigger phrases: 'create a plan', 'write PRD', 'user story', 'roadmap', 'meeting notes', 'create presentation'."
+description: "Use for PM/document deliverables such as PRDs, user stories, meeting notes, presentations, and structured product docs. Use Qplan for QE roadmap/phases; use Qgs/Qgenerate-spec for TASK_REQUEST specs."
 tools: Read, Write, Edit, Grep, Glob, Bash, WebSearch, WebFetch
 color: purple
 maxTurns: 50

@@ -1,6 +1,6 @@
 ---
 name: Qrun-task
-description: Sequential task executor — walks a TASK_REQUEST + VERIFY_CHECKLIST document end-to-end, hands code work to Qcode-run-task for the quality loop, and serves as the PSE-chain fallback when items cannot be atomized. Branch points: use THIS for long-form or non-atomic checklists where items have ordering dependencies; use Qatomic-run when the checklist has many INDEPENDENT atomic items that can run in parallel Haiku waves; use Qcode-run-task directly if code already exists and only needs the test-review-fix loop; Qrt is a pass-through alias for this skill.
+description: "Use when a TASK_REQUEST/VERIFY_CHECKLIST must execute sequentially because items are ordered, long-form, or non-atomic. Use Qatomic-run for independent wave work; use Qcode-run-task only after code already changed."
 invocation_trigger: When a TASK_REQUEST or checklist needs implementation or verification.
 recommendedModel: haiku
 ---

@@ -1,6 +1,6 @@
 ---
 name: Qgenerate-spec
-description: Generates project spec documents (project instruction artifact when needed, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when the user wants to start a new project, define task specifications, or create a task.
+description: "Use when a plan or task needs spec documents: TASK_REQUEST and VERIFY_CHECKLIST. Use Qplan for roadmap/phases; use Qatomic-run or Qrun-task after the spec exists."
 invocation_trigger: When a new project, task, or bug fix spec needs to be defined.
 user_invocable: true
 recommendedModel: haiku
