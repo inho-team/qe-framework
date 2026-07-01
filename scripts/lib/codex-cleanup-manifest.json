@@ -61,8 +61,14 @@
     "Mrelease",
     "Mtest-skill",
     "QCodexUpdate",
+    "Qdocx",
+    "Qfinance-analyst",
     "Qhumanizer",
+    "Qjira-cli",
     "Qmcp-builder",
+    "Qpdf",
+    "Qpptx",
+    "Qxlsx",
     "Qrt"
   ],
   "externalOwnerPointers": [

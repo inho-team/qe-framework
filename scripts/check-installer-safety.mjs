@@ -128,6 +128,28 @@ try {
       readFileSync(join(h, '.claude', 'commands', 'a.md'), 'utf8') === 'USER-EDITED',
       'plain uninstall DELETED a user-edited installed file');
   }
+
+  // 9. Plugin-mode update prunes stale assets inside the plugin cache.
+  {
+    const h = home();
+    const pluginPath = join(h, '.claude', 'plugins', 'cache', 'inho-team-qe-framework', 'qe-framework', 'test');
+    mkdirSync(pluginPath, { recursive: true });
+    mkdirSync(join(h, '.claude', 'plugins'), { recursive: true });
+    writeFileSync(join(h, '.claude', 'plugins', 'installed_plugins.json'), JSON.stringify({
+      version: 1,
+      plugins: {
+        'qe-framework@inho-team-qe-framework': [{
+          installPath: pluginPath,
+          installedAt: '2026-07-01T00:00:00.000Z',
+        }],
+      },
+    }));
+    mkdirSync(join(pluginPath, 'hooks', 'stale'), { recursive: true });
+    writeFileSync(join(pluginPath, 'hooks', 'stale', 'old.mjs'), 'STALE');
+    installClaudeAssets({ repoRoot, homeDir: h, log: silent });
+    expect(!existsSync(join(pluginPath, 'hooks', 'stale', 'old.mjs')), 'plugin-mode install left stale plugin cache asset behind');
+    expect(existsSync(join(pluginPath, 'hooks', 'd.mjs')), 'plugin-mode install did not copy current hook asset');
+  }
 } finally {
   for (const d of cleanup) { try { rmSync(d, { recursive: true, force: true }); } catch {} }
 }
@@ -137,4 +159,4 @@ if (failures.length) {
   for (const f of failures) console.error(`  ✗ ${f}`);
   process.exit(1);
 }
-console.log('check-installer-safety: PASS (8 scenarios, temp HOME only — real ~/.claude untouched)');
+console.log('check-installer-safety: PASS (9 scenarios, temp HOME only — real ~/.claude untouched)');

@@ -44,20 +44,23 @@ echo "local=$LOCAL  origin=$REMOTE"
 ### Step 1: Update the QE Framework body (targets A + B)
 Choose exactly one path:
 
-1. **Native plugin update** — preferred when QE is installed as a Claude marketplace plugin
-   and the latest release is reachable on `origin` (Step 0). Updates the plugin cache (A).
+1. **Native plugin update** — only acceptable as a metadata/download pre-step when QE is
+   installed as a Claude marketplace plugin and the latest release is reachable on `origin`.
+   It is not a complete QE update by itself.
 
    ```bash
    claude plugin update qe-framework
    ```
 
-   Note: native update refreshes the plugin cache only. It does **not** mirror the
-   absolute-path `~/.claude/scripts` copy or sync Codex assets (B). When the user relies on
-   Codex or on `$HOME/.claude/scripts/` references, also run `node install.js` from a QE
-   checkout, or use path 2/3 below instead.
+   Note: native update refreshes the marketplace plugin cache only. It does **not** mirror the
+   absolute-path `~/.claude/scripts` copy or sync Codex assets (B), and it must not be the
+   final step when the user expects all installed plugin code/values to be replaced.
+   Always follow with path 2 or 3.
 
 2. **Checked-out release tarball install** — covers A + B in one shot when the release is on
    `origin`. The tarball filename is derived from `package.json` — never hardcode a version.
+   This is a full replacement sync: stale QE plugin-cache files are pruned and legacy Codex
+   QE assets are purged before current assets are installed.
 
    ```bash
    git pull
@@ -69,7 +72,8 @@ Choose exactly one path:
 
 3. **Repository-local direct install** — covers A + B without rebuilding the global tarball.
    The correct fallback when Step 0 shows an unpushed local release, or when the user is
-   already inside a QE checkout and only needs asset sync.
+   already inside a QE checkout and needs installed assets to exactly match this checkout.
+   This is also a full replacement sync.
 
    ```bash
    node install.js
@@ -78,7 +82,8 @@ Choose exactly one path:
 **Selection rule:**
 - Local checkout **ahead of** `origin` (unpushed release) → path 3 (`node install.js`).
 - Already inside a QE checkout, asset sync only → path 3.
-- Plugin-mode install, no Codex/abs-script dependency → path 1 (native).
+- Plugin-mode install, no Codex/abs-script dependency → path 1 may be used first, but must
+  be followed by path 2 or 3 for full replacement.
 - Otherwise → path 2 (tarball, covers A + B).
 - Do not recommend `npm update -g @inho-team/qe-framework` unless the package is published to npm.
 

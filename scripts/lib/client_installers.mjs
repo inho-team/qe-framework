@@ -37,6 +37,37 @@ function collectCopyPairs(src, dest, out = []) {
   return out;
 }
 
+function pruneDestinationToSource(src, dest, log = () => {}) {
+  let srcStat;
+  let destStat;
+  try { srcStat = lstatSync(src); destStat = lstatSync(dest); } catch { return 0; }
+  if (srcStat.isSymbolicLink() || destStat.isSymbolicLink()) return 0;
+  if (!srcStat.isDirectory() || !destStat.isDirectory()) return 0;
+
+  const srcNames = new Set(readdirSync(src));
+  let removed = 0;
+  for (const name of readdirSync(dest)) {
+    if (srcNames.has(name)) {
+      removed += pruneDestinationToSource(join(src, name), join(dest, name), log);
+      continue;
+    }
+    const stalePath = join(dest, name);
+    try {
+      const staleStat = lstatSync(stalePath);
+      if (staleStat.isSymbolicLink()) {
+        log(`[WARN] installClaudeAssets: skipping stale symlink: ${stalePath}`);
+        continue;
+      }
+      rmSync(stalePath, { recursive: staleStat.isDirectory(), force: true });
+      removed++;
+      log(`[plugin-sync] removed stale asset: ${stalePath}`);
+    } catch (e) {
+      log(`[WARN] installClaudeAssets: could not remove stale asset ${stalePath}: ${e.message}`);
+    }
+  }
+  return removed;
+}
+
 /**
  * Check if qe-framework is installed as a Claude Code plugin.
  * Returns the plugin installPath if found, null otherwise.
@@ -153,6 +184,7 @@ export function installClaudeAssets({ repoRoot = REPO_ROOT, homeDir = homedir(),
   const pairs = allCopyPairs(repoRoot, targets);
   const overwrites = pairs.filter((p) => existsSync(p.to));
   const creates = pairs.length - overwrites.length;
+  const pluginPath = getPluginInstallPath(homeDir, log);
 
   if (dryRun) {
     log(`[dry-run] mode=${mode} — would create ${creates}, overwrite ${overwrites.length}, write 0`);
@@ -188,9 +220,19 @@ export function installClaudeAssets({ repoRoot = REPO_ROOT, homeDir = homedir(),
     ensureDir(dirname(p.to));
     copyFileSync(p.from, p.to);
   }
-  log(`Installed ${creates} new, ${overwrites.length} overwritten (mode=${mode}).`);
+  let pruned = 0;
+  if (mode === 'plugin' && pluginPath) {
+    const pluginRoot = resolve(pluginPath) + sep;
+    for (const { src, dest } of targets) {
+      const srcDir = join(repoRoot, src);
+      if (!existsSync(srcDir)) continue;
+      if (!resolve(dest).startsWith(pluginRoot)) continue;
+      pruned += pruneDestinationToSource(srcDir, dest, log);
+    }
+  }
+  log(`Installed ${creates} new, ${overwrites.length} overwritten, ${pruned} stale removed (mode=${mode}).`);
   if (backupDir) log(`Rollback available: qe-framework-uninstall --restore`);
-  return { mode, dryRun: false, created: creates, overwritten: overwrites.length, backupDir };
+  return { mode, dryRun: false, created: creates, overwritten: overwrites.length, pruned, backupDir };
 }
 
 /**
@@ -1176,6 +1218,8 @@ export function installCodexAssets({
     }
     return { skipped: false, skills: skillCount, agents: agentCount, dryRun: true };
   }
+
+  cleanupCodexAssets({ homeDir, purge: true, log });
 
   // ----- Skills -----
   let skillCount = 0;

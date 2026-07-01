@@ -167,6 +167,20 @@ test('(b2) reinstall removes stray duplicate QE agent sections', (t) => {
   assert.ok(!configContent.includes('/tmp/old.toml'), 'old fenced QE agent section removed');
 });
 
+test('(b3) reinstall purges legacy QE skills before copying current assets', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  const legacyDir = path.join(homeDir, '.codex', 'skills', 'Mrelease');
+  fs.mkdirSync(legacyDir, { recursive: true });
+  fs.writeFileSync(path.join(legacyDir, 'SKILL.md'), 'legacy release skill', 'utf8');
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  assert.ok(!fs.existsSync(legacyDir), 'legacy Mrelease skill removed during reinstall');
+  assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qupdate')), 'current Qupdate skill installed');
+});
+
 // ---------------------------------------------------------------------------
 // (c) graceful skip: temp HOME with NO ~/.codex → creates nothing, no throw
 // ---------------------------------------------------------------------------
