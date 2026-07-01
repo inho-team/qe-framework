@@ -72,18 +72,19 @@ qe-mcp init-registry
 
 This should create or update the QE-managed registry entry for `qeExpertLibrary`.
 
-### Step 4: Verify Health
+### Step 4: Sync Client MCP Configs And Verify Health
 
-Run lightweight verification:
+Run the idempotent client sync, then lightweight verification:
 
 ```bash
+qe-mcp sync
 qe-mcp doctor
 qe-mcp sync --dry-run
 ```
 
-If `sync --dry-run` fails because a client is not installed, report `WARN` but do not
-block the caller. If `qe-mcp doctor` fails, report `FAIL` and stop the caller from
-claiming MCP-backed features are available.
+If `qe-mcp sync` fails because a client is not installed, report `WARN` for that client
+but continue when the current client was synced successfully. If `qe-mcp doctor` fails,
+report `FAIL` and stop the caller from claiming MCP-backed features are available.
 
 ### Step 5: Report A Compact Result
 
@@ -93,6 +94,7 @@ Return one of:
 Qmcp-ensure: PASS
 - Package: @inho-team/qe-mcp@{version}
 - Registry: qeExpertLibrary initialized
+- Client sync: OK | WARN ({reason})
 - Sync preview: OK | WARN ({reason})
 ```
 
@@ -124,7 +126,7 @@ Skills that call this preflight must:
 - Install `@inho-team/qe-mcp` when missing and npm metadata is reachable
 - Initialize the QE MCP registry idempotently
 - Verify the companion with `qe-mcp doctor`
-- Preview client sync without mutating client configs
+- Sync QE MCP registration into supported client configs
 
 ## Will Not
 - Install unrelated MCP servers

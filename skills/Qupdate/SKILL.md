@@ -1,7 +1,7 @@
 ---
 name: Qupdate
 description: 'Updates everything QE: the QE Framework body, the qe-mcp companion package, and the codex-plugin-cc bridge using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", "update qe mcp", or "codex plugin".'
-allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*)"
+allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(qe-mcp:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*)"
 invocation_trigger: When the framework, its Codex assets, or the codex-plugin-cc bridge need updating.
 recommendedModel: haiku
 ---
@@ -92,6 +92,7 @@ workflow:
 
 ```bash
 npm install -g @inho-team/qe-mcp@latest
+qe-mcp sync
 qe-mcp doctor
 qe-mcp sync --dry-run
 ```
@@ -99,6 +100,8 @@ qe-mcp sync --dry-run
 Selection rule:
 - If the user is inside a `qe-mcp` checkout and asks for local asset sync only, run its
   documented local checks instead of global install.
+- If `qe-mcp sync` reports a client-specific warning, continue only with that client's
+  MCP-dependent features marked degraded until the client config is fixed.
 - If `Qmcp-ensure` returns `WARN`, continue only with MCP-dependent features marked
   degraded.
 - If `Qmcp-ensure` returns `FAIL`, do not claim MCP tools are usable.
@@ -130,7 +133,7 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
 
 ### Step 4: Verify
 - If the Codex bridge changed, re-read `installed_plugins.json` to confirm the new version.
-- If `qe-mcp` changed, run `qe-mcp doctor` or `qe-mcp sync --dry-run`.
+- If `qe-mcp` changed, run `qe-mcp sync`, `qe-mcp doctor`, and `qe-mcp sync --dry-run`.
 - Optionally validate SIVS config from the plugin root (the `qe:validate` npm script lives
   only in the framework repo, not the target project):
 
