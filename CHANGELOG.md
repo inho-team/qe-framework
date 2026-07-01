@@ -24,6 +24,9 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 - `/Qcommit` now gets a hook-owned one-shot commit capability when the skill is
   entered, so autonomous clients no longer need to write
   `.qe/state/skill-bypass.json` just to pass the raw `git commit` guard.
+- Completed PSE phases now keep the next step actionable: state routing emits a
+  copy-pasteable phase-transition command, and `Qcode-run-task` final reports
+  must end with the next phase handoff when a plan continues.
 
 ### Removed
 
