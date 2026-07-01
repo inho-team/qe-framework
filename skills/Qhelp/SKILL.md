@@ -49,6 +49,7 @@ WORKFLOW
 DEVELOPMENT
   /Qcode-run-task          Quality loop: test → review → fix ($Qcode-run-task on Codex)
   /Qmcp-setup              MCP server setup + building guide
+  /Qmcp-ensure             Install/verify QE MCP companion preflight
 
 TASK MANAGEMENT
   /Qinit                   Initialize QE in a project

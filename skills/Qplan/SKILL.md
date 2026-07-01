@@ -43,6 +43,17 @@ project instruction artifact as client-specific:
 
 **If both exist**, proceed to Step 0.5.
 
+### Step 0.4: QE MCP Companion Preflight
+
+Invoke `{adapter.commandPrefix}Qmcp-ensure` before MCP-backed expert lookup, MCP runner
+tools, or cross-agent help are used during planning.
+
+- `PASS` → MCP-backed planning assistance is available.
+- `WARN` → continue with local-only planning and mention that MCP expert lookup is
+  degraded.
+- `FAIL` → continue only if the plan does not depend on MCP-backed expert lookup or
+  runner tools; otherwise stop and report the blocker.
+
 ### Step 0.5: Codex Plugin Version Check (Silent)
 
 If `.qe/sivs-config.json` exists and any stage uses `"codex"`, call `getCodexPluginInfo()` from `scripts/lib/codex_bridge.mjs`:

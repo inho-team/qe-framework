@@ -39,6 +39,7 @@
     "Qinit",
     "Qissue",
     "Qmcp-builder",
+    "Qmcp-ensure",
     "Qmcp-setup",
     "Qmcp-sync",
     "Qmemory",

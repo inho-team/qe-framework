@@ -73,7 +73,9 @@ npm install -g @inho-team/qe-framework
 npm install -g @inho-team/qe-mcp
 ```
 
-Use these only when the user explicitly wants package installation. Otherwise report them.
+Use these only when the user explicitly wants package installation. For the MCP companion,
+prefer `{adapter.commandPrefix}Qmcp-ensure` so detection, install, registry initialization,
+and verification stay centralized.
 
 ### Step 3: Project `.qe/` Consistency
 Check expected project state:

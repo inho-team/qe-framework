@@ -63,6 +63,17 @@ Format: Markdown with checklist items
 
 **Fallback guarantee**: If `.qe/sivs-config.json` does not exist, all stages default to Claude. This preserves existing single-engine workflows while Codex routing remains available through SIVS config.
 
+## QE MCP Companion Preflight
+
+Before spec generation uses MCP-backed expert lookup, MCP runner tools, or cross-agent
+help, invoke `{adapter.commandPrefix}Qmcp-ensure`.
+
+- `PASS` → expert-library and runner MCP tooling may be used.
+- `WARN` → continue with local-only spec generation and record that MCP assistance was
+  unavailable.
+- `FAIL` → stop only when the requested spec explicitly depends on MCP-backed tools;
+  otherwise continue without claiming MCP coverage.
+
 ## Workflow
 
 ### Step 1: Context Acquisition (Mandatory)

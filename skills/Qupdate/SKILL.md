@@ -82,40 +82,26 @@ Choose exactly one path:
 - Otherwise → path 2 (tarball, covers A + B).
 - Do not recommend `npm update -g @inho-team/qe-framework` unless the package is published to npm.
 
-### Step 2: Update the QE MCP companion (target C)
-The MCP expert library is distributed separately as `@inho-team/qe-mcp`; it is not
-bundled into the framework package.
+### Step 2: Ensure/update the QE MCP companion (target C)
+Invoke `{adapter.commandPrefix}Qmcp-ensure` to centralize the MCP companion preflight.
+That skill owns detection, missing-package install, registry initialization, and health
+verification for `@inho-team/qe-mcp`.
 
-1. Detect whether `qe-mcp` is installed:
+After `Qmcp-ensure` returns `PASS`, update the companion to latest as part of this update
+workflow:
 
-   ```bash
-   command -v qe-mcp || true
-   npm list -g @inho-team/qe-mcp --depth=0 2>/dev/null || true
-   ```
-
-2. Check available package metadata:
-
-   ```bash
-   npm view @inho-team/qe-mcp version 2>/dev/null || true
-   ```
-
-3. Update or install the companion package when npm metadata is reachable:
-
-   ```bash
-   npm install -g @inho-team/qe-mcp@latest
-   ```
-
-4. Verify:
-
-   ```bash
-   qe-mcp doctor 2>/dev/null || true
-   qe-mcp sync --dry-run 2>/dev/null || true
-   ```
+```bash
+npm install -g @inho-team/qe-mcp@latest
+qe-mcp doctor
+qe-mcp sync --dry-run
+```
 
 Selection rule:
 - If the user is inside a `qe-mcp` checkout and asks for local asset sync only, run its
   documented local checks instead of global install.
-- If npm metadata is unreachable, report the installed version and recommend retrying later.
+- If `Qmcp-ensure` returns `WARN`, continue only with MCP-dependent features marked
+  degraded.
+- If `Qmcp-ensure` returns `FAIL`, do not claim MCP tools are usable.
 - Do not copy the expert corpus into `qe-framework`.
 
 ### Step 3: Update the codex-plugin-cc bridge (target D)

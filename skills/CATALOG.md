@@ -36,6 +36,7 @@
 | `/Qcontext` | When managing folder-aware context memory (create, refresh, status). | Optimizes Claude's context window by loading only relevant folder context. |
 | `/Qinit` | When starting a new project or initializing the QE framework. | Sets up directory structure, conventions, and core configuration. |
 | `/Qmcp-sync` | When MCP settings should be shared across Claude, Codex, and Gemini. | Keeps one QE-managed MCP registry and syncs clients from it. |
+| `/Qmcp-ensure` / `$Qmcp-ensure` | When a QE skill needs the external qe-mcp companion before using expert lookup or runner tools. | Installs missing `@inho-team/qe-mcp`, initializes the registry, and verifies health. |
 | `/Qsecret` | When API keys or tokens must be stored or used safely. | Keeps plaintext secrets out of the repo while supporting secure env injection. |
 | `/Qissue` | When the user wants to file a bug report, feature request, or question against the qe-framework repo. | Single-command issue filing via `gh` CLI with one-time PAT onboarding. |
 | `/Quser-action` / `$Quser-action` | When Claude or Codex needs the user to perform an external action. | Creates durable `.qe/user-actions/` requests for hook trust, login, 2FA, secrets entry, console work, or acceptance checks. |

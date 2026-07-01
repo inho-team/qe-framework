@@ -13,6 +13,9 @@ Use the external `@inho-team/qe-mcp` package to manage QE expert-library MCP con
 The MCP server and large expert corpus are intentionally not shipped inside
 `@inho-team/qe-framework`.
 
+Before running any command below, invoke `{adapter.commandPrefix}Qmcp-ensure`. Continue
+only after it returns `PASS`; `Qmcp-sync` is MCP-dependent by definition.
+
 ## Commands
 
 ### Initialize the global registry
@@ -50,11 +53,8 @@ The default registry lives at:
 ~/.qe/mcp/registry.json
 ```
 
-Install the external package first if `qe-mcp` is not on PATH:
-
-```bash
-npm install -g @inho-team/qe-mcp
-```
+If `qe-mcp` is not on `PATH`, use `{adapter.commandPrefix}Qmcp-ensure`; do not duplicate
+install logic here.
 
 The default external registry entry is `qeExpertLibrary`.
 
