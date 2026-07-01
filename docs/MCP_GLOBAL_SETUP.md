@@ -19,6 +19,16 @@ updates for optional expert guidance and maintainer-only admin workflows.
 
 ## Install
 
+Install QE Framework first. It provides the skills, agents, hooks, and Codex
+assets:
+
+```bash
+claude plugin marketplace add inho-team/qe-framework
+claude plugin install qe-framework@inho-team-qe-framework
+```
+
+Then install the normal user-facing MCP companion:
+
 ```bash
 npm install -g @inho-team/qe-mcp
 ```
@@ -44,7 +54,8 @@ npm run selftest
 Preview:
 
 ```bash
-qe-mcp sync --dry-run
+qe-mcp sync --dry-run --client claude
+qe-mcp sync --dry-run --client codex
 ```
 
 Apply to one client:
@@ -56,13 +67,29 @@ qe-mcp sync --client gemini
 ```
 
 The external package registers `qeExpertLibrary`, not an in-framework MCP
-server. It exposes compact expert search and explicit full-read tools such as:
+server. `qe-framework` and `qe-mcp` are expected to run together: the framework
+owns workflow orchestration, while `qe-mcp` owns the external expert corpus and
+cross-agent runner tools. Without `qe-mcp`, core QE skills still load, but MCP
+expert lookup and MCP runner tools are unavailable.
+
+The user-facing MCP exposes compact expert search, explicit full-read tools, and
+active cross-agent runner tools such as:
 
 - `qe_search_experts`
 - `qe_recommend_expert`
 - `qe_read_expert`
 - `qe_read_methodology`
 - `qe_expert_prompt`
+- `qe_run_codex_agent`
+- `qe_run_claude_agent`
+- `qe_cross_agent_help`
+
+After syncing, restart Claude Code or Codex and verify with:
+
+```bash
+qe-mcp doctor
+qe-mcp-server
+```
 
 ## Trust Boundary
 
@@ -72,7 +99,7 @@ server. It exposes compact expert search and explicit full-read tools such as:
 - Expert reads are explicit; search and recommendation stay compact by default.
 - Treat migrated expert records as guidance and verify current APIs before
   implementation.
-- QE admin workflows are not default user skills. Maintainers connect
-  `qe-admin-mcp` and use `qe_admin_search_skills`, `qe_admin_read_skill`, and
-  `qe_admin_prompt` to load release, bump, skill-test, audit, and migration
-  guidance.
+- QE admin workflows are not default user skills. Maintainers install and
+  connect `qe-admin-mcp` separately, then use `qe_admin_search_skills`,
+  `qe_admin_read_skill`, and `qe_admin_prompt` to load release, bump,
+  skill-test, audit, and migration guidance.
