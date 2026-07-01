@@ -48,6 +48,41 @@ function mkFixture() {
   return { root, home };
 }
 
+function checkPackageDietNoDrift() {
+  const repoRoot = new URL('..', import.meta.url);
+  const staleRootArtifacts = [
+    'GEMINI.md',
+    'audit_report.json',
+    'audit_report.md',
+    'test-framework.js',
+    'test-hooks.js',
+    'test-supervision.js',
+    'run_metric.sh',
+  ];
+
+  for (const rel of staleRootArtifacts) {
+    expect(!existsSync(new URL(rel, repoRoot)), `[diet] stale root artifact reintroduced: ${rel}`);
+  }
+
+  const pkg = JSON.parse(readFileSync(new URL('package.json', repoRoot), 'utf8'));
+  const files = pkg.files || [];
+  for (const rel of staleRootArtifacts) {
+    expect(!files.includes(rel), `[diet] stale root artifact listed in package files: ${rel}`);
+  }
+
+  const requiredExclusions = [
+    '!docs/index.html',
+    '!docs/qe_framework_*.html',
+    '!docs/presentation/',
+    '!docs/archive/',
+  ];
+  for (const pattern of requiredExclusions) {
+    expect(files.includes(pattern), `[diet] package files missing heavy docs exclusion: ${pattern}`);
+  }
+}
+
+checkPackageDietNoDrift();
+
 {
   const { root, home } = mkFixture();
   try {
