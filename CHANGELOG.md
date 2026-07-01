@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [8.2.0] - 2026-07-01
+
+### Added
+
 - State-aware PSE routing hints for active plans, pending task specs,
   uncommitted implementation changes, and completed phase detection, backed by
   deterministic prompt-check subprocess tests.
