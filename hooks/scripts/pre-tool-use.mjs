@@ -166,6 +166,19 @@ if (toolName === 'Skill') {
       // Fault-tolerant: never let the usage counter break the hook.
     }
 
+    const normalizedSkillName = String(skillName || '').replace(/^qe-framework:/, '');
+    // Qcommit needs a hook-owned trust path for autonomous clients whose
+    // permission classifiers reject model-written bypass artifacts. The guard
+    // below consumes this one-shot capability on the next matching git commit.
+    if (normalizedSkillName === 'Qcommit') {
+      state.skill_bypass = {
+        active: true,
+        skill: 'Qcommit',
+        ts: Date.now(),
+        source: 'skill-entry-hook',
+      };
+    }
+
     // SIVS Skill Entry Guard: inject mandatory engine hint before skill loads
     const SKILL_STAGE_MAP = {
       'Qgenerate-spec': 'spec', 'qe-framework:Qgenerate-spec': 'spec',
@@ -267,6 +280,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   if (bypass && bypass.active && (Date.now() - (bypass.ts || 0)) < 120000) {
     bypassSkill = bypass.skill || null;
   }
+  let consumeSkillEntryBypass = false;
 
   // Define override rules: [condition, blocked skill name, message]
   const overrideRules = [];
@@ -348,8 +362,15 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   // hook_profile gates enforcement: "minimal" downgrades to a soft hint (escape hatch
   // when a guard misfires); "safe" (default) and "full" enforce.
   for (const rule of overrideRules) {
-    if (bypassSkill === rule.skill) continue;
-    if (Array.isArray(rule.also) && rule.also.includes(bypassSkill)) continue;
+    const bypassMatchesRule =
+      bypassSkill === rule.skill ||
+      (Array.isArray(rule.also) && rule.also.includes(bypassSkill));
+    if (bypassMatchesRule) {
+      if (rule.skill === 'Qcommit' && bypass?.source === 'skill-entry-hook') {
+        consumeSkillEntryBypass = true;
+      }
+      continue;
+    }
     if (cfg.hook_profile === 'minimal') {
       hints.push(`[guard:${rule.skill}] ${rule.msg} (hook_profile=minimal — not enforced)`);
     } else {
@@ -362,6 +383,10 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
         bypass: `skill-bypass.json with skill:"${rule.skill}"`,
       });
     }
+  }
+
+  if (consumeSkillEntryBypass && state.skill_bypass?.source === 'skill-entry-hook') {
+    delete state.skill_bypass;
   }
 
   // Machine-global heavy build admission. This intentionally runs after the

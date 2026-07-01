@@ -21,6 +21,10 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+- `/Qcommit` now gets a hook-owned one-shot commit capability when the skill is
+  entered, so autonomous clients no longer need to write
+  `.qe/state/skill-bypass.json` just to pass the raw `git commit` guard.
+
 ### Removed
 
 ### Security

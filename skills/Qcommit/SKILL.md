@@ -90,8 +90,9 @@ Call the `Ecommit-executor` agent through the agent adapter with the following i
 The `Ecommit-executor` agent handles everything: status check, diff analysis, commit message writing, staging, committing, and optionally pushing.
 
 On Codex role-separated inline fallback, read `agents/Ecommit-executor.md` and execute the same
-steps in the current session. Do not skip the separate skill-bypass flag write
-immediately before `git commit`.
+steps in the current session. Prefer the hook-owned Qcommit skill-entry capability;
+only write the standalone skill-bypass flag when the installed hook lacks that
+capability and blocks the commit.
 
 ### Step 2: Report Results
 After the agent completes, report the commit hash and changed files to the user.

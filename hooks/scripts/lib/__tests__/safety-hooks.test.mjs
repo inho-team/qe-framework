@@ -616,8 +616,15 @@ import { fileURLToPath } from 'node:url';
 
 const HOOK_PATH = fileURLToPath(new URL('../../pre-tool-use.mjs', import.meta.url));
 
-function runCommitGuard(bypassSkill) {
-  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-guard-'));
+function runHookPayload(dir, payload) {
+  return spawnSync(process.execPath, [HOOK_PATH], {
+    input: JSON.stringify({ cwd: dir, ...payload }),
+    encoding: 'utf8',
+  });
+}
+
+function runCommitGuard(bypassSkill, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-guard-'))) {
+  const cleanup = arguments.length < 2;
   if (bypassSkill) {
     fs.mkdirSync(path.join(dir, '.qe', 'state'), { recursive: true });
     fs.writeFileSync(
@@ -625,13 +632,11 @@ function runCommitGuard(bypassSkill) {
       JSON.stringify({ active: true, skill: bypassSkill, ts: Date.now() }),
     );
   }
-  const payload = JSON.stringify({
-    cwd: dir,
+  const res = runHookPayload(dir, {
     tool_name: 'Bash',
     tool_input: { command: 'git commit -m "chore: release v9.9.9"' },
   });
-  const res = spawnSync(process.execPath, [HOOK_PATH], { input: payload, encoding: 'utf8' });
-  fs.rmSync(dir, { recursive: true, force: true });
+  if (cleanup) fs.rmSync(dir, { recursive: true, force: true });
   return res.status;
 }
 
@@ -641,6 +646,33 @@ test('pre-tool-use: raw git commit with no bypass flag is hard-blocked', () => {
 
 test('pre-tool-use: Qcommit bypass flag allows git commit', () => {
   assert.notStrictEqual(runCommitGuard('Qcommit'), 2);
+});
+
+test('pre-tool-use: Qcommit skill entry arms one-shot commit bypass without standalone flag', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-skill-entry-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const skillEntry = runHookPayload(dir, {
+    tool_name: 'Skill',
+    tool_input: { skill: 'Qcommit' },
+  });
+  assert.strictEqual(skillEntry.status, 0);
+  assert.ok(!fs.existsSync(path.join(dir, '.qe', 'state', 'skill-bypass.json')));
+
+  assert.notStrictEqual(runCommitGuard(null, dir), 2);
+  assert.strictEqual(runCommitGuard(null, dir), 2);
+});
+
+test('pre-tool-use: unrelated skill entry does not arm commit bypass', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-skill-entry-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const skillEntry = runHookPayload(dir, {
+    tool_name: 'Skill',
+    tool_input: { skill: 'Qrun-task' },
+  });
+  assert.strictEqual(skillEntry.status, 0);
+  assert.strictEqual(runCommitGuard(null, dir), 2);
 });
 
 test('pre-tool-use: admin-version bypass flag allows the release-train commit (regression)', () => {

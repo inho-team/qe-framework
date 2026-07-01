@@ -22,17 +22,25 @@ Never leaves AI traces (e.g., Co-Authored-By).
 4. **Validate conventional commit format** (see below)
 5. Selectively `git add` only relevant files
 6. Exclude sensitive files such as `.env`, credentials, etc.
-7. **Set the skill bypass flag using the Write tool — NOT Bash** (required — the PreToolUse hook hard-blocks raw `git commit`). Use the **Write tool** to create `.qe/state/skill-bypass.json` with exactly this content:
+7. **Use the hook-owned Qcommit capability when available.** In current QE installs,
+   entering the Qcommit skill arms a one-shot commit capability in unified hook
+   state, so `Ecommit-executor` can proceed directly to the next `git commit`
+   Bash call without writing a standalone bypass file. This avoids autonomous
+   permission classifiers that reject agent-written bypass artifacts.
+8. **Fallback only for older hooks:** if the commit is still blocked because the
+   installed hook does not support skill-entry capabilities, set the skill bypass
+   flag using the Write tool — NOT Bash. Use the **Write tool** to create
+   `.qe/state/skill-bypass.json` with exactly this content:
    ```json
    {"active":true,"skill":"Qcommit"}
    ```
    > ✅ **Why the Write tool, not Bash:** a Write tool call can never be combined with `git commit` into a single command, so the flag is guaranteed to be on disk before the gated commit runs. (A flag written by Bash in the same `&&` chain is not yet on disk when the PreToolUse hook checks the command, so the commit is blocked. This is the failure mode the Write tool eliminates structurally.)
    > **120-second TTL:** the hook uses the file's mtime when no `ts` is present, so create the flag right before committing — not at the start of your status/diff analysis — or it expires.
-8. **Execute the commit in the NEXT step, with a Bash tool call** (separate from step 7's Write call). Staging may share this call, and cleanup may be appended after the commit (only `git commit` is gated, so `git add` and `rm` run freely once the flag is in place):
+9. **Execute the commit in the NEXT step, with a Bash tool call** (separate from any fallback Write call). Staging may share this call, and cleanup may be appended after the commit (only `git commit` is gated, so `git add` and `rm` run freely once the flag is in place):
    ```bash
    git add <relevant files> && git commit -m "..." ; rm -f .qe/state/skill-bypass.json
    ```
-9. Confirm the flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
+10. Confirm any fallback flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
 
 ## Conventional Commit Validation (Step 4)
 
