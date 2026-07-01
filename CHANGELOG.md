@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+### Changed
+
+### Fixed
+
+### Removed
+
+### Security
+
+## [8.2.4] - 2026-07-01
+
+### Added
+
 - Shared `CONTEXT_BUDGET.md` policy metadata now drives context pressure
   thresholds across hooks and docs.
 
