@@ -10,7 +10,7 @@
     { "id": "multiple-pending", "kind": "multiple-pending-specs", "expectedTarget": null },
     { "id": "pending-missing-plan-line", "kind": "active-plan-no-pending-spec", "expectedTarget": "Qgs" },
     { "id": "uncommitted-code", "kind": "uncommitted-code", "expectedTarget": "Qcode-run-task" },
-    { "id": "completed-phase", "kind": "completed-phase", "expectedTarget": null },
+    { "id": "completed-phase", "kind": "completed-phase", "expectedTarget": "Qplan" },
     { "id": "missing-wrapper-deep-research", "expectedDirectAgent": "Edeep-researcher", "forbiddenWrapper": "Qdeepresearch" }
   ]
 }

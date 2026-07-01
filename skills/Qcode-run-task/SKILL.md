@@ -390,6 +390,32 @@ Summarize and report final results.
 - stale warnings: [none | handle id, role, reason]
 ```
 
+### Next Phase Handoff (MANDATORY when a plan continues)
+
+Before ending the final report, inspect the active plan state:
+
+1. Resolve the active plan using the same plan resolver used by hooks:
+   session binding → `.qe/planning/ACTIVE_PLAN` → flat fallback.
+2. Read `.qe/planning/plans/{slug}/STATE.md` (or flat `.qe/planning/STATE.md`)
+   and identify `Active Phase`.
+3. If verification moved `Active Phase` to another phase and there is no pending
+   TASK_REQUEST/VERIFY_CHECKLIST pair for that active phase, the response MUST
+   end with a copy-pasteable next command:
+
+```markdown
+다음 Phase: {Active Phase one-line label}
+Next Command:
+
+  {adapter.commandPrefix}Qgs {slug}: {short active phase alias}
+```
+
+Use the user's language for the label (`다음 명령:` for Korean, `Next Command:`
+for English). Keep `{short active phase alias}` to the phase name only, maximum
+six words. Do not bury this command in prose; it must be the last block of the
+response. If there is already a pending pair, show the matching
+`{adapter.commandPrefix}Qrun-task {uuid}` / `{adapter.commandPrefix}Qatomic-run {uuid}`
+instead.
+
 ## Qrun-task Integration
 
 This skill can be called independently as `{adapter.commandPrefix}Qcode-run-task`, or it can be automatically triggered from Qrun-task.

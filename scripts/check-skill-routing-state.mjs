@@ -68,7 +68,17 @@ function tempProject() {
  */
 function createPlan(root, options = {}) {
   const slug = options.slug || PLAN_SLUG;
-  write(join(root, '.qe', 'planning', 'plans', slug, 'ROADMAP.md'), `# ${slug}\n`);
+  write(
+    join(root, '.qe', 'planning', 'plans', slug, 'ROADMAP.md'),
+    [
+      `# ${slug}`,
+      '',
+      '## Phase 1 - Foundation',
+      `## ${PHASE}`,
+      '## Phase 4 - Release Polish',
+      '',
+    ].join('\n'),
+  );
   write(join(root, '.qe', 'planning', 'plans', slug, 'STATE.md'), `# STATE\n\n- **Active Phase**: ${PHASE}\n`);
   if (options.activePointer !== false) write(join(root, '.qe', 'planning', 'ACTIVE_PLAN'), `${slug}\n`);
 
@@ -288,7 +298,9 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: ['src/app.js'], gitAvailable: true } });
     expect(hint.kind === 'completed-phase', `[completed] expected completed-phase, got ${hint.kind}`);
-    expect(hint.target === null, `[completed] expected no target, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[completed] expected Qplan, got ${hint.target}`);
+    expect(hint.message.includes('Next Command:'), `[completed] expected Next Command hint, got ${hint.message}`);
+    expect(hint.message.includes('Phase 4 - Release Polish'), `[completed] expected next roadmap phase, got ${hint.message}`);
   } finally {
     cleanup(root);
   }
@@ -317,6 +329,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     expect(result.status === 0, `[prompt-subprocess] expected exit 0, got ${result.status}`);
     expect(context.includes('[PSE]'), `[prompt-subprocess] expected PSE context, got ${context}`);
     expect(context.includes('Qgs'), `[prompt-subprocess] expected Qgs hint, got ${context}`);
+    expect(context.includes('Next Command:'), `[prompt-subprocess] expected Next Command hint, got ${context}`);
     expect(!context.includes('SKILL REQUIRED'), `[prompt-subprocess] state hint must not be hard required, got ${context}`);
   } finally {
     cleanup(root);
@@ -355,10 +368,13 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
   try {
     createPlan(root);
     clearPlanResolverCache();
-    for (const message of ['다음 작업 뭐야?', '계속하려면 무엇을 해야 해?', '다음 QE 단계 알려줘']) {
+    for (const message of ['다음 작업 뭐야?', '계속하려면 무엇을 해야 해?', '다음 QE 단계 알려줘', '다음 Phase도 있나?']) {
       const result = runPromptCheck(root, message);
+      const context = additionalContext(result.json);
       latencySamples.push(result.elapsedMs);
       expect(result.status === 0, `[cjk-latency] expected exit 0 for ${message}, got ${result.status}`);
+      expect(context.includes('[PSE]'), `[cjk-next] expected PSE hint for ${message}, got ${context}`);
+      expect(context.includes('Next Command:'), `[cjk-next] expected Next Command hint for ${message}, got ${context}`);
     }
   } finally {
     cleanup(root);
