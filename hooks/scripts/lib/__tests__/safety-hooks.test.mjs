@@ -643,10 +643,11 @@ test('pre-tool-use: Qcommit bypass flag allows git commit', () => {
   assert.notStrictEqual(runCommitGuard('Qcommit'), 2);
 });
 
-test('pre-tool-use: Mbump bypass flag allows the release-train commit (regression)', () => {
-  // /Mrelease bumps version files under an Mbump flag, then commits. The commit
-  // must pass without swapping the flag to Qcommit.
-  assert.notStrictEqual(runCommitGuard('Mbump'), 2);
+test('pre-tool-use: admin-version bypass flag allows the release-train commit (regression)', () => {
+  // qe-admin-mcp release/bump workflows update version files under an internal
+  // admin-version capability, then commit. The commit must pass without
+  // swapping the flag to Qcommit.
+  assert.notStrictEqual(runCommitGuard('qe-admin-version'), 2);
 });
 
 test('pre-tool-use: an unrelated bypass flag does NOT allow git commit', () => {

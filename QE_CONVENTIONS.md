@@ -297,7 +297,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | Action | Preferred Skill | Why it's better |
 |--------|----------------|-----------------|
 | git commit | `Qcommit` | Human-style messages, no Co-Authored-By traces, reads staged diff intelligently |
-| version bump | `Mbump` | Updates all manifests atomically, generates changelog entry |
+| version/release admin | `qe-admin-mcp` | Maintainer-only release/bump workflows with explicit admin MCP routing |
 | show version | `Qversion` | Single source of truth across plugin.json / package.json |
 | health check / repair | `Qdoctor` | Verifies framework, MCP companion, and `.qe/` consistency before repair |
 | context save / handoff | `Qcompact` | Structured snapshot, recoverable in future sessions |
@@ -325,13 +325,9 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qresume` | Restore saved context |
 | `Qarchive` | Archive completed tasks |
 | `Qcommit` | Human-style git commit (no AI traces) |
-| `Mbump` | Bump plugin version (major/minor/patch) |
 | `Qalias` | Define path/command shortcuts |
 | `Qcc-setup` | Shell alias setup for Claude & Codex (cc, ccc, ccd, cx, cxd) |
 | `Qcommand-creator` | Create slash commands |
-| `Mcreate-skill` | Create/edit/optimize/diagnose skills |
-| `Mcreate-agent` | Create new background agents (E-prefix) |
-| `Mtest-skill` | Test skill intent routing |
 | `Qfind-skills` | Find/install skills from skills.sh |
 | `Qmcp-setup` | MCP server setup, configuration, and custom server building guide |
 | `Qmcp-sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
@@ -340,8 +336,6 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qutopia` | Fully autonomous execution mode |
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |
 | `Qgc` | Code garbage collection (drift, violations, dead code) |
-| `Mrefactor-agent-md` | Refactor bloated instruction files |
-| `Mqe-audit` | Full framework quality audit and report |
 
 ### Knowledge Wiki (Qwiki — `.qe/wiki/` layer)
 | Skill | Purpose |
@@ -363,7 +357,6 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qcode-run-task` | Test > review > fix quality loop |
 | `Qscenario-test` | Generate, execute, and verify E2E user scenarios (browser/API/CLI) |
 | `Qqa-council` | Multi-agent QA loop: explore (black-box) → codify → heal → report; optional PR-trigger scaffold |
-| `Mmigrate-tasks` | Migrate task files to .qe/ structure |
 | `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |
 | `Qtest-driven-development` | TDD: failing test first, then implement |
 | `Qsystematic-debugging` | Hypothesis-driven root cause analysis |
@@ -570,14 +563,14 @@ The framework uses a **release train** pattern. Every commit that changes user-v
 
 1. **Every commit** that ships user-visible behavior → add entry to `CHANGELOG.md [Unreleased]` under `Added` / `Changed` / `Fixed` / `Removed` / `Security`.
 2. **Do NOT bump version** on the fix/feature commit. `plugin.json` / `package.json` stay at the last released version.
-3. **When a batch is ready** → invoke `/Mrelease` (optionally with `major|minor|patch` override). The skill reads `[Unreleased]`, bumps, rewrites changelog, commits, tags, optionally pushes + creates GitHub Release.
+3. **When a batch is ready** → use `qe-admin-mcp` to load the release admin workflow with an optional `major|minor|patch` override. The admin workflow reads `[Unreleased]`, bumps, rewrites changelog, commits, tags, optionally pushes + creates GitHub Release.
 4. **Between releases**, `main` may be "ahead" of the latest tag — that's expected. Users who want bleeding edge can track the tip; most pin a tag.
 
 ### Anti-patterns
 
-- Bumping version in the same commit as a fix → **use `/Mrelease` later instead**
-- Invoking `/Mbump` directly → Mbump still exists as a low-level primitive; `/Mrelease` is the canonical release path
-- Releasing with empty `[Unreleased]` → `/Mrelease` aborts
+- Bumping version in the same commit as a fix → **use the `qe-admin-mcp` release workflow later instead**
+- Invoking a local `M*` skill directly → admin workflows live in `inho-team/qe-admin-mcp`, not the default user skill tree
+- Releasing with empty `[Unreleased]` → the release admin workflow aborts
 - Per-edge-case patch release → batch it; only security / data loss / framework-unusable bugs get immediate hotfix
 
 ### Rationale

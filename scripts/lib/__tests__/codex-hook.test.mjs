@@ -64,8 +64,8 @@ test('blocks plugin.json version write in Codex Bash command', () => {
 
   assert.equal(result.status, 2);
   assert.match(result.stderr, /\[QE:BLOCK\]/);
-  assert.match(result.stderr, /skill=Mbump/);
-  assert.match(result.stderr, /Use \$Mbump instead/);
+  assert.match(result.stderr, /skill=qe-admin-version/);
+  assert.match(result.stderr, /qe-admin-mcp release\/bump admin workflow/);
 });
 
 test('allows rm -r build in Codex Bash normal parity mode', () => {

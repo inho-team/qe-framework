@@ -26,7 +26,7 @@ then C, then D.
 
 ### Step 0: Pre-flight — is the latest release reachable on `origin`?
 The tarball path runs `git pull`, which only helps if the newest release was pushed to
-`origin`. `Mrelease` makes the push step **optional**, so a freshly cut release can live
+`origin`. The `qe-admin-mcp` release workflow makes the push step **optional**, so a freshly cut release can live
 only in the local checkout (commit + tag present, `origin` behind).
 
 ```bash

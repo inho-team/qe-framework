@@ -279,7 +279,7 @@ After ALL tasks in a session complete, run cross-task consistency check:
 3. Report findings in QA report. FAIL items → fix before final completion.
 
 ## Common Rules (all modes)
-- **Skill priority**: Even in autonomous mode, if a registered skill covers the action (e.g., Mcreate-skill for skill creation, Qcommit for git commit, Mcreate-agent for agent creation), invoke the skill instead of raw tool calls. QE_CONVENTIONS.md override map always applies.
+- **Skill priority**: Even in autonomous mode, if a registered skill covers the action (e.g., Qcommit for git commit), invoke the skill instead of raw tool calls. Maintainer-only framework creation/release workflows live in `qe-admin-mcp`. QE_CONVENTIONS.md override map always applies.
 - **State management**: create before execution, clear after completion
 - **Reinforcement**: stop signals blocked up to max_reinforcements
 - **Parallel execution**: multiple Etask-executor agents concurrently

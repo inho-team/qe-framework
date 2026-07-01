@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * run_mtest_skill.mjs — batch runner for the Mtest-skill workflow.
+ * run_mtest_skill.mjs — batch runner for the admin skill-test workflow.
  *
  * Usage:
  *   node scripts/run_mtest_skill.mjs --batch '<glob>' [--out <file>]
@@ -12,10 +12,11 @@
  * For every SKILL.md it
  *   1. consults `hooks/scripts/lib/mtest-cache.mjs` for a cached verdict keyed
  *      by the content hash of the SKILL.md;
- *   2. on miss, runs a deterministic stand-in for the Mtest-skill workflow
+ *   2. on miss, runs a deterministic stand-in for the qe-admin-mcp
+ *      skill-test workflow
  *      (virtual-prompt generation + routing simulation) that mirrors the
- *      algorithm documented in `skills/Mtest-skill/SKILL.md` — the actual LLM
- *      call is the skill's responsibility, so this runner's "verdict" is the
+ *      algorithm owned by `qe-admin-mcp` — the actual LLM call is the admin workflow's
+ *      responsibility, so this runner's "verdict" is the
  *      static replay of that matcher applied to each skill's own triggers;
  *   3. saves the fresh verdict back into the cache;
  *   4. emits a markdown table to stdout and (optionally) to `--out <file>`.
@@ -74,7 +75,7 @@ function parseArgs(argv) {
 function printHelp() {
   process.stdout.write(
     [
-      'run_mtest_skill.mjs — batch runner for Mtest-skill',
+      'run_mtest_skill.mjs — batch runner for qe-admin-mcp skill-test workflow',
       '',
       'Usage:',
       "  node scripts/run_mtest_skill.mjs --batch '<glob>' [--out <file>]",
@@ -98,7 +99,7 @@ function printHelp() {
 /**
  * Expand a repo-relative glob into matching directory paths.
  * Supports `*` (any chars except `/`) in the final segment only — sufficient
- * for `skills/Q*` / `skills/M*` style audit patterns and avoids pulling in a
+ * for `skills/Q*` style audit patterns and avoids pulling in a
  * heavyweight matcher.
  *
  * Path-traversal defence: segments of `..`, absolute paths, and NUL bytes are
@@ -281,7 +282,7 @@ function scorePromptAgainstSkill(prompt, fm) {
 }
 
 /**
- * Classify a score into one of the verdicts documented by Mtest-skill.
+ * Classify a score into one of the verdicts documented by the admin skill-test workflow.
  * Thresholds mirror the skill doc: `>= 2*threshold` PASS, `>= threshold` WEAK,
  * below that UNREACHABLE. MISROUTE/CONFLICT require cross-skill context that
  * the batch runner does not replay — full LLM mode surfaces those.
@@ -296,7 +297,7 @@ function classify(score) {
 }
 
 /**
- * Replay the deterministic core of the Mtest-skill workflow against a single
+ * Replay the deterministic core of the admin skill-test workflow against a single
  * SKILL.md, producing a verdict object ready for the cache.
  * @param {string} skillFileAbs — absolute path to the SKILL.md being tested.
  * @returns {{verdict: string, accuracy: number}}

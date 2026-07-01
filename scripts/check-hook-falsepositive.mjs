@@ -45,18 +45,18 @@ const EXIT_BLOCK = 2; // emitBlock() convention
   expect(r.code !== EXIT_BLOCK, `[FP] read-only plugin.json+version command was blocked (exit ${r.code}): ${r.stderr}`);
 }
 
-// 2. Real WRITE (redirect) into plugin.json + version must block → Mbump.
+// 2. Real WRITE (redirect) into plugin.json + version must block → qe-admin-version.
 {
   const cmd = 'echo \'{"version":"9.9.9"}\' > .claude-plugin/plugin.json';
   const r = runHook(PRE, { cwd: ROOT, tool_name: 'Bash', tool_input: { command: cmd } });
-  expect(r.code === EXIT_BLOCK && /Mbump/.test(r.stderr), `[GUARD] version redirect write was NOT blocked (exit ${r.code})`);
+  expect(r.code === EXIT_BLOCK && /qe-admin-version/.test(r.stderr), `[GUARD] version redirect write was NOT blocked (exit ${r.code})`);
 }
 
-// 2b. Pipe-to-tee write into plugin.json + version must block → Mbump (W1 gap).
+// 2b. Pipe-to-tee write into plugin.json + version must block → qe-admin-version (W1 gap).
 {
   const cmd = 'echo \'{"version":"9.9.9"}\' | tee .claude-plugin/plugin.json';
   const r = runHook(PRE, { cwd: ROOT, tool_name: 'Bash', tool_input: { command: cmd } });
-  expect(r.code === EXIT_BLOCK && /Mbump/.test(r.stderr), `[GUARD] tee write to plugin.json was NOT blocked (exit ${r.code})`);
+  expect(r.code === EXIT_BLOCK && /qe-admin-version/.test(r.stderr), `[GUARD] tee write to plugin.json was NOT blocked (exit ${r.code})`);
 }
 
 // 3. Raw git commit must block → Qcommit.
@@ -115,7 +115,7 @@ const EXEC_ORACLE = [
   ['echo "gh pr create"', 'pass', 'O010 quoted pr-create'],
   ['gh pr create --fill', 'block:Qbranch', 'O011 real pr-create'],
   ['echo "edit .claude-plugin/plugin.json version"', 'pass', 'O012 quoted plugin.json mention'],
-  ['echo \'{"version":"9.9.9"}\' > .claude-plugin/plugin.json', 'block:Mbump', 'O013 real version write'],
+  ['echo \'{"version":"9.9.9"}\' > .claude-plugin/plugin.json', 'block:qe-admin-version', 'O013 real version write'],
   ['', 'pass', 'O015 empty command (fail-open)'],
   // carried-forward (iter-2 WARN): substitution / continuation / ANSI-C are EXECUTABLE
   ['msg=$(git commit -m x)', 'block:Qcommit', 'O021 command substitution'],
@@ -160,7 +160,7 @@ for (const [cmd, expected, label] of EXEC_ORACLE) {
     let ctx = '';
     try { ctx = (JSON.parse(r.stdout).hookSpecificOutput || {}).additionalContext || ''; } catch {}
     expect(/Qcommit/.test(ctx), '[R1 O017] injected context lost the Qcommit routing cue');
-    expect(/Mbump/.test(ctx), '[R1 O018] injected context lost the Mbump routing cue');
+    expect(/qe-admin-mcp/.test(ctx), '[R1 O018] injected context lost the admin MCP routing cue');
     expect(/→/.test(ctx), '[R1 O019] injected context lost the mapping verb');
     expect(/OUTPUT STYLE/.test(ctx), '[R1 O016] OUTPUT_STYLE contract dropped when doc missing (no fallback)');
     expect(/\[Session State\]/.test(ctx) === false, '[R1 O028] empty session summary should not add token noise');

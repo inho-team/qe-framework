@@ -91,7 +91,7 @@ Treat old counts as historical evidence only. Always remeasure current counts.
 Protect these categories from deletion unless the user explicitly opens a separate architectural plan:
 - PSE chain: `Qplan`, `Qgs`/`Qgenerate-spec`, `Qatomic-run`, `Qrun-task`, `Qcode-run-task`
 - SIVS and gates: `Qcritical-review`, `Qverify-contract`, `Qsivs-config`
-- Safety and lifecycle: `Qcommit`, `Mbump`, `Qversion`, `Qarchive`, `Qcompact`, `Qresume`, `Qrefresh`, `Qsweep`, `Qgc`, `Qmistake`
+- Safety and lifecycle: `Qcommit`, `Qversion`, `Qarchive`, `Qcompact`, `Qresume`, `Qrefresh`, `Qsweep`, `Qgc`, `Qmistake`; version/release admin workflows live in `qe-admin-mcp`
 - Initialization and help: `Qinit`, `Qhelp`, `Qupdate`
 - Project memory/context/wiki primitives when the project uses them
 

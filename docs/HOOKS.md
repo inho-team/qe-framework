@@ -47,8 +47,9 @@ workflow; the supported path is explicit trust review.
 | TaskCompleted | native hook + Codex wrapper | Runs completion-state maintenance where available. |
 
 Codex hook block messages render Codex-native skill commands with the `$`
-prefix, for example `$Qcommit`, `$Qbranch`, and `$Mbump`. Claude hook block
-messages keep the Claude slash-command prefix.
+prefix, for example `$Qcommit` and `$Qbranch`. Version/release admin blocks
+point maintainers to `qe-admin-mcp` instead of a default installed user skill.
+Claude hook block messages keep the Claude slash-command prefix for core skills.
 
 The Codex lifecycle wrapper forwards the original hook payload to the shared QE
 hook script, sets `QE_CLIENT=codex`, and rewrites slash-command hints (`/Q...`)
@@ -67,7 +68,7 @@ tmux-status use. This is a `proxy` lifecycle surface under
 The following behavior must stay equivalent across Claude and Codex:
 
 1. Raw commit and raw PR creation are routed to QE skills.
-2. Direct version edits are routed to `$Mbump` / `/Mbump`.
+2. Direct version edits are routed to `qe-admin-mcp` maintainer workflows.
 3. Dangerous autonomous-mode actions are blocked before execution.
 4. Hook failures fail open unless an intentional policy block is emitted.
 5. User-facing QE command hints render with the active client prefix.
@@ -110,12 +111,12 @@ thrown error and therefore bypasses the safety net by design.
 |---------|-----------|-------|
 | `git commit ...` (Bash) | Claude `/Qcommit`, Codex `$Qcommit` | raw commit blocked |
 | `gh pr create ...` (Bash) | Claude `/Qbranch`, Codex `$Qbranch` | raw PR creation blocked |
-| **write sink** into `plugin.json` + `version` (Bash) | Claude `/Mbump`, Codex `$Mbump` | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
+| **write sink** into `plugin.json` + `version` (Bash) | `qe-admin-mcp` release/bump workflow | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
 | `sed`/`perl`/`ruby -i` / `--in-place` (Bash) | Edit tool | use the Edit tool |
-| Edit of `plugin.json` whose new text has `"version"` | Claude `/Mbump`, Codex `$Mbump` | version field is Mbump-owned |
+| Edit of `plugin.json` whose new text has `"version"` | `qe-admin-mcp` release/bump workflow | version field is admin-owned |
 
-Per-call bypass: write `.qe/state/skill-bypass.json` `{ "active": true, "skill": "Mbump", "ts": <now> }`
-(valid 60s). The matching skill sets this automatically when it legitimately needs the action.
+Per-call bypass: write `.qe/state/skill-bypass.json` `{ "active": true, "skill": "qe-admin-version", "ts": <now> }`
+(valid 120s). The maintainer-only admin workflow sets this automatically when it legitimately needs the action.
 
 ## hook_profile — dialing down enforcement
 

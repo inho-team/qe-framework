@@ -57,7 +57,6 @@ TASK MANAGEMENT
   /Qcompact                Save context / session handoff ($Qcompact on Codex)
   /Quser-action            Track external actions the user must perform
   /Qarchive                Archive completed tasks
-  /Mmigrate-tasks          Migrate task files to .qe/
 
 DOCUMENTATION
   /Qwriting-clearly        Clear writing + AI pattern removal
@@ -69,12 +68,14 @@ PLANNING
 
 META
   /Qversion                Show current version
-  /Mcreate-skill          Create or modify skills
   /Qfind-skills            Search skills.sh marketplace
   /Qalias                  Path & command aliases
   /Qprofile                Analyze usage patterns
-  /Mrefactor-agent-md      Refactor instruction files
   /Qhelp                   This help screen
+
+ADMIN
+  qe-admin-mcp             Maintainer-only workflows
+                           (qe_admin_search_skills / qe_admin_read_skill)
 
 AGENTS (auto-selected by complexity)
   HIGH   Edeep-researcher, Eqa-orchestrator

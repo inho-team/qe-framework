@@ -31,7 +31,6 @@ const PROTECTED_CORE = new Set([
   'Qverify-contract',
   'Qsivs-config',
   'Qcommit',
-  'Mbump',
   'Qversion',
   'Qarchive',
   'Qcompact',

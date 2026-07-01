@@ -1,5 +1,5 @@
 {
-  "_comment": "Historical superset of all known QE skill paths ever shipped to ~/.codex/skills/. Entries may be top-level names or repo-relative nested paths. Seeded from (a) current repo skills/ SKILL.md paths and (b) observed ~/.codex/skills/ QE catalog as of Phase 2 audit (172 entries observed, ~59 orphans). May need expansion as new skills ship. Used by cleanupCodexAssets() to identify removal candidates — a dir is only removed if its manifest entry resolves under ~/.codex/skills/ AND contains SKILL.md.",
+  "_comment": "Historical superset of all known QE skill paths ever shipped to ~/.codex/skills/. Entries may be top-level names or repo-relative nested paths. Seeded from (a) current repo skills/ SKILL.md paths and (b) observed ~/.codex/skills/ QE catalog as of Phase 2 audit (172 entries observed, ~59 orphans). M* entries are legacy installed admin skills now sourced from qe-admin-mcp, not from this repo's default skills tree. Used by cleanupCodexAssets() to identify removal candidates — a dir is only removed if its manifest entry resolves under ~/.codex/skills/ AND contains SKILL.md.",
   "skills": [
     "Mbump",
     "Mcreate-agent",

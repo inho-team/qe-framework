@@ -39,7 +39,7 @@ only lifecycle surface.
 2. Hook commands execute scripts under `hooks/scripts/`.
 3. `PreToolUse` can hard-block by exiting with code 2.
 4. `statusLine` is a Claude-native HUD surface and executes `hooks/scripts/statusline.mjs`.
-5. Claude user-facing commands render as `/Q...` and `/M...`.
+5. Claude user-facing QE commands render as `/Q...`; maintainer-only admin workflows are exposed through `qe-admin-mcp`.
 
 ## Codex Adapter
 
@@ -47,7 +47,7 @@ only lifecycle surface.
 2. Codex hook entries point at `hooks/scripts/codex/lifecycle-codex.mjs`, which forwards payloads to the shared QE hook scripts with `QE_CLIENT=codex` and `QE_COMMAND_PREFIX=$`.
 3. Codex `PreToolUse` is the safety-critical parity surface for raw commit, PR creation, version edit, and related hard blocks.
 4. Codex has no Claude-style native `statusLine`; report status through normal command output rather than a HUD proxy.
-5. Codex user-facing QE commands render as `$Q...` and `$M...`.
+5. Codex user-facing QE commands render as `$Q...`; maintainer-only admin workflows are exposed through `qe-admin-mcp`.
 
 ## Fallback Labels
 

@@ -1,13 +1,21 @@
 # QE MCP Setup
 
-QE's expert-library MCP server is maintained outside this framework package:
+QE's optional MCP servers are maintained outside this framework package.
+
+Expert-library MCP:
 
 ```text
 https://github.com/inho-team/qe-mcp
 ```
 
+Maintainer-only admin MCP:
+
+```text
+https://github.com/inho-team/qe-admin-mcp
+```
+
 This keeps `@inho-team/qe-framework` installs small while allowing MCP-only
-updates for optional expert guidance.
+updates for optional expert guidance and maintainer-only admin workflows.
 
 ## Install
 
@@ -20,6 +28,14 @@ For local development:
 ```bash
 git clone https://github.com/inho-team/qe-mcp.git
 cd qe-mcp
+npm run selftest
+```
+
+Admin workflow development:
+
+```bash
+git clone https://github.com/inho-team/qe-admin-mcp.git
+cd qe-admin-mcp
 npm run selftest
 ```
 
@@ -56,3 +72,7 @@ server. It exposes compact expert search and explicit full-read tools such as:
 - Expert reads are explicit; search and recommendation stay compact by default.
 - Treat migrated expert records as guidance and verify current APIs before
   implementation.
+- QE admin workflows are not default user skills. Maintainers connect
+  `qe-admin-mcp` and use `qe_admin_search_skills`, `qe_admin_read_skill`, and
+  `qe_admin_prompt` to load release, bump, skill-test, audit, and migration
+  guidance.

@@ -6,6 +6,9 @@ import { join } from 'path';
 import { emitBlock } from '../lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from '../lib/shell-scanner.mjs';
 
+const ADMIN_VERSION_CAPABILITY = 'qe-admin-version';
+const ADMIN_VERSION_ACTION = 'Use qe-admin-mcp release/bump admin workflow instead.';
+
 function failOpen() {
   try { process.stdout.write(JSON.stringify({ continue: true })); } catch {}
   process.exit(0);
@@ -62,7 +65,7 @@ try {
 }
 
 function isBypassed(skill) {
-  return bypassSkill === skill || (skill === 'Qcommit' && bypassSkill === 'Mbump');
+  return bypassSkill === skill || (skill === 'Qcommit' && bypassSkill === ADMIN_VERSION_CAPABILITY);
 }
 
 const view = executableView(cmd);
@@ -97,15 +100,15 @@ if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
 const writesPluginJson =
   /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
 if (writesPluginJson && /version/.test(cmd)) {
-  if (isBypassed('Mbump')) {
+  if (isBypassed(ADMIN_VERSION_CAPABILITY)) {
     console.log(JSON.stringify({ continue: true }));
     process.exit(0);
   }
   emitBlock({
-    skill: 'Mbump',
-    reason: 'Direct version editing is blocked. Use $Mbump instead.',
-    action: 'Use $Mbump instead',
-    bypass: 'skill-bypass.json with skill:"Mbump"',
+    skill: ADMIN_VERSION_CAPABILITY,
+    reason: `Direct version editing is blocked. ${ADMIN_VERSION_ACTION}`,
+    action: ADMIN_VERSION_ACTION,
+    bypass: `skill-bypass.json with skill:"${ADMIN_VERSION_CAPABILITY}"`,
   });
 }
 

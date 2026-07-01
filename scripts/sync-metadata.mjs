@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * sync-metadata.mjs  (writer — run by Mbump / release, or manually)
+ * sync-metadata.mjs  (writer — run by qe-admin-mcp release/bump workflow, or manually)
  *
  * Propagates the single source of truth (scripts/lib/metadata-source.mjs)
  * into all human-facing metadata locations. Idempotent: a second run makes
@@ -15,7 +15,7 @@
  *   - plugin.json   "description"  →  "... N skills"
  *   - plugin.json   "agents"       →  rebuilt from agents/*.md (sorted)
  *
- * Does NOT write package.json "version" (owned by Mbump). Writes plugin.json
+ * Does NOT write package.json "version" (owned by qe-admin-mcp release/bump workflow). Writes plugin.json
  * "version" only to mirror package.json so the two never drift.
  */
 

@@ -7,7 +7,7 @@
  *                   skills may be flat `skills/X/SKILL.md` or categorized
  *                   `skills/cat/sub/X/SKILL.md`). Each SKILL.md is one skill.
  *   - agentCount  = number of *.md files under agents/.
- *   - version     = package.json "version" field (canonical; owned by Mbump).
+ *   - version     = package.json "version" field (canonical; owned by qe-admin-mcp release/bump workflow).
  *
  * Consumers: sync-metadata.mjs (writer) and check-metadata-drift.mjs (gate).
  */
@@ -58,7 +58,7 @@ export function getAgentCount() {
   return listAgents().length;
 }
 
-/** @returns {string} canonical version from package.json (owned by Mbump). */
+/** @returns {string} canonical version from package.json (owned by qe-admin-mcp release/bump workflow). */
 export function getVersion() {
   const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
   return pkg.version;

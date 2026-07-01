@@ -35,10 +35,10 @@ test('Pattern /Qcommit --help matches', () => {
   assert.strictEqual(result.skillName, 'Qcommit');
 });
 
-test('Pattern /Mbump -h matches', () => {
-  const result = parseHelpFlag('/Mbump -h');
+test('Pattern /Qversion -h matches', () => {
+  const result = parseHelpFlag('/Qversion -h');
   assert.strictEqual(result.matched, true);
-  assert.strictEqual(result.skillName, 'Mbump');
+  assert.strictEqual(result.skillName, 'Qversion');
 });
 
 test('Hyphenated skill name /Qatomic-run --help matches', () => {

@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import path from 'node:path';
 
 /**
- * Mtest-skill verdict cache.
+ * qe-admin-mcp skill-test verdict cache.
  *
  * Layout: `.qe/mtest-cache/{hash}.json` where `{hash}` is the sha256 of the
  * SKILL.md content (canonicalised: CRLF→LF, trim trailing whitespace, single

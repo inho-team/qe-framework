@@ -48,6 +48,8 @@ const hints = [];
 let mutatedInput = null;
 const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
 const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
+const ADMIN_VERSION_CAPABILITY = 'qe-admin-version';
+const ADMIN_VERSION_ACTION = 'Use qe-admin-mcp release/bump admin workflow instead.';
 
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
@@ -288,11 +290,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
       overrideRules.push({
         skill: 'Qcommit',
-        // /Mrelease cuts the version-bump commit under an active Mbump bypass
-        // flag (it edits plugin.json/package.json then commits). Honor that flag
-        // for the commit too, so the release train doesn't have to swap the flag
+        // qe-admin-mcp release/bump workflows cut the version-bump commit under
+        // an active internal admin-version bypass. Honor that capability for
+        // the commit too, so the release train does not have to swap the flag
         // to Qcommit mid-run. TTL on the flag (120s) keeps this bounded.
-        also: ['Mbump'],
+        also: [ADMIN_VERSION_CAPABILITY],
         msg: `Raw git commit is blocked. Use ${skillCommand('Qcommit')} instead.`
       });
     }
@@ -314,8 +316,8 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
     if (writesPluginJson && /version/.test(cmd)) {
       overrideRules.push({
-        skill: 'Mbump',
-        msg: `Direct version editing is blocked. Use ${skillCommand('Mbump')} instead.`
+        skill: ADMIN_VERSION_CAPABILITY,
+        msg: `Direct version editing is blocked. ${ADMIN_VERSION_ACTION}`
       });
     }
 
@@ -332,11 +334,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const filePath = toolInput.file_path || toolInput.filePath || '';
     const newStr = toolInput.new_string || '';
 
-    // Editing plugin.json version field → Mbump
+    // Editing plugin.json version field → qe-admin-mcp admin version workflow
     if (/plugin\.json$/.test(filePath) && /"version"/.test(newStr)) {
       overrideRules.push({
-        skill: 'Mbump',
-        msg: `Direct version editing is blocked. Use ${skillCommand('Mbump')} instead.`
+        skill: ADMIN_VERSION_CAPABILITY,
+        msg: `Direct version editing is blocked. ${ADMIN_VERSION_ACTION}`
       });
     }
   }
@@ -354,7 +356,9 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       emitBlock({
         skill: rule.skill,
         reason: rule.msg,
-        action: rule.skill.startsWith('_') ? rule.msg : `Use ${skillCommand(rule.skill)} instead`,
+        action: rule.skill === ADMIN_VERSION_CAPABILITY || rule.skill.startsWith('_')
+          ? rule.msg
+          : `Use ${skillCommand(rule.skill)} instead`,
         bypass: `skill-bypass.json with skill:"${rule.skill}"`,
       });
     }

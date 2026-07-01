@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->55<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->47<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -302,7 +302,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->55<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->47<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic
