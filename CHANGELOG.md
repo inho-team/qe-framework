@@ -21,6 +21,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Fixed
 
+### Removed
+
+### Security
+
+## [8.2.5] - 2026-07-01
+
+### Added
+
+### Changed
+
+### Fixed
+
 - `Qupdate` now removes stale Claude plugin-cache files and legacy Codex skill
   installs before copying current framework assets.
 
