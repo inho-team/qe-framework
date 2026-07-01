@@ -27,6 +27,12 @@ Critical mode; **Devil's Advocate** is the cross-model-upgrade target.
 | Security Auditor | Injection, auth bypass, data leak, OWASP exposure | Qcritical-review verify table |
 | Performance Skeptic | Time complexity, scaling, N+1 queries, leaks | Qcritical-review verify table |
 
+For `type:code`, every agent must also inspect the TASK_REQUEST `## Risk Register`.
+Low-probability high-impact failures are in scope: data loss/corruption,
+permission escalation, concurrency/race conditions, rollback failure, and
+unverified assumptions. A HIGH/CRITICAL risk with no mitigation, test, defensive
+code path, or explicit defer rationale is a gate FAIL.
+
 ## Mode scope (vs Supervise)
 
 Verify (Critical) attacks **implementation correctness**: assumptions, missing
@@ -34,6 +40,10 @@ error cases, crashes, untested paths, security/perf defects in the code itself.
 It does NOT judge merge/release readiness — that is the Supervise gate's job
 ([supervise-gate-protocol.md](./supervise-gate-protocol.md)). This separation
 keeps the two gates non-redundant.
+
+For code tasks, Verify must not reduce the Risk Register to a paperwork check.
+It must try to reproduce or reason through the worst-case paths and identify
+which risks are verified, mitigated, deferred, or still unknown.
 
 ## Output schema & aggregation
 

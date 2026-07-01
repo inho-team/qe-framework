@@ -88,6 +88,12 @@ const DEFAULTS = {
   style_gate_max_blocks: 2,            // max style blocks per window before giving up
   style_gate_window_ms: 10 * 60 * 1000, // rolling window for the block counter
 
+  // [why default true]: code completions are high-risk when they report only a
+  // positive summary. This cost-0 Stop gate blocks completion-like final reports
+  // for changed code unless they name facts, verification, residual risks, and
+  // assumptions. Opt-out via .qe/config.json { "hooks": { "code_risk_stop_gate": false } }.
+  code_risk_stop_gate: true,
+
   // pre-tool-use.mjs
   // [why this value]: 200 tool calls is the "red zone" where context pressure is
   // severe enough to risk truncation. Warning at this point prompts the user to

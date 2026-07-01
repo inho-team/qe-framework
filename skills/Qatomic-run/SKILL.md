@@ -26,6 +26,11 @@ Read the `TASK_REQUEST` and identify items suitable for parallel execution:
 - Low complexity (single file edits, text changes, simple logic).
 - Non-overlapping file ownership.
 
+For `type: code`, first enforce the **Code Risk Gate** before partitioning:
+- `TASK_REQUEST` must contain a `## Risk Register` section with all six required fields: worst-case failure, data loss/corruption risk, security/permission risk, concurrency/race risk, rollback strategy, and unverified assumptions.
+- The paired `VERIFY_CHECKLIST` must contain checks for worst-case failure, data/security/concurrency risk evaluation, unverified assumptions/residual risks in final reporting, and mitigation/defer rationale for high-risk findings.
+- Empty fields, placeholder text, or missing paired checklist checks are a hard block. Route back to `{adapter.commandPrefix}Qgs` or manually amend the spec before any implementation worker starts.
+
 ### Step 2: Wave Initiation
 Create an **Agent Team** through the agent adapter:
 - Claude: use the `Agent` tool.

@@ -111,6 +111,10 @@ Identify changed code and related documents.
 3. Collect the list of files changed/created during the implementation step
    - Use `git diff --name-only` to check changed files
    - If no changed files, ask the user for target files
+4. For `type: code`, enforce the **Code Risk Gate** before testing:
+   - TASK_REQUEST contains a filled `## Risk Register`
+   - VERIFY_CHECKLIST contains risk checks for worst-case failure, data/security/concurrency risk evaluation, unverified assumptions/residual risk reporting, and high-risk mitigation/defer rationale
+   - Missing or placeholder risk content is a verification FAIL and routes back to Spec before implementation can be certified
 
 **Context summary output:**
 ```
@@ -306,12 +310,15 @@ runs non-interactively; `--qa` is mandatory as before.
    - Assumptions that were never validated
    - Security implications of the changes
    - Regression risks for adjacent functionality
+   - Worst-case failure paths from the TASK_REQUEST Risk Register
+   - Data loss/corruption, permission, and concurrency/race scenarios, including low-probability high-impact failures
+   - Whether residual risks and unverified assumptions were carried into the final report instead of being hidden by a PASS
 3. Results feed back into judgment (FAIL routes **backward**, not a dead-end —
    DECISION_LOG D014/D015):
 
 | Verdict | Action |
 |---------|--------|
-| **PASS** | Proceed to Step 5 (Report) |
+| **PASS** | Proceed to Step 4.10 (Risk Proof Gate) |
 | **WARN** | Interactive: ask user "Fix and re-verify" / "Accept warnings" / "Stop". Non-interactive (Utopia `--work`): auto-accept + log. |
 | **FAIL** | **Backward routing.** Per-finding `root_cause_stage`: `spec` → regenerate the spec (Spec gate) and restart; otherwise → **Implement** (fix loop via Ecode-debugger, return to Step 2). Unclear cause → nearest-first (Implement). Honors the 3-round Loop Limit; after 3 rounds still FAIL → escalate to user (Utopia `--work`: leave `needs-attention` with a blocking marker, never silent auto-proceed). |
 
@@ -326,9 +333,37 @@ or
 - {issue 2}
 ```
 
-### Step 4.10: Contract Conformance Gate
+### Step 4.10: Risk Proof Gate
 
-After the adversarial gate passes (Step 4.9), run contract conformance verification for any business-logic contracts stored under `.qe/contracts/active/`. This gate protects user-defined business logic from "vibe coding" drift by comparing each contract against its implementation and tests via LLM judge.
+After the adversarial Verify gate passes (Step 4.9), run the mandatory
+`Qrisk-proof` evidence gate for every `type: code` task before Supervise or final
+reporting. This is the depth check that final-report wording cannot provide.
+
+**Skip conditions:**
+- `type: docs` / `type: analysis`
+- no code files changed
+
+**Procedure:**
+
+1. Invoke `{adapter.commandPrefix}Qrisk-proof {UUID}`.
+2. Pass TASK_REQUEST, VERIFY_CHECKLIST, changed files, test/build evidence, and
+   Verify-gate findings.
+3. Require a persisted report at `.qe/agent-results/risk-proof-{UUID}.md`.
+4. Results feed back into judgment:
+
+| Verdict | Action |
+|---------|--------|
+| **PASS** | Proceed to Step 4.11 (Contract Conformance Gate), then Supervise. |
+| **WARN** | Interactive: ask "Fix risk proof warnings" / "Accept warnings" / "Stop". Non-interactive: accept only if no HIGH/CRITICAL unknown risk exists and record the warning. |
+| **FAIL** | Block Step 5. Route backward to Verify/Implement, or Spec if the report attributes the failure to missing/wrong requirements. |
+
+**Hard block:** HIGH/CRITICAL `unknown`, HIGH/CRITICAL without evidence, new
+unregistered HIGH/CRITICAL risk, or `deferred-with-owner` without owner/rationale
+MUST NOT proceed to Supervise.
+
+### Step 4.11: Contract Conformance Gate
+
+After the risk proof gate passes (Step 4.10), run contract conformance verification for any business-logic contracts stored under `.qe/contracts/active/`. This gate protects user-defined business logic from "vibe coding" drift by comparing each contract against its implementation and tests via LLM judge.
 
 **Skip conditions (fast path):**
 - No `.qe/contracts/active/*.md` files exist → skip entirely.
@@ -385,10 +420,22 @@ Summarize and report final results.
 ### Changed Files (final)
 - [file list]
 
+### Risk Gate
+- Worst-case failure considered: yes/no
+- High-risk findings: none / mitigated / deferred with rationale
+- Risk proof report: .qe/agent-results/risk-proof-{UUID}.md
+- Residual risks:
+- Unverified assumptions:
+
 ### Subagent Lifecycle
 - open handles: 0
 - stale warnings: [none | handle id, role, reason]
 ```
+
+For `type: code`, the final user-facing report MUST include `Facts`, `Verification`,
+`Residual Risks`, and `Assumptions` (localized to the user's language). If
+residual risks or assumptions are none, state `none` explicitly. Do not end with
+a purely positive completion summary.
 
 ### Next Phase Handoff (MANDATORY when a plan continues)
 

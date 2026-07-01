@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->48<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->49<!--/qe:skills--> skills | <!--qe:agents-->28<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -323,7 +323,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->48<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->49<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic
@@ -375,7 +375,7 @@ optional expert corpus.
 
 **Recommended lifecycle:** Claude `/Qutopia status` -> `/Qutopia` (or `--work` / `--qa`) -> `/Qutopia off`; Codex `$Qutopia status` -> `$Qutopia` -> `$Qutopia off`. Leaving it on across sessions is how accidents happen.
 
-## Agent Fleet (<!--qe:agents-->27<!--/qe:agents--> agents)
+## Agent Fleet (<!--qe:agents-->28<!--/qe:agents--> agents)
 
 | Agent | Role |
 |-------|------|

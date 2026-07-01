@@ -74,7 +74,9 @@ function syncPluginJson(meta) {
   const plugin = JSON.parse(raw);
   const changed = [];
 
-  const nextDesc = plugin.description.replace(/\d+\+?\s+skills/gi, `${meta.skillCount} skills`);
+  const nextDesc = plugin.description
+    .replace(/\d+\+?\s+skills/gi, `${meta.skillCount} skills`)
+    .replace(/\d+\+?\s+agents/gi, `${meta.agentCount} agents`);
   if (nextDesc !== plugin.description) {
     plugin.description = nextDesc;
     changed.push('description');

@@ -120,6 +120,7 @@ Required information:
 - **Project name**, **description** (one-paragraph summary)
 - **Goals** (1-5 items), **Constraints** (tech stack, performance, security, etc.), **Decisions** (finalized)
 - **Task list** — for each task: what, how, steps (checklist), expected output files (optional), notes, type (`code`|`analysis`|`docs`|`other`), validation criteria (checks), verification notes, and optional decision rationale (chosen approach, alternatives, consequences)
+- **Code Risk Register** — for every `type: code` task, include a mandatory risk section that names worst-case failure, data loss/corruption risk, security/permission risk, concurrency/race risk, rollback strategy, and unverified assumptions. If a category is not applicable, write `N/A` with the reason; do not omit it.
 
 ### Step 2: Draft Documents
 Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). For any generated project instruction artifact, reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and include a reference line pointing to it. Replace `{{placeholder}}` with actual content.
@@ -280,13 +281,24 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 - **Haiku-Ready**: Ensure items are small enough to be implemented without Sonnet-level reasoning.
 - **Output files**: Always append `→ output: {file-path}` for direct accountability.
 - **Role ownership**: In role-separated or tiered orchestration, identify the expected implementer-owned files or modules so the reviewer can later judge boundary violations.
+- **Code Risk Register (mandatory for `type: code`)**: Add this section before the checklist and fill every field:
+  ```markdown
+  ## Risk Register
+  - Worst-case failure:
+  - Data loss / corruption risk:
+  - Security / permission risk:
+  - Concurrency / race risk:
+  - Rollback strategy:
+  - Unverified assumptions:
+  ```
+  The register is a hard SIVS contract. Empty fields, placeholder text, or omitted categories block execution until fixed.
 
 ### VERIFY_CHECKLIST
 - Each criterion answerable as yes/no
 - Task complete when all items checked
 - Include note to update `.qe/TASK_LOG.md` task list to ✅
 - **Auto-include by type:**
-  - `type: code` → add: "No security vulnerabilities (OWASP Top 10) in changed code", "All existing tests pass"
+  - `type: code` → add: "No security vulnerabilities (OWASP Top 10) in changed code", "All existing tests pass", "Worst-case failure path is identified", "Data loss/corruption, security/permission, and concurrency/race risks are explicitly evaluated or marked N/A with reason", "Unverified assumptions and residual risks are reported in the final handoff", "High-risk findings are mitigated by tests, defensive code, or an explicit defer rationale"
   - `type: code` + auth/crypto/payment → add: "Authentication/encryption implementation is secure (Esecurity-officer or manual review)"
   - `type: docs` → add: "All links in documentation are valid", "Terminology and formatting are consistent"
 

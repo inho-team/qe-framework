@@ -109,11 +109,16 @@ the work meets quality (not just completion).
 - Are there unresolved TODOs, dead code, or partially-applied changes?
 - Were role/ownership boundaries respected?
 - Is the work done *well*, or merely done?
+- For code tasks, what is the worst credible production failure, and is it
+  verified, mitigated, explicitly deferred, or still unknown?
+- Are residual risks and unverified assumptions visible in the final report, or
+  did the completion summary hide them?
 
 **Adversarial instruction:**
 > "Audit as if a regression here would ship to production. Go line by line.
 > Find the one thing everyone else overlooked. Distinguish 'complete' from
-> 'correct and safe to merge'."
+> 'correct and safe to merge'. For code tasks, assume rare high-impact failures
+> matter; unknown HIGH/CRITICAL risk is a blocker, not a footnote."
 
 **Must NOT:**
 - Re-litigate Spec/Verify findings already resolved (focus on merge readiness).

@@ -128,6 +128,12 @@ agents implement the **mandatory Verify gate** —
 | **Security Auditor** | Find vulnerabilities | "Is there injection? Auth bypass? Data leak? OWASP Top 10 exposure?" |
 | **Performance Skeptic** | Challenge efficiency | "What's the time complexity? Does it scale? Are there N+1 queries? Memory leaks?" |
 
+For `type: code`, all Verify-stage agents also receive the TASK_REQUEST Risk
+Register and must explicitly challenge low-probability high-impact failures:
+data loss/corruption, permission escalation, concurrency/race behavior,
+rollback viability, and unverified assumptions. A HIGH/CRITICAL risk without a
+mitigation, test, defensive code path, or explicit defer rationale is a FAIL.
+
 #### Supervise Stage Agents
 
 Cognitive mode: **Meticulous** (꼼꼼한 사고) — see
@@ -141,6 +147,19 @@ passes) — [./reference/supervise-gate-protocol.md](./reference/supervise-gate-
 | **Merge Blocker** | Argue against merging | "What regression risk exists? Is test coverage sufficient? Are there unresolved TODOs?" |
 | **Merge Advocate** | Argue for merging | "What's the cost of delay? Is the remaining risk acceptable? Does it meet the spec?" |
 | **Impartial Judge** | Weigh both sides | "Which concerns are valid? Which are hypothetical? What's the actual risk level?" |
+
+For `type: code`, the Supervise-stage review is the final **Code Risk Gate**
+owner. Merge Blocker must assume the worst credible production outcome and
+attempt to block merge on any unhandled HIGH/CRITICAL risk, missing rollback
+story, hidden residual risk, or unverified assumption. Merge Advocate may accept
+only risks that are explicitly mitigated, tested, or deferred with a named
+rationale. Impartial Judge must distinguish `verified`, `mitigated`, `deferred`,
+and `unknown`; `unknown` HIGH/CRITICAL risk is a FAIL.
+
+Supervise-stage agents MUST read the `Qrisk-proof` report for `type: code`
+tasks. Missing `.qe/agent-results/risk-proof-{UUID}.md` is a FAIL unless the
+task is docs/analysis or no code changed. The report is the authoritative Risk
+Proof input; final-report wording is not accepted as evidence.
 
 ### Step 3: Each Agent Output Format
 
@@ -324,6 +343,7 @@ This skill is designed to be called by other SIVS skills:
 |-------------|------|-------|
 | `Qgenerate-spec` / `Qgs` | After spec generation | `spec` |
 | `Qcode-run-task` | After verify loop passes | `verify` |
+| `Qrisk-proof` | After Verify and before Supervise for code risk evidence | `risk-proof` |
 | `Esupervision-orchestrator` | Before final verdict | `supervise` |
 
 Callers invoke via: `{adapter.commandPrefix}Qcritical-review --stage <stage>`

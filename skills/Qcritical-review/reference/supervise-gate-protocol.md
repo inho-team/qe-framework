@@ -31,6 +31,22 @@ Meticulous mode; **Merge Blocker** is the cross-model-upgrade target.
 | Merge Advocate | Cost of delay, acceptable residual risk, "ready to merge" case |
 | Impartial Judge | Weigh both; which concerns are real vs hypothetical |
 
+For `type:code`, Supervise is the final owner of the **Code Risk Gate**:
+
+- **Merge Blocker** assumes the worst credible production outcome and must try
+  to block merge on any unhandled HIGH/CRITICAL risk, hidden residual risk,
+  missing rollback story, or unverified assumption.
+- **Merge Advocate** may accept risk only when it is explicitly verified,
+  mitigated, or deferred with a named rationale.
+- **Impartial Judge** classifies each risk as `verified`, `mitigated`,
+  `deferred`, or `unknown`; any `unknown` HIGH/CRITICAL risk is FAIL.
+
+Supervise MUST read `.qe/agent-results/risk-proof-{UUID}.md` for `type:code`
+tasks. If the report is missing, stale for the UUID, or lacks the `Risk Proof matrix`,
+Supervise returns FAIL and routes back to Verify. If `Qrisk-proof` reports FAIL,
+Supervise cannot override it with a PASS. WARN may be accepted only when no
+HIGH/CRITICAL unknown or evidence-free defer remains.
+
 ## Mode scope (vs Verify)
 
 Supervise (Meticulous) judges **merge/release readiness**, not implementation
@@ -41,6 +57,14 @@ boundary/ownership violations, packaging/docs readiness. Disallowed: launching
 unless a correctness issue is surfaced as a release-readiness blocker, in which
 case it routes back to Verify (see Backward routing). This keeps Supervise from
 duplicating Verify.
+
+For code tasks, release readiness includes whether the final report honestly
+names residual risks and unverified assumptions. A PASS that hides an unresolved
+risk is invalid even when tests pass.
+
+Risk Proof report evidence outranks prose. Supervise must check that every
+HIGH/CRITICAL risk is `verified-safe`, `mitigated`, or
+`deferred-with-owner`; `unknown` is release-blocking.
 
 ## Output schema & aggregation
 

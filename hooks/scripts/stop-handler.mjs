@@ -413,6 +413,33 @@ if (!activeMode) {
 // against core/OUTPUT_STYLE.md's anti-patterns. Blocks the stop with a rewrite
 // instruction on a SEVERE verdict. Loop guard: never re-block identical text, and at
 // most style_gate_max_blocks distinct blocks per rolling window. Fail-open throughout.
+if (!activeMode && cfg.code_risk_stop_gate !== false) {
+  try {
+    const text = extractLastAssistantText(data.transcript_path);
+    const gate = evaluateCodeRiskReportGate(cwd, text);
+    if (gate.block) {
+      const st = readUnifiedState(cwd);
+      const rg = st.codeRiskReportGate || {};
+      const hash = styleHash(text || '');
+      if (rg.lastHash === hash) {
+        delete st.codeRiskReportGate;
+        try { writeUnifiedState(cwd, st); } catch {}
+      } else {
+        st.codeRiskReportGate = { lastHash: hash, missing: gate.missing, at: new Date().toISOString() };
+        try { writeUnifiedState(cwd, st); } catch {}
+        console.log(JSON.stringify({
+          continue: false,
+          decision: 'block',
+          reason: `[QE Code Risk] Code completion report is missing: ${gate.missing.join(', ')}. Rewrite with Facts/사실, Verification/검증, Residual Risks/남은 리스크, and Assumptions/추정. If none, state none explicitly.`,
+        }));
+        process.exit(0);
+      }
+    }
+  } catch {
+    // Fault tolerance — the code-risk stop gate must never crash Stop.
+  }
+}
+
 if (!activeMode && cfg.style_gate !== false) {
   try {
     const text = extractLastAssistantText(data.transcript_path);
@@ -494,4 +521,48 @@ function styleHash(str) {
     h = ((h << 5) + h) ^ str.charCodeAt(i);
   }
   return (h >>> 0).toString(36);
+}
+
+/**
+ * Decide whether the final assistant report for changed code needs risk labels.
+ * The gate is intentionally narrow: it only trips on completion-like text and a
+ * local code diff, so ordinary non-code stops and mid-task pauses remain free.
+ */
+function evaluateCodeRiskReportGate(cwd, text) {
+  if (!text || typeof text !== 'string') return { block: false, missing: [] };
+
+  const completionLike = /(완료|끝났|검증\s*완료|구현\s*완료|작업\s*완료|Quality Verification Complete|Final status|complete|completed|done)/i.test(text);
+  if (!completionLike) return { block: false, missing: [] };
+
+  const files = changedCodeFiles(cwd);
+  if (files.length === 0) return { block: false, missing: [] };
+
+  const required = [
+    { label: 'Facts/사실', re: /(^|\n)\s*(#{1,6}\s*)?(Facts?|사실)\s*[:：]?\s*(\n|$)/i },
+    { label: 'Verification/검증', re: /(^|\n)\s*(#{1,6}\s*)?(Verification|Verified|Tests?|검증|테스트)\s*[:：]?\s*(\n|$)/i },
+    { label: 'Residual Risks/남은 리스크', re: /(^|\n)\s*(#{1,6}\s*)?(Residual Risks?|Remaining Risks?|Risks?|남은\s*리스크|잔여\s*리스크|리스크)\s*[:：]?\s*(\n|$)/i },
+    { label: 'Assumptions/추정', re: /(^|\n)\s*(#{1,6}\s*)?(Assumptions?|Unverified Assumptions?|추정|미검증\s*추정)\s*[:：]?\s*(\n|$)/i },
+  ];
+  const missing = required.filter(item => !item.re.test(text)).map(item => item.label);
+  return { block: missing.length > 0, missing };
+}
+
+function changedCodeFiles(cwd) {
+  const commands = [
+    ['git', ['diff', '--name-only']],
+    ['git', ['diff', '--name-only', '--cached']],
+    ['git', ['ls-files', '--others', '--exclude-standard']],
+  ];
+  const names = new Set();
+  for (const [cmd, args] of commands) {
+    try {
+      const out = execSync([cmd, ...args].join(' '), { cwd, encoding: 'utf8', timeout: 3000 });
+      for (const line of out.split('\n')) {
+        const name = line.trim();
+        if (name) names.add(name);
+      }
+    } catch {}
+  }
+  const codeLike = /\.(mjs|cjs|js|jsx|ts|tsx|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|php|rb|sh|bash|zsh|sql|vue|svelte)$/i;
+  return [...names].filter(name => codeLike.test(name));
 }
