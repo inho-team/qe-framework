@@ -20,7 +20,7 @@
 ## Agent Delegation
 
 - Delegate to **Ecode-debugger** for complex multi-file debugging sessions.
-- Reference **Qsystematic-debugging** methodology for structured root-cause analysis.
+- Use hypothesis-driven root-cause analysis before changing code.
 - After fix, consider delegating to **Ecode-test-engineer** for regression test creation.
 
 ## Anti-Patterns

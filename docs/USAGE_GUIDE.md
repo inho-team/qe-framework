@@ -7,9 +7,9 @@ Run in your terminal:
 ```bash
 git clone https://github.com/inho-team/qe-framework.git
 cd qe-framework
-git checkout v7.2.11
+git checkout v<version>
 npm pack --cache /tmp/qe-npm-cache
-npm install -g ./inho-team-qe-framework-7.2.11.tgz
+npm install -g ./inho-team-qe-framework-<version>.tgz
 qe-framework-install
 ```
 
@@ -18,7 +18,7 @@ Update later with:
 ```bash
 git pull
 npm pack --cache /tmp/qe-npm-cache
-npm install -g ./inho-team-qe-framework-7.2.11.tgz
+npm install -g ./inho-team-qe-framework-<version>.tgz
 qe-framework-install
 ```
 
@@ -49,7 +49,7 @@ safety hook (Codex requires you to trust hook definitions; the installer never a
   installed and available for manual `/agent` invocation.
 - See `.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md` for the measured
   Claude/Codex parity matrix.
-- You can still route individual SIVS stages to Codex as an **engine** via `codex-plugin-cc` + `/Qsivs-config`.
+- You can still route individual SIVS stages to Codex as an **engine** via `codex-plugin-cc` + the active-client `Qsivs-config` command.
 
 > `qe-framework-uninstall` removes the Claude assets and (with `--purge-codex`) the Codex
 > assets too — skills matched by a name manifest, agents + hook fence by their managed fences.
@@ -57,14 +57,15 @@ safety hook (Codex requires you to trust hook definitions; the installer never a
 
 ## 2. Initialize a Project
 
-Inside a Claude session:
+Use the active client command:
 
 ```text
-/Qinit
+Claude: /Qinit
+Codex:  $Qinit
 ```
 
 This creates:
-- default project instruction file (`CLAUDE.md`)
+- default project instruction artifact (Claude adapter: `CLAUDE.md`; Codex-capable projects may use `AGENTS.md`)
 - `.qe/`
 - project analysis files
 - optional `.qe/ai-team/` scaffolding when the user opts into role-based orchestration
@@ -77,8 +78,8 @@ prefix.
 ### Plan
 
 ```text
-/Qplan
-$Qplan
+Claude: /Qplan
+Codex:  $Qplan
 ```
 
 Creates or updates planning artifacts in `.qe/planning/`.
@@ -119,19 +120,104 @@ the client adapter. Claude uses the Agent tool; Codex uses generated native
 subagents and falls back to role-separated inline execution only when a runtime
 lacks the required primitive.
 
+## 4. Writing Shared Skills And Agents Step By Step
+
+Write QE instructions as a small executable recipe. The same skill or agent
+should read naturally in Claude and Codex without assuming one client's command
+prefix, hook names, or delegation primitive.
+
+### Step 1. Start with a generic rule
+
+Describe the intent without naming a client-specific primitive:
+
+```text
+1. Resolve the active client adapter.
+2. Render user-facing QE commands with {adapter.commandPrefix}.
+3. Delegate through the agent adapter when the runtime exposes a subagent primitive.
+4. Fall back to role-separated inline execution when delegation is unavailable.
+5. Report which path was used.
+```
+
+### Step 2. Add the Claude adapter behavior
+
+Use Claude-specific terms only inside a labeled Claude adapter section:
+
+```text
+Claude adapter:
+- commandPrefix = /
+- interaction prompts use the Claude question surface
+- delegated execution may use the Claude Agent tool
+- status uses the Claude statusLine surface
+```
+
+### Step 3. Add the Codex adapter behavior
+
+Use Codex-specific terms only inside a labeled Codex adapter section:
+
+```text
+Codex adapter:
+- commandPrefix = $
+- installed skills live under ~/.codex/skills
+- generated native agents live under ~/.codex/agents
+- lifecycle safety uses the Codex hook fence and wrapper scripts
+- HUD support uses qe-hud when native statusline parity is unavailable
+```
+
+### Step 4. Write user commands as paired or adapter-neutral examples
+
+Prefer paired examples when documentation is user-facing:
+
+```text
+Claude: /Qplan
+Codex:  $Qplan
+```
+
+Prefer adapter-neutral templates inside reusable skill text:
+
+```text
+Next: {adapter.commandPrefix}Qgs Phase 2: Runtime Parity
+```
+
+### Step 5. State degraded behavior explicitly
+
+Do not silently pretend parity exists when the clients expose different
+primitives:
+
+```text
+If native subagents are unavailable, run the same role instructions inline,
+label the result degraded-inline, and include the missing primitive in the
+final report.
+```
+
+### Step 6. Verify the shared surface
+
+Run the client-neutrality guard after changing public docs, skills, agents, or
+lifecycle text:
+
+```bash
+node scripts/check-client-neutrality.mjs
+node scripts/check-client-neutrality.mjs --docs
+node --test scripts/lib/__tests__/client-neutrality.test.mjs
+```
+
+Reference docs:
+- `core/INTERACTION_ADAPTER.md`
+- `core/LIFECYCLE_ADAPTER.md`
+- `.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md`
+
 When a workflow needs something the model cannot do directly, use
 `/Quser-action` (`$Quser-action` on Codex). It writes a durable
 `.qe/user-actions/pending/*.md` request with the exact user action, expected
 result, and unblock instructions instead of losing the request in chat.
 
-## 4. Mode Selection
+## 5. Mode Selection
 
 ### `single-model`
 
 Use this when the user only has Claude or wants the legacy path.
 
 - no role split required
-- `/Qatomic-run` uses Haiku swarm
+- the active-client `Qatomic-run` command uses the Haiku swarm path
 - simplest setup
 
 ### `hybrid`
@@ -175,7 +261,7 @@ Current runtime behavior:
 - reviewer stays on the configured review runner
 - implementer can be auto-routed by `task-bundle.json` complexity in `tiered-model`
 
-## 5. Recommended Subscription Presets
+## 6. Recommended Subscription Presets
 
 | Available tools | Suggested mode | Suggested default mapping |
 |-----------------|----------------|---------------------------|
@@ -186,7 +272,7 @@ Current runtime behavior:
 | Claude + Gemini | `hybrid` | reviewer = Gemini, others = Claude |
 | Claude + Codex + Gemini | `multi-model` | planner/supervisor = Claude, implementer = Codex, reviewer = Gemini |
 
-## 6. Role-Orchestration Files
+## 7. Role-Orchestration Files
 
 When `hybrid`, `multi-model`, or `tiered-model` is enabled, QE uses:
 
@@ -199,13 +285,13 @@ When `hybrid`, `multi-model`, or `tiered-model` is enabled, QE uses:
 
 See [MULTI_MODEL_SETUP.md](MULTI_MODEL_SETUP.md) for details.
 
-## 7. Quota-Blocked Runner Fallback
+## 8. Quota-Blocked Runner Fallback
 
 If Codex or Gemini is temporarily blocked by quota or subscription limits:
 
 1. the workflow reports `blocked_quota`
 2. fallback runners are suggested
-3. `/Qatomic-run` or `/Qcode-run-task` should ask the user whether to borrow another runner for this run only
+3. the active-client `Qatomic-run` or `Qcode-run-task` command should ask the user whether to borrow another runner for this run only
 4. retry happens with `--role-override`
 
 Example:
@@ -216,20 +302,33 @@ node scripts/run_team_workflow.mjs --config .qe/ai-team/config/team-config.json 
 
 This does not rewrite `team-config.json`.
 
-## 8. Useful Commands
+## 9. Useful Commands
 
 ```text
-/Qcommit
-/Qrefresh
-/Qcompact
-/Qresume
-/Qhelp
-/Qsecret
-/Qmcp-sync
-/Qutopia status   # check autonomous mode (read section 11 first!)
+Claude: /Qcommit
+Codex:  $Qcommit
+Claude: /Qrefresh
+Codex:  $Qrefresh
+Claude: /Qcompact
+Codex:  $Qcompact
+Claude: /Qresume
+Codex:  $Qresume
+Claude: /Qhelp
+Codex:  $Qhelp
+Claude: /Qsecret
+Codex:  $Qsecret
+Claude: /Qmcp-sync
+Codex:  $Qmcp-sync
+Claude: /Qutopia status   # check autonomous mode (read section 11 first!)
+Codex:  $Qutopia status
 ```
 
-## 9. Secret Management
+Optional expert-library MCP guidance is distributed separately from this
+framework package at `https://github.com/inho-team/qe-mcp`. Install or sync that
+package when you need `qe_search_experts`, `qe_read_expert`, or
+`qe_expert_prompt` without increasing the default QE Framework install size.
+
+## 10. Secret Management
 
 Use `Qsecret` when you want QE to manage an API key or token without storing plaintext in the project.
 
@@ -240,7 +339,7 @@ Capabilities:
 
 See [SECRETS.md](SECRETS.md) for commands and backend behavior.
 
-## 10. Autonomous Mode (`/Qutopia` / `$Qutopia`) — ⚠️ Read Before Enabling
+## 11. Autonomous Mode (`/Qutopia` / `$Qutopia`) — ⚠️ Read Before Enabling
 
 `Qutopia` turns on a session-level flag that tells **every** QE skill to stop asking questions and drive itself. It is the single fastest way to finish a well-scoped task, and also the single fastest way to commit the wrong files, push to `main`, or chain into destructive operations you didn't approve.
 
@@ -288,7 +387,7 @@ If any of these is false, keep Qutopia OFF and accept the prompts — the 10 ext
 
 ### Unsafe patterns (leave Qutopia OFF)
 
-- ❌ New project kick-off, `/Qinit` bootstrapping, ambiguous requirements.
+- New project kick-off, active-client `Qinit` bootstrapping, ambiguous requirements.
 - ❌ First time using a skill or agent — you don't yet know what its "recommended" option is.
 - ❌ Any task that touches production configs, secrets, or external services.
 - ❌ Working on `main` directly, or with uncommitted unrelated changes in the tree.
@@ -310,10 +409,12 @@ git log && git diff origin/main    # audit what Qutopia committed before pushing
 
 Leaving Qutopia on across sessions is the single most common way to get surprise commits.
 
-## 11. When To Read Which Doc
+## 12. When To Read Which Doc
 
 - Philosophy and design intent: [PHILOSOPHY.md](PHILOSOPHY.md)
 - Detailed role routing and config: [MULTI_MODEL_SETUP.md](MULTI_MODEL_SETUP.md)
+- Shared interaction adapter: [../core/INTERACTION_ADAPTER.md](../core/INTERACTION_ADAPTER.md)
+- Shared lifecycle adapter: [../core/LIFECYCLE_ADAPTER.md](../core/LIFECYCLE_ADAPTER.md)
 - Shared MCP registry and client sync: [MCP_GLOBAL_SETUP.md](MCP_GLOBAL_SETUP.md)
 - Secret storage and injection: [SECRETS.md](SECRETS.md)
 - System components and hook architecture: [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)

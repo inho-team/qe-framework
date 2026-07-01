@@ -285,10 +285,24 @@ export function readStdinJson() {
 }
 
 /**
- * Get default project instruction file path
+ * Get the default legacy Claude project instruction file path.
+ *
+ * New client-neutral code should prefer `.qe/TASK_LOG.md` for task state and
+ * discover project instruction artifacts (`CLAUDE.md`, `AGENTS.md`, or a
+ * QE-managed equivalent) at the call site. This helper remains for legacy task
+ * table fallback compatibility.
  */
 export function getClaudePath(cwd) {
   return join(cwd, 'CLAUDE.md');
+}
+
+/**
+ * Get the legacy project instruction fallback path used when `.qe/TASK_LOG.md`
+ * is absent. Kept separate from getTaskRegistryPath so callers do not need to
+ * name a Claude-specific file when they only need a fallback registry.
+ */
+export function getLegacyInstructionFallbackPath(cwd) {
+  return getClaudePath(cwd);
 }
 
 /**
@@ -297,7 +311,7 @@ export function getClaudePath(cwd) {
 export function getTaskRegistryPath(cwd) {
   const taskLogPath = join(cwd, '.qe', 'TASK_LOG.md');
   if (existsSync(taskLogPath)) return taskLogPath;
-  return getClaudePath(cwd);
+  return getLegacyInstructionFallbackPath(cwd);
 }
 
 /**

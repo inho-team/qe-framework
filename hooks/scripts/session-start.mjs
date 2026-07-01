@@ -12,7 +12,14 @@ import { readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { getLatestCodexJobStatus, reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
 import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
-import { shortenSid, getSessionContextDir, readSessionName, readSessionPlan } from './lib/session-resolver.mjs';
+import {
+  shortenSid,
+  getSessionContextDir,
+  readSessionName,
+  readSessionPlan,
+  summarizeSessionState,
+  formatSessionStateSummary,
+} from './lib/session-resolver.mjs';
 import { cleanupStaleSessions, upsertSession, filterActiveSessions } from './lib/session-registry.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
@@ -39,6 +46,8 @@ try {
 const cwd = data.cwd || data.directory || process.cwd();
 const cfg = loadConfig(cwd);
 const messages = [];
+const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
+const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 
 // Drop any stale context-usage ratio cached by the statusline before this
 // session began. The cache is project-global with a 60s TTL; after a `/clear`
@@ -140,9 +149,9 @@ try {
 }
 
 // Surface a one-line summary when auto-migration moved anything, so the
-// user sees what changed and can run /Qmigrate-legacy for the full report.
+// user sees what changed and can run the active-client migration skill for the full report.
 if (migrationSummary) {
-  messages.push(migrationSummary + ' Run /Qmigrate-legacy for details.');
+  messages.push(`${migrationSummary} Run ${skillCommand('Qmigrate-legacy')} for details.`);
 }
 
 // Check 1: project instruction artifact existence (Qinit check)
@@ -152,7 +161,7 @@ const instructionCandidates = [
 ];
 const hasInstructionArtifact = instructionCandidates.some(filePath => existsSync(filePath));
 if (!hasInstructionArtifact) {
-  messages.push('QE framework not initialized. Run `/Qinit` first.');
+  messages.push(`QE framework not initialized. Run \`${skillCommand('Qinit')}\` first.`);
 }
 
 // --- STALE-CHECK TIER ---
@@ -179,7 +188,7 @@ if (existsSync(analysisDir)) {
   }
 
   if (staleCount >= 1) {
-    // Self-heal: spawn a detached Haiku /Qrefresh (one-shot, lock-guarded) and start a
+    // Self-heal: spawn a detached Haiku refresh (one-shot, lock-guarded) and start a
     // periodic refresh job. Never block session start if any of this fails.
     let launched = false;
     try {
@@ -190,7 +199,7 @@ if (existsSync(analysisDir)) {
     if (launched) {
       messages.push('[QE] 분석이 오래됨 — Haiku로 백그라운드 갱신 시작 (.qe/analysis/). 완료 후 자동 반영.');
     } else {
-      messages.push('[QE] Project analysis looks stale — /Qrefresh would give you fresher context to work from.');
+      messages.push(`[QE] Project analysis looks stale — ${skillCommand('Qrefresh')} would give you fresher context to work from.`);
     }
   }
 }
@@ -204,7 +213,7 @@ if (currentSid) {
     const stat = statSync(snapshotPath);
     const ageHours = (Date.now() - stat.mtimeMs) / (1000 * 60 * 60);
     if (ageHours < 24) {
-      messages.push('Previous session context saved. Restore with `/Qresume`.');
+      messages.push(`Previous session context saved. Restore with \`${skillCommand('Qresume')}\`.`);
     }
   }
 }
@@ -224,9 +233,9 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
   const fullMapPointer = existsSync(conventionsPath) ? ' Full map: QE_CONVENTIONS.md.' : '';
   messages.push(
     '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
-    'direct git commit / version edits. manual commit → /Qcommit · version bump → /Mbump · ' +
-    'show version → /Qversion · context save → /Qcompact · restore → /Qresume · ' +
-    'archive tasks → /Qarchive · refresh analysis → /Qrefresh.' + fullMapPointer
+    `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · version bump → ${skillCommand('Mbump')} · ` +
+    `show version → ${skillCommand('Qversion')} · context save → ${skillCommand('Qcompact')} · restore → ${skillCommand('Qresume')} · ` +
+    `archive tasks → ${skillCommand('Qarchive')} · refresh analysis → ${skillCommand('Qrefresh')}.` + fullMapPointer
   );
 }
 
@@ -357,7 +366,7 @@ try {
 try {
   const uncompiled = countWikiInbox(cwd); // shallow readdir, no recursion, 0 when absent
   if (uncompiled > 0) {
-    messages.push(`[Wiki] ${uncompiled} uncompiled source${uncompiled > 1 ? 's' : ''} in .qe/wiki/inbox — run /Qwiki-compile.`);
+    messages.push(`[Wiki] ${uncompiled} uncompiled source${uncompiled > 1 ? 's' : ''} in .qe/wiki/inbox — run ${skillCommand('Qwiki-compile')}.`);
   }
 } catch {
   // Fault tolerance — wiki status is advisory, never block session start
@@ -372,16 +381,16 @@ try {
       const lastEntry = JSON.parse(lines[lines.length - 1]);
       const lastDate = new Date(lastEntry.timestamp);
       const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-      if (daysSince >= 7) {
-        messages.push(`[GC] Last garbage collection was ${daysSince} days ago. Run /Qgc to scan for code quality issues.`);
-      }
+    if (daysSince >= 7) {
+      messages.push(`[GC] Last garbage collection was ${daysSince} days ago. Run ${skillCommand('Qgc')} to scan for code quality issues.`);
+    }
     }
   } else {
     // Only suggest if project has source files (not a fresh init)
     const hasSources = existsSync(join(cwd, 'package.json')) || existsSync(join(cwd, 'go.mod')) || existsSync(join(cwd, 'Cargo.toml')) || existsSync(join(cwd, 'pyproject.toml'));
-    if (hasSources) {
-      messages.push('[GC] No garbage collection history found. Run /Qgc to scan for code quality debt.');
-    }
+  if (hasSources) {
+    messages.push(`[GC] No garbage collection history found. Run ${skillCommand('Qgc')} to scan for code quality debt.`);
+  }
   }
 } catch {
   // Fault tolerance
@@ -488,6 +497,18 @@ try {
   }
 } catch {
   // Best-effort — never block session start on Codex reap.
+}
+
+try {
+  const sessionSummary = summarizeSessionState(cwd, {
+    sessionId: currentSessionId,
+    sid: currentSid,
+    codexJob: getLatestCodexJobStatus(cwd),
+  });
+  const line = formatSessionStateSummary(sessionSummary);
+  if (line) messages.push(line);
+} catch {
+  // Best-effort — session state hints must never block SessionStart.
 }
 
 // Persist session_id so model-side skills (Qplan, Qgs, …) can bind their

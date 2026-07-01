@@ -11,12 +11,17 @@ recommendedModel: haiku
 ## Role
 A skill that restores context after compaction from **two domains**:
 - `.qe/context/sessions/{sid}/` — automatic snapshots (volatile, latest-only)
-- `.qe/handoffs/sessions/{sid}/` — manual `/Qcompact` handoff documents (durable)
+- `.qe/handoffs/sessions/{sid}/` — manual `{adapter.commandPrefix}Qcompact` handoff documents (durable)
 
-Loads the previous session's task state, decisions, and pending items to resume work seamlessly. Both domains are partitioned by sid, so a `/Qcompact` handoff and a `/Qresume` must read the same domains or they will miss each other.
+Loads the previous session's task state, decisions, and pending items to resume work seamlessly. Both domains are partitioned by sid, so a `{adapter.commandPrefix}Qcompact` handoff and a `{adapter.commandPrefix}Qresume` must read the same domains or they will miss each other.
 
 ## Per-Session Layout (Auto-Named)
 Snapshots are partitioned by Claude session id so each terminal sees its own context, not the latest sibling's. The 8-char `sid` is auto-derived by the SessionStart hook and surfaced as `[Session] sid:XXXXXXXX` in additionalContext — read it from there. There is no manual naming.
+
+SessionStart can include a compact `[Session State] ...` hint. It may name the
+active plan, whether resume would load the active bucket or fall back to another
+sid, and whether a Codex background job still needs `/codex:result` retrieval.
+Use it as a quick cue, then call the resolver below for authoritative paths.
 
 ## How It Works
 
@@ -27,9 +32,12 @@ Integrated with the pre-check in PRINCIPLES.md:
 - Notifies the user with a single line: "Previous context has been restored"
 
 ### Manual Execution
-- `/Qresume` — restore the active sid's snapshot (default; what you want 95% of the time)
-- `/Qresume --list` — list all session buckets newest-first (use when picking up another terminal's work). The list is built by `listSessionBuckets()` in `hooks/scripts/lib/session-resolver.mjs`. Pick a sid, then `/Qresume --from {sid}`
-- `/Qresume --from {sid}` — restore a specific session bucket by its 8-char sid (or `_legacy` / `_unknown`)
+- `{adapter.commandPrefix}Qresume` — restore the active sid's snapshot (default; what you want 95% of the time)
+- `{adapter.commandPrefix}Qresume --list` — list all session buckets newest-first (use when picking up another terminal's work). The list is built by `listSessionBuckets()` in `hooks/scripts/lib/session-resolver.mjs`. Pick a sid, then `{adapter.commandPrefix}Qresume --from {sid}`
+- `{adapter.commandPrefix}Qresume --from {sid}` — restore a specific session bucket by its 8-char sid (or `_legacy` / `_unknown`)
+
+Codex renders the same commands with `$Q...`: `$Qresume`, `$Qresume --list`,
+and `$Qresume --from {sid}`.
 
 ## Restoration Procedure
 
@@ -42,10 +50,10 @@ node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await
 
 It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[], handoffDir, latestHandoff, isEmpty }`. Then:
 
-- Read every path in `contextFiles[]` (`snapshot.md`, `decisions.md`, `SNAPSHOT_SUMMARY.md`, `compact-trigger.json`) **and** `latestHandoff` if non-null — a `/Qcompact` handoff lands in `handoffDir`, NOT in `context/`, so both domains are covered.
+- Read every path in `contextFiles[]` (`snapshot.md`, `decisions.md`, `SNAPSHOT_SUMMARY.md`, `compact-trigger.json`) **and** `latestHandoff` if non-null — a `{adapter.commandPrefix}Qcompact` handoff lands in `handoffDir`, NOT in `context/`, so both domains are covered.
 - **`source: 'fallback'`** → the active sid was empty in both domains and the resolver loaded the newest other bucket. **Tell the user**: "active sid `{fellBackFrom}` was empty — restored from `{sid}`."
-- **`source: 'empty'`** → nothing to restore anywhere; say so and offer `/Qresume --list`.
-- An explicit `/Qresume --from {sid}` is passed as `overrideSid` and is honored even when empty (no fallback).
+- **`source: 'empty'`** → nothing to restore anywhere; say so and offer `{adapter.commandPrefix}Qresume --list`.
+- An explicit `{adapter.commandPrefix}Qresume --from {sid}` is passed as `overrideSid` and is honored even when empty (no fallback).
 
 ### Step 2: Restore State
 - Check in-progress tasks (cross-reference with .qe/tasks/pending/)
@@ -54,8 +62,8 @@ It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[
 
 ### Step 3: Suggest Next Actions
 Propose next actions based on restored context:
-- If there are incomplete tasks → guide with `/Qrun-task {UUID}`
-- If new work is needed → guide with `/Qgenerate-spec`
+- If there are incomplete tasks → guide with `{adapter.commandPrefix}Qrun-task {UUID}`
+- If new work is needed → guide with `{adapter.commandPrefix}Qgenerate-spec`
 - If decisions need review → display decision list
 
 ## .qe/analysis/ Integration

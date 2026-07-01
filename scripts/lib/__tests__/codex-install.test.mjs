@@ -78,16 +78,11 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
       );
     }
   }
-  // Symmetry guard: non-skill files are not copied as skills. Nested category
-  // directories may exist as parents when they contain real descendant skills.
+  // Symmetry guard: non-skill files are not copied as skills.
   assert.ok(!fs.existsSync(path.join(skillsDir, 'CATALOG.md')), 'CATALOG.md not installed as a skill');
   assert.ok(
-    fs.existsSync(path.join(skillsDir, 'coding-experts', 'quality', 'Qvitest', 'SKILL.md')),
-    'nested coding-experts skill present for Codex parity',
-  );
-  assert.ok(
-    !fs.existsSync(path.join(skillsDir, 'coding-experts', 'SKILL.md')),
-    'category parent is not installed as a standalone skill',
+    !fs.existsSync(path.join(skillsDir, 'coding-experts')),
+    'coding-experts catalog is not installed after hard prune',
   );
 
   // Agents: must have .toml files
@@ -95,13 +90,14 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
   const tomlFiles = fs.readdirSync(agentsDir).filter((f) => f.endsWith('.toml'));
   assert.ok(tomlFiles.length > 0, 'at least one agent .toml installed');
 
-  // Scripts: Codex HUD command proxy must be available for $Qhud.
+  assert.ok(fs.existsSync(scriptsDir), '~/.codex/scripts/ created');
   assert.ok(
-    fs.existsSync(path.join(scriptsDir, 'qe-hud.mjs')),
-    '~/.codex/scripts/qe-hud.mjs installed for Codex HUD',
+    !fs.existsSync(path.join(scriptsDir, 'qe-hud.mjs')),
+    'qe-hud.mjs is not installed after HUD skill hard prune',
   );
 
-  // Each .toml must contain name, metadata hints, compatibility note, and developer_instructions
+  // Each .toml must contain name, model routing when source metadata exists,
+  // compatibility note, and developer_instructions.
   for (const toml of tomlFiles.slice(0, 3)) {
     const content = fs.readFileSync(path.join(agentsDir, toml), 'utf8');
     assert.ok(content.includes('name ='), `${toml} contains name field`);
@@ -300,19 +296,63 @@ test('(g) Codex agent renderer preserves metadata hints and escapes TOML strings
   assert.ok(content.includes('description = "'), 'description rendered');
   assert.ok(content.includes('\\\\\\"quoted\\\\\\"'), 'description quotes escaped');
   assert.ok(content.includes('C:\\\\\\\\tmp'), 'description backslashes escaped');
+  assert.ok(content.includes('model = "gpt-5.3-codex-spark"'), 'haiku maps to Codex spark model');
+  assert.ok(content.includes('model_reasoning_effort = "low"'), 'haiku maps to low reasoning effort');
   // Codex strict-deserializes role TOML and rejects unknown top-level keys, so
-  // the hints must live inside developer_instructions, never as qe_*_hint keys.
+  // source hints are mirrored in developer_instructions instead of qe_* keys.
   assert.ok(!content.includes('qe_model_hint'), 'no unknown top-level model hint key');
   assert.ok(!content.includes('qe_reasoning_effort_hint'), 'no unknown top-level effort hint key');
   assert.ok(!content.includes('qe_tools_hint'), 'no unknown top-level tools hint key');
   assert.ok(content.includes('Source recommendedModel hint: `haiku`'), 'model hint in note');
   assert.ok(content.includes('Source reasoning effort hint: `low`'), 'effort hint inferred in note');
+  assert.ok(content.includes('Codex model routing: `gpt-5.3-codex-spark` with effort `low`.'), 'Codex routing note included');
   assert.ok(content.includes('Source tool/MCP hint: `Read, Bash`'), 'tools hint in note');
   assert.ok(content.includes('developer_instructions = """'), 'uses TOML multiline basic string');
   assert.ok(content.includes('Literal triple double quote: \\"\\"\\"'), 'triple double quote escaped');
   assert.ok(content.includes("Literal triple single quote: '''"), 'triple single quote preserved safely');
   assert.ok(content.includes('Windows path: C:\\\\tmp\\\\agent'), 'backslashes escaped');
   assert.ok(content.includes('role-separated inline execution'), 'compatibility note included');
+});
+
+test('(g2) Codex agent renderer maps Claude model tiers to Codex model routing', (t) => {
+  const homeDir = makeCodexHome();
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-agent-routing-repo-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  const agentsDir = path.join(repoRoot, 'agents');
+  fs.mkdirSync(agentsDir, { recursive: true });
+  for (const [name, model] of [
+    ['Ehaiku', 'haiku'],
+    ['Esonnet', 'sonnet'],
+    ['Eopus', 'opus'],
+  ]) {
+    fs.writeFileSync(path.join(agentsDir, `${name}.md`), [
+      '---',
+      `name: ${name}`,
+      `description: ${name}`,
+      `recommendedModel: ${model}`,
+      '---',
+      '',
+      `# ${name}`,
+      '',
+    ].join('\n'), 'utf8');
+  }
+
+  installCodexAssets({ repoRoot, homeDir, log: () => {}, syncManifest: false });
+
+  const haiku = fs.readFileSync(path.join(homeDir, '.codex', 'agents', 'Ehaiku.toml'), 'utf8');
+  const sonnet = fs.readFileSync(path.join(homeDir, '.codex', 'agents', 'Esonnet.toml'), 'utf8');
+  const opus = fs.readFileSync(path.join(homeDir, '.codex', 'agents', 'Eopus.toml'), 'utf8');
+
+  assert.ok(haiku.includes('model = "gpt-5.3-codex-spark"'), 'haiku maps to spark');
+  assert.ok(haiku.includes('model_reasoning_effort = "low"'), 'haiku maps to low effort');
+  assert.ok(sonnet.includes('model = "gpt-5.4-mini"'), 'sonnet maps to standard Codex model');
+  assert.ok(sonnet.includes('model_reasoning_effort = "medium"'), 'sonnet maps to medium effort');
+  assert.ok(opus.includes('model = "gpt-5.4"'), 'opus maps to frontier Codex model');
+  assert.ok(opus.includes('model_reasoning_effort = "high"'), 'opus maps to high effort');
 });
 
 test('(h) Codex skill install compacts long descriptions without changing source or body', (t) => {

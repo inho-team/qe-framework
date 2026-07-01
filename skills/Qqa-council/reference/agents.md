@@ -36,7 +36,7 @@ needs. A "super agent" with every tool is an anti-pattern and a FAIL condition.
   layout-shift, contrast, keyboard/focus, `prefers-reduced-motion`, and design-token drift.
 - **Tools:** Read source + browser, **read-only**. Never writes or edits source (fixes are
   Generator/Healer's job).
-- **Backed by:** `Qvisual-qa` (screenshot baseline diff) + `Qweb-design-guidelines` (Vercel WIG a11y/UX
+- **Backed by:** screenshot baseline diff plus built-in a11y/UX heuristics
   heuristics) + `Qdesign-audit` (static font/spacing/color outlier scan).
 - **Output:** findings merged into the Explorer findings list, tagged `source: auditor`.
 - **First-run caveat:** `Qvisual-qa` needs a baseline image to diff against; the first run captures
@@ -71,7 +71,7 @@ needs. A "super agent" with every tool is an anti-pattern and a FAIL condition.
 |------|:--------:|:---------:|:-------:|:-----:|-------------|
 | Planner | ✅ | ❌ | ✅ (ro) | ❌ | `Qqa-test-planner`/`Qscenario-test` (skill) |
 | Explorer | ❌ | ❌ | ✅ | ❌ | `Eqa-explorer` (agent) tools + CI allowedTools |
-| Auditor (opt) | ✅ | ❌ | ✅ (ro) | ❌ | `Qvisual-qa`+`Qweb-design-guidelines`+`Qdesign-audit` (skill) |
+| Auditor (opt) | ✅ | ❌ | ✅ (ro) | ❌ | Browser screenshots + built-in review heuristics |
 | Generator | ✅ | ✅ | ✅ | ❌ | `Qplaywright-expert` (skill) |
 | Healer | ✅ | ✅ | ✅ | ❌ | `Eqa-orchestrator` (agent) |
 | Reporter | artifacts | ❌ | ❌ | comment | `Eqa-reporter` (agent) tools |

@@ -114,7 +114,7 @@ while ((rowMatch = tableRowRe.exec(intentGateContent)) !== null) {
   const cell = rowMatch[1].trim();
   // skip header rows
   if (cell === 'Routing Target' || cell.startsWith('---') || cell.startsWith('Refer to')) continue;
-  // handle multi-target: Qdocx/Qpdf/Qpptx/Qxlsx
+  // handle historical multi-target syntax
   const parts = cell.split('/').map(p => p.trim()).filter(Boolean);
   for (const part of parts) {
     // strip markdown bold/italic/backtick

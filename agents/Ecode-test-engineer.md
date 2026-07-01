@@ -8,7 +8,7 @@ recommendedModel: sonnet
 
 ## When to Use
 - **Use this agent** when: you need to actually write test code, run tests, analyze coverage, or execute tests against existing code
-- **Use Qtest-driven-development instead** when: you need TDD methodology guidance — how to follow the red-green-refactor cycle and structure your development workflow around tests
+- **Use this agent for methodology too** when: the user needs TDD guidance or test strategy before implementation
 
 > Base patterns: see core/AGENT_BASE.md
 

@@ -20,8 +20,8 @@
 ## Agent Delegation
 
 - Delegate deep research tasks to **Edeep-researcher** for multi-source analysis.
-- Use **Qagent-browser** for live web research when documentation is insufficient.
-- Delegate architecture decisions to **Qc4-architecture** when the research informs design.
+- Use available browser or web tools for live web research when documentation is insufficient.
+- Record architecture-relevant findings as explicit tradeoffs and open decisions.
 
 ## Output Format
 

@@ -22,9 +22,13 @@ The QE framework enforces a strict chain. Each skill handles ONE step and guides
 
 ## Pre-check: QE Framework Initialization
 
-Before starting planning, verify that the QE framework is set up:
+Before starting planning, verify that the QE framework is set up. Treat the
+project instruction artifact as client-specific:
+- Claude projects normally use `CLAUDE.md`.
+- Codex-capable projects may also use `AGENTS.md`, but `.qe/` remains the QE
+  state source of truth.
 
-1. Check if `CLAUDE.md` exists in the project root.
+1. Check if `CLAUDE.md` or `AGENTS.md` exists in the project root.
 2. Check if `.qe/` directory exists.
 
 **If either is missing**, the project has not been initialized:
@@ -52,7 +56,7 @@ If no sivs-config.json or all stages are Claude, skip this check entirely.
 
 ### Step 0.6: Derive Plan Slug (silent, automatic)
 
-Before any planning writes, derive a **plan slug** — the identifier that scopes all files under `.qe/planning/plans/{slug}/`. The slug is the 1st-class name of this plan; Phase numbers are plan-local, never part of the global address. This lets multiple terminals run `/Qplan` in parallel without clobbering each other's state.
+Before any planning writes, derive a **plan slug** — the identifier that scopes all files under `.qe/planning/plans/{slug}/`. The slug is the 1st-class name of this plan; Phase numbers are plan-local, never part of the global address. This lets multiple terminals run `{adapter.commandPrefix}Qplan` in parallel without clobbering each other's state.
 
 **Derivation rules** (do NOT ask the user):
 1. Extract 2–4 salient keywords from the user's planning prompt (domain verbs/nouns). Drop stopwords ("the", "a", "for", "에", "를", …), filler ("please", "좀"), and meta words ("plan", "project", "feature").
@@ -77,7 +81,7 @@ Determine the task scale:
 | Massive refactor, 10+ files, adversarial verification needed | **Workflow** | Suggest `/workflows` |
 
 **Workflow** (dynamic workflow escalation):
-1. Suggest the user create a dynamic workflow instead of PSE chain: "This task is large enough to benefit from a dynamic workflow. Try: 'Create a workflow for this task' or use ultracode effort."
+1. Suggest the user create a dynamic workflow instead of PSE chain: "This task is large enough to benefit from a dynamic workflow. Try: 'Create a workflow for this task' or use the active client's high-effort workflow mode."
 2. If the user prefers PSE, proceed with Full Planning as normal.
 3. Dynamic workflows handle their own orchestration (up to 1,000 subagents) — QE planning is not needed.
 
@@ -176,7 +180,7 @@ After execution is complete (by `{adapter.commandPrefix}Qatomic-run` + `{adapter
 | `ACTIVE_PLAN` | Single-line pointer to the most-recently-activated plan slug. HUD fallback. |
 | `.sessions/{session_id}.json` | Per-session binding `{ activePlanSlug, updatedAt }`. HUD primary source. |
 
-**Backward compatibility**: If an existing project has flat `.qe/planning/ROADMAP.md` / `STATE.md` (pre-Named-Plan era), leave them untouched. New `/Qplan` invocations always use the `plans/{slug}/` layout. Consumer skills fall back to the flat files only when no plan is resolvable.
+**Backward compatibility**: If an existing project has flat `.qe/planning/ROADMAP.md` / `STATE.md` (pre-Named-Plan era), leave them untouched. New `{adapter.commandPrefix}Qplan` invocations always use the `plans/{slug}/` layout. Consumer skills fall back to the flat files only when no plan is resolvable.
 
 ## Handoff (MANDATORY — never skip)
 **CRITICAL**: After completing planning, you MUST display this structured output as the LAST thing in your response. No matter how long the planning or research was, the response MUST end with this handoff. If the handoff is missing, the user cannot proceed to the next step. Fill in the `{...}` placeholders from the actual plan.

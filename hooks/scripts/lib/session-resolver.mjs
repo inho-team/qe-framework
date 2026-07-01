@@ -26,6 +26,7 @@
 import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
 import { join } from 'path';
 import { atomicWriteJson } from './state.mjs';
+import { getLatestCodexJobStatus } from '../../../scripts/lib/codex_bridge.mjs';
 
 const STATE_FILE = '.qe/state/current-session.json';
 const CONTEXT_BASE = '.qe/context';
@@ -448,9 +449,9 @@ export function listSessionBuckets(projectRoot) {
  *   isEmpty: boolean
  * }}
  */
-export function resolveResumeContext(projectRoot, overrideSid) {
+export function resolveResumeContext(projectRoot, overrideSid, options = {}) {
   const requestedSid = resolveSid(projectRoot, overrideSid);
-  const explicit = normalizeSidBucket(overrideSid) != null;
+  const explicit = options.explicit ?? (normalizeSidBucket(overrideSid) != null);
 
   const describe = (sid) => {
     const contextDir = join(projectRoot, CONTEXT_BASE, SESSIONS_SUBDIR, sid);
@@ -492,4 +493,111 @@ export function resolveResumeContext(projectRoot, overrideSid) {
   }
   const fallback = describe(candidates[0].sid);
   return { ...fallback, requestedSid, source: 'fallback', fellBackFrom: requestedSid };
+}
+
+function summarizeCodexJob(job = {}) {
+  if (!job || job.found === false || !job.found) {
+    return {
+      found: false,
+      status: 'none',
+      jobId: null,
+      phase: null,
+      resultRequired: false,
+      stale: false,
+      staleKind: null,
+    };
+  }
+
+  const status = job.stale && job.staleKind === 'process-dead'
+    ? 'crashed'
+    : (job.status || 'unknown');
+  const resultRequired = ['running', 'pending', 'queued', 'completed', 'done'].includes(status);
+
+  return {
+    found: true,
+    status,
+    jobId: job.jobId || null,
+    phase: job.phase || null,
+    resultRequired,
+    stale: job.stale || false,
+    staleKind: job.staleKind || null,
+  };
+}
+
+/**
+ * Build a compact, read-only snapshot of the current session state for hooks.
+ * This does not create directories or mutate state; callers can safely use it
+ * from SessionStart to decide whether a short additionalContext hint is useful.
+ *
+ * @param {string} projectRoot
+ * @param {object} [options] - { sessionId?: string, sid?: string, codexJob?: object }
+ * @returns {{
+ *   sid: string,
+ *   sessionName: string,
+ *   activePlanSlug: string,
+ *   resumeSource: 'active'|'fallback'|'empty',
+ *   resumeSid: string,
+ *   fellBackFrom: string|null,
+ *   hasRestorableContext: boolean,
+ *   hasHandoff: boolean,
+ *   latestHandoff: string|null,
+ *   codexJob: ReturnType<typeof summarizeCodexJob>
+ * }}
+ */
+export function summarizeSessionState(projectRoot, options = {}) {
+  const rawSessionId = options.sessionId || readCurrentSessionId(projectRoot);
+  const sid = normalizeSidBucket(options.sid)
+    ?? shortenSid(rawSessionId)
+    ?? readCurrentSid(projectRoot)
+    ?? UNKNOWN_BUCKET;
+  const sessionRef = rawSessionId || sid;
+  const resume = resolveResumeContext(projectRoot, sid, { explicit: false });
+  const codexJob = summarizeCodexJob(
+    Object.prototype.hasOwnProperty.call(options, 'codexJob')
+      ? options.codexJob
+      : getLatestCodexJobStatus(projectRoot)
+  );
+
+  return {
+    sid,
+    sessionName: readSessionName(projectRoot, sessionRef),
+    activePlanSlug: readSessionPlan(projectRoot, sessionRef),
+    resumeSource: resume.source,
+    resumeSid: resume.sid,
+    fellBackFrom: resume.fellBackFrom,
+    hasRestorableContext: !resume.isEmpty,
+    hasHandoff: Boolean(resume.latestHandoff),
+    latestHandoff: resume.latestHandoff,
+    codexJob,
+  };
+}
+
+/**
+ * Format the compact session state for additionalContext. Returns an empty
+ * string when there is nothing useful beyond the legacy `[Session] sid:...`.
+ *
+ * @param {ReturnType<typeof summarizeSessionState>} summary
+ * @returns {string}
+ */
+export function formatSessionStateSummary(summary) {
+  if (!summary || typeof summary !== 'object') return '';
+
+  const parts = [];
+  if (summary.activePlanSlug) parts.push(`plan:${summary.activePlanSlug}`);
+  if (summary.resumeSource && summary.resumeSource !== 'empty') {
+    const suffix = summary.resumeSource === 'fallback'
+      ? `:${summary.resumeSid}<-${summary.fellBackFrom}`
+      : `:${summary.resumeSid}`;
+    parts.push(`resume:${summary.resumeSource}${suffix}`);
+  }
+  if (summary.codexJob?.found) {
+    const id = summary.codexJob.jobId ? `#${summary.codexJob.jobId}` : '';
+    const phase = summary.codexJob.phase ? `:${summary.codexJob.phase}` : '';
+    const action = summary.codexJob.resultRequired ? ':retrieve /codex:result' : '';
+    parts.push(`codex:${summary.codexJob.status}${phase}${id}${action}`);
+  }
+
+  if (parts.length === 0) return '';
+  const label = summary.sessionName || summary.sid;
+  return `[Session State] ${label} ${parts.join(' ')}`;
 }

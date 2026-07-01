@@ -1,6 +1,6 @@
 ---
 name: Qmcp-setup
-description: MCP (Model Context Protocol) server setup and configuration guide for Claude Code. Use when adding external service integrations (Google Drive, Slack, GitHub, databases, etc.) via MCP servers. Invoke for 'mcp setup', 'mcp add', 'connect service', 'integrate with', 'add mcp server'.
+description: MCP (Model Context Protocol) server setup and configuration guide. Claude uses `claude mcp`; other clients should use their native MCP configuration surface or the QE MCP registry. Use when adding external service integrations (Google Drive, Slack, GitHub, databases, etc.) via MCP servers.
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku
 ---
@@ -16,11 +16,17 @@ This skill is a **setup and configuration guide only**. It does NOT execute MCP 
 
 ### Pre-check: MCP Server Status
 
-Before guiding setup, check if the requested MCP server is already connected:
+Before guiding setup, check if the requested MCP server is already connected through the active client adapter.
+
+Claude adapter:
 
 ```bash
 claude mcp list 2>/dev/null | grep -i {service-name}
 ```
+
+Codex or other clients:
+- Use the client's native MCP registry/config surface when available.
+- If no native MCP surface is available, document the server config for manual installation and do not claim Claude CLI commands will configure Codex.
 
 **If connected**: "Already connected. Use MCP tools directly." — exit skill.
 **If NOT connected**: proceed with setup guide.
@@ -30,7 +36,7 @@ claude mcp list 2>/dev/null | grep -i {service-name}
 # Qmcp-setup — MCP Server Setup Guide
 
 ## Role
-Guides users through discovering, installing, and configuring MCP servers to connect Claude Code with external services.
+Guides users through discovering, installing, and configuring MCP servers to connect the active AI client with external services.
 
 ## Workflow
 
@@ -70,9 +76,13 @@ python3 --version  # Requires Python 3.10+
 pip install uv      # Recommended package manager
 ```
 
-### Step 3: Add MCP Server to Claude Code
+### Step 3: Add MCP Server to the Active Client
 
-#### Method A: CLI Command (Recommended)
+Use the Claude adapter commands below only when configuring Claude. For Codex,
+write or point to the Codex-native MCP config surface when available; otherwise
+produce a manual config block and mark the setup as `client-manual`.
+
+#### Claude Adapter Method A: CLI Command (Recommended)
 ```bash
 # npm packages
 claude mcp add <server-name> -- npx <package-name>
@@ -87,7 +97,7 @@ claude mcp add <server-name> -- uvx <package-name>
 claude mcp add <server-name> -- node /path/to/server.js
 ```
 
-#### Method B: Manual JSON Config
+#### Claude Adapter Method B: Manual JSON Config
 Edit `~/.claude.json` or project `.claude.json`:
 ```json
 {
@@ -110,7 +120,7 @@ claude mcp get <name>    # Check specific server config
 ```
 
 ### Step 5: Test
-Start a new Claude Code session and verify the MCP tools are available.
+Start a new session in the active client and verify the MCP tools are available.
 
 ---
 
@@ -130,18 +140,18 @@ Run this to check all framework MCP connections at once:
 
 ```bash
 echo "=== QE Framework MCP Status ==="
-echo -n "Chrome:      "; claude mcp list 2>/dev/null | grep -qi chrome && echo "CONNECTED" || echo "NOT CONNECTED → /Qchrome"
-echo -n "Stitch:      "; claude mcp list 2>/dev/null | grep -qi stitch && echo "CONNECTED" || echo "NOT CONNECTED → /Qstitch-cli"
-echo -n "Agentation:  "; claude mcp list 2>/dev/null | grep -qi agentation && echo "CONNECTED" || echo "NOT CONNECTED → /Qagentation"
+echo -n "Chrome:      "; claude mcp list 2>/dev/null | grep -qi chrome && echo "CONNECTED" || echo "NOT CONNECTED"
+echo -n "Stitch:      "; claude mcp list 2>/dev/null | grep -qi stitch && echo "CONNECTED" || echo "NOT CONNECTED → {adapter.commandPrefix}Qstitch-cli"
+echo -n "Agentation:  "; claude mcp list 2>/dev/null | grep -qi agentation && echo "CONNECTED" || echo "NOT CONNECTED → {adapter.commandPrefix}Qagentation"
 ```
 
 ### Registered MCPs
 
 | MCP | Purpose | Setup Skill | Quick Add |
 |-----|---------|-------------|-----------|
-| Claude-in-Chrome | Browser automation (navigate, click, read, GIF) | `/Qchrome` | `claude mcp add claude-in-chrome -- npx @anthropic/claude-in-chrome-mcp` |
-| Google Stitch | AI UI design → HTML/CSS | `/Qstitch-cli` | `claude mcp add stitch -- npx @_davideast/stitch-mcp proxy` |
-| Agentation | Visual UI feedback for agents | `/Qagentation` | `claude mcp add agentation -- npx agentation mcp` |
+| Claude-in-Chrome | Browser automation (navigate, click, read, GIF) | Direct MCP setup | `claude mcp add claude-in-chrome -- npx @anthropic/claude-in-chrome-mcp` |
+| Google Stitch | AI UI design → HTML/CSS | `{adapter.commandPrefix}Qstitch-cli` | `claude mcp add stitch -- npx @_davideast/stitch-mcp proxy` |
+| Agentation | Visual UI feedback for agents | `{adapter.commandPrefix}Qagentation` | `claude mcp add agentation -- npx agentation mcp` |
 
 > For services not in this catalog (Google Drive, Slack, GitHub, etc.), see the general setup guide below.
 
@@ -158,7 +168,7 @@ echo -n "Agentation:  "; claude mcp list 2>/dev/null | grep -qi agentation && ec
 | `claude mcp add <name> -s project` | Add to project scope only |
 | `claude mcp add <name> -s user` | Add to user scope (default) |
 
-## Agent Teams MCP Configuration
+## Claude Adapter: Agent Teams MCP Configuration
 
 When using Agent Teams (`--agents` flag), each teammate can have its own MCP server configuration.
 

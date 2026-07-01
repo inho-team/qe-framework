@@ -47,15 +47,8 @@ WORKFLOW
   /Qutopia [on|off]        Toggle fully autonomous mode ($Qutopia on Codex)
 
 DEVELOPMENT
-  /Qsystematic-debugging   Root cause analysis before fixing
-  /Qtest-driven-development TDD: red-green-refactor cycle
   /Qcode-run-task          Quality loop: test → review → fix ($Qcode-run-task on Codex)
-  /Qfrontend-design        Production-grade UI components
-  /Qspringboot-security    Spring Security best practices
-  /Qdatabase-schema-designer Database schema design
-  /Qdoc-comment            Add doc comments (JSDoc, PyDoc, etc.)
   /Qmcp-setup              MCP server setup + building guide
-  /Qagent-browser          Browser automation
 
 TASK MANAGEMENT
   /Qinit                   Initialize QE in a project
@@ -67,43 +60,20 @@ TASK MANAGEMENT
   /Mmigrate-tasks          Migrate task files to .qe/
 
 DOCUMENTATION
-  /Qdocx                   Word documents
-  /Qpdf                    PDF operations
-  /Qpptx                   Presentations
-  /Qxlsx                   Spreadsheets
   /Qwriting-clearly        Clear writing + AI pattern removal
-  /Qprofessional-communication  Professional emails & messages
-  /Qmermaid-diagrams       Mermaid diagrams
-  /Qc4-architecture        C4 architecture diagrams
-  /Qimage-analyzer         Image & screenshot analysis
-
-ACADEMIC
-  /Qgrad-paper-write       Draft academic papers
-  /Qgrad-paper-review      Respond to reviewer comments
-  /Qgrad-research-plan     Literature review & experiment design
-  /Qgrad-seminar-prep      Prepare presentations
-  /Qgrad-thesis-manage     Thesis progress management
 
 PLANNING
-  /Qpm-prd                 Write PRDs
-  /Qpm-user-story          User stories with Gherkin criteria
-  /Qpm-roadmap             Strategic roadmaps
-  /Qrequirements-clarity   Clarify ambiguous requirements
+  /Qplan                   Plan a milestone/project
+  /Qgs                     Generate executable task specs
   /Qqa-test-planner        QA test plans & bug reports
 
-MEDIA
-  /Qaudio-transcriber      Audio → text (meeting notes)
-  /Qyoutube-transcript-api YouTube subtitles & transcription
 META
   /Qversion                Show current version
   /Mcreate-skill          Create or modify skills
-  /Qcommand-creator        Create slash commands
   /Qfind-skills            Search skills.sh marketplace
   /Qalias                  Path & command aliases
   /Qprofile                Analyze usage patterns
   /Mrefactor-agent-md      Refactor instruction files
-  /Qweb-design-guidelines  UI/UX review
-  /Qlesson-learned         Extract engineering lessons
   /Qhelp                   This help screen
 
 AGENTS (auto-selected by complexity)

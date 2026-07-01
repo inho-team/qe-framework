@@ -163,6 +163,7 @@ for (const [cmd, expected, label] of EXEC_ORACLE) {
     expect(/Mbump/.test(ctx), '[R1 O018] injected context lost the Mbump routing cue');
     expect(/→/.test(ctx), '[R1 O019] injected context lost the mapping verb');
     expect(/OUTPUT STYLE/.test(ctx), '[R1 O016] OUTPUT_STYLE contract dropped when doc missing (no fallback)');
+    expect(/\[Session State\]/.test(ctx) === false, '[R1 O028] empty session summary should not add token noise');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }
@@ -173,4 +174,4 @@ if (failures.length) {
   for (const f of failures) console.error(`  ✗ ${f}`);
   process.exit(1);
 }
-console.log(`check-hook-falsepositive: PASS (${8 + EXEC_ORACLE.length + 1 + 4} assertions: 2 false-positive, 5 guard-intact, 1 profile, ${EXEC_ORACLE.length + 1} region-oracle, 4 R1-injection)`);
+console.log(`check-hook-falsepositive: PASS (${8 + EXEC_ORACLE.length + 1 + 5} assertions: 2 false-positive, 5 guard-intact, 1 profile, ${EXEC_ORACLE.length + 1} region-oracle, 5 R1-injection)`);

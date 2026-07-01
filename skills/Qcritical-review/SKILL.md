@@ -1,6 +1,6 @@
 ---
 name: Qcritical-review
-description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Use for 'review critically', 'stress test this', 'devil advocate', or auto-invoked by Qgenerate-spec, Qcode-run-task, Esupervision. Distinct from Qdebate (general multi-round debate) and Qperspective (general multi-viewpoint analysis) — this is stage-aware, verdict-producing, and SIVS-integrated."
+description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Use for 'review critically', 'stress test this', 'devil advocate', or auto-invoked by Qgenerate-spec, Qcode-run-task, Esupervision. Distinct from general open-ended debate — this is stage-aware, verdict-producing, and SIVS-integrated."
 invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review of a spec, implementation, or merge candidate.
 recommendedModel: sonnet
 ---
@@ -13,21 +13,27 @@ Stress-tests artifacts at each SIVS stage through adversarial sub-agents. Produc
 ## Client Adapter Compatibility
 
 - **Claude**: spawn reviewer agents via Agent tool and `subagent_type` as described below.
-- **Codex native**: use native Codex subagents through the installed agent TOML.
-- **Codex inline fallback**: when automatic Agent tool delegation is unavailable, run the reviewer roles as role-separated inline passes in the Lead session and mark the fallback explicitly.
+- **Codex native**: prefer native Codex subagents through the installed agent TOML. QE-installed TOML files carry `model` and `model_reasoning_effort` converted from each agent's `recommendedModel`.
+- **Codex inline fallback**: only when native subagent delegation is unavailable, run the reviewer roles as role-separated inline passes in the Lead session and mark the fallback explicitly.
 - **Interaction**: ambiguous target selection and WARN/FAIL decisions use the interaction adapter. Claude uses `AskUserQuestion`; Codex interactive uses concise plain-text choices; Codex non-interactive applies the safe recommended default or stops on destructive ambiguity.
 - **Command rendering**: user-visible examples use the active client's command prefix.
 
 ## CLI Interface
 
 ```
-/Qcritical-review --stage spec                  # Review a spec document
-/Qcritical-review --stage verify                # Review an implementation
-/Qcritical-review --stage supervise             # Review merge readiness
-/Qcritical-review --mode cross-model            # Use both Claude + Codex as reviewers
-/Qcritical-review --stage verify --mode cross-model   # Combine stage + mode
-/Qcritical-review <file>                        # Auto-detect stage from file type
-/Qcritical-review                               # Auto-detect from recent SIVS context
+{adapter.commandPrefix}Qcritical-review --stage spec                  # Review a spec document
+{adapter.commandPrefix}Qcritical-review --stage verify                # Review an implementation
+{adapter.commandPrefix}Qcritical-review --stage supervise             # Review merge readiness
+{adapter.commandPrefix}Qcritical-review --mode cross-model            # Use both Claude + Codex as reviewers
+{adapter.commandPrefix}Qcritical-review --stage verify --mode cross-model   # Combine stage + mode
+{adapter.commandPrefix}Qcritical-review <file>                        # Auto-detect stage from file type
+{adapter.commandPrefix}Qcritical-review                               # Auto-detect from recent SIVS context
+```
+
+Rendered examples:
+```
+Claude: /Qcritical-review --stage verify
+Codex:  $Qcritical-review --stage verify
 ```
 
 ## Review Modes
@@ -87,7 +93,7 @@ Detection order:
 
 ### Step 2: Spawn Adversarial Agents
 
-Spawn **3 reviewer roles** via the agent adapter. Claude uses 3 sub-agents in parallel via the Agent tool. Codex uses native subagents when available; otherwise run role-separated inline passes and mark the fallback explicitly. Reviewers must NOT see each other's output when the client can enforce isolation.
+Spawn **3 reviewer roles** via the agent adapter. Claude uses 3 sub-agents in parallel via the Agent tool. Codex should use native subagents first, relying on the installed TOML model routing; otherwise run role-separated inline passes and mark the fallback explicitly. Reviewers must NOT see each other's output when the client can enforce isolation.
 
 #### Spec Stage Agents
 
@@ -227,12 +233,16 @@ Display the full report, then ask:
 - If not available, run all reviewer roles as role-separated inline passes and mark `crossmodel=degraded`, `mode=role-separated-inline`.
 
 **cross-model:**
-1. First, check Codex availability:
+1. First, resolve the base client and bridge availability:
+   - Claude base: check Codex availability through `codex_bridge.mjs` / codex-plugin-cc.
+   - Codex base: use native Codex reviewers when the stage engine is Codex; for Claude-stage review, check `Qclaude-rescue` / `claude_bridge.mjs`.
+2. Claude-base Codex bridge check:
    ```bash
    node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
    ```
-2. If `installed: true`: route the designated adversarial agent to Codex via `subagent_type: "codex:codex-rescue"`
-3. If `installed: false`: fall back to claude-only mode with a notice
+3. If `installed: true` on Claude base: route the designated adversarial agent to Codex via `subagent_type: "codex:codex-rescue"`.
+4. If unavailable: fall back to same-engine reviewers with a notice and mark `crossmodel=false` or `crossmodel=degraded`.
+5. On Codex base without native subagents, run reviewer roles as `degraded-inline`; do not claim Claude Agent-tool parity.
 
 | Stage | Codex Agent | Why This One |
 |-------|------------|-------------|
@@ -240,7 +250,7 @@ Display the full report, then ask:
 | `verify` | Devil's Advocate | The strongest critic should be a different model |
 | `supervise` | Merge Blocker | Merge opposition must be genuinely independent |
 
-The remaining 2 agents always use Claude sub-agents.
+On Claude-base cross-model review, the remaining 2 agents use Claude sub-agents. On Codex-base review, the remaining roles use native Codex subagents or the documented `degraded-inline` fallback unless a Claude-stage bridge is available.
 
 #### Automatic cross-model upgrade (mandatory Spec gate)
 
@@ -300,7 +310,7 @@ This skill is designed to be called by other SIVS skills:
 | `Qcode-run-task` | After verify loop passes | `verify` |
 | `Esupervision-orchestrator` | Before final verdict | `supervise` |
 
-Callers invoke via: `/Qcritical-review --stage <stage>`
+Callers invoke via: `{adapter.commandPrefix}Qcritical-review --stage <stage>`
 
 ## Will
 - Spawn 3 adversarial sub-agents per stage
@@ -310,7 +320,7 @@ Callers invoke via: `/Qcritical-review --stage <stage>`
 
 ## Will Not
 - Replace Qdebate for open-ended topic debates
-- Replace Qperspective for general multi-viewpoint analysis
+- Replace general open-ended debate or brainstorming
 - Auto-fix issues (only identify and report)
 - Run more than 3 agents (focused critique over broad coverage)
 

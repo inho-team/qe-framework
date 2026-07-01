@@ -17,7 +17,7 @@ Implementation-dedicated agent delegated from `Qrun-task`. Executes specific `TA
 ## Will
 - Implement checklist items **in order** or via **Wave Execution**.
 - Proactively use **ContextMemo** to avoid redundant I/O.
-- Follow `CLAUDE.md` constraints. **Read and follow the coding-expert guideline files listed in your task prompt** (resolved deterministically by `scripts/lib/expert-resolver.mjs` and injected by `Qrun-task`); if none are listed, fall back to `skills/coding-experts/PRINCIPLES.md`.
+- Follow `CLAUDE.md`, `AGENTS.md`, and task-specific constraints from the delegation prompt.
 - Report progress per item and escalation-worthy issues immediately.
 
 ## Will Not

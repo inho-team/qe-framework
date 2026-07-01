@@ -1,7 +1,7 @@
 {
   "name": "qe-framework",
-  "version": "7.5.0",
-  "description": "QE Framework v7 — Claude/Codex SIVS loop with dual-target assets, lifecycle hooks, 106 skills, and 27 agents.",
+  "version": "8.0.0",
+  "description": "QE Framework v7 — Claude/Codex SIVS loop with dual-target assets, lifecycle hooks, 54 skills, and 27 agents.",
   "author": {
     "name": "inho-team"
   },
@@ -15,14 +15,7 @@
     "skills"
   ],
   "skills": [
-    "./skills/",
-    "./skills/coding-experts/ai/",
-    "./skills/coding-experts/backend/",
-    "./skills/coding-experts/data/",
-    "./skills/coding-experts/frontend/",
-    "./skills/coding-experts/infra/",
-    "./skills/coding-experts/languages/",
-    "./skills/coding-experts/quality/"
+    "./skills/"
   ],
   "hooks": {
     "SessionStart": [

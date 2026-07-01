@@ -44,10 +44,19 @@ When context pressure is detected (PreCompact hook) or user requests `/Qcompact`
 
 When starting a new session after compaction:
 
-1. `/Qresume` reads the latest handoff document
-2. Restores task state from `.qe/tasks/in-progress/`
-3. Reloads unified-state with session context
-4. Re-establishes active plan binding
+1. SessionStart may show `[Session State] ...` with the active plan, resume
+   source, and Codex background job status.
+2. `/Qresume` reads the resolver output from both domains:
+   `.qe/context/sessions/{sid}/` and `.qe/handoffs/sessions/{sid}/`.
+3. If the active sid is empty, Qresume falls back to the newest other bucket
+   unless the user explicitly passed `--from {sid}`.
+4. Restores task state from `.qe/tasks/in-progress/`.
+5. Reloads unified-state with session context.
+6. Re-establishes active plan binding.
+
+For Codex-routed background work, a completed or running job in SessionStart is
+a reminder to retrieve the result before final reporting:
+`/codex:status` then `/codex:result <job-id>`.
 
 ## Auto Memory Directory
 

@@ -1,7 +1,7 @@
 # Spec Self-Reference Gate — Protocol
 
 > The **mandatory** Spec-stage verification gate that breaks the self-reference
-> problem. Invoked by `/Qgenerate-spec` (Step 2.6) on **every** spec, with no
+> problem. Invoked by `{adapter.commandPrefix}Qgenerate-spec` (Step 2.6) on **every** spec, with no
 > skip conditions. A FAIL verdict blocks downstream execution (Qatomic-run /
 > Qrun-task) until the spec is fixed. See DECISION_LOG D011 (always mandatory),
 > D012 (same-engine baseline + codex cross-model upgrade), D013 (extend

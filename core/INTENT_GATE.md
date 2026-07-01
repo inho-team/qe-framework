@@ -24,37 +24,16 @@ All skills and agents refer to this classification to determine whether a reques
 | **Resume** | "continue", "resume", "restore" | Qresume |
 | **Handoff** | "handoff", "save state", "end session" | Qcompact (manual mode) |
 | **Planning** | "PRD", "product plan", "user story", "roadmap" | Epm-planner |
-| **Academic** | "paper", "seminar", "thesis", "review response" | Qgrad-* (matching skill) |
-| **PDF/Doc generation** | "PDF", "Word", "PPT", "Excel" | Qdocx/Qpdf/Qpptx/Qxlsx |
-| **Browser automation** | "browser", "navigate", "screenshot", "form fill", "scrape", "web test" | Qagent-browser |
-| **Frontend design** | "design UI", "create component", "React component", "dashboard", "styling", "web component" | Qfrontend-design |
-| **Spring Security** | "Spring Security", "authentication", "authorization", "CSRF", "JWT", "security headers" | Qspringboot-security |
-| **Architecture diagram** | "architecture diagram", "C4 diagram", "system context", "container diagram", "deployment diagram" | Qc4-architecture |
-| **Database design** | "schema design", "database design", "create tables", "data modeling", "normalization", "indexing" | Qdatabase-schema-designer |
 | **MCP server** | "MCP server", "Model Context Protocol", "FastMCP", "MCP SDK", "MCP integration" | Qmcp-setup |
-| **Systematic debugging** | "root cause", "debug systematically", "test hypothesis", "trace error", "find bug cause" | Qsystematic-debugging |
-| **TDD** | "TDD", "test-driven", "write test first", "red-green-refactor", "before implementing" | Qtest-driven-development |
 | **QA test plan** | "test plan", "test cases", "regression suite", "QA testing", "bug report template" | Qqa-test-planner |
-| **Doc comments** | "add docstring", "documentation comments", "JSDoc", "JavaDoc", "KDoc", "TSDoc" | Qdoc-comment |
-| **Requirements clarity** | "clarify requirements", "unclear feature", "ambiguous specs", "YAGNI check" | Qrequirements-clarity |
 | **Humanize text** | "humanize", "remove AI writing", "make it sound natural", "AI trace" | Qwriting-clearly |
-| **Professional communication** | "professional email", "team message", "meeting agenda", "communication guide" | Qprofessional-communication |
-| **YouTube transcript** | "YouTube subtitles", "video captions", "transcribe video", "extract subtitles" | Qyoutube-transcript-api |
-| **Lesson learned** | "what can we learn", "key takeaway", "look back at this code", "code review insight" | Qlesson-learned |
 | **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Mrefactor-agent-md |
 | **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qfind-skills |
 | **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Mcreate-skill |
-| **Create command** | "create slash command", "make a command", "reusable workflow", "automate process" | Qcommand-creator |
 | **Alias management** | "create alias", "register shortcut", "path alias", "command alias" | Qalias |
 | **User profile** | "analyze my patterns", "user profile", "command patterns", "my style" | Qprofile |
 | **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Mmigrate-tasks |
-| **Audio transcription** | "transcribe audio", "meeting recording", "audio to text", "convert recording" | Qaudio-transcriber |
-| **Image analysis** | "analyze image", "describe screenshot", "extract text from image", "analyze wireframe" | Qimage-analyzer |
-| **Mermaid diagrams** | "mermaid diagram", "sequence diagram", "flowchart", "ERD", "class diagram", "Gantt chart" | Qmermaid-diagrams |
-| **Web design review** | "UI review", "accessibility check", "design audit", "UX review", "web guidelines" | Qweb-design-guidelines |
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |
-| **Financial analysis** | "financial analysis", "valuation", "DCF", "Monte Carlo", "quant", "investment analysis", "portfolio", "ratio analysis", "sensitivity analysis" | Qfinance-analyst |
-| **Data analysis** | "analyze this data", "data exploration", "statistics", "correlation", "distribution", "visualize data", "CSV analysis", "hypothesis test", "regression", "outliers" | Qdata-analysis |
 | **Domain knowledge** | "domain docs", "domain knowledge", "domain rules", "business rules docs" | Refer to .qe/docs/ for existing domain knowledge documents |
 | **Agent team** | "create team", "spawn teammates", "parallel team", "team mode" | Refer to core/AGENT_TEAMS.md for team creation guidance |
 
@@ -78,17 +57,13 @@ When intent cannot be determined, ask the user:
 
 ### 5. Skill vs Agent disambiguation
 When the same domain has both a skill and an agent:
-- "how to debug" / "debugging methodology" / "root cause analysis approach" → Qsystematic-debugging (methodology)
 - "fix this bug" / "debug this error" / "not working" → Ecode-debugger (execution)
-- "TDD" / "write test first" / "red-green-refactor" → Qtest-driven-development (methodology)
 - "write tests" / "test coverage" / "add unit tests" → Ecode-test-engineer (execution)
 - Quality loop is handled internally by Qcode-run-task → Eqa-orchestrator delegation
 
 ## Using .qe/analysis/
 Before routing, refer to `.qe/analysis/` to understand the project context.
 This provides additional context for disambiguation when multiple intents could match.
-- Java project + "security" → prefer Qspringboot-security over generic research
-- React project + "design" → prefer Qfrontend-design over generic documentation
 
 ## Using .qe/docs/
 When domain-specific keywords appear, check `.qe/docs/` for existing domain knowledge documents.

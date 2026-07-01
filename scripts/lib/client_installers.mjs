@@ -90,9 +90,6 @@ function resolveTargets(repoRoot, homeDir, log = () => {}) {
       pluginPath,
       targets: [
         { src: 'skills', dest: join(pluginPath, 'skills'), label: 'skill' },
-        // Opt-in / demoted skills (ADR-025 Phase 3): shipped but outside the
-        // catalog globs, so demotion stays reversible in an installed plugin.
-        { src: 'skills-optional', dest: join(pluginPath, 'skills-optional'), label: 'skill-optional' },
         { src: 'agents', dest: join(pluginPath, 'agents'), label: 'agent' },
         { src: 'core', dest: join(pluginPath, 'core'), label: 'core' },
         { src: 'hooks', dest: join(pluginPath, 'hooks'), label: 'hook' },
@@ -107,9 +104,6 @@ function resolveTargets(repoRoot, homeDir, log = () => {}) {
     pluginPath: null,
     targets: [
       { src: 'skills', dest: join(homeDir, '.claude', 'commands'), label: 'skill' },
-      // Demoted skills go to a sibling dir (NOT commands/), so they ship and stay
-      // restorable but are not exposed as active commands (ADR-025 Phase 3).
-      { src: 'skills-optional', dest: join(homeDir, '.claude', 'skills-optional'), label: 'skill-optional' },
       { src: 'agents', dest: join(homeDir, '.claude', 'agents'), label: 'agent' },
       { src: 'core', dest: join(homeDir, '.claude', 'core'), label: 'core' },
       { src: 'hooks', dest: join(homeDir, '.claude', 'hooks'), label: 'hook' },
@@ -517,8 +511,7 @@ export function cleanupCodexAssets({
     for (const entry of knownSkillNames) {
       if (typeof entry !== 'string' || entry.trim() === '') continue;
       // Must be in the known manifest AND contain SKILL.md. Entries may be
-      // top-level names (legacy) or nested repo-relative paths such as
-      // coding-experts/quality/Qvitest.
+      // top-level names from the historical QE skill manifest.
       const parts = entry.split('/').filter(Boolean);
       if (parts.length === 0 || parts.some((part) => part === '..')) continue;
       const entryPath = join(skillsDir, ...parts);
@@ -793,18 +786,46 @@ function inferReasoningEffort(modelHint) {
   return '';
 }
 
-function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint }) {
+function resolveCodexModelRouting(modelHint, reasoningEffortHint = '') {
+  const raw = String(modelHint || '').trim();
+  const normalized = raw.toLowerCase();
+  const explicitEffort = String(reasoningEffortHint || '').trim();
+
+  if (!raw) {
+    return { model: '', effort: explicitEffort };
+  }
+
+  if (normalized.includes('opus')) {
+    return { model: 'gpt-5.4', effort: explicitEffort || 'high' };
+  }
+  if (normalized.includes('sonnet')) {
+    return { model: 'gpt-5.4-mini', effort: explicitEffort || 'medium' };
+  }
+  if (normalized.includes('haiku')) {
+    return { model: 'gpt-5.3-codex-spark', effort: explicitEffort || 'low' };
+  }
+
+  // If the source already names a Codex/OpenAI model, preserve it verbatim.
+  if (/^(gpt-|o[0-9]|codex)/i.test(raw)) {
+    return { model: raw, effort: explicitEffort };
+  }
+
+  return { model: '', effort: explicitEffort };
+}
+
+function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint, codexModel, codexReasoningEffort }) {
   const lines = [
     '# Codex Native Agent Compatibility',
     '',
     'This file was generated from a QE Framework Claude agent markdown file.',
     '',
     '- QE maps Claude Agent-tool workflows to Codex native subagents through the client adapter.',
-    '- Invoke this agent explicitly from Codex when native subagents are available.',
+    '- Prefer explicit native Codex subagent invocation for delegated QE work.',
     '- If a Codex runtime lacks a required subagent primitive, preserve the role contract with role-separated inline execution and mark the fallback explicitly.',
   ];
   if (modelHint) lines.push(`- Source recommendedModel hint: \`${modelHint}\`.`);
   if (reasoningEffortHint) lines.push(`- Source reasoning effort hint: \`${reasoningEffortHint}\`.`);
+  if (codexModel) lines.push(`- Codex model routing: \`${codexModel}\`${codexReasoningEffort ? ` with effort \`${codexReasoningEffort}\`` : ''}.`);
   if (toolsHint) lines.push(`- Source tool/MCP hint: \`${toolsHint}\`.`);
   lines.push('', '---', '');
   return lines.join('\n');
@@ -822,9 +843,16 @@ function renderCodexAgentToml({ name, description, instructions, metadata = {} }
     || metadata.reasoning_effort
     || metadata.model_reasoning_effort
     || inferReasoningEffort(modelHint);
+  const codexRouting = resolveCodexModelRouting(modelHint, reasoningEffortHint);
   const toolsHint = metadata.tools || metadata.mcp || metadata.MCP || '';
   const sandboxMode = metadata.sandbox_mode || metadata.sandboxMode || 'workspace-write';
-  const compatibilityNote = renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint });
+  const compatibilityNote = renderCodexCompatibilityNote({
+    modelHint,
+    reasoningEffortHint,
+    toolsHint,
+    codexModel: codexRouting.model,
+    codexReasoningEffort: codexRouting.effort,
+  });
   const developerInstructions = `${compatibilityNote}${instructions.replace(/\r\n/g, '\n').replace(/\r/g, '\n')}`;
 
   const lines = [
@@ -832,10 +860,12 @@ function renderCodexAgentToml({ name, description, instructions, metadata = {} }
     `name = ${quoteToml(name)}`,
     `description = ${quoteToml(description)}`,
   ];
-  // NOTE: Codex (>=0.142.x) strict-deserializes agent role TOML and rejects the
-  // whole file on any unknown top-level key. The model/effort/tools hints are
-  // therefore carried inside developer_instructions (compatibility note) only,
-  // not as top-level qe_*_hint keys.
+  if (codexRouting.model) {
+    lines.push(`model = ${quoteToml(codexRouting.model)}`);
+  }
+  if (codexRouting.effort) {
+    lines.push(`model_reasoning_effort = ${quoteToml(codexRouting.effort)}`);
+  }
   lines.push(
     `sandbox_mode = ${quoteToml(sandboxMode)}`,
     'developer_instructions = """',

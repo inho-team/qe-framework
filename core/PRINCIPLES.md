@@ -6,15 +6,15 @@
 ## Pre-Check (Required Before Every Skill Execution)
 
 If no initialized project instruction artifact exists at the project root (for example `CLAUDE.md`, `AGENTS.md`, or the expected QE instruction file), the QE framework is not initialized.
-- **Halt the currently invoked skill** and instruct the user to run `/Qinit` first.
+- **Halt the currently invoked skill** and instruct the user to run the active-client `Qinit` command first.
 - Qinit itself skips this check.
 
 ## Git Operations (Absolute Rule)
 
 **Never run `git commit`, `git push`, or other git write commands directly.**
 All git commit/push operations MUST go through the `/Qcommit` skill, which delegates to the `Ecommit-executor` agent.
-- User says "commit", "push" → invoke `/Qcommit`
-- After task completion and user requests commit → invoke `/Qcommit`
+- User says "commit", "push" → invoke the active-client `Qcommit` skill
+- After task completion and user requests commit → invoke the active-client `Qcommit` skill
 - No exceptions. Direct git commands for commit/push are prohibited.
 
 ---
@@ -26,13 +26,13 @@ The SIVS (Spec → Implement → Verify → Supervise) Loop is the framework's c
 > The SIVS Loop operates inside the PSE Chain's Execute and Verify steps. See `core/PHILOSOPHY.md` for the full SIVS specification and `QE_CONVENTIONS.md` for the PSE-SIVS relationship.
 
 ### 1. Post-spec Status Clarity
-After `/Qgenerate-spec` creates spec documents, explicitly show:
-- **What was created**: CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST (plans only)
+After the active-client `Qgenerate-spec` command creates spec documents, explicitly show:
+- **What was created**: project instruction artifact when applicable, TASK_REQUEST, VERIFY_CHECKLIST (plans only)
 - **What is NOT yet done**: actual output files (code, docs, analysis results)
 - Then ask user via the QE interaction adapter whether to run the active-client `Qrun-task` command immediately.
 
 ### 2. Task Type Banner
-In `/Qrun-task` Step 2, display a prominent type banner at the TOP of the summary before any details:
+In the active-client `Qrun-task` Step 2, display a prominent type banner at the TOP of the summary before any details:
 - `⚠️ TYPE: CODE` — will create/modify source code
 - `📄 TYPE: DOCS` — will create/modify documentation
 - `🔍 TYPE: ANALYSIS` — read-only analysis, no new files
@@ -63,7 +63,7 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 
 ## Skill Scope Enforcement
 
-- **Guide skills are not execution tools.** A skill that explains how to set up or configure something (e.g., Qstitch-cli, Qmcp-setup, Qcc-setup) must NOT attempt to execute the operations it describes. If the user requests an action that requires external tools (MCP tools, CLI commands), check if those tools are available first.
+- **Guide skills are not execution tools.** A skill that explains how to set up or configure something (e.g., Qstitch-cli, Qmcp-setup) must NOT attempt to execute the operations it describes. If the user requests an action that requires external tools (MCP tools, CLI commands), check if those tools are available first.
 - **Pre-check before action.** Before invoking external tools (MCP, API, CLI), verify they are actually connected/available. Do not call tools that are not registered — this produces errors and confuses the user.
 - **Exit when out of scope.** If a user's request falls outside the skill's defined role, say so clearly and redirect to the correct tool or skill. Do not improvise functionality.
 
@@ -94,7 +94,7 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 ## Safety Principles
 
 - **Confirm before destructive actions**: Deletion, overwriting, force push, etc. require user approval before execution.
-- **All git commits via Qcommit**: Never run raw `git commit` or `git push` commands directly. Always use the `/Qcommit` skill for all commit and push operations.
+- **All git commits via Qcommit**: Never run raw `git commit` or `git push` commands directly. Always use the active-client `Qcommit` skill for all commit and push operations.
 - **Protect sensitive information**: Never expose PATs, passwords, or API keys in logs, responses, or files.
 - **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
 - **Confirm only high-impact file operations**: Ask the user for permission before destructive, irreversible, or unusually broad file operations. Routine in-scope edits should proceed with minimal interruption.
@@ -110,7 +110,7 @@ All code written through the QE Framework must include documentation comments on
 ### Rules
 1. **Public functions/classes require documentation**: Every public function, method, class, struct, trait, or interface must have a documentation comment in the language's standard format
 2. **Automatic detection**: The `post-tool-use` hook runs `comment-checker` after every Write/Edit operation and reports missing documentation
-3. **Language-standard format**: Use the language's canonical documentation format (JSDoc for JS/TS, docstring for Python, Javadoc for Java, GoDoc for Go, rustdoc for Rust, etc.) — see `skills/coding-experts/references/comment-formats.md`
+3. **Language-standard format**: Use the language's canonical documentation format (JSDoc for JS/TS, docstring for Python, Javadoc for Java, GoDoc for Go, rustdoc for Rust, etc.)
 4. **Coverage threshold**: 80% minimum comment coverage for public API in verification (Qcode-run-task)
 5. **Private/internal exempt**: Functions/methods prefixed with `_`, `#`, or marked `private` are exempt
 

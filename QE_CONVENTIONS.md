@@ -22,6 +22,9 @@ All skills, agents, and documents in this framework MUST use these standard term
 | Parallel batch within Phase | **Wave** | — | Wave 1.1, Wave 1.2, ... within a Phase |
 | Leader session | **Lead** | ~~Orchestrator~~ (except agent names) | The coordinating session in Wave execution |
 | Handoff section in skills | **## Handoff** | ~~Mandatory Handoff Output/Message~~ | Standardized output format at skill completion |
+| Runtime execution layer | **Execution Harness Layer** | external runtime names | QE-owned layer for mode selection, durable lanes, isolated workspaces, status projection, and evidence collection |
+| Resumable execution path | **Durable Lane** | ad hoc worker/session | Resumable harness lane with owner, status, artifacts, and evidence |
+| Runtime status display | **Status Projection** | completion proof | Read-only display of PSE/SIVS/harness state; never a substitute for VERIFY_CHECKLIST or Supervise |
 
 ### PSE Chain (outer workflow)
 
@@ -110,6 +113,7 @@ Every PSE Chain skill MUST end with a `## Handoff` section. The handoff follows 
 5. **No explanations** — Do not add alternatives, elaborations, or choices after the command. **Never include a fallback line** (`or: /Qgenerate-spec ...`, `If that doesn't work: ...`). `/Qgs` is the registered alias for `/Qgenerate-spec` — a duplicate line is noise.
 6. **Task type branching** — Guide only `type: code` to `/Qcode-run-task`. For docs/analysis/deletion tasks, guide to the next Phase
 7. **Short alias only** — Use the short phase label (e.g., `Phase 2: Codex Bridge`), not a copy of the full phase description. Max ~6 words.
+8. **Harness status is not completion** — If a handoff includes Execution Harness status, lane status, or status projection, it must still render the SIVS/PSE state separately. A finished lane does not replace VERIFY_CHECKLIST completion or Supervise.
 
 ### Phase Progress Display
 
@@ -246,6 +250,7 @@ When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
 - **Stage defaults** — without Codex, all SIVS stages use Claude. When Codex is available, Spec and Supervise stay Claude-led while Implement and Verify prefer Codex; explicit `.qe/sivs-config.json` entries can override this.
 - **Spec/Supervise assistance** — Claude owns requirements and final judgment, but should actively use Codex for bounded repo search, context gathering, test diagnosis, and second-opinion review when that reduces Claude token load.
 - **Runtime mode is selectable** — foreground is preferred for short Codex tasks so stdout lands in the conversation. Background is allowed for long Implement/Verify jobs only when the session retrieves results with `/codex:status` and `/codex:result <job-id>` before final reporting.
+- **Session result hint** — SessionStart may emit `[Session State] ... codex:<status>...:retrieve /codex:result` when a background Codex job is still relevant. Treat it as a retrieval reminder, not as completion evidence.
 - **Concise Codex output** — ask Codex for relevant files, line numbers, summaries, and next actions; do not paste raw bulk search output back into Claude unless necessary.
 
 ---
@@ -271,6 +276,8 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 ### 4. Optimized Model Tiering
 - **Haiku (LOW)**: Default for pattern matching, structural verification (S1-S5), file I/O, and simple text transforms.
 - **Sonnet (MEDIUM)**: Default for code implementation, test writing, and complex reasoning.
+- **Opus (HIGH)**: Default for high-risk architecture, deep research, security, and adversarial review.
+- **Codex mapping**: Codex-installed agents convert QE tiers to native model routing: `haiku -> gpt-5.3-codex-spark` with `low`, `sonnet -> gpt-5.4-mini` with `medium`, `opus -> gpt-5.4` with `high`.
 - **Skill-First**: Always check `skills/CATALOG.md` before manual labor. Skills are pre-optimized workflows.
 
 ### 5. Delegation Enforcer (Enforced)
@@ -278,6 +285,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 - **No model specified**: The recommended model is auto-injected into the hook output hint.
 - **Lower model specified** (e.g., haiku for a sonnet task): Allowed silently -- cost saving is intentional.
 - **Higher model specified** (e.g., opus for a haiku task): Allowed with a cost-awareness warning.
+- **Codex native agents**: QE installer writes `model` and `model_reasoning_effort` into `~/.codex/agents/*.toml` for known QE tiers. Shared skills should prefer explicit native Codex subagents for delegated work; use role-separated inline execution only when the active Codex runtime lacks the needed subagent primitive, and report that fallback.
 - Delegation stats (`autoInjections`, `warnings`, `overrides`) are tracked in `unified-state.json` under `delegationStats`.
 
 ---
@@ -324,6 +332,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Mtest-skill` | Test skill intent routing |
 | `Qfind-skills` | Find/install skills from skills.sh |
 | `Qmcp-setup` | MCP server setup, configuration, and custom server building guide |
+| `Qmcp-sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
 | `Qprofile` | Analyze user patterns and style |
 | `Qutopia` | Fully autonomous execution mode |

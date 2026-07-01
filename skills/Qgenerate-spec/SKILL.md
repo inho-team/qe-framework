@@ -1,6 +1,6 @@
 ---
 name: Qgenerate-spec
-description: Generates 3 project spec documents (CLAUDE.md, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when the user wants to start a new project, define task specifications, or create a task.
+description: Generates project spec documents (project instruction artifact when needed, TASK_REQUEST, VERIFY_CHECKLIST) from a project description. Use when the user wants to start a new project, define task specifications, or create a task.
 invocation_trigger: When a new project, task, or bug fix spec needs to be defined.
 user_invocable: true
 recommendedModel: haiku
@@ -32,7 +32,7 @@ Command rendering rules:
 
 | # | Filename | Path | Description |
 |---|----------|------|-------------|
-| 1 | `CLAUDE.md` | Project root | Project context — goals, constraints, decisions. Must reference `QE_CONVENTIONS.md` for QE rules. Task history is in `.qe/TASK_LOG.md`. |
+| 1 | Project instruction artifact | Project root | Client-specific project context when needed. Claude adapter writes `CLAUDE.md`; Codex-capable projects may use `AGENTS.md` or an existing instruction artifact. Must reference `QE_CONVENTIONS.md` for QE rules. Task history is in `.qe/TASK_LOG.md`. |
 | 2 | `TASK_REQUEST_{UUID}.md` | `.qe/tasks/pending/` | Task request — what, how, checklist, notes |
 | 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.qe/checklists/pending/` | Verification checklist — validation criteria, additional notes |
 
@@ -46,17 +46,17 @@ Before executing the spec generation workflow, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
 2. Call `resolveEngine("spec", config)`.
-   - **`"claude"` (default)**: Proceed with the standard workflow below. Claude owns the spec, but may delegate bounded repo search/context gathering to Codex when useful.
-   - **`"codex"`**: Delegate spec generation to Codex via codex-plugin-cc:
-     1. If codex-plugin-cc is available: invoke the returned command with the project context and task description as input. Parse the returned spec into TASK_REQUEST and VERIFY_CHECKLIST format.
-     2. If codex-plugin-cc is NOT available: show warning message and fallback to Claude (standard workflow).
+   - **Base client = Claude, stage engine = `claude` (default)**: Proceed with the standard workflow below. Claude owns the spec, but may delegate bounded repo search/context gathering to Codex when useful.
+   - **Base client = Claude, stage engine = `codex`**: Delegate spec generation through `codex_bridge.mjs` / codex-plugin-cc. If the bridge is unavailable, warn and fall back to Claude.
+   - **Base client = Codex, stage engine = `codex`**: Use the native Codex execution path. If native subagent delegation is unavailable, keep the work in the lead session as a role-separated inline pass and mark the route `degraded-inline`.
+   - **Base client = Codex, stage engine = `claude`**: Delegate through `Qclaude-rescue` / `claude_bridge.mjs` when available. If the bridge is unavailable, warn and run the spec stage on Codex with `crossmodel=false`.
 3. Check for legacy config: call `detectLegacyConfig()`. If non-null, display the migration warning to the user before proceeding.
 
 **Codex Spec Delegation Format:**
 When delegating to Codex, pass the following prompt structure:
 ```
 Generate a TASK_REQUEST and VERIFY_CHECKLIST for: {user's task description}
-Project context: {from CLAUDE.md}
+Project context: {from active project instruction artifact, e.g. CLAUDE.md or AGENTS.md}
 Phase context: {from ROADMAP.md active phase}
 Format: Markdown with checklist items
 ```
@@ -84,7 +84,7 @@ Before collecting user info, identify the strategic context:
 
 ### Step 1.5: Brainstorming Gate (conditional, scale-aware)
 
-Before gathering spec details, run a lightweight ambiguity check. If the incoming requirement is **ambiguous AND the task scale is Small or larger**, route through the Socratic clarification gate (`Qrequirements-clarity` in pre-spec gate mode) first. (Source: adapted from Superpowers' brainstorming stage — but **scale-aware, not mandatory**; see `D019` in `.qe/planning/DECISION_LOG.md`.)
+Before gathering spec details, run a lightweight ambiguity check. If the incoming requirement is **ambiguous AND the task scale is Small or larger**, perform a concise Socratic clarification pass before drafting. (Source: adapted from Superpowers' brainstorming stage — but **scale-aware, not mandatory**; see `D019` in `.qe/planning/DECISION_LOG.md`.)
 
 **This is our deliberate differentiator from Superpowers' blanket-mandatory brainstorming**: a one-line bug fix must never be forced through a clarification round.
 
@@ -96,7 +96,7 @@ Before gathering spec details, run a lightweight ambiguity check. If the incomin
   2. **No acceptance criteria** — nothing in the request or the resolved Phase Success Criteria states how "done" is verified.
   3. **Alternatives unconsidered** — the request fixes a solution without stating the problem, so no design choice was weighed.
 
-**On gate trigger:** invoke `Qrequirements-clarity` in pre-spec gate mode. It returns one of:
+**On gate trigger:** produce one of:
 - `PASS` → ambiguity resolved (or never present); continue to Step 2 with the sharpened requirement.
 - `CLARIFY` → unresolved gaps remain; surface its questions to the user before drafting. Do **not** draft specs from an unclarified `CLARIFY` requirement.
 
@@ -111,7 +111,7 @@ Required information:
 - **Task list** — for each task: what, how, steps (checklist), expected output files (optional), notes, type (`code`|`analysis`|`docs`|`other`), validation criteria (checks), verification notes, and optional decision rationale (chosen approach, alternatives, consequences)
 
 ### Step 2: Draft Documents
-Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). For CLAUDE.md, reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and include a reference line pointing to it. Replace `{{placeholder}}` with actual content.
+Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). For any generated project instruction artifact, reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and include a reference line pointing to it. Replace `{{placeholder}}` with actual content.
 - **Model Preference**: Use **Haiku** for drafting standardized templates to reduce latency.
 
 ### Step 2.4: Premise Verification (Mandatory for external dependencies)
@@ -175,7 +175,7 @@ gate exists to close.
 
 **Procedure:**
 
-1. Invoke `/Qcritical-review --stage spec` against the just-drafted TASK_REQUEST
+1. Invoke `{adapter.commandPrefix}Qcritical-review --stage spec` against the just-drafted TASK_REQUEST
    (+ VERIFY_CHECKLIST). The gate spawns the Structural Reviewer + Critical
    Reviewer + Edge Case Finder in parallel and returns a PASS/WARN/FAIL verdict.
    Engine routing is automatic: same-engine baseline always, with the Critical
@@ -213,10 +213,12 @@ On "Generate & Execute" or "Generate Only":
 - Auto-create directories (`mkdir -p`)
 - Create all spec files
 - If existing `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` found in project root, suggest migrating to `.qe/tasks/pending/` and `.qe/checklists/pending/`
-- **On initial setup**, if `.claude/settings.json` and `.mcp.json` don't exist, suggest creating with defaults
-- **Automatic `.gitignore` management:** Add missing entries under `# Claude Code` section:
+- **On initial setup**, scope client-specific files to the active adapter:
+  - Claude adapter: if `.claude/settings.json` and project `.mcp.json` are expected but missing, suggest creating them with defaults.
+  - Codex adapter: do not ask for Claude-only settings; verify Codex hook trust/readiness through the Codex installer and `/hooks` workflow when needed.
+- **Automatic `.gitignore` management:** Add missing shared entries under `# QE Framework` section:
   ```gitignore
-  # Claude Code
+  # QE Framework
   .claude/settings-local.json
   .qe/tasks/
   .qe/checklists/
@@ -228,7 +230,7 @@ On "Generate & Execute" or "Generate Only":
 Output status summary after file creation:
 ```
 ✅ Generation complete (spec documents only):
-- CLAUDE.md
+- Project instruction artifact when this invocation created or migrated one
 - .qe/tasks/pending/TASK_REQUEST_{UUID}.md
 - .qe/checklists/pending/VERIFY_CHECKLIST_{UUID}.md
 
@@ -256,9 +258,9 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 - Korean user → Korean documents; English user → English documents; mixed/unclear → English
 - **Scope:** TASK_REQUEST and VERIFY_CHECKLIST only. Internal framework files stay English. CLAUDE.md follows user language when specified.
 
-### CLAUDE.md
-- Single Source of Truth; read by AI every session
-- **Do NOT write task lists in CLAUDE.md.** Task history lives in `.qe/TASK_LOG.md`. CLAUDE.md only contains a reference pointer: `## Task Log` → see `.qe/TASK_LOG.md`
+### Project Instruction Artifact
+- Single Source of Truth for client-specific project context; Claude adapter uses `CLAUDE.md`, Codex-capable projects may use `AGENTS.md` or an equivalent QE-managed instruction file.
+- **Do NOT write task lists in the instruction artifact.** Task history lives in `.qe/TASK_LOG.md`. The instruction artifact only contains a reference pointer: `## Task Log` → see `.qe/TASK_LOG.md`
 
 ### TASK_REQUEST
 - **What vs How**: Clearly separate the business goal from the technical implementation logic (from QE planning patterns).
@@ -305,7 +307,7 @@ After draft creation (Step 2) and before handing off, check whether the TASK_REQ
      - Omit `Flow` (optional section) unless the user fills it.
    - Write to `.qe/contracts/pending/${name}.md`.
 4. **Do not write to `.qe/contracts/active/`** — user must review and promote manually. This preserves the opt-in, user-in-the-loop principle (D011).
-5. Report to the user: a bulleted list of newly created pending drafts with their paths, and a note that they can be promoted via `/Qcontract approve` after review.
+5. Report to the user: a bulleted list of newly created pending drafts with their paths, and a note that they can be promoted via `{adapter.commandPrefix}Qcontract approve` after review.
 
 **Skip conditions**:
 - Marker absent → skip silently.

@@ -1,7 +1,7 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "7.5.0",
-  "description": "Query Execute Framework for Claude Code and Codex — SIVS loop, folder-aware context memory, 106 skills and 27 agents",
+  "version": "8.0.0",
+  "description": "Query Execute Framework for Claude Code and Codex — SIVS loop, folder-aware context memory, 54 skills and 27 agents",
   "files": [
     ".claude-plugin/",
     "agents/",
@@ -17,7 +17,6 @@
     "README.md",
     "scripts/",
     "skills/",
-    "skills-optional/",
     "uninstall.js"
   ],
   "bin": {
@@ -27,7 +26,6 @@
   "scripts": {
     "postinstall": "sh -c 'cd / && node --input-type=module -e \"try { const p = process.env.npm_package_json; const { installClaudeAssets, installCodexAssets } = await import(new URL(\\\"./scripts/lib/client_installers.mjs\\\", \\\"file://\\\" + p)); installClaudeAssets(); installCodexAssets(); } catch (err) { console.warn(\\\"[qe-framework] postinstall skipped:\\\", err?.message || err); console.warn(\\\"[qe-framework] Run qe-framework-install manually after installation.\\\"); }\"'",
     "preuninstall": "sh -c 'cd / && node --input-type=module -e \"try { const p = process.env.npm_package_json; const { uninstallClaudeAssets } = await import(new URL(\\\"./scripts/lib/client_installers.mjs\\\", \\\"file://\\\" + p)); uninstallClaudeAssets(); } catch (err) { console.warn(\\\"[qe-framework] preuninstall skipped:\\\", err?.message || err); }\"'",
-    "qe:mcp": "node scripts/qe_mcp.mjs",
     "qe:secret": "node scripts/qe_secret.mjs",
     "qe:validate": "node scripts/validate_svs_config.mjs",
     "check:routing": "node scripts/check-skill-routing.mjs",

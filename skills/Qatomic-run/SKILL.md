@@ -14,8 +14,8 @@ A coordination skill that orchestrates multiple **Haiku Teammates** to execute a
 ## Client Adapter Compatibility
 
 - **Claude**: use Agent Teams / Agent tool as described below.
-- **Codex native**: use native Codex subagents through the installed agent TOML.
-- **Codex client adapter**: if the active Codex runtime lacks subagent dispatch, preserve the role contract with role-separated inline execution and mark the fallback explicitly.
+- **Codex native**: prefer native Codex subagents through the installed agent TOML. QE-installed TOML files carry `model` and `model_reasoning_effort` converted from each agent's `recommendedModel`.
+- **Codex client adapter**: use role-separated inline execution only if the active Codex runtime lacks subagent dispatch, and mark the fallback explicitly.
 - **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Workflow
@@ -29,13 +29,14 @@ Read the `TASK_REQUEST` and identify items suitable for parallel execution:
 ### Step 2: Wave Initiation
 Create an **Agent Team** through the agent adapter:
 - Claude: use the `Agent` tool.
-- Codex: use native Codex subagents through the client adapter; otherwise preserve the role contract with role-separated inline execution.
+- Codex: use native Codex subagents through the client adapter first; otherwise preserve the role contract with role-separated inline execution.
 - Dispatch Haiku Teammates through a per-wave cap of `min(cpuCount - 2, 3)`; on low-core machines the effective runtime cap is clamped to at least 1.
 - Queue additional atomic items FIFO. A queued item starts only after an active teammate completes.
 - Assign **one Haiku Teammate per active atomic item** within that cap.
-- **Atomic Commits**: Teammates MUST perform a `git commit` immediately after completing their specific item.
+- **Atomic Commits**: Teammates MUST NOT run raw `git commit`. If a wave requires an atomic commit, route it through `{adapter.commandPrefix}Qcommit` or the sanctioned QE commit guard/bypass flow; otherwise leave the synthesized working tree for the Lead-owned commit step.
 - **Technical Summary**: Teammates MUST create `SUMMARY_{Item#}.md` under the active plan's phase directory — resolve the slug via `.qe/state/current-session.json` → `.qe/planning/.sessions/{session_id}.json` → `.qe/planning/ACTIVE_PLAN`, then write to `.qe/planning/plans/{slug}/phases/{X}/SUMMARY_{Item#}.md`. Legacy projects with no slug resolvable write to `.qe/planning/phases/{X}/SUMMARY_{Item#}.md`.
 - Set teammates to `haiku` model for maximum speed and efficiency.
+  On Codex this resolves to `gpt-5.3-codex-spark` with `model_reasoning_effort = "low"` in the installed agent TOML.
 
 ### Step 3: Result Synthesis
 As Haiku teammates complete their tasks:
@@ -59,9 +60,9 @@ After all atomic items are done, determine the next step based on task type:
 
 ## Worktree Isolation (`--worktree`, opt-in)
 
-By default Qatomic-run executes waves **in-place** on the current working tree. When invoked with `--worktree`, each wave item is dispatched with the Agent tool's `isolation: "worktree"` parameter, so every teammate works on its own throwaway git worktree instead of the live tree. (Source: adopted from Superpowers' worktree stage — see `D018` in `.qe/planning/DECISION_LOG.md`.)
+By default Qatomic-run executes waves **in-place** on the current working tree. When invoked with `--worktree`, each wave item asks the active agent adapter for isolated execution. Claude uses the Agent tool's `isolation: "worktree"` parameter; Codex uses native worktree/subagent isolation when available and otherwise falls back to serialized in-place execution with `degraded-inline` recorded. (Source: adopted from Superpowers' worktree stage — see `D018` in `.qe/planning/DECISION_LOG.md`.)
 
-- **No new runtime code** — this reuses the existing `Agent(..., { isolation: "worktree" })` capability. `--worktree` only flips that flag on per-item dispatch.
+- **No new runtime code** — this reuses the active client adapter's existing isolation capability. `--worktree` only requests isolation on per-item dispatch.
 - **opt-in**: in-place is always the default. Isolation engages only when `--worktree` is passed explicitly.
 - Worktrees are auto-removed if a teammate leaves them unchanged; merge surviving changes back through the Lead session at Step 3 (Result Synthesis).
 
@@ -80,13 +81,13 @@ Before spawning Haiku teammates, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
 2. Call `resolveEngine("implement", config)`. If Codex is installed and no explicit config overrides it, Implement resolves to Codex by default.
-   - **`"claude"`**: Proceed with the standard Haiku swarm execution. No changes.
-   - **`"codex"`**: Delegate implementation to Codex via codex-plugin-cc instead of Haiku swarm:
-     1. If available: invoke the returned command with the full TASK_REQUEST checklist as a single task. Codex handles all items internally (no wave splitting needed).
-     2. If NOT available: show warning and fallback to standard Haiku swarm execution.
+   - **Base client = Claude, stage engine = `claude`**: Proceed with the standard Haiku swarm execution.
+   - **Base client = Claude, stage engine = `codex`**: Delegate implementation through `codex_bridge.mjs` / codex-plugin-cc. If unavailable, warn and fall back to the standard Haiku swarm.
+   - **Base client = Codex, stage engine = `codex`**: Prefer native Codex subagents using the installed TOML model routing. If unavailable, execute role-separated inline passes and mark the route `degraded-inline`; do not describe this as exact Agent-tool parity.
+   - **Base client = Codex, stage engine = `claude`**: Delegate through `Qclaude-rescue` / `claude_bridge.mjs` when available. If unavailable, warn and keep execution on Codex with `crossmodel=false`.
 3. Check for legacy config: call `detectLegacyConfig()`. If non-null, display migration warning.
 
-**Note**: When using Codex engine, wave-based parallelism is not used — Codex handles task partitioning internally. The Verify stage (validation) and quality loop (`{adapter.commandPrefix}Qcode-run-task`) still run after Codex completes.
+**Note**: When the selected implementation route is Codex-native or Codex-bridge, Claude Agent-tool wave splitting is not assumed. Codex may use native subagents or a documented `degraded-inline` fallback. The Verify stage (validation) and quality loop (`{adapter.commandPrefix}Qcode-run-task`) still run after Codex completes.
 
 **Codex Materialization Check (Mandatory after Codex Done):**
 Codex may return `Done` before files are actually written (async companion pattern). The notification hook (`notification.mjs`) handles initial detection and writes state to `unified-state.json` under the `codex_materialization` key.
@@ -115,7 +116,7 @@ Results are logged to `.qe/agent-results/codex-materialization.md` automatically
 **Fallback guarantee**: Missing `.qe/sivs-config.json` → all stages default to Claude. Zero impact on existing workflows.
 
 ## Will
-- Orchestrate parallel execution via Agent Teams
+- Orchestrate parallel execution via the agent adapter (Claude Agent Teams/Agent tool, Codex native subagents, or documented `degraded-inline` fallback)
 - Monitor Haiku teammate performance
 - Synthesize results and handle merges
 
@@ -164,7 +165,7 @@ PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 (Fallback line 금지 — `Qgs`는 `Qgenerate-spec`의 alias이므로 중복이다. Legacy flat-file projects drop the `{slug} · ` prefix and use `{adapter.commandPrefix}Qgs Phase {X+1}: {짧은 별칭}`.)
 When all Phases are complete:
 ```
-All phases done. Finalize with /Qcommit
+All phases done. Finalize with {adapter.commandPrefix}Qcommit
 ```
 
 ## Will Not

@@ -17,7 +17,7 @@ Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints fr
 - Classify every finding with a severity level (FAIL / WARN / PASS)
 - Save a timestamped report to `.qe/security-reports/SECURITY_REPORT_{YYYYMMDD_HHMMSS}.md`
 - Return the overall grade (PASS / WARN / FAIL) and report path to the caller
-- Leverage **Qsecurity-reviewer** for vulnerability pattern detection and **Qsecure-code-guardian** for hardening checks when available
+- Use the scan table below for vulnerability pattern detection and hardening checks
 - Provide concrete remediation guidance for every FAIL and WARN finding
 
 ## Will Not
@@ -32,7 +32,7 @@ Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints fr
 
 A security-focused orchestration agent that audits the current diff for vulnerabilities, secrets, and unsafe patterns. It acts as a gate before merge or deployment by producing a machine-readable PASS/WARN/FAIL grade alongside a human-readable report.
 
-Esecurity-officer does not implement security checks itself — it orchestrates **Qsecurity-reviewer** and **Qsecure-code-guardian** skills and synthesizes their findings into a unified report.
+Esecurity-officer does not fix vulnerabilities itself. It audits the current diff using the scan table below and synthesizes findings into a unified report.
 
 ---
 
@@ -74,8 +74,7 @@ Run the following checks against each changed hunk:
 | SSRF / Open Redirect | User-controlled URLs in HTTP client calls or redirects |
 | Insecure Defaults | Debug flags, CORS wildcard, disabled TLS verification |
 
-Invoke **Qsecurity-reviewer** for pattern-level vulnerability scanning.
-Invoke **Qsecure-code-guardian** for hardening and defense-in-depth checks.
+Use this scan table for pattern-level vulnerability scanning, hardening, and defense-in-depth checks.
 
 ### Phase 3 — Review
 For each finding:
@@ -195,5 +194,5 @@ Summary: {N} FAIL, {N} WARN, {N} INFO
 - Scope is always `git diff HEAD` unless the caller explicitly specifies a different ref
 - Do not report findings in unchanged surrounding context lines — only changed hunks
 - Always provide a remediation example for FAIL findings; guidance is sufficient for WARN
-- If Qsecurity-reviewer or Qsecure-code-guardian skills are unavailable, perform checks directly using the scan table in Phase 2
+- Perform checks directly using the scan table in Phase 2
 - Never include raw secrets or exploit payloads in the report

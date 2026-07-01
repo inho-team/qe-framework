@@ -47,7 +47,7 @@ Generate **3 types** of virtual prompts per skill:
 | Type | Purpose | Example |
 |------|---------|---------|
 | **A. Normal** | Should trigger this skill | "Create a React component" -> Qreact-expert |
-| **B. Boundary** | Distinguish similar skills | "Find root cause of bug" -> Qsystematic-debugging (not Ecode-debugger) |
+| **B. Boundary** | Distinguish similar skills | "Find root cause of bug" -> Ecode-debugger |
 | **C. Unregistered** | No route defined | "Create a jira issue" -> Qjira-cli |
 
 ## Step 3: Simulate Routing
@@ -212,4 +212,4 @@ audits always re-evaluate. Only `--batch` consults the cache.
 
 **MUST DO:** Cross-verify intent-routes.json vs actual skill list; test boundary cases between similar skills; confirm no regressions before fixes; get user confirmation before applying.
 
-**MUST NOT DO:** Modify descriptions without testing; change intent-routes.json without confirmation; change coding-experts descriptions (different trigger mechanism); use real user data.
+**MUST NOT DO:** Modify descriptions without testing; change intent-routes.json without confirmation; use real user data.

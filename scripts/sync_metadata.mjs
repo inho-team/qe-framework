@@ -77,14 +77,6 @@ function stringifyFrontmatter(fm) {
 
 // 1. Sync Skills
 const skillMetadataMap = {
-  'coding-experts': {
-    trigger: 'When specialized language or framework best practices are needed.',
-    model: 'haiku'
-  },
-  'PM': {
-    trigger: 'When product discovery, requirements, or roadmap planning is required.',
-    model: 'sonnet'
-  },
   'Writing': {
     trigger: 'When improving prose or documentation clarity.',
     model: 'haiku'
@@ -108,18 +100,14 @@ for (const file of skillFiles) {
   let model = frontmatter.recommendedModel;
 
   if (!trigger) {
-    if (file.includes('coding-experts')) trigger = skillMetadataMap['coding-experts'].trigger;
-    else if (file.includes('Qpm-')) trigger = skillMetadataMap['PM'].trigger;
-    else if (file.includes('Qwriting-') || file.includes('Qdoc-')) trigger = skillMetadataMap['Writing'].trigger;
+    if (file.includes('Qwriting-') || file.includes('Qdoc-')) trigger = skillMetadataMap['Writing'].trigger;
     else trigger = skillMetadataMap['Core'].trigger;
     frontmatter.invocation_trigger = trigger;
     changed = true;
   }
 
   if (!model) {
-    if (file.includes('coding-experts')) model = skillMetadataMap['coding-experts'].model;
-    else if (file.includes('Qpm-')) model = skillMetadataMap['PM'].model;
-    else model = 'haiku';
+    model = 'haiku';
     frontmatter.recommendedModel = model;
     changed = true;
   }

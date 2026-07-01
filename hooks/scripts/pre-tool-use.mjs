@@ -46,6 +46,8 @@ const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const hints = [];
 let mutatedInput = null;
+const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
+const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
@@ -291,7 +293,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
         // for the commit too, so the release train doesn't have to swap the flag
         // to Qcommit mid-run. TTL on the flag (120s) keeps this bounded.
         also: ['Mbump'],
-        msg: 'Raw git commit is blocked. Use /Qcommit instead.'
+        msg: `Raw git commit is blocked. Use ${skillCommand('Qcommit')} instead.`
       });
     }
 
@@ -299,7 +301,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
       overrideRules.push({
         skill: 'Qbranch',
-        msg: 'Raw gh pr create is blocked. Use /Qbranch instead.'
+        msg: `Raw gh pr create is blocked. Use ${skillCommand('Qbranch')} instead.`
       });
     }
 
@@ -313,7 +315,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (writesPluginJson && /version/.test(cmd)) {
       overrideRules.push({
         skill: 'Mbump',
-        msg: 'Direct version editing is blocked. Use /Mbump instead.'
+        msg: `Direct version editing is blocked. Use ${skillCommand('Mbump')} instead.`
       });
     }
 
@@ -334,7 +336,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (/plugin\.json$/.test(filePath) && /"version"/.test(newStr)) {
       overrideRules.push({
         skill: 'Mbump',
-        msg: 'Direct version editing is blocked. Use /Mbump instead.'
+        msg: `Direct version editing is blocked. Use ${skillCommand('Mbump')} instead.`
       });
     }
   }
@@ -352,7 +354,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       emitBlock({
         skill: rule.skill,
         reason: rule.msg,
-        action: `Use /${rule.skill} instead`,
+        action: rule.skill.startsWith('_') ? rule.msg : `Use ${skillCommand(rule.skill)} instead`,
         bypass: `skill-bypass.json with skill:"${rule.skill}"`,
       });
     }
@@ -392,12 +394,12 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   }
 
   // Soft hints for actions that can't be reliably blocked
-  if (toolName === 'Read') {
-    const filePath = toolInput.file_path || toolInput.filePath || '';
-    if (/plugin\.json$/.test(filePath)) {
-      hints.push('Use /Qversion to show framework version instead of reading plugin.json directly.');
-    }
+if (toolName === 'Read') {
+  const filePath = toolInput.file_path || toolInput.filePath || '';
+  if (/plugin\.json$/.test(filePath)) {
+    hints.push(`Use ${skillCommand('Qversion')} to show framework version instead of reading plugin.json directly.`);
   }
+}
 }
 
 // --- SIVS Option Guard (AskUserQuestion) ---

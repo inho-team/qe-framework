@@ -1,6 +1,6 @@
 ---
 name: Qinit
-description: QE framework (Query Executor) initial setup. Creates CLAUDE.md, settings.json, directory structure, and .gitignore in a new project, then auto-analyzes the project. Use when the user wants to initialize a project or set up the framework.
+description: QE framework (Query Executor) initial setup. Creates the QE state directory, client-specific instruction/config artifacts, and .gitignore entries in a new project, then auto-analyzes the project. Use when the user wants to initialize a project or set up the framework.
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku
 tier: core
@@ -25,9 +25,12 @@ install target. Codex-native setup should be handled by the Codex install target
 as a universal client file.
 
 ## Pre-check
-Before running, verify whether `CLAUDE.md` exists in the project root.
-- **If it does not exist**: Proceed with initialization (Step 0).
-- **If it exists**: Run migration check (Step M) instead of exiting.
+Before running, verify whether a project instruction artifact exists in the project root:
+- Claude adapter: `CLAUDE.md`
+- Codex-capable project: `AGENTS.md` or an existing QE-managed equivalent
+
+- **If no instruction artifact exists**: Proceed with initialization (Step 0).
+- **If `CLAUDE.md` exists**: Run migration check (Step M) instead of exiting.
 
 ### Step M: CLAUDE.md Migration
 When `CLAUDE.md` already exists, check if it contains the `## QE Toolkit` section.
@@ -70,7 +73,7 @@ node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await
 - If `installed: true`: Display "Codex 플러그인 v{version} 감지됨" before the options.
 - If `installed: false`: Display "Codex 플러그인 미설치 (Hybrid 선택 시 설치 안내)" before the options.
 - If the command fails or the script is missing: Treat as `installed: false`.
-- If installed > 30 days ago (compare `installedAt`): Append "Run `/Qupdate` to check for updates."
+- If installed > 30 days ago (compare `installedAt`): Append "Run `{adapter.commandPrefix}Qupdate` to check for updates."
 
 After running the detection command and displaying the result, ask the user to configure SIVS engine routing.
 
@@ -109,7 +112,7 @@ Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy ver
    ```bash
    node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);console.log(m.isCodexPluginAvailable())})()"
    ```
-   - If `false`: Show warning ("codex-plugin-cc가 설치되어 있지 않습니다. `/plugin install codex@openai-codex`로 설치 후 `/Qsivs-config`로 다시 설정해주세요.") → Fallback to Claude Only.
+   - If `false`: Show warning ("Codex bridge is not available for this base client. Claude-base sessions can install it with `/plugin install codex@openai-codex`; Codex-native sessions should verify native Codex readiness. Then rerun `{adapter.commandPrefix}Qsivs-config`.") → Fallback to Claude Only.
    - If `true`: Continue.
 2. For each SIVS stage, ask through the interaction adapter to select engine:
 
@@ -147,7 +150,7 @@ Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy ver
    node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
    ```
 
-**On option 3 "나중에 설정"**: Skip — Show guidance message: "`.qe/sivs-config.json`은 나중에 수동 생성하거나 `/Qsivs-config`로 설정할 수 있습니다."
+**On option 3 "나중에 설정"**: Skip — Show guidance message: "`.qe/sivs-config.json`은 나중에 수동 생성하거나 `{adapter.commandPrefix}Qsivs-config`로 설정할 수 있습니다."
 
 ### Step 2: Auto-analyze Project
 Delegate the analysis to the `Erefresh-executor` sub-agent. Since Erefresh-executor uses the same analysis logic as Qrefresh, consistency of analysis is guaranteed.
@@ -193,15 +196,18 @@ Detection heuristics:
 
 > Legacy templates (`minimal.md`, `standard.md`, `fullstack.md`, `monorepo.md`) are retained for backward compatibility but `base.md` is the preferred template going forward.
 
-#### CLAUDE.md
-Generate using the selected template from `templates/claude-md/`.
-Also reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and add a reference line in the generated CLAUDE.md pointing to it.
+#### Project Instruction Artifact
+Generate the active client's instruction artifact using the selected template.
+Claude adapter writes `CLAUDE.md` from `templates/claude-md/`. Codex-capable
+projects may additionally maintain `AGENTS.md` or another QE-managed instruction
+artifact, but `.qe/TASK_LOG.md` remains the task ledger.
+Also reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and add a reference line in the generated instruction artifact pointing to it.
 - Fill in project name and description
 - Reflect tech stack from Step 2 analysis results
 - Leave goals, constraints, and decisions empty
 - Create an empty table for the task list
 
-#### .claude/settings.json
+#### Claude Adapter: `.claude/settings.json`
 ```json
 {
   "env": {
@@ -238,7 +244,7 @@ Sets the character budget for slash command tool descriptions so all skills fit 
 ```
 Created with `mkdir -p`.
 
-#### Agent Teams (Optional)
+#### Claude Adapter: Agent Teams (Optional)
 If the user wants to enable Agent Teams for parallel work:
 ```json
 // .claude/settings.json
@@ -253,7 +259,7 @@ Note: Agent Teams is experimental. It enables parallel teammate spawning for com
 #### .gitignore Entries
 If `.gitignore` does not exist, create it; if it does, add only missing entries from below:
 ```gitignore
-# Claude Code
+# QE Framework / client-local state
 .claude/settings-local.json
 .qe/tasks/
 .qe/checklists/
@@ -268,7 +274,7 @@ ANALYSIS_*.md
 부트스트랩할까요? (기존 DECISION_LOG·MISTAKE·RETROSPECTIVE를 `.qe/wiki/`로 시드 → Qwiki 생태계 시작)"를
 묻는다.
 - **예**: `.qe/wiki/{inbox,raw,pages,templates,queries,archive}` 스켈레톤 생성 →
-  `node <QE plugin>/scripts/lib/wiki-seed.mjs --seed-self` 실행 → "N개 inbox 적재됨. **다음: /Qwiki-compile**
+  `node <QE plugin>/scripts/lib/wiki-seed.mjs --seed-self` 실행 → "N개 inbox 적재됨. **다음: {adapter.commandPrefix}Qwiki-compile**
   로 위키 페이지로 합성하세요(self-seed는 게이트 필수, `--batch` 금지)" 안내.
 - **아니요/생략**: 아무것도 만들지 않는다. **기존 Qinit 동작과 완전히 동일**(wiki는 순수 opt-in).
 - `.qe/analysis`는 시드 대상이 아니다(D-WIKI-02). wiki가 비면 이후 모든 소비 경로는 무영향(Phase 5).
@@ -284,14 +290,14 @@ Show the list of created files and guide the next steps.
 - Do not create files without user confirmation. **Use the interaction adapter to confirm. Claude MUST use `AskUserQuestion`; Codex interactive may use plain-text choices; Codex non-interactive must only proceed when the user explicitly requested initialization and the change is reversible.**
 
 ## Will
-- Create CLAUDE.md from template
+- Create the active client instruction artifact from template
 - Create .qe/ directory structure (including analysis/, TASK_LOG.md)
 - Auto-analyze project and save results
 - Configure .gitignore
-- Create .claude/settings.json
+- Create `.claude/settings.json` only for the Claude adapter
 
 ## Will Not
-- Create task specs → use `/Qgenerate-spec`
+- Create task specs → use `{adapter.commandPrefix}Qgenerate-spec`
 - Write or modify code
 - Overwrite existing files
 - Modify source code (analysis is read-only)

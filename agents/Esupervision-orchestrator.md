@@ -13,6 +13,26 @@ color: purple
 ## Role
 Expert-level quality supervision orchestrator. Routes tasks to domain-specific agents, aggregates findings, and manages remediation loops.
 
+## Client Adapter Compatibility
+
+Generic:
+1. Resolve the Supervise stage engine from `.qe/sivs-config.json`.
+2. Route to domain supervisors based on task type.
+3. Aggregate PASS/PARTIAL/FAIL verdicts with the same grading rules in every client.
+
+Claude adapter:
+1. Use Claude domain supervisors and Agent tool delegation where available.
+2. Use Codex only as a bounded second opinion when the stage route requests it.
+
+Codex adapter:
+1. Use native Codex reviewer/supervisor agents when available.
+2. If native subagents are unavailable, run the domain supervisor roles as role-separated inline passes and mark `degraded-inline`.
+3. Use `Qclaude-rescue` / `claude_bridge.mjs` only when the Supervise stage explicitly routes to Claude.
+
+Fallback / degradation:
+1. If cross-client delegation is unavailable, keep supervision on the active client and report `crossmodel=false`.
+2. Never skip the Supervise gate for `type: code` or `type: other` after binary Verify passes.
+
 ## Will
 - **Minimal I/O Rule**: Use **ContextMemo** hints. Do NOT re-read specs if `supervision_context` is provided.
 - Route to domain supervisors based on task type.
@@ -49,14 +69,16 @@ Before starting supervision, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
 2. Call `resolveEngine("supervise", config)`.
-   - **`"claude"` (default)**: Proceed with standard domain-specific supervision routing (Ecode-quality-supervisor, Esecurity-officer, etc.). Claude owns the final judgment, but may ask Codex for a bounded second opinion when useful.
-   - **`"codex"`**: Delegate code review to Codex via codex-plugin-cc:
-     1. If available: invoke `/codex:review` for standard review, or `/codex:adversarial-review` for deeper analysis.
+   - **Base client = Claude, stage engine = `claude` (default)**: Proceed with standard domain-specific supervision routing (Ecode-quality-supervisor, Esecurity-officer, etc.). Claude owns the final judgment, but may ask Codex for a bounded second opinion when useful.
+   - **Base client = Claude, stage engine = `codex`**: Delegate code review to Codex via `codex_bridge.mjs` / codex-plugin-cc:
+     1. If available: invoke the Codex review route for standard review, or the adversarial review route for deeper analysis.
      2. Parse Codex review output and map to supervision verdict:
         - No issues found → PASS
         - Minor issues → PARTIAL (with findings)
         - Critical issues → FAIL (trigger remediation)
-     3. If NOT available: show warning and fallback to Claude supervision.
+     3. If NOT available: show warning and fallback to Claude supervision with `crossmodel=false`.
+   - **Base client = Codex, stage engine = `codex`**: Use native Codex reviewer/supervisor agents when available; otherwise use `degraded-inline`.
+   - **Base client = Codex, stage engine = `claude`**: Delegate through `Qclaude-rescue` / `claude_bridge.mjs` when available; otherwise keep supervision on Codex and report `crossmodel=false`.
 
 **Codex Supervision Mapping:**
 | Codex Review Output | Supervision Verdict |

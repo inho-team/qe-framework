@@ -10,7 +10,7 @@ triggers: autoresearch, experiment loop, autonomous experiment, iterate code, op
 role: specialist
 scope: implementation
 output-format: results.tsv + git branch
-related-skills: Qutopia, Edeep-researcher, Ecode-debugger, Ecode-reviewer, Ecompact-executor, Qdata-analysis, Qlesson-learned
+related-skills: Qutopia, Edeep-researcher, Ecode-debugger, Ecode-reviewer, Ecompact-executor
 keywords: autoresearch, experiment, autonomous, loop, metric, optimize, iterate, keep, discard, git branch, results.tsv, multi-file
 invocation_trigger: When the user wants to run iterative code-modify-evaluate experiments for optimization, ML training, algorithm benchmarks, or performance tuning.
 recommendedModel: haiku
@@ -157,7 +157,7 @@ Autoresearch Session: {tag}
   Branch: autoresearch/{tag}
 ```
 
-### 2. Lesson Extraction (Qlesson-learned pattern)
+### 2. Lesson Extraction
 Analyze `autoresearch/<tag>` branch git history: effective change types, repeated failure directions, discovered optimization patterns. Save to `autoresearch-lessons-{tag}.md`.
 
 ### 3. Branch Guidance
@@ -172,7 +172,6 @@ To merge: git checkout main && git merge autoresearch/{tag}
 | **Ecompact-executor** | Agent | Phase 1 → Phase 2 (background) | Recommended |
 | **Ecode-reviewer** | Agent | Step 3.5 (10s timeout) | Recommended |
 | **Ecode-debugger** | Agent | Step 7 (crash only) | Recommended |
-| **Qlesson-learned** | Skill pattern | Phase 3 | Optional |
 
 **On dependency failure:** skip the step and continue the loop. Dependencies improve quality but must never stop the loop.
 

@@ -20,6 +20,8 @@ import {
   readSessionName,
   readSessionPlan,
   writeSessionName,
+  summarizeSessionState,
+  formatSessionStateSummary,
   listSessionBuckets,
   latestHandoffIn,
   resolveResumeContext,
@@ -469,4 +471,66 @@ test('resolveResumeContext: source empty when nothing exists anywhere', () => {
   } finally {
     rmSync(root, { recursive: true });
   }
+});
+
+// ---------------------------------------------------------------------------
+// summarizeSessionState / formatSessionStateSummary
+// ---------------------------------------------------------------------------
+
+test('summarizeSessionState: combines plan, fallback handoff, and Codex job without writes', () => {
+  const root = mkroot();
+  try {
+    const sessionId = '8ec5fe50-0000-0000-0000-000000000000';
+    setActiveSid(root, sessionId);
+    mkdirSync(join(root, '.qe/planning/.sessions'), { recursive: true });
+    writeFileSync(
+      join(root, `.qe/planning/.sessions/${sessionId}.json`),
+      JSON.stringify({ activePlanSlug: 'codex-claude-runtime', sessionName: 'Runtime closure' }),
+    );
+    const hof = join(root, '.qe/handoffs/sessions/7eaa0d54');
+    mkdirSync(hof, { recursive: true });
+    writeFileSync(join(hof, 'HANDOFF_20260629.md'), 'handoff');
+
+    const summary = summarizeSessionState(root, {
+      sessionId,
+      codexJob: {
+        found: true,
+        status: 'running',
+        jobId: 'job-1',
+        phase: 'implement',
+      },
+    });
+
+    assert.equal(summary.sid, '8ec5fe50');
+    assert.equal(summary.sessionName, 'Runtime closure');
+    assert.equal(summary.activePlanSlug, 'codex-claude-runtime');
+    assert.equal(summary.resumeSource, 'fallback');
+    assert.equal(summary.resumeSid, '7eaa0d54');
+    assert.equal(summary.fellBackFrom, '8ec5fe50');
+    assert.equal(summary.codexJob.resultRequired, true);
+    assert.equal(existsSync(join(root, '.qe/context/sessions/8ec5fe50')), false);
+
+    const line = formatSessionStateSummary(summary);
+    assert.match(line, /^\[Session State\]/);
+    assert.match(line, /plan:codex-claude-runtime/);
+    assert.match(line, /resume:fallback:7eaa0d54<-8ec5fe50/);
+    assert.match(line, /codex:running:implement#job-1:retrieve \/codex:result/);
+  } finally {
+    rmSync(root, { recursive: true });
+  }
+});
+
+test('formatSessionStateSummary: returns empty when no extra signal exists', () => {
+  assert.equal(formatSessionStateSummary({
+    sid: 'a1b2c3d4',
+    sessionName: '',
+    activePlanSlug: '',
+    resumeSource: 'empty',
+    resumeSid: 'a1b2c3d4',
+    fellBackFrom: null,
+    hasRestorableContext: false,
+    hasHandoff: false,
+    latestHandoff: null,
+    codexJob: { found: false, status: 'none' },
+  }), '');
 });

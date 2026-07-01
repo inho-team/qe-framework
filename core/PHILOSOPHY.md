@@ -253,6 +253,13 @@ PSE chain (Qplan → Qgs → Qatomic-run → Qcode-run-task) is the structured d
 
 **Rule**: Skills should wrap or complement native features, not compete with them. If a native feature does the job better, guide the user to it instead of reimplementing it.
 
+The Execution Harness Layer (`core/EXECUTION_HARNESS.md`) defines QE-owned runtime
+patterns for mode selection, durable lanes, isolated workspaces, status
+projection, and evidence collection. It is subordinate to the SIVS Loop and the
+Mandatory Obligations above: harness status can supply evidence, but it cannot
+replace TASK_REQUEST fulfillment, VERIFY_CHECKLIST completion, or supervision
+judgment.
+
 See `docs/CLAUDE_CODE_FEATURES.md` for verified feature reference with minimum versions and official documentation links.
 
 ---

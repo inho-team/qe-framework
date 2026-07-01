@@ -7,6 +7,8 @@ agents, and hard safety hooks, with documented degradation where Codex and
 Claude expose different primitives. See
 `../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md` for measured
 parity status.
+The public documentation parity pass is summarized in
+`../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md`.
 
 ---
 
@@ -105,7 +107,7 @@ prefer Codex by default while Spec and Supervise stay Claude-led:
 }
 ```
 
-Managed via `/Qsivs-config`. Falls back to Claude if codex-plugin-cc is not installed.
+Managed via `/Qsivs-config` on Claude or `$Qsivs-config` on Codex. Falls back to Claude if codex-plugin-cc is not installed.
 
 ---
 
@@ -129,13 +131,13 @@ The context memory system optimizes Claude's context window by loading only rele
 1. **Always load** `root.md` — project-wide conventions
 2. **Glob match** — load contexts whose pattern matches the working directory
 3. **Multiple matches OK** — `src/frontend/api/` can match both `frontend.md` and `api.md`
-4. **Staleness detection** — warns if context is >7 days old, suggests `/Qcontext refresh`
+4. **Staleness detection** — warns if context is >7 days old, suggests the active-client `Qcontext refresh` command
 
 ### Token Savings
 
 ```
-Traditional:  Load full CLAUDE.md (all domain rules)    → 100% tokens
-QE Context:   Load root.md + matched folder context     → only the matched subset
+Traditional:  Load one monolithic project instruction artifact → 100% tokens
+QE Context:   Load root.md + matched folder context            → only the matched subset
 
 Savings: fewer context tokens per session — the magnitude depends on project size and
 how domain rules split across folders. Measure it for your repo: see docs/BENCHMARK.md.
@@ -143,15 +145,15 @@ how domain rules split across folders. Measure it for your repo: see docs/BENCHM
 
 ### Management
 
-| Command | Action |
-|---------|--------|
-| `/Qcontext init` | Initialize with root.md |
-| `/Qcontext add <name> <pattern>` | Add folder context |
-| `/Qcontext show` | List all contexts + staleness |
-| `/Qcontext refresh` | Update stale contexts |
-| `/Qcontext status <path>` | Preview matches for a path |
+| Claude | Codex | Action |
+|--------|-------|--------|
+| `/Qcontext init` | `$Qcontext init` | Initialize with root.md |
+| `/Qcontext add <name> <pattern>` | `$Qcontext add <name> <pattern>` | Add folder context |
+| `/Qcontext show` | `$Qcontext show` | List all contexts + staleness |
+| `/Qcontext refresh` | `$Qcontext refresh` | Update stale contexts |
+| `/Qcontext status <path>` | `$Qcontext status <path>` | Preview matches for a path |
 
-Auto-refreshed when `/Qrefresh` runs.
+Auto-refreshed when the active-client `Qrefresh` command runs.
 
 ---
 
@@ -172,13 +174,47 @@ Auto-refreshed when `/Qrefresh` runs.
   Agent tool, while Codex uses generated native subagents and role-separated
   inline execution only when a runtime lacks the required primitive.
 
+## Lifecycle Adapter
+
+Lifecycle behavior is defined as generic QE events and then rendered through the
+active client adapter. See `core/LIFECYCLE_ADAPTER.md` and
+`core/INTERACTION_ADAPTER.md`.
+
+| Generic event | Claude adapter | Codex adapter |
+|---------------|----------------|---------------|
+| SessionStart | Claude plugin hook | Codex lifecycle wrapper when the event is emitted |
+| PreToolUse | Claude plugin hard-block hook | Codex hook fence + lifecycle wrapper |
+| PostToolUse | Claude plugin hook | Codex wrapper/shim when available |
+| Stop | Claude plugin hook | Codex wrapper/shim when available |
+| Notification | Claude plugin hook | Codex wrapper/shim when available |
+| Status/HUD | Claude `statusLine` | No native Codex statusline |
+
+Safety-critical behavior, especially raw commit/version guards and autonomous
+mode rails, must be equivalent. Non-safety events can degrade, but they must be
+labeled as wrapper, proxy, shim, unsupported, or degraded.
+
+## Execution Harness State And Lifecycle
+
+Execution Harness is the runtime layer beneath PSE and SIVS. Its source contract
+is [../core/EXECUTION_HARNESS.md](../core/EXECUTION_HARNESS.md). Harness state
+ownership and lane records are defined in
+[../core/STATE_SPEC.md](../core/STATE_SPEC.md), while harness lifecycle labels
+and status projection behavior are rendered through
+[../core/LIFECYCLE_ADAPTER.md](../core/LIFECYCLE_ADAPTER.md).
+
+| Contract | Responsibility |
+| --- | --- |
+| Execution Harness | Selects and observes the runtime shape without owning completion. |
+| State Spec | Defines lane storage, status axes, session binding, and evidence boundaries. |
+| Lifecycle Adapter | Renders harness labels and status projection through client capabilities. |
+
 ---
 
 ## Model Tiering
 
 | Tier | Model | Assigned To |
 |------|-------|-------------|
-| **Strategy** | Opus | `/Qplan`, Edeep-researcher, Esupervision-orchestrator |
+| **Strategy** | Opus | `Qplan`, Edeep-researcher, Esupervision-orchestrator |
 | **Implementation** | Sonnet | Etask-executor, Ecode-reviewer, Ecode-test-engineer |
 | **Parallel Tasks** | Haiku | Wave Teammates, archiving, data refresh, formatting |
 
@@ -198,17 +234,15 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->106<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->54<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
 | Core PSE | 6 | Qplan, Qgs, Qatomic-run, Qrun-task, Qcode-run-task, Qinit |
 | Context & Config | 5 | Qcontext, Qsivs-config, Qrefresh, Qmemory, Qcompact |
-| Project Management | 6 | Qpm-prd, Qpm-roadmap, Qpm-okr, Qpm-retro, Qpm-strategy, Qpm-gtm |
-| Documents | 6 | Qdocx, Qpdf, Qpptx, Qxlsx, Qdoc-converter, Qdoc-comment |
-| Academic | 4 | Qgrad-paper-write, Qgrad-research-plan, Qgrad-seminar-prep, Qgrad-thesis-manage |
-| Coding Experts | 71 | Backend(14), Frontend(12), Languages(13), Infra(14), Quality(12), Data(6) |
-| Other | 67 | `/Qfind-skills` or `/Qhelp` to discover |
+| Docs & Writing | 1 | Qwriting-clearly |
+| Research | 3 | Qautoresearch, Qfact-checker, Qsource-verifier |
+| Other | 45 | `Qfind-skills` or `Qhelp` to discover |
 
 ---
 
@@ -244,10 +278,10 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ## v6.x Changes
 
-- **Folder-aware context memory** (`/Qcontext`) — partition and optimize context loading
-- **SIVS config CLI** (`/Qsivs-config`) — quick engine routing changes
+- **Folder-aware context memory** (`Qcontext`) — partition and optimize context loading
+- **SIVS config CLI** (`Qsivs-config`) — quick engine routing changes
 - **165 skills** (was 93 in v5.0) — 71 coding expert skills added
-- **Auto-refresh integration** — `/Qrefresh` keeps context files up to date
+- **Auto-refresh integration** — `Qrefresh` keeps context files up to date
 - **Dual-client simplicity** — Claude and Codex assets install from the same package
 
 ---
@@ -271,7 +305,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 - Skill deduplication audit: 20 merge candidate clusters identified
 
 ### Multi-Agent Orchestration (Phase 4)
-- Agent Teams v2: Full `--agents` flag documentation (16 fields)
+- Claude adapter: Agent Teams v2 `--agents` flag documentation (16 fields)
 - `agent-teams.schema.json`: JSON Schema validation
 - `managed-agents-adapter.mjs`: QE agent → Managed Agents API converter
 - Cross-session memory patterns guide

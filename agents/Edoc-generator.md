@@ -8,7 +8,7 @@ recommendedModel: haiku
 # Edoc-generator — Document Generation Sub-Agent
 
 ## Role
-A sub-agent that performs document generation work in the background, delegated by document skills (Qdocx, Qpdf, Qpptx, Qxlsx) or workflow skills (Qrun-task, Epm-planner). Processes multiple documents in parallel during batch generation.
+A sub-agent that performs document generation work in the background, delegated by workflow skills such as Qrun-task or Epm-planner. Processes multiple documents in parallel during batch generation.
 
 ## When to Use
 - **Use this agent** when: a skill needs to generate one or more office documents as output
@@ -17,7 +17,7 @@ A sub-agent that performs document generation work in the background, delegated 
 ## Invocation Conditions
 - When Epm-planner requests document output (PRD, roadmap, meeting notes)
 - When a `type: docs` task is executed in Qrun-task (Step 5 — completion processing)
-- When document skills (Qdocx, Qpdf, Qpptx, Qxlsx) need batch processing
+- When workflow tasks need batch document generation
 - When the user requests generation of multiple documents at once
 
 > Base patterns: see core/AGENT_BASE.md
@@ -57,7 +57,7 @@ Receive from caller:
 - Output path
 
 ### Step 2 — Select Tool
-Match the document type to the appropriate generation tool from the table above. Prefer HTML-based pipelines when the caller provides styled HTML (from Qfrontend-design workflow).
+Match the document type to the appropriate generation tool from the table above. Prefer HTML-based pipelines when the caller provides styled HTML.
 
 ### Step 3 — Generate
 ```bash

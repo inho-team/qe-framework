@@ -21,6 +21,35 @@ function codexify(text) {
     .replace(/`\/([QM][A-Za-z0-9_-]+)([^`]*)`/g, '`$$$1$2`');
 }
 
+function codexifyJsonStrings(value) {
+  if (typeof value === 'string') return codexify(value);
+  if (Array.isArray(value)) return value.map(codexifyJsonStrings);
+  if (value && typeof value === 'object') {
+    return Object.fromEntries(
+      Object.entries(value).map(([key, nested]) => [key, codexifyJsonStrings(nested)]),
+    );
+  }
+  return value;
+}
+
+function renderCodexStdout(stdout) {
+  if (!stdout) return '';
+
+  try {
+    const parsed = JSON.parse(stdout);
+
+    // Codex PreCompact currently treats Claude-style hookSpecificOutput as an
+    // invalid hook result. Keep the hook side effects and return a minimal pass.
+    if (eventName === 'PreCompact') {
+      return `${JSON.stringify({ continue: parsed.continue !== false })}\n`;
+    }
+
+    return `${JSON.stringify(codexifyJsonStrings(parsed))}\n`;
+  } catch {
+    return codexify(stdout);
+  }
+}
+
 const [, , eventName = '', scriptRel = ''] = process.argv;
 if (!eventName || !scriptRel || scriptRel.includes('..')) {
   failOpen();
@@ -69,6 +98,6 @@ const result = spawnSync(process.execPath, [target], {
   },
 });
 
-if (result.stdout) process.stdout.write(codexify(result.stdout));
+if (result.stdout) process.stdout.write(renderCodexStdout(result.stdout));
 if (result.stderr) process.stderr.write(codexify(result.stderr));
 process.exit(result.status ?? 0);

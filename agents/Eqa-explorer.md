@@ -14,8 +14,8 @@ color: orange
 ## When to Use
 - **Use this agent** when: Qqa-council needs exploratory, hostile-user bug discovery against a live
   URL, with the source deliberately out of reach (true black-box).
-- **Use Qplaywright-expert instead** when: you already know the flow and want a codified regression
-  test (white-box).
+- **Use Eqa-orchestrator instead** when: you already know the flow and want a codified regression
+  test or a test-heal loop.
 - **Use Eqa-orchestrator instead** when: a regression already failed and needs heal (test→fix loop).
 
 ## Hard Boundary (non-negotiable)

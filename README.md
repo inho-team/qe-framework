@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->106<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->54<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -83,6 +83,13 @@ plugin is the distribution anchor, and Codex-native assets are installed when
 [`VERIFICATION_MATRIX.md`](.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
 for the support boundary.
 
+The shared adapter vocabulary is defined in
+[`core/INTERACTION_ADAPTER.md`](core/INTERACTION_ADAPTER.md),
+[`core/LIFECYCLE_ADAPTER.md`](core/LIFECYCLE_ADAPTER.md), and the Phase 1
+[`ADAPTER_CONTRACT.md`](.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md).
+The Phase 4 public-doc parity pass is recorded in
+[`PARITY_VERIFICATION_REPORT.md`](.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md).
+
 Install the Claude plugin with two commands:
 
 ```bash
@@ -94,10 +101,10 @@ claude plugin install qe-framework@inho-team-qe-framework
 ```
 
 That installs Claude assets and, when `~/.codex` exists, synchronizes Codex
-assets too: 105 native skills, 27 generated agent TOML files, copied scripts,
-and a managed lifecycle hook fence pointing at the installed QE hook bundle.
-After a Codex install, run `/hooks` inside Codex once to review and trust the QE
-safety hook.
+assets too: native skills, generated agent TOML files, copied scripts, and a
+managed lifecycle hook fence pointing at the installed QE hook bundle. After a
+Codex install, run the hooks review command inside Codex once to review and
+trust the QE safety hook.
 
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
@@ -155,6 +162,11 @@ Every follow-up command should keep the active client prefix: Claude `/Q...`, Co
 
 Shared QE skills render follow-up commands with the active client prefix:
 Claude uses `/Q...`; Codex uses `$Q...`.
+
+`Qinit` creates the active client's project instruction artifact. Claude uses
+`CLAUDE.md`; Codex-capable projects may use `AGENTS.md`. Shared QE state and
+task history live under `.qe/`, with `QE_CONVENTIONS.md` as the common rule
+reference.
 
 ---
 
@@ -219,13 +231,17 @@ Maximum independence:
   (no stage shares the same engine with its neighbor)
 ```
 
-Pick a setup with one command:
+Pick a setup with the active client prefix:
 
 ```
-/Qsivs-config verify codex --background true # long verify job in Codex background
-/Qsivs-config set --all claude               # route every stage to Claude
-/Qsivs-config                                # see current setup
-/Qsivs-config --help                         # full options
+Claude: /Qsivs-config verify codex --background true # long verify job in Codex background
+Codex:  $Qsivs-config verify codex --background true
+Claude: /Qsivs-config set --all claude               # route every stage to Claude
+Codex:  $Qsivs-config set --all claude
+Claude: /Qsivs-config                                # see current setup
+Codex:  $Qsivs-config
+Claude: /Qsivs-config --help                         # full options
+Codex:  $Qsivs-config --help
 ```
 
 No Codex? No problem. No Claude delegation from Codex? Also fine. Each base runs
@@ -235,7 +251,7 @@ for the other engine. The four base/engine combinations are documented in
 
 ### Folder-Aware Context Memory
 
-**The key differentiator.** Instead of loading one massive CLAUDE.md, QE partitions context by folder:
+**The key differentiator.** Instead of loading one massive project instruction artifact, QE partitions context by folder:
 
 ```
 .qe/context/
@@ -254,15 +270,15 @@ Working in src/frontend/components/Button.tsx
             (savings vary by project; measure with docs/BENCHMARK.md)
 ```
 
-| Command | Description |
-|---------|-------------|
-| `/Qcontext init` | Initialize context partitioning |
-| `/Qcontext add backend "src/backend/**"` | Add a folder context |
-| `/Qcontext show` | View all contexts + staleness status |
-| `/Qcontext refresh` | Auto-update stale contexts |
-| `/Qcontext status src/api/` | Preview which contexts would load |
+| Claude | Codex | Description |
+|--------|-------|-------------|
+| `/Qcontext init` | `$Qcontext init` | Initialize context partitioning |
+| `/Qcontext add backend "src/backend/**"` | `$Qcontext add backend "src/backend/**"` | Add a folder context |
+| `/Qcontext show` | `$Qcontext show` | View all contexts + staleness status |
+| `/Qcontext refresh` | `$Qcontext refresh` | Auto-update stale contexts |
+| `/Qcontext status src/api/` | `$Qcontext status src/api/` | Preview which contexts would load |
 
-Auto-refreshed via `/Qrefresh` integration.
+Auto-refreshed via the active-client `Qrefresh` integration.
 
 ### Model Tiering
 
@@ -270,7 +286,7 @@ Auto-refreshed via `/Qrefresh` integration.
 |-------|-----|---------|
 | **Haiku** | Simple, parallel tasks | Wave Teammates, archiving, data refresh |
 | **Sonnet** | Code implementation | Etask-executor, Ecode-reviewer |
-| **Opus** | Strategy, architecture | /Qplan, Edeep-researcher |
+| **Opus** | Strategy, architecture | Claude `/Qplan`, Codex `$Qplan`, Edeep-researcher |
 
 Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
@@ -286,17 +302,22 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->106<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->54<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
-> other 170+ are an opt-in library that ships in the *same package* — no extra installs,
-> no separate plugins. New here? Learn these and ignore the rest until you need them:
+> the rest is intentionally smaller after hard-pruning broad PM/document/academic
+> helper families. New here? Learn these and ignore the rest until you need them:
 >
 > Claude: `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qatomic-run` · `/Qcode-run-task` · `/Qsivs-config`
 >
 > Codex: `$Qinit` · `$Qcontext` · `$Qplan` · `$Qgs` · `$Qatomic-run` · `$Qcode-run-task` · `$Qsivs-config`
 >
-> *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The breadth is a curated library, not a packaging burden — one install, progressive disclosure.)*
+> *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The shipped catalog is intentionally kept small enough to stay discoverable.)*
+
+Specialist guidance removed from the default catalog now lives outside this
+framework package in `https://github.com/inho-team/qe-mcp`. Install or sync that
+MCP package when you need `qe_search_experts` / `qe_read_expert` without making
+every QE Framework install download the optional expert corpus.
 
 ### Core Skills
 
@@ -305,13 +326,11 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 | **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
 | **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` | 5 |
-| **Project** | `Qmap-codebase` `Qcommit` `Qbranch` `Qarchive` `Qproject-sync` | 5 |
-| **PM** | `Qpm-prd` `Qpm-roadmap` `Qpm-okr` `Qpm-retro` `Qpm-strategy` `Qpm-gtm` | 6 |
-| **Quality** | `Qsystematic-debugging` `Qtest-driven-development` `Qgc` `Qsource-verifier` | 4 |
-| **Docs & Output** | `Qdocx` `Qpdf` `Qpptx` `Qxlsx` `Qdoc-converter` `Qdoc-comment` | 6 |
-| **Academic** | `Qgrad-paper-write` `Qgrad-research-plan` `Qgrad-seminar-prep` `Qgrad-thesis-manage` | 4 |
-| **Research** | `Qautoresearch` `Qfact-checker` `Qsource-verifier` `Qdata-analysis` | 4 |
-| **More** | `/Qfind-skills` or `/Qhelp` on Claude; `$Qfind-skills` or `$Qhelp` on Codex | 54+ |
+| **Project** | `Qcommit` `Qbranch` `Qarchive` `Qproject-sync` | 4 |
+| **Quality** | `Qgc` `Qsource-verifier` | 2 |
+| **Docs & Writing** | `Qwriting-clearly` | 1 |
+| **Research** | `Qautoresearch` `Qfact-checker` `Qsource-verifier` | 3 |
+| **More** | `/Qfind-skills` or `/Qhelp` on Claude; `$Qfind-skills` or `$Qhelp` on Codex | Extended catalog |
 
 #### ⚠️ Autonomous Mode (`/Qutopia` / `$Qutopia`) — Use With Caution
 
@@ -333,136 +352,6 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 **Do NOT enable Qutopia for:** exploratory work, new project kick-offs, ambiguous requirements, first-time tools, or anything on a shared/production branch.
 
 **Recommended lifecycle:** Claude `/Qutopia status` -> `/Qutopia` (or `--work` / `--qa`) -> `/Qutopia off`; Codex `$Qutopia status` -> `$Qutopia` -> `$Qutopia off`. Leaving it on across sessions is how accidents happen.
-
-### Coding Expert Skills (71 experts)
-
-Domain-specific best practices organized by category:
-
-```
-coding-experts/
-├── backend/      14 experts    ├── frontend/    12 experts
-├── languages/    13 experts    ├── infra/       14 experts
-├── quality/      12 experts    └── data/         6 experts
-```
-
-<details>
-<summary><b>Backend (14)</b></summary>
-
-| Expert | Domain |
-|--------|--------|
-| `Qapi-designer` | REST API design, OpenAPI |
-| `Qarchitecture-designer` | System design, ADR |
-| `Qdjango-expert` | Django, DRF |
-| `Qdotnet-core-expert` | .NET Core, EF |
-| `Qfastapi-expert` | FastAPI, async SQLAlchemy |
-| `Qgraphql-architect` | GraphQL, Federation |
-| `Qlaravel-specialist` | Laravel, Eloquent |
-| `Qlegacy-modernizer` | Legacy migration |
-| `Qmcp-developer` | MCP protocol, SDK |
-| `Qmicroservices-architect` | Microservices patterns |
-| `Qnestjs-expert` | NestJS, DI |
-| `Qrails-expert` | Rails, Hotwire |
-| `Qspring-boot-engineer` | Spring Boot |
-| `Qwebsocket-engineer` | WebSocket, scaling |
-
-</details>
-
-<details>
-<summary><b>Frontend (12)</b></summary>
-
-| Expert | Domain |
-|--------|--------|
-| `Qangular-architect` | Angular, NgRx, RxJS |
-| `Qflutter-expert` | Flutter, Bloc, Riverpod |
-| `Qgame-developer` | Unity, Unreal, ECS |
-| `Qnextjs-developer` | Next.js App Router, RSC |
-| `Qreact-best-practices` | React performance rules |
-| `Qreact-expert` | React 19, hooks, state |
-| `Qreact-native-expert` | React Native, Expo |
-| `Qvite` | Vite, Rolldown |
-| `Qvue-best-practices` | Vue 3 performance rules |
-| `Qvue-expert` | Vue 3 + TypeScript |
-| `Qvue-expert-js` | Vue 3 + JavaScript |
-| `Qweb-design-guidelines-vercel` | Vercel design system |
-
-</details>
-
-<details>
-<summary><b>Languages (13)</b></summary>
-
-| Expert | Domain |
-|--------|--------|
-| `Qcpp-pro` | Modern C++, concurrency |
-| `Qcsharp-developer` | C#, ASP.NET, Blazor |
-| `Qembedded-systems` | MCU, RTOS, protocols |
-| `Qgolang` / `Qgolang-pro` | Go patterns, concurrency |
-| `Qjava-architect` | Spring, JPA, WebFlux |
-| `Qjs-ts-expert` | JavaScript/TypeScript |
-| `Qkotlin-specialist` | Kotlin, KMP, Compose |
-| `Qphp-pro` | PHP, Laravel, Symfony |
-| `Qpython-pro` | Python, async, typing |
-| `Qrust-engineer` | Rust, ownership, async |
-| `Qsql-pro` | SQL optimization |
-| `Qswift-expert` | Swift, SwiftUI |
-
-</details>
-
-<details>
-<summary><b>Infra (14)</b></summary>
-
-| Expert | Domain |
-|--------|--------|
-| `Qatlassian-mcp` | Jira, Confluence MCP |
-| `Qchaos-engineer` | Chaos testing |
-| `Qcli-developer` | CLI tools (Go/Node/Python) |
-| `Qcloud-architect` | AWS, GCP, Azure |
-| `Qdatabase-optimizer` | DB performance tuning |
-| `Qdevops-engineer` | CI/CD, Docker, K8s |
-| `Qkubernetes-specialist` | K8s, Helm, GitOps |
-| `Qmonitoring-expert` | Observability, alerting |
-| `Qpostgres-pro` | PostgreSQL advanced |
-| `Qsalesforce-developer` | Apex, LWC |
-| `Qshopify-expert` | Shopify, Liquid |
-| `Qsre-engineer` | SRE, SLO/SLI |
-| `Qterraform-engineer` | Terraform, IaC |
-| `Qwordpress-pro` | WordPress, Gutenberg |
-
-</details>
-
-<details>
-<summary><b>Quality (12) & Data (6)</b></summary>
-
-**Quality:**
-
-| Expert | Domain |
-|--------|--------|
-| `Qcode-documenter` | Code documentation |
-| `Qcode-reviewer` | Code review |
-| `Qdebugging-wizard` | Systematic debugging |
-| `Qfeature-forge` | Feature spec mining |
-| `Qfullstack-guardian` | Full-stack patterns |
-| `Qplaywright-expert` | E2E testing |
-| `Qsecure-code-guardian` | OWASP, security |
-| `Qsecurity-reviewer` | Security audit |
-| `Qspec-miner` | Spec analysis |
-| `Qtest-master` | Test strategy |
-| `Qthe-fool` | Devil's advocate |
-| `Qvitest` | Vitest testing |
-
-**Data:**
-
-| Expert | Domain |
-|--------|--------|
-| `Qfine-tuning-expert` | Model fine-tuning |
-| `Qml-pipeline` | ML pipelines |
-| `Qpandas-pro` | Pandas, DataFrames |
-| `Qprompt-engineer` | Prompt engineering |
-| `Qrag-architect` | RAG systems |
-| `Qspark-engineer` | Apache Spark |
-
-</details>
-
----
 
 ## Agent Fleet (<!--qe:agents-->27<!--/qe:agents--> agents)
 
@@ -487,10 +376,13 @@ coding-experts/
 
 ### SIVS Engine Routing
 
-```bash
-/Qsivs-config                    # Show current routing
-/Qsivs-config implement codex    # Route implement stage to Codex
-/Qsivs-config --help             # Full usage guide
+```text
+Claude: /Qsivs-config                    # Show current routing
+Codex:  $Qsivs-config
+Claude: /Qsivs-config implement codex    # Route implement stage to Codex
+Codex:  $Qsivs-config implement codex
+Claude: /Qsivs-config --help             # Full usage guide
+Codex:  $Qsivs-config --help
 ```
 
 Config file: `.qe/sivs-config.json`
@@ -506,12 +398,17 @@ Config file: `.qe/sivs-config.json`
 
 ### Folder Context Memory
 
-```bash
-/Qcontext init                              # Initialize
-/Qcontext add frontend "src/frontend/**"    # Add folder context
-/Qcontext show                              # View all + staleness
-/Qcontext refresh                           # Update stale contexts
-/Qcontext --help                            # Full usage guide
+```text
+Claude: /Qcontext init                              # Initialize
+Codex:  $Qcontext init
+Claude: /Qcontext add frontend "src/frontend/**"    # Add folder context
+Codex:  $Qcontext add frontend "src/frontend/**"
+Claude: /Qcontext show                              # View all + staleness
+Codex:  $Qcontext show
+Claude: /Qcontext refresh                           # Update stale contexts
+Codex:  $Qcontext refresh
+Claude: /Qcontext --help                            # Full usage guide
+Codex:  $Qcontext --help
 ```
 
 ---
@@ -520,10 +417,9 @@ Config file: `.qe/sivs-config.json`
 
 ```
 qe-framework/
-├── skills/                  # 178 skill definitions
-│   ├── Q*/                  # 87 user-facing skills
-│   ├── M*/                  # 7 maintenance skills
-│   └── coding-experts/      # 71 domain expert skills
+├── skills/                  # skill definitions
+│   ├── Q*/                  # user-facing skills
+│   └── M*/                  # maintenance skills
 ├── agents/                  # 21 agent definitions
 ├── core/                    # Principles, schemas, rules
 ├── scripts/                 # Runtime utilities + shared libs
@@ -559,7 +455,7 @@ qe-framework/
 
 ## Version
 
-`6.3.0` — Plugin-based installation, Qdebate, Qperspective, Qplan micro-task support, 167 skills.
+`6.3.0` — Plugin-based installation, Qdebate, Qplan micro-task support, 167 skills.
 
 ## License
 

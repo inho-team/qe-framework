@@ -2,8 +2,8 @@
 /**
  * check-entrypoints.mjs
  *
- * Guards against the failure class that broke `npm run qe:mcp` / `npm run
- * qe:secret`: a CLI entrypoint (or a lib it imports) that no longer resolves
+ * Guards against the failure class that broke `npm run qe:secret`: a CLI
+ * entrypoint (or a lib it imports) that no longer resolves
  * its import chain and crashes on load with ERR_MODULE_NOT_FOUND. Unit tests
  * miss this because they cover the *libs under test*, never the entrypoints —
  * so a dangling import (e.g. the removed `ai_team_config.mjs`) ships green.
@@ -27,15 +27,11 @@ const LOAD_ERROR = /ERR_MODULE_NOT_FOUND|Cannot find module|ERR_UNSUPPORTED_DIR_
 // no main(), so a clean import proves every transitive dependency exists.
 const IMPORT_LIBS = [
   'scripts/lib/json-io.mjs',
-  'scripts/lib/qe_mcp_registry.mjs',
   'scripts/lib/qe_secrets.mjs',
 ];
 
 // CLI tools that must at least load and print usage when given no args.
-// (qe_mcp_server.mjs is intentionally excluded — it's a long-running stdio
-// server that would block a no-arg spawn.)
 const CLI_TOOLS = [
-  'scripts/qe_mcp.mjs',
   'scripts/qe_secret.mjs',
 ];
 

@@ -60,3 +60,24 @@ test('Codex lifecycle wrapper promotes tool_input.workdir to hook cwd', () => {
     rmSync(scriptAbs, { force: true });
   }
 });
+
+test('Codex lifecycle wrapper emits minimal JSON for PreCompact', () => {
+  const scriptRel = 'scripts/__tmp-codex-wrapper-precompact-target.mjs';
+  const scriptAbs = join(ROOT, scriptRel);
+  try {
+    writeFileSync(scriptAbs, [
+      "process.stdout.write(JSON.stringify({ continue: true, hookSpecificOutput: { hookEventName: 'PreCompact', additionalContext: 'Run /Qcompact after compact.' } }));",
+    ].join('\n'), 'utf8');
+
+    const result = spawnSync(process.execPath, [WRAPPER, 'PreCompact', scriptRel], {
+      input: JSON.stringify({ cwd: process.cwd(), hook_event_name: 'PreCompact' }),
+      encoding: 'utf8',
+    });
+
+    assert.equal(result.status, 0);
+    assert.deepEqual(JSON.parse(result.stdout), { continue: true });
+    assert.equal(result.stderr, '');
+  } finally {
+    rmSync(scriptAbs, { force: true });
+  }
+});

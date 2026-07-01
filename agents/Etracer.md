@@ -9,7 +9,6 @@ recommendedModel: sonnet
 ## When to Use
 - **Use this agent** when: the cause of a symptom is genuinely ambiguous and you need disciplined causal reasoning — observation/inference separation, competing hypotheses, ranked evidence, disconfirmation, and a discriminating next probe
 - **Use Ecode-debugger instead** when: the root cause is already known and you need a concrete fix proposed
-- **Use Qsystematic-debugging instead** when: you need a general methodology guide before diving into any specific trace
 
 > Base patterns: see core/AGENT_BASE.md
 

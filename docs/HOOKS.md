@@ -1,9 +1,14 @@
 # QE Framework — Hooks Reference & Safety Policy
 
-QE registers nine Claude Code lifecycle hooks. This document is the contract for
-what they do, how they fail, and how to dial down their intervention.
+QE registers lifecycle behavior through the active client adapter. Claude uses
+Claude Code plugin hooks; Codex uses installed hook fences, wrapper scripts, and
+command proxies where the Codex runtime exposes an equivalent surface. The
+generic lifecycle contract lives in `core/LIFECYCLE_ADAPTER.md`; interaction
+and command-prefix behavior lives in `core/INTERACTION_ADAPTER.md`. Phase 4
+public-doc parity evidence is recorded in
+`.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md`.
 
-## Registered hooks
+## Claude Adapter: Registered Hooks
 
 | Event | Matcher | Script | Timeout | Can block? |
 |-------|---------|--------|--------:|-----------|
@@ -17,7 +22,7 @@ what they do, how they fail, and how to dial down their intervention.
 | TeammateIdle | — | `teammate-idle.mjs` | 10s | no |
 | TaskCompleted | — | `task-completed.mjs` | 10s | no |
 
-## Codex Compatibility Contract
+## Codex Adapter: Compatibility Contract
 
 `hooks/hooks.json` defines the Claude-side lifecycle contract. Codex receives the
 same QE safety and routing contract through Codex-native assets installed under
@@ -54,7 +59,21 @@ surface.
 
 Codex HUD support is installed as `~/.codex/scripts/qe-hud.mjs`, a command proxy
 that renders the same HUD from project state for manual, shell-prompt, or
-tmux-status use.
+tmux-status use. This is a `proxy` lifecycle surface under
+`core/LIFECYCLE_ADAPTER.md`, not a native `statusLine` claim.
+
+## Safety-Critical Parity
+
+The following behavior must stay equivalent across Claude and Codex:
+
+1. Raw commit and raw PR creation are routed to QE skills.
+2. Direct version edits are routed to `$Mbump` / `/Mbump`.
+3. Dangerous autonomous-mode actions are blocked before execution.
+4. Hook failures fail open unless an intentional policy block is emitted.
+5. User-facing QE command hints render with the active client prefix.
+
+Non-safety lifecycle events can be `wrapper`, `proxy`, `shim`, or
+`unsupported`, but the docs must state that status explicitly.
 
 ## Why PreToolUse matcher stays `*` (not narrowed)
 
@@ -64,7 +83,7 @@ It is tempting to narrow `PreToolUse` to `Bash|Write|Edit` so it only runs befor
 - **ContextMemo dedup** (`pre-tool-use.mjs`) hard-blocks redundant `Read`s of files
   already in context — a core token-saving feature. It only fires on `Read`.
 - **Analysis hints** fire on `Glob`/`Grep`/`Read`.
-- **SIVS option guard** fires on `AskUserQuestion`; delegation/routing guards fire on `Agent`.
+- **SIVS option guard** fires on the Claude `AskUserQuestion` adapter surface; delegation/routing guards fire on `Agent`.
 
 Narrowing the matcher to write-tools would silently disable all of the above. The
 correct fix for over-blocking is **precise block rules + fail-open**, not a narrower
@@ -89,11 +108,11 @@ thrown error and therefore bypasses the safety net by design.
 
 | Trigger | Routed to | Notes |
 |---------|-----------|-------|
-| `git commit …` (Bash) | `/Qcommit` | raw commit blocked |
-| `gh pr create …` (Bash) | `/Qbranch` | raw PR creation blocked |
-| **write sink** into `plugin.json` + `version` (Bash) | `/Mbump` | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
+| `git commit ...` (Bash) | Claude `/Qcommit`, Codex `$Qcommit` | raw commit blocked |
+| `gh pr create ...` (Bash) | Claude `/Qbranch`, Codex `$Qbranch` | raw PR creation blocked |
+| **write sink** into `plugin.json` + `version` (Bash) | Claude `/Mbump`, Codex `$Mbump` | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
 | `sed`/`perl`/`ruby -i` / `--in-place` (Bash) | Edit tool | use the Edit tool |
-| Edit of `plugin.json` whose new text has `"version"` | `/Mbump` | version field is Mbump-owned |
+| Edit of `plugin.json` whose new text has `"version"` | Claude `/Mbump`, Codex `$Mbump` | version field is Mbump-owned |
 
 Per-call bypass: write `.qe/state/skill-bypass.json` `{ "active": true, "skill": "Mbump", "ts": <now> }`
 (valid 60s). The matching skill sets this automatically when it legitimately needs the action.

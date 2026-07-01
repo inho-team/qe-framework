@@ -2,10 +2,9 @@
  * lib/json-io.mjs
  *
  * Minimal JSON file helpers. These two functions used to live in
- * `ai_team_config.mjs`, which was removed in the v4.0.0 single-engine refactor —
- * but `qe_mcp_registry.mjs` and `qe_secrets.mjs` kept importing them, leaving a
- * dangling import that crashed `npm run qe:mcp` / `npm run qe:secret` on load
- * (ERR_MODULE_NOT_FOUND). This file restores just the two helpers they need.
+ * `ai_team_config.mjs`, which was removed in the v4.0.0 single-engine refactor.
+ * `qe_secrets.mjs` still needs the helpers, so this file keeps that import
+ * chain small and explicit.
  */
 
 import { readFileSync, writeFileSync, mkdirSync } from 'fs';

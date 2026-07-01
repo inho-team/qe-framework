@@ -20,6 +20,8 @@ if (!data) {
 
 const cwd = getCwd(data);
 const hints = [];
+const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
+const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 
 // Extract notification info
 // Claude Code Notification hook receives: message about agent/subagent completion
@@ -30,7 +32,7 @@ const messageStr = typeof message === 'string' ? message : JSON.stringify(messag
 const chains = [
   { match: 'Etask-executor',     hint: '[CHAIN] Etask-executor completed. Run Earchive-executor in background to archive completed tasks.' },
   { match: 'Erefresh-executor',  hint: 'Analysis updated by Erefresh-executor. Proceed with user\'s request using fresh .qe/analysis/ data.' },
-  { match: 'Ecompact-executor',  hint: 'Context saved by Ecompact-executor. Safe to continue. Use /Qresume in next session to restore.' },
+  { match: 'Ecompact-executor',  hint: `Context saved by Ecompact-executor. Safe to continue. Use ${skillCommand('Qresume')} in next session to restore.` },
   { match: 'Earchive-executor',  hint: 'Tasks archived by Earchive-executor. Completed files moved to .qe/.archive/.' },
   { match: 'Ecommit-executor',   hint: 'Commit created by Ecommit-executor. Report commit hash and summary to user.' },
   { match: 'Ecode-debugger',     hint: 'Ecode-debugger completed analysis. Review findings and apply suggested fixes.' },
@@ -126,11 +128,11 @@ for (const { match, hint, action } of chains) {
 1. Run: cat ${signalFile} 2>/dev/null || echo "still polling"
    - "detected: true" → files written, proceed to Verify stage
    - "still polling" → companion still working, check again in 30s
-   - "timeout: true" → 1h passed, use AskUserQuestion for fallback
+   - "timeout: true" → 1h passed, use the interaction adapter for fallback
 
 2. Or check companion directly: import { checkCodexResult } from codex-result-handler.mjs
 
-FALLBACK: If no progress after 2 checks, use AskUserQuestion: (a) Retry Codex (b) Implement with Claude (c) Check Codex logs`);
+FALLBACK: If no progress after 2 checks, use the interaction adapter: (a) Retry Codex (b) Implement with Claude (c) Check Codex logs`);
         } else {
           hints.push(`[CODEX] Codex rescue returned Done but poll watcher failed to start. Run \`git diff --stat\` to check for changes. If none, implement with Claude instead.`);
         }

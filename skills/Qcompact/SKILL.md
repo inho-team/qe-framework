@@ -14,6 +14,10 @@ A skill that automatically preserves context under context window pressure, and 
 ## Per-Session Layout (Auto-Named)
 Multiple terminals on the same project save into separate `sessions/{sid}/` directories so they never clobber each other. The 8-char `sid` is auto-derived from the Claude session id by the SessionStart hook and surfaced as `[Session] sid:XXXXXXXX` in additionalContext — there is no manual `--name` flag. When no sid is available the `_unknown` bucket is used; pre-partition flat files were one-shot migrated into `_legacy`.
 
+SessionStart may also surface `[Session State] ...` with the active plan,
+resume source, and Codex background job status. Treat that line as an advisory
+shortcut only; the resolver functions below remain the source of truth.
+
 ## Operating Modes
 
 ### Automatic Mode (Background Call)
@@ -24,7 +28,7 @@ Ecompact-executor detects context pressure and runs automatically in the backgro
 - Accumulates decisions in `.qe/context/sessions/{sid}/decisions.md`
 
 ### Manual Mode (User Invocation)
-Calling `/Qcompact` directly generates a detailed handoff document.
+Calling `{adapter.commandPrefix}Qcompact` directly generates a detailed handoff document.
 - Delegates to Ehandoff-executor sub-agent
 - Creates `.qe/handoffs/sessions/{sid}/HANDOFF_{date}_{time}.md`
 - Displays saved context + handoff summary to the user
@@ -107,7 +111,10 @@ Call the Ehandoff-executor sub-agent to generate the handoff document.
 ### RESUME Workflow
 
 #### Step 1: Look Up Handoff
-Use the shared resolver — `resolveResumeContext(projectRoot, overrideSid)` in `hooks/scripts/lib/session-resolver.mjs` — the **same function `/Qresume` uses**, so handoff lookup here and restore there cannot diverge. It scans the active sid across both `.qe/context/` and `.qe/handoffs/` first, and when the active sid is empty in both, falls back to the newest other bucket (durable handoffs are unioned in, so a handoff saved under a prior sid is reachable). Read `latestHandoff` from the returned descriptor; when `source: 'fallback'`, tell the user which bucket was loaded.
+Use the shared resolver — `resolveResumeContext(projectRoot, overrideSid)` in `hooks/scripts/lib/session-resolver.mjs` — the **same function `{adapter.commandPrefix}Qresume` uses**, so handoff lookup here and restore there cannot diverge. It scans the active sid across both `.qe/context/` and `.qe/handoffs/` first, and when the active sid is empty in both, falls back to the newest other bucket (durable handoffs are unioned in, so a handoff saved under a prior sid is reachable). Read `latestHandoff` from the returned descriptor; when `source: 'fallback'`, tell the user which bucket was loaded.
+
+On Codex, render the same workflow as `$Qresume` / `$Qresume --from {sid}` in
+handoffs. Do not emit Claude-only slash commands in Codex-facing text.
 
 #### Step 2: Check Freshness
 | Level | Meaning |

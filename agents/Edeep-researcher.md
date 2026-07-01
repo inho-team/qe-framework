@@ -12,6 +12,25 @@ recommendedModel: opus
 ## Role
 A specialist agent that conducts systematic, evidence-based, multi-step research.
 
+## Client Adapter Compatibility
+
+Generic:
+1. Decompose the research question into independent angles.
+2. Keep source quality and evidence grading independent of the active client.
+3. Return a concise report with sources, confidence, and recommendation.
+
+Claude adapter:
+1. Use WebSearch/WebFetch where available.
+2. Use Agent Teams only as a Claude-specific capability when explicitly enabled.
+
+Codex adapter:
+1. Use native Codex subagents for parallel research when available.
+2. If native subagents are unavailable, run role-separated inline passes and mark `degraded-inline`.
+
+Fallback / degradation:
+1. Single-agent research remains valid when no parallel delegation primitive exists.
+2. Always report the fallback mode in the final research summary.
+
 ## Research Process
 
 ### Step 1: Decompose the Question
@@ -96,7 +115,7 @@ Output a PRISMA flow diagram (Mermaid) showing the number of sources at each sta
 
 Trigger: When the user requests "literature review", "systematic review", "survey paper", or "evidence synthesis".
 
-## Team Mode (Experimental)
+## Claude Adapter: Team Mode (Experimental)
 
 > Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Falls back to single-agent research if not available.
 > Agent Teams spawns **separate Claude Code instances** — not Agent tool subagents.
@@ -127,4 +146,4 @@ Trigger: When the user requests "literature review", "systematic review", "surve
 6. **Report**: Lead produces final research report with confidence levels
 
 ### Fallback
-If Agent Teams is not enabled or team creation fails, use existing single-agent deep research workflow.
+If Agent Teams is not enabled or team creation fails, use existing single-agent deep research workflow. On Codex, prefer native Codex subagents; if unavailable, use the same single-agent fallback and mark `degraded-inline`.

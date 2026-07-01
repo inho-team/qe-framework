@@ -33,7 +33,7 @@ regression tests, heals failures, and reports findings.
 |------|---------------|---------------|-----------|
 | **Planner** | Design scenarios → review-ready Markdown | read code + browser | `Qqa-test-planner` / `Qscenario-test` (skill) |
 | **Explorer** | Black-box explore, bad input, event/interaction + responsive checks | **browser only, NO source** | `Eqa-explorer` (agent) |
-| **Auditor** _(optional)_ | Visual pixel-diff + a11y/UX + design-token outliers | read source + browser, **read-only, never writes** | `Qvisual-qa` + `Qweb-design-guidelines` + `Qdesign-audit` (skill) |
+| **Auditor** _(optional)_ | Visual pixel-diff + a11y/UX + design-token outliers | read source + browser, **read-only, never writes** | Browser screenshots + built-in review heuristics |
 | **Generator** | Markdown → Playwright regression code | read/write code + browser | `Qplaywright-expert` (skill) |
 | **Healer** | Reproduce failures, patch selectors | read/write code + browser | `Eqa-orchestrator` (agent) |
 | **Reporter** | Findings → PR comment | write comment only | `Eqa-reporter` (agent) |
@@ -65,7 +65,7 @@ git rev-parse --is-inside-work-tree 2>/dev/null    # in a repo
 - **Target URL is required.** Ask the user for the running app URL (e.g. `http://localhost:3000`).
   Do NOT guess. If none is running, stop and ask the user to start it (`! <run command>`).
 - **Playwright MCP preferred** for Explorer (accessibility-tree based). Fall back to `agent-browser`
-  (`/Qagent-browser`) only if MCP is unavailable.
+  Use direct browser tooling only if MCP is unavailable.
 
 ## Workflow
 
@@ -99,7 +99,7 @@ pixel/motion/heuristic blind spots by composing three existing skills:
 - **Visual diff** → `Qvisual-qa` — screenshots the live URL and diffs vs a baseline to catch spacing,
   alignment, color, font, and layout-shift regressions. _First run has no baseline → it captures the
   baseline only; regression value starts on the 2nd run. Note this in the report._
-- **A11y / UX heuristics** → `Qweb-design-guidelines` — audits the UI against the Vercel Web Interface
+- **A11y / UX heuristics** → apply built-in accessibility, interaction, and visual consistency checks.
   Guidelines: keyboard reachability, focus states, contrast, `prefers-reduced-motion`, etc.
 - **Design-token outliers** → `Qdesign-audit` — static source scan for font-size / spacing / color
   outliers that signal inconsistent styling.

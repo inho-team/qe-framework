@@ -21,20 +21,22 @@ Creates new skills and diagnoses/fixes existing ones.
 - Distinguish from existing skills in description ("Distinct from X which does Y").
 - **Semantic over syntactic.** Rules should check intent, not match literal strings.
 - **Test cases are mandatory.** Every skill ships with trigger examples; every fix ships with 2+ test prompts.
-- **Source and cache must stay in sync.** After modifying a skill, update both:
+- **Source and installed assets must stay in sync.** After modifying a skill, update source and the active installed target:
   - Source: `skills/<Name>/SKILL.md`
-  - Cache: `~/.claude/plugins/cache/inho-team-qe-framework/qe-framework/<ver>/skills/<Name>/SKILL.md`
+  - Claude plugin cache: `~/.claude/plugins/cache/inho-team-qe-framework/qe-framework/<ver>/skills/<Name>/SKILL.md`
+  - Codex asset sync: `~/.codex/skills/<Name>/SKILL.md` via the QE installer/sync path
 - **Update QE_CONVENTIONS.md on every skill/agent change.** When creating, renaming, deleting, or changing the purpose of a skill or agent, update the corresponding entry in `QE_CONVENTIONS.md`. This file is the skill/agent registry that Claude reads at every session.
 
 ## File Locations
 
-| Component | Source | Cache |
+| Component | Source | Installed Target |
 |-----------|--------|-------|
 | Skill | `skills/<Name>/SKILL.md` | `~/.claude/plugins/cache/.../skills/<Name>/SKILL.md` |
 | Agent | `agents/<Name>/AGENT.md` | `~/.claude/plugins/cache/.../agents/<Name>/AGENT.md` |
 | Hook | `hooks/<name>` | Same path (runs from source) |
-| Global | `~/.claude/skills/<name>/SKILL.md` | N/A |
-| Local | `.claude/skills/<name>/SKILL.md` | N/A |
+| Claude Global | `~/.claude/skills/<name>/SKILL.md` | N/A |
+| Claude Local | `.claude/skills/<name>/SKILL.md` | N/A |
+| Codex Global | `~/.codex/skills/<name>/SKILL.md` | Generated/synced from source |
 
 ---
 

@@ -49,7 +49,7 @@ expect(normalizeSkillName(42) === '', '[norm] non-string not handled');
   const root = mkdtempSync(join(tmpdir(), 'qe-skills-'));
   try {
     mkSkill(root, 'skills/Qalpha');                                   // flat depth
-    mkSkill(root, 'skills/coding-experts/quality/Qvitest');          // nested depth 5
+    mkSkill(root, 'skills/nested/quality/Qvitest');                  // nested depth 5
     mkSkill(root, 'dist/skills/qe-framework');                        // OUTSIDE skills/ → must be excluded
     mkdirSync(join(root, 'skills/empty-dir'), { recursive: true });   // no SKILL.md
     const canon = enumerateCanonicalSkills(join(root, 'skills'));

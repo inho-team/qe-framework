@@ -15,6 +15,25 @@ recommendedModel: sonnet
 A sub-agent that receives delegation for and executes the full test→review→fix loop from Qcode-run-task.
 Handles loop management internally (iteration count, result collection, pass/fail judgment) to reduce token consumption in the main context.
 
+## Client Adapter Compatibility
+
+Generic:
+1. Execute the test -> review -> fix -> retest loop.
+2. Preserve role separation between test, review, and fix responsibilities.
+3. Return only the final summary to the main context.
+
+Claude adapter:
+1. Use Agent tool subagents or Agent Teams where explicitly enabled.
+2. Treat Agent Teams as a Claude-specific acceleration option, not a generic requirement.
+
+Codex adapter:
+1. Prefer native Codex subagents for test/review/fix roles.
+2. If native subagents are unavailable, run role-separated inline passes and mark `degraded-inline`.
+
+Fallback / degradation:
+1. Sequential subagent or inline execution is acceptable when parallel delegation is unavailable.
+2. Preserve the same loop limit and pass/fail criteria in every mode.
+
 ## Invocation Conditions
 - **Default**: Qcode-run-task delegates the quality loop to this agent by default (not opt-in)
 - When Qrun-task executes `type: code` tasks in autonomous mode (ultra)
@@ -66,7 +85,7 @@ Running the quality loop in the main context consumes a large number of tokens o
 - Report intermediate results to the user
 - Iterate more than 3 times
 
-## Team Mode (Experimental)
+## Claude Adapter: Team Mode (Experimental)
 
 > Requires `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1`. Falls back to sequential Subagent mode if not available.
 > Agent Teams spawns **separate Claude Code instances** — not Agent tool subagents.
@@ -104,4 +123,4 @@ Before requesting team creation, partition files:
 6. **Exit**: Same conditions as Subagent mode (pass or 3 iterations)
 
 ### Fallback
-If Agent Teams is not enabled, team creation fails, or teammates are unresponsive, fall back to the existing sequential Subagent workflow (Ecode-test-engineer → Ecode-reviewer).
+If Agent Teams is not enabled, team creation fails, or teammates are unresponsive, fall back to the existing sequential Subagent workflow (Ecode-test-engineer → Ecode-reviewer). On Codex, prefer native Codex subagents first; if unavailable, preserve the role contract inline and mark `degraded-inline`.

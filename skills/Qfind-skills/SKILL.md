@@ -8,7 +8,7 @@ recommendedModel: haiku
 
 # Qfind-skills: Skill Search and Installation
 
-Searches the skills.sh ecosystem for skills, analyzes the original SKILL.md, and directly creates them as Claude Code skills.
+Searches the skills.sh ecosystem for skills, analyzes the original SKILL.md, and directly creates them as QE skills for the active client.
 
 ## Trigger Conditions
 
@@ -50,12 +50,14 @@ WebFetch https://github.com/<owner>/<repo>/blob/main/skills/<skill-name>/SKILL.m
 - Claude adapter: `AskUserQuestion`
 - Codex interactive adapter: concise plain-text choices with the same labels
 
-- **Global**: `~/.claude/skills/<skill-name>/SKILL.md` — available in all projects
-- **Local**: `.claude/skills/<skill-name>/SKILL.md` — available in the current project only
+- **Claude global**: `~/.claude/skills/<skill-name>/SKILL.md` — available in Claude projects
+- **Claude local**: `.claude/skills/<skill-name>/SKILL.md` — available in the current Claude project
+- **Codex global**: `~/.codex/skills/<skill-name>/SKILL.md` — available in Codex when the Codex skill loader is active
+- **Codex local/project**: use the repository `skills/<skill-name>/SKILL.md` source layout and let the installer sync to Codex assets
 
 ### Step 4: Create SKILL.md
 
-Analyze the original content and convert it into a Claude Code-compatible SKILL.md file.
+Analyze the original content and convert it into a QE-compatible SKILL.md file. Use adapter-specific installation paths only in the installation section.
 
 **Conversion Rules:**
 1. Keep name and description from frontmatter (`---`)
@@ -65,27 +67,32 @@ Analyze the original content and convert it into a Claude Code-compatible SKILL.
 5. Remove unnecessary CLI installation guidance
 
 ```bash
-# Global installation
+# Claude global installation
 mkdir -p ~/.claude/skills/Q<skill-name>
 # Create SKILL.md using the Write tool
 
-# Local installation
+# Claude local installation
 mkdir -p .claude/skills/Q<skill-name>
 # Create SKILL.md using the Write tool
+
+# Codex source installation
+mkdir -p skills/Q<skill-name>
+# Create SKILL.md in repo source, then use the QE installer/sync path for ~/.codex
 ```
 
 ### Step 5: Verify Installation
 
 ```bash
 # Verify file exists
-ls -la ~/.claude/skills/Q<skill-name>/SKILL.md   # global
-ls -la .claude/skills/Q<skill-name>/SKILL.md      # local
+ls -la ~/.claude/skills/Q<skill-name>/SKILL.md   # Claude global
+ls -la .claude/skills/Q<skill-name>/SKILL.md      # Claude local
+ls -la skills/Q<skill-name>/SKILL.md              # QE source / Codex-syncable
 ```
 
 After installation, inform the user of:
 - Skill name and purpose
 - Installation path
-- Available as `/Q<skill-name>` from the next session
+- Available as `{adapter.commandPrefix}Q<skill-name>` from the next session after the active client loads or syncs skills
 
 ## Skill Category Reference
 
@@ -110,4 +117,4 @@ After installation, inform the user of:
 
 1. Inform the user that no results were found
 2. Offer to help directly
-3. If needed, suggest creating a custom skill (`/Qcommand-creator`)
+3. If needed, suggest creating a custom skill through the maintenance skill creation workflow.

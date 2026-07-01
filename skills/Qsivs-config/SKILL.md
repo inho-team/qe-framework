@@ -33,10 +33,10 @@ Verify prefer Codex to reduce Claude session token pressure. Explicit
 ## CLI Interface
 
 ### Parse Arguments
-Parse the user's input after `/Qsivs-config` as positional and flag arguments:
+Parse the user's input after the active-client command (`{adapter.commandPrefix}Qsivs-config`) as positional and flag arguments:
 
 ```
-/Qsivs-config [subcommand] [stage] [engine] [options]
+{adapter.commandPrefix}Qsivs-config [subcommand] [stage] [engine] [options]
 ```
 
 **Subcommands:**
@@ -71,7 +71,9 @@ If `--help` flag is present anywhere, jump to **Step HELP**.
 #### Subcommand: `show` (or no arguments)
 1. Read `.qe/sivs-config.json` (fall back to `.qe/svs-config.json` for legacy)
 2. If no config file exists, show defaults
-3. Check codex-plugin-cc availability via `isCodexPluginAvailable()` from `scripts/lib/codex_bridge.mjs`
+3. Check Codex readiness for the active base client:
+   - Claude base: check codex-plugin-cc availability via `isCodexPluginAvailable()` from `scripts/lib/codex_bridge.mjs`.
+   - Codex base: check native Codex readiness and hook trust state; do not require Claude plugin installation.
 4. Display as a table:
 
 ```
@@ -88,8 +90,9 @@ Codex plugin: installed (v1.2.3)
 
 If any stage uses codex but plugin is not installed, append:
 ```
-[!] codex-plugin-cc not installed. Codex stages will fall back to Claude.
-    Install: /plugin install codex@openai-codex
+[!] Codex bridge not available for this base client.
+    Claude-base sessions: Codex stages fall back to Claude unless codex-plugin-cc is installed.
+    Codex-native sessions: verify Codex hook trust/readiness through the Codex installer and /hooks.
 ```
 
 #### Subcommand: `set`
@@ -108,19 +111,25 @@ If any stage uses codex but plugin is not installed, append:
 
 **Examples:**
 ```
-/Qsivs-config set implement codex              # implement -> codex
-/Qsivs-config set implement codex --model gpt-5.4 --effort high
-/Qsivs-config set verify codex --background true
-/Qsivs-config set spec claude                  # spec -> claude
-/Qsivs-config set --all codex --effort medium  # all stages -> codex
+{adapter.commandPrefix}Qsivs-config set implement codex              # implement -> codex
+{adapter.commandPrefix}Qsivs-config set implement codex --model gpt-5.4 --effort high
+{adapter.commandPrefix}Qsivs-config set verify codex --background true
+{adapter.commandPrefix}Qsivs-config set spec claude                  # spec -> claude
+{adapter.commandPrefix}Qsivs-config set --all codex --effort medium  # all stages -> codex
+```
+
+Rendered examples:
+```
+Claude: /Qsivs-config show
+Codex:  $Qsivs-config show
 ```
 
 **Shorthand (without `set` keyword):**
 If the first argument is a valid stage name and the second is a valid engine,
 treat it as an implicit `set`:
 ```
-/Qsivs-config implement codex                  # same as: set implement codex
-/Qsivs-config spec claude high                 # same as: set spec claude --effort high
+{adapter.commandPrefix}Qsivs-config implement codex                  # same as: set implement codex
+{adapter.commandPrefix}Qsivs-config spec claude high                 # same as: set spec claude --effort high
 ```
 
 #### Subcommand: `reset`
@@ -130,8 +139,8 @@ treat it as an implicit `set`:
 
 **Examples:**
 ```
-/Qsivs-config reset implement     # reset implement to default
-/Qsivs-config reset --all         # delete config, use environment-aware defaults
+{adapter.commandPrefix}Qsivs-config reset implement     # reset implement to default
+{adapter.commandPrefix}Qsivs-config reset --all         # delete config, use environment-aware defaults
 ```
 
 ### Step HELP: Display usage guide
@@ -141,12 +150,12 @@ Print the following help text:
 Qsivs-config — SIVS Engine Routing Manager
 
 Usage:
-  /Qsivs-config                              Show current config
-  /Qsivs-config show                         Show current config (verbose)
-  /Qsivs-config set <stage> <engine> [opts]  Set engine for a stage
-  /Qsivs-config <stage> <engine> [opts]      Shorthand for set
-  /Qsivs-config reset [stage|--all]           Reset to defaults
-  /Qsivs-config --help                        Show this help
+  {adapter.commandPrefix}Qsivs-config                              Show current config
+  {adapter.commandPrefix}Qsivs-config show                         Show current config (verbose)
+  {adapter.commandPrefix}Qsivs-config set <stage> <engine> [opts]  Set engine for a stage
+  {adapter.commandPrefix}Qsivs-config <stage> <engine> [opts]      Shorthand for set
+  {adapter.commandPrefix}Qsivs-config reset [stage|--all]          Reset to defaults
+  {adapter.commandPrefix}Qsivs-config --help                       Show this help
 
 Stages:  spec | implement | verify | supervise
 Engines: claude | codex
@@ -158,17 +167,19 @@ Options:
   --all              Apply to all stages
 
 Examples:
-  /Qsivs-config implement codex --model gpt-5.4 --effort high
-  /Qsivs-config verify codex --background true
-  /Qsivs-config set --all claude
-  /Qsivs-config reset --all
-  /Qsivs-config spec claude
+  Claude: /Qsivs-config implement codex --model gpt-5.4 --effort high
+  Codex:  $Qsivs-config implement codex --model gpt-5.4 --effort high
+  Claude: /Qsivs-config verify codex --background true
+  Codex:  $Qsivs-config verify codex --background true
+  {adapter.commandPrefix}Qsivs-config set --all claude
+  {adapter.commandPrefix}Qsivs-config reset --all
+  {adapter.commandPrefix}Qsivs-config spec claude
 
 ### Compaction Settings
 
-  /Qsivs-config set spec compaction.enabled true
-  /Qsivs-config set spec compaction.strategy server
-  /Qsivs-config set implement compaction.strategy auto
+  {adapter.commandPrefix}Qsivs-config set spec compaction.enabled true
+  {adapter.commandPrefix}Qsivs-config set spec compaction.strategy server
+  {adapter.commandPrefix}Qsivs-config set implement compaction.strategy auto
 
 Config file: .qe/sivs-config.json
 Schema:      core/schemas/svs-config.schema.json
@@ -196,11 +207,11 @@ Schema:      core/schemas/svs-config.schema.json
 ## Will
 - Read, display, and modify `.qe/sivs-config.json`
 - Validate inputs against the schema
-- Warn about missing codex-plugin-cc
+- Warn about missing bridge/readiness for the active base client
 - Handle legacy config migration
 - Show help on `--help` or invalid input
 
 ## Will Not
-- Install or manage codex-plugin-cc (use `/Qupdate` for that)
+- Install or manage codex-plugin-cc (use `{adapter.commandPrefix}Qupdate` for framework updates)
 - Modify any files other than `.qe/sivs-config.json`
 - Auto-assign models or effort levels without user instruction

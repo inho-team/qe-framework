@@ -21,6 +21,26 @@ After a Codex install, run `/hooks` inside Codex once to review and trust the QE
 `PreToolUse` safety hook. QE does not document hook-trust bypass as the normal
 path.
 
+## Distribution vs runtime capability
+
+The Claude plugin remains the distribution anchor: marketplace install,
+`.claude-plugin/plugin.json`, and the plugin cache decide how the framework is
+packaged. Runtime capability is broader than that package anchor:
+
+| Runtime surface | Claude | Codex |
+|-----------------|--------|-------|
+| Skills | plugin/standalone assets under `~/.claude` | native skills under `~/.codex/skills` |
+| Agents | Markdown agents under `~/.claude/agents` | TOML native agents under `~/.codex/agents` |
+| Hooks | Claude Code plugin hook registration | managed Codex hook fences in `~/.codex/config.toml` |
+| HUD | Claude `statusLine` adapter | `qe-hud` command/proxy |
+| SIVS bridge | Claude can delegate Codex stages through `codex-plugin-cc` | Codex can use native skills, native agents, and reverse Claude bridge surfaces when present |
+
+This means installation docs should not treat `.claude-plugin` as a runtime
+limit. It is the packaging root. The runtime contract is defined by
+`core/INTERACTION_ADAPTER.md`, `core/LIFECYCLE_ADAPTER.md`, and the Phase 1
+adapter contract under
+`.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md`.
+
 ## Preview before you install — `--dry-run`
 
 ```bash
@@ -83,6 +103,21 @@ install, any deprecated `[features].codex_hooks` setting in `~/.codex/config.tom
 is migrated to `[features].hooks` to avoid Codex startup warnings. Codex skill
 copies also compact long frontmatter descriptions while preserving the skill body,
 so Codex spends less of its skills context budget on metadata.
+
+### Verify Codex skill cache freshness
+
+After install or update, the source skill files and the Codex cache should agree
+on client-neutral initialization behavior. A quick read-only check:
+
+```bash
+grep -n "CLAUDE.md.*AGENTS.md\\|AGENTS.md.*CLAUDE.md" \
+  ~/.codex/skills/Qplan/SKILL.md
+```
+
+The `Qplan` pre-check should accept a project instruction artifact such as
+`CLAUDE.md` or `AGENTS.md` together with `.qe/`. If the installed Codex skill
+still requires only `CLAUDE.md`, rerun `qe-framework-install` from the updated
+framework package and restart the Codex session.
 
 ## Not yet: `--profile minimal|full`
 

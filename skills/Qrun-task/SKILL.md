@@ -17,7 +17,7 @@ Execute tasks based on spec documents. This is a **secondary execution engine** 
 - **Claude**: approvals and next-task prompts use `AskUserQuestion`; implementation delegation uses the Agent tool where specified.
 - **Codex interactive**: approvals and next-task prompts use concise plain-text choices.
 - **Codex non-interactive**: chained tasks may continue; otherwise default to the safe recommended action and report it. Destructive ambiguity must stop.
-- **Agent delegation**: Codex uses native subagents through the client adapter; if the runtime lacks the required primitive, preserve the role contract with role-separated inline execution and mark the fallback explicitly.
+- **Agent delegation**: Codex should prefer native subagents through the client adapter. QE-installed agent TOML carries `model` and `model_reasoning_effort` converted from `recommendedModel`. If the runtime lacks the required primitive, preserve the role contract with role-separated inline execution and mark the fallback explicitly.
 - **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q...` for Claude, `$Q...` for Codex).
 
 ## Relationship to the Primary Chain
@@ -43,18 +43,20 @@ Before executing task items, resolve SIVS engine routing:
 
 1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
 2. Call `resolveEngine("implement", config)` for the **Implement** stage (actual coding). If Codex is installed and no explicit config overrides it, Implement resolves to Codex by default.
-   - **`"claude"`**: Proceed with the standard execution workflow. No changes.
-   - **`"codex"`**: Delegate implementation to Codex via codex-plugin-cc:
-     1. Invoke the returned command (normally `/codex:rescue --write`, plus configured flags), passing the TASK_REQUEST checklist items as the task description. Codex will modify files directly.
-     2. If NOT available: show warning and fallback to Claude execution.
+   - **Base client = Claude, stage engine = `claude`**: Proceed with the standard execution workflow.
+   - **Base client = Claude, stage engine = `codex`**: Delegate implementation through `codex_bridge.mjs` / codex-plugin-cc, passing the TASK_REQUEST checklist items as the task description. If unavailable, warn and fall back to Claude execution.
+   - **Base client = Codex, stage engine = `codex`**: Prefer native Codex execution/subagents using the installed TOML model routing. If unavailable, use role-separated inline execution and mark the route `degraded-inline`.
+   - **Base client = Codex, stage engine = `claude`**: Delegate through `Qclaude-rescue` / `claude_bridge.mjs` when available. If unavailable, warn and keep execution on Codex with `crossmodel=false`.
 3. Call `resolveEngine("verify", config)` for the **Verify** stage (validation only). If Codex is installed and no explicit config overrides it, Verify resolves to Codex by default.
-   - **`"claude"`**: Claude validates implementation results against VERIFY_CHECKLIST.
-   - **`"codex"`**: Codex validates via the returned command (normally `/codex:rescue --verify`).
+   - **Base client = Claude, stage engine = `claude`**: Claude validates implementation results against VERIFY_CHECKLIST.
+   - **Base client = Claude, stage engine = `codex`**: Codex validates through the bridge command when available; otherwise Claude validates and reports `crossmodel=false`.
+   - **Base client = Codex, stage engine = `codex`**: Codex validates natively.
+   - **Base client = Codex, stage engine = `claude`**: Claude validates through `Qclaude-rescue` / `claude_bridge.mjs` when available; otherwise Codex validates and reports `crossmodel=false`.
 4. Check for legacy config: call `detectLegacyConfig()`. If non-null, display migration warning.
 
 **Codex Implement Delegation:**
-- Claude base session: use `codex:codex-rescue` subagent via Agent tool for autonomous execution
-- Codex base session: use the native Codex execution path; if native subagent delegation is unavailable, use role-separated inline execution and mark the fallback explicitly
+- Claude base session: use the Claude agent adapter / codex-plugin-cc bridge for autonomous Codex execution
+- Codex base session: prefer the native Codex execution/subagent path; if native subagent delegation is unavailable, use role-separated inline execution and mark the fallback explicitly
 - Pass TASK_REQUEST content as the task prompt
 - Codex operates in `--write` mode (can modify files)
 - After Codex returns Done, run **Materialization Check** before proceeding
@@ -104,21 +106,15 @@ Read the TASK_REQUEST checklist for `<!-- complexity: ... -->` tags, then pick t
 | No tags, 8+ items OR cross-cutting architecture | `sonnet` |
 
 Pass the selected model as the `model` parameter when spawning `Etask-executor`.
+On Codex, installed agent TOML maps these QE tiers to native model routing:
+`haiku -> gpt-5.3-codex-spark` with low effort, `sonnet -> gpt-5.4-mini` with medium effort, and `opus -> gpt-5.4` with high effort.
 
-### Expert Reference Resolution (deterministic — `type: code` only)
+### Repository Context Resolution (`type: code` only)
 
-Before spawning `Etask-executor`, resolve the coding-expert guideline files that match the task's tech stack, and inject their paths into the agent prompt so the implementation follows the right language/framework standards. This replaces the old "agent might read `coding-experts/`" model with a deterministic one.
-
-1. Collect the task's target files (from the TASK_REQUEST checklist paths; fall back to `git diff --name-only` if already mid-implementation).
-2. Run the resolver (cwd = project root, so it can scan manifests):
-   ```bash
-   node <QE plugin>/scripts/lib/expert-resolver.mjs --files <file1> <file2> ...
-   ```
-   It returns a JSON array `[{ slug, path, reason }]` (top 2, may be empty).
-3. **Inject into the `Etask-executor` prompt**:
-   - Non-empty → `MANDATORY: read these expert guideline files first and follow their standards while implementing: {comma-separated absolute paths}`.
-   - Empty (no stack match) → instruct fallback to `skills/coding-experts/PRINCIPLES.md`.
-4. Skip this step entirely for `type: docs` / `type: analysis` tasks.
+Before spawning `Etask-executor`, collect the task's target files from the `TASK_REQUEST`
+checklist paths and the current diff when available. Inject the relevant repository
+instructions, adjacent code conventions, and `.qe/analysis/` findings into the agent
+prompt. Keep the context focused on files that directly affect the task.
 
 ---
 ## Step 1: Document Discovery
@@ -128,7 +124,7 @@ Before spawning `Etask-executor`, resolve the coding-expert guideline files that
 (cwd=현재 프로젝트) → 중복 구현·결정 위반을 피하도록 실행 컨텍스트에 반영(`tier: reviewed` 우선).
 **`.qe/wiki/`가 없으면 명령 실행 없이 조용히 skip**(비-wiki 무영향).
 
-1. **Use State Utility**: Call `parseClaudeTaskTable(cwd)` from `hooks/scripts/lib/state.mjs`. It now prefers `.qe/TASK_LOG.md` and falls back to the legacy `CLAUDE.md` task table.
+1. **Use State Utility**: Call `parseClaudeTaskTable(cwd)` from `hooks/scripts/lib/state.mjs`. It now prefers `.qe/TASK_LOG.md` and falls back to the legacy Claude `CLAUDE.md` task table.
 2. Glob `.qe/tasks/{pending,in-progress,on-hold}/*.md` for TASK_REQUEST files
 3. Backward compat: check project root if `.qe/tasks/` missing
 4. Multiple tasks → ask which to run. UUID argument → select directly
@@ -216,7 +212,7 @@ Skip agent triggers if no trigger files exist.
 2. Move files to `completed/`
 3. **Update Status**: Call `updateClaudeStatus(cwd, uuid, "✅")`. This updates the active task registry, preferring `.qe/TASK_LOG.md`.
 4. `type: code` → call `Ecode-doc-writer`; `type: docs` → call `Edoc-generator`
-5. Auto-run `/Qarchive` in background
+5. Auto-run `{adapter.commandPrefix}Qarchive` in background
 6. Clean up `.qe/agent-results/` (delete result files older than current task)
 
 Report: UUID, items completed, verification passed, changed files.
@@ -224,7 +220,7 @@ Report: UUID, items completed, verification passed, changed files.
 ### Next Task Prompt
 
 After completion, check for remaining tasks:
-1. Read the project task registry first (`.qe/TASK_LOG.md` or equivalent active task tracker); use the legacy `CLAUDE.md` task table only as backward compatibility fallback
+1. Read the project task registry first (`.qe/TASK_LOG.md` or equivalent active task tracker); use the legacy Claude `CLAUDE.md` task table only as backward compatibility fallback
 2. Also check `.qe/tasks/pending/` for queued TASK_REQUEST files
 3. If next tasks exist, use the interaction adapter to prompt:
    - List upcoming tasks (UUID + name)
@@ -274,7 +270,7 @@ PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 (Fallback line 금지 — `Qgs`는 `Qgenerate-spec`의 alias이므로 중복이다. Legacy flat-file projects drop the `{slug} · ` prefix and use `{adapter.commandPrefix}Qgs Phase {X+1}: {짧은 별칭}`.)
 When all Phases are complete:
 ```
-All phases done. Finalize with /Qcommit
+All phases done. Finalize with {adapter.commandPrefix}Qcommit
 ```
 
 ---
@@ -283,7 +279,7 @@ All phases done. Finalize with /Qcommit
 
 | Situation | Action |
 |-----------|--------|
-| No documents | Suggest `/Qgenerate-spec` |
+| No documents | Suggest `{adapter.commandPrefix}Qgenerate-spec` or alias `{adapter.commandPrefix}Qgs` |
 | Task interrupted | Save progress with timestamps, leave in `in-progress/` |
 | On hold | Move to `on-hold/`, set ⏸️ |
 | Resume | Move to `in-progress/`, continue from last unchecked item |
@@ -333,12 +329,8 @@ When `.qe/state/ultra{work,qa}-state.json` is active:
 - `--ultraqa`: auto-run code quality loop
 - Multiple UUIDs: parallel Etask-executor agents
 
-## Coding Expert References
-
-Reference `skills/coding-experts/` for language/framework best practices. Catalog: `skills/coding-experts/CATALOG.md`.
-
 ## Role Constraints
 - Only executes existing spec documents
-- Use `/Qgenerate-spec` to create specs
+- Use `{adapter.commandPrefix}Qgenerate-spec` or `{adapter.commandPrefix}Qgs` to create specs
 - Do not modify spec content (except checking off items)
 - In role-separated or tiered orchestration, do not allow implementer-stage execution to mutate planner-owned artifacts except for explicitly approved planner revisions

@@ -21,8 +21,8 @@ An assistant that ensures quality by performing a **test → review → fix → 
 ## Client Adapter Compatibility
 
 - **Claude**: default delegation uses `Eqa-orchestrator` via Agent tool.
-- **Codex native**: use native Codex subagents through the installed agent TOML.
-- **Codex client adapter**: if equivalent automatic delegation is unavailable, preserve the QA role contract with role-separated inline execution and mark the fallback explicitly.
+- **Codex native**: prefer native Codex subagents through the installed agent TOML. QE-installed TOML files carry `model` and `model_reasoning_effort` converted from each agent's `recommendedModel`.
+- **Codex client adapter**: use role-separated inline execution only if equivalent native subagent delegation is unavailable; preserve the QA role contract and mark the fallback explicitly.
 - **Command rendering**: examples and handoffs use `adapter.commandPrefix`.
 
 ## Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만)
@@ -63,7 +63,7 @@ Step 5: Report results
 
 ## Default Execution: Eqa-orchestrator Delegation
 
-**By default on Claude, delegate the entire quality loop to the `Eqa-orchestrator` sub-agent via Agent tool.** This is the recommended approach because:
+**Default delegation:** delegate the entire quality loop to `Eqa-orchestrator` through the active agent adapter. Claude uses the Agent tool; Codex uses the native `Eqa-orchestrator` subagent when available and otherwise preserves the role contract with `degraded-inline` execution. This is the recommended approach because:
 - Saves main context tokens (only final summary returns)
 - Eqa-orchestrator internally coordinates Ecode-test-engineer, Ecode-reviewer, and Ecode-debugger
 - Supports automatic escalation from MEDIUM to HIGH tier on repeated failures
@@ -76,9 +76,10 @@ Step 5: Report results
 
 **After Eqa-orchestrator returns**, proceed directly to Step 5 (Report Results) using the returned summary.
 
-On Codex, use a native Codex subagent if one is explicitly available. Otherwise
-preserve the test/review/fix role contract with role-separated inline execution
-and mark the fallback explicitly.
+On Codex, prefer the native `Eqa-orchestrator` subagent. Its installed TOML
+selects the Codex model tier derived from the source `recommendedModel`.
+Otherwise preserve the test/review/fix role contract with role-separated inline
+execution and mark the fallback explicitly.
 
 ## Manual Execution Procedure (Opt-in)
 
@@ -104,7 +105,7 @@ Identify changed code and related documents.
 
 ### Step 2+3: Test + Review (parallel)
 
-Spawn **both agents in parallel** using a single message with two Agent tool calls:
+Spawn **both agents in parallel** through the active agent adapter. Claude may use a single message with two Agent tool calls; Codex should use native subagents or `degraded-inline` role separation:
 
 **Agent 1 — Ecode-test-engineer:**
 - List of changed files and paths
@@ -270,7 +271,7 @@ runs non-interactively; `--qa` is mandatory as before.
 
 **Procedure:**
 
-1. Invoke `/Qcritical-review --stage verify` with:
+1. Invoke `{adapter.commandPrefix}Qcritical-review --stage verify` with:
    - Changed files list (from Step 1)
    - TASK_REQUEST goals and constraints
    - VERIFY_CHECKLIST validation criteria
@@ -311,7 +312,7 @@ After the adversarial gate passes (Step 4.9), run contract conformance verificat
 
 **Procedure:**
 
-1. Invoke `/Qverify-contract --all` (see `skills/Qverify-contract/SKILL.md`).
+1. Invoke `{adapter.commandPrefix}Qverify-contract --all` (see `skills/Qverify-contract/SKILL.md`).
 2. The skill lists active contracts, computes 3-hash cache keys, returns cached verdicts on hit, or invokes the `Econtract-judge` agent on miss.
 3. Collect aggregated output: `N PASS, M FAIL`.
 4. Results feed back into judgment:
@@ -377,20 +378,14 @@ This skill can be called independently as `{adapter.commandPrefix}Qcode-run-task
 - Uses the changed file list already collected by Qrun-task
 - Returns to Qrun-task Step 4 (final verification) after quality verification is complete
 
-## Coding Expert References (deterministic resolution)
+## Repository Review Context
 
-During quality verification, the review must be graded against the **same** language/framework standards the code was written to. Resolve them deterministically rather than relying on the reviewer to guess:
-
-1. After Step 1 collects the changed files, run:
-   ```bash
-   node <QE plugin>/scripts/lib/expert-resolver.mjs --files $(git diff --name-only)
-   ```
-   → JSON array `[{ slug, path, reason }]` (top 2, may be empty).
-2. **When delegating to `Eqa-orchestrator`** (default path), include the resolved paths in the delegation prompt: `Review/test against these expert guideline files: {absolute paths}`. Eqa-orchestrator forwards them to `Ecode-reviewer` and `Ecode-test-engineer` as part of their context.
-3. In manual mode, pass the same paths directly to the `Ecode-reviewer` agent.
-4. Empty result → reviewer falls back to `skills/coding-experts/PRINCIPLES.md`. Skip entirely for `type: docs` / `type: analysis`.
-
-Full human-readable catalog: `skills/coding-experts/CATALOG.md` · machine map: `skills/coding-experts/STACK_MAP.json`.
+During quality verification, grade the change against the same task constraints,
+repository instructions, and local code conventions used during implementation. After
+Step 1 collects changed files, include the changed-file list and any relevant
+`.qe/analysis/` findings in the `Eqa-orchestrator` or manual `Ecode-reviewer`
+delegation prompt. Skip this context step for `type: docs` / `type: analysis` tasks
+when no code changed.
 
 ## Role Constraints
 - This skill focuses exclusively on the **test, review, and fix loop**
