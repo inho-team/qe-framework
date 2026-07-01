@@ -25,6 +25,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Security
 
+## [8.1.0] - 2026-07-01
+
+### Added
+
+- `Qdoctor` skill for diagnosing QE Framework, QE MCP companion, and project
+  `.qe/` state health with safe repair guidance.
+
+### Changed
+
+- `Qupdate` now treats `@inho-team/qe-mcp` as a first-class update target
+  alongside the framework body and Codex bridge plugin.
+
 ## [7.5.0] - 2026-06-29
 
 ### Added

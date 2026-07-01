@@ -1,12 +1,12 @@
 ---
 name: Qupdate
-description: 'Updates everything QE — the QE Framework body (Claude + Codex assets) AND the codex-plugin-cc bridge — using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", "codex plugin".'
+description: 'Updates everything QE: the QE Framework body, the qe-mcp companion package, and the codex-plugin-cc bridge using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", "update qe mcp", or "codex plugin".'
 allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*)"
 invocation_trigger: When the framework, its Codex assets, or the codex-plugin-cc bridge need updating.
 recommendedModel: haiku
 ---
 
-# Qupdate — One-Command Update (Framework + Codex bridge)
+# Qupdate - One-Command Update (Framework + MCP + Codex bridge)
 
 ## Role
 Single entry point that brings every QE update target to latest:
@@ -15,9 +15,12 @@ Single entry point that brings every QE update target to latest:
 |---|--------|----------------|
 | A | QE Framework body → Claude (`~/.claude`) | skills, agents, hooks, scripts |
 | B | QE Framework body → Codex (`~/.codex`) | QE Codex asset/hook fences via `install.js` |
-| C | codex-plugin-cc bridge plugin | Codex engine routing bridge (separate plugin) |
+| C | QE MCP companion (`@inho-team/qe-mcp`) | expert-library MCP server, registry, sync tooling |
+| D | codex-plugin-cc bridge plugin | Codex engine routing bridge (separate plugin) |
 
-A+B come from the framework installer. C is the Codex bridge plugin managed through `claude plugin`. This skill runs A/B first, then C.
+A+B come from the framework installer. C is the standalone MCP companion package.
+D is the Codex bridge plugin managed through `claude plugin`. This skill runs A/B first,
+then C, then D.
 
 ## Execution Procedure
 
@@ -79,7 +82,43 @@ Choose exactly one path:
 - Otherwise → path 2 (tarball, covers A + B).
 - Do not recommend `npm update -g @inho-team/qe-framework` unless the package is published to npm.
 
-### Step 2: Update the codex-plugin-cc bridge (target C)
+### Step 2: Update the QE MCP companion (target C)
+The MCP expert library is distributed separately as `@inho-team/qe-mcp`; it is not
+bundled into the framework package.
+
+1. Detect whether `qe-mcp` is installed:
+
+   ```bash
+   command -v qe-mcp || true
+   npm list -g @inho-team/qe-mcp --depth=0 2>/dev/null || true
+   ```
+
+2. Check available package metadata:
+
+   ```bash
+   npm view @inho-team/qe-mcp version 2>/dev/null || true
+   ```
+
+3. Update or install the companion package when npm metadata is reachable:
+
+   ```bash
+   npm install -g @inho-team/qe-mcp@latest
+   ```
+
+4. Verify:
+
+   ```bash
+   qe-mcp doctor 2>/dev/null || true
+   qe-mcp sync --dry-run 2>/dev/null || true
+   ```
+
+Selection rule:
+- If the user is inside a `qe-mcp` checkout and asks for local asset sync only, run its
+  documented local checks instead of global install.
+- If npm metadata is unreachable, report the installed version and recommend retrying later.
+- Do not copy the expert corpus into `qe-framework`.
+
+### Step 3: Update the codex-plugin-cc bridge (target D)
 The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of the QE body.
 
 1. Read current status with `getCodexPluginInfo()` from `scripts/lib/codex_bridge.mjs` (reads
@@ -103,8 +142,9 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
      reinstalls to latest) / Skip ("Staying on v{current}.").
    - **Up to date** → "No action needed."
 
-### Step 3: Verify
+### Step 4: Verify
 - If the Codex bridge changed, re-read `installed_plugins.json` to confirm the new version.
+- If `qe-mcp` changed, run `qe-mcp doctor` or `qe-mcp sync --dry-run`.
 - Optionally validate SIVS config from the plugin root (the `qe:validate` npm script lives
   only in the framework repo, not the target project):
 
@@ -112,15 +152,17 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
   ```
 
-### Step 4: Report result
+### Step 5: Report result
 Report per target:
 - A — Claude framework assets: updated / unchanged (which path)
 - B — Codex framework assets: updated / unchanged
-- C — codex-plugin-cc bridge: installed / updated / up-to-date / skipped
+- C — QE MCP companion: installed / updated / up-to-date / skipped
+- D — codex-plugin-cc bridge: installed / updated / up-to-date / skipped
 - whether Claude/Codex should be restarted
 
 ## Will
 - Update the QE Framework body for both Claude and Codex via the correct installer path
+- Update the external `@inho-team/qe-mcp` companion package in the same run
 - Check, install, or update the codex-plugin-cc bridge on user confirmation
 - Report per-target results and the next restart step
 
@@ -128,4 +170,5 @@ Report per target:
 - Modify any project files
 - Modify SIVS engine configuration (use `/Qinit` for that)
 - Force-install the Codex bridge without user confirmation
+- Restore the MCP expert corpus into the framework package
 - Run without user invocation

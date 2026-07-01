@@ -299,6 +299,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | git commit | `Qcommit` | Human-style messages, no Co-Authored-By traces, reads staged diff intelligently |
 | version bump | `Mbump` | Updates all manifests atomically, generates changelog entry |
 | show version | `Qversion` | Single source of truth across plugin.json / package.json |
+| health check / repair | `Qdoctor` | Verifies framework, MCP companion, and `.qe/` consistency before repair |
 | context save / handoff | `Qcompact` | Structured snapshot, recoverable in future sessions |
 | context restore | `Qresume` | Reconstructs working state from snapshot |
 | archive tasks | `Qarchive` | Moves files into versioned archive with index |
@@ -313,7 +314,8 @@ These skills are optimized for common workflows and consistently outperform gene
 |-------|---------|
 | `Qhelp` | Show QE Framework usage overview |
 | `Qversion` | Show current plugin version |
-| `Qupdate` | Update everything QE — framework body (Claude + Codex) + codex-plugin-cc bridge |
+| `Qupdate` | Update everything QE — framework body, qe-mcp companion, and codex-plugin-cc bridge |
+| `Qdoctor` | Diagnose and repair QE dependency and `.qe/` project-state health |
 | `Qinit` | Initial setup and directory structure |
 | `Qplan` | Strategic roadmap and phase management (.qe/planning/) |
 | `Qrefresh` | Refresh project analysis data |

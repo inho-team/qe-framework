@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->54<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->55<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -302,7 +302,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->54<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->55<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic
@@ -325,7 +325,7 @@ every QE Framework install download the optional expert corpus.
 |----------|--------|-------|
 | **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
 | **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
-| **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` | 5 |
+| **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` `Qdoctor` | 6 |
 | **Project** | `Qcommit` `Qbranch` `Qarchive` `Qproject-sync` | 4 |
 | **Quality** | `Qgc` `Qsource-verifier` | 2 |
 | **Docs & Writing** | `Qwriting-clearly` | 1 |
