@@ -14,6 +14,7 @@ import {
   LOCK_BLOCK_MESSAGE,
   MEMORY_BLOCK_MESSAGE,
   acquireBuildLock,
+  buildLockOwnerId,
   checkBuildAdmission,
   deriveBuildLockMetadata,
   getBuildThresholdMb,
@@ -336,6 +337,39 @@ test('release succeeds when payload omits cwd but carries tool workdir (ownerId 
   });
   assert.equal(post.status, 0);
   assert.equal(readBuildLock({ lockPath }), null);
+});
+
+test('release succeeds when post payload omits tool_use_id present at acquire', (t) => {
+  const { dir, lockPath } = tempLock(t);
+  // Ownership must not depend on tool_use_id: PostToolUse may omit a field the
+  // PreToolUse payload carried. If it were part of the ownerId, release would
+  // fail as not-owner and strand the lock.
+  const base = {
+    session_id: 'session-tuid',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm run build', workdir: dir },
+  };
+  const pre = runHook(PRE_HOOK, { ...base, tool_use_id: 'tuid-acquire' }, {
+    QE_BUILD_LOCK_PATH: lockPath,
+    QE_BUILD_MIN_FREE_MB: '1',
+  });
+  assert.equal(pre.status, 0);
+  assert.ok(readBuildLock({ lockPath }));
+
+  // Post intentionally omits tool_use_id (and thus differs from acquire).
+  const post = runHook(POST_HOOK, { ...base, exit_code: 0, tool_response: 'ok' }, {
+    QE_BUILD_LOCK_PATH: lockPath,
+  });
+  assert.equal(post.status, 0);
+  assert.equal(readBuildLock({ lockPath }), null);
+});
+
+test('buildLockOwnerId ignores command/toolUseId/transcriptPath, keys on cwd+session+pid', () => {
+  const a = buildLockOwnerId({ cwd: '/r', sessionId: 's', pid: 1, command: 'npm test', toolUseId: 'x', transcriptPath: '/t/a' });
+  const b = buildLockOwnerId({ cwd: '/r', sessionId: 's', pid: 1, command: 'npm run build', toolUseId: 'y', transcriptPath: '/t/b' });
+  assert.equal(a, b);
+  const different = buildLockOwnerId({ cwd: '/other', sessionId: 's', pid: 1 });
+  assert.notEqual(a, different);
 });
 
 test('memory and lock blocks return distinct, reason-specific messages', (t) => {

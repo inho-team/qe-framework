@@ -56,8 +56,15 @@ export function getBuildLockPath(options = {}) {
   return options.lockPath || process.env.QE_BUILD_LOCK_PATH || join(os.tmpdir(), LOCK_FILE_NAME);
 }
 
-export function buildLockOwnerId({ cwd = '', command = '', sessionId = '', toolUseId = '', transcriptPath = '', pid = process.ppid || process.pid } = {}) {
-  const basis = JSON.stringify({ cwd, command, sessionId, toolUseId, transcriptPath, pid });
+export function buildLockOwnerId({ cwd = '', sessionId = '', pid = process.ppid || process.pid } = {}) {
+  // Ownership MUST hash only fields guaranteed identical between the acquire
+  // (PreToolUse) and release (PostToolUse) payloads for the same build, or
+  // release fails as not-owner and the lock strands. `command`/`toolUseId`/
+  // `transcriptPath` are deliberately excluded: a payload may carry them in one
+  // hook but not the other (e.g. PostToolUse omitting tool_use_id), which would
+  // silently diverge the ownerId. Those fields are still stored on the lock
+  // record for diagnostics — they just do not confer identity.
+  const basis = JSON.stringify({ cwd, sessionId, pid });
   return createHash('sha256').update(basis).digest('hex');
 }
 
