@@ -33,9 +33,13 @@ Never leaves AI traces (e.g., Co-Authored-By).
    `.qe/state/skill-bypass.json` binding the flag to the **exact commit command you
    will run next** (the `command` field). Always include it — this scopes the
    bypass to one command so a stale flag can never authorize an unrelated commit
-   (older hooks ignore the field, so it is always safe):
+   (older hooks ignore the field, so it is always safe).
+   **Write the commit message to a file and commit with `-F`** so the bound command
+   is a short, stable literal — no long message or quote-escaping to reproduce
+   byte-for-byte (that mismatch is the main way binding fails). Write the message to
+   `.qe/state/COMMIT_MSG` (Write tool), then bind to the fixed short command:
    ```json
-   {"active":true,"skill":"Qcommit","command":"git commit -m \"<your message>\""}
+   {"active":true,"skill":"Qcommit","command":"git commit -F .qe/state/COMMIT_MSG"}
    ```
    > ✅ **Why the Write tool, not Bash:** a Write tool call can never be combined with `git commit` into a single command, so the flag is guaranteed to be on disk before the gated commit runs. (A flag written by Bash in the same `&&` chain is not yet on disk when the PreToolUse hook checks the command, so the commit is blocked. This is the failure mode the Write tool eliminates structurally.)
    > **120-second TTL:** the hook uses the file's mtime when no `ts` is present, so create the flag right before committing — not at the start of your status/diff analysis — or it expires.
@@ -44,9 +48,9 @@ Never leaves AI traces (e.g., Co-Authored-By).
    string won't match and the commit is blocked). Stage in a **prior** Bash call and
    clean up in a **later** one (only `git commit` is gated, so `git add`/`rm` run freely):
    ```bash
-   # prior call:  git add <relevant files>
-   git commit -m "..."
-   # later call:  rm -f .qe/state/skill-bypass.json
+   # prior call:  git add <relevant files>   (message already written to .qe/state/COMMIT_MSG)
+   git commit -F .qe/state/COMMIT_MSG
+   # later call:  rm -f .qe/state/skill-bypass.json .qe/state/COMMIT_MSG
    ```
 10. Confirm any fallback flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
 11. **The standalone flag is one-shot.** Current hooks consume (delete) it the moment it grants the commit — so the trailing `rm` is usually a no-op. **If `git commit` fails for a non-guard reason (e.g. "nothing to commit", a failing pre-commit hook) and you retry, re-create the flag with the Write tool before each retry** — a consumed flag will not authorize a second commit.
