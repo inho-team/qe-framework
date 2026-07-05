@@ -19,6 +19,23 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Changed
 
+### Deprecated / Merged skills
+
+These compatibility shims auto-delegate to their merged replacements and will be removed in 7.1.0.
+
+| Deprecated skill | Superseded by |
+|---|---|
+| `Qdebate` | `Qcritical-review --debate` |
+| `Qrisk-proof` | `Qcritical-review --risk` |
+| `Qqa-council` | `Qqa council` |
+| `Qqa-test-planner` | `Qqa plan` |
+| `Qscenario-test` | `Qqa run` |
+| `Qmcp-ensure` | `Qmcp` |
+| `Qmcp-setup` | `Qmcp` |
+| `Qmcp-sync` | `Qmcp` |
+| `Qarchive` | `Qgc` |
+| `Qsweep` | `Qgc` |
+
 ### Fixed
 
 ### Removed

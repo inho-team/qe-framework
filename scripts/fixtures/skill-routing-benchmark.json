@@ -235,8 +235,8 @@
       "prompt": "Create a regression test plan for the checkout flow.",
       "locale": "en",
       "category": "testing",
-      "expected": "Qqa-test-planner",
-      "aliases": ["Qqa-test-planner"],
+      "expected": "Qqa",
+      "aliases": ["Qqa"],
       "confidence": 0.99,
       "reason": "This is a direct QA planning request for a regression suite."
     },
@@ -245,8 +245,8 @@
       "prompt": "폼 검증 버그에 대한 QA용 버그 리포트 템플릿 작성해줘.",
       "locale": "ko",
       "category": "testing",
-      "expected": "Qqa-test-planner",
-      "aliases": ["Qqa-test-planner"],
+      "expected": "Qqa",
+      "aliases": ["Qqa"],
       "confidence": 0.97,
       "reason": "The prompt targets QA documentation output, specifically a bug report template."
     },
