@@ -49,7 +49,11 @@ try {
   process.exit(0);
 }
 
-const cwd = getCwd(data);
+// Honor the payload's project dir (like pre-tool-use / stop-handler / session-start);
+// getCwd() ignores its argument and returns process.cwd(), so relying on it alone
+// made post-tool-use read/write state in a different dir than pre-tool-use when the
+// payload carried an explicit cwd/workdir.
+const cwd = data.cwd || data.directory || getCwd(data);
 const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const isError = data.tool_response?.includes?.('error') ||

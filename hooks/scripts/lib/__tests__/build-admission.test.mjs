@@ -91,6 +91,7 @@ test('heavy build classifier detects build commands and ignores executable data'
   assert.equal(isHeavyBuildCommand('./gradlew test'), true);
   assert.equal(isHeavyBuildCommand('bash -lc "mvn test"'), true);
   assert.equal(isHeavyBuildCommand('npm run build'), true);
+  assert.equal(isHeavyBuildCommand('npm run test'), true);
   assert.equal(isHeavyBuildCommand('npm test -- --runInBand'), true);
   assert.equal(isHeavyBuildCommand('echo "npm test"'), false);
   assert.equal(isHeavyBuildCommand('cat <<EOF\n./gradlew test\nEOF'), false);
@@ -153,14 +154,33 @@ test('checkBuildAdmission blocks below threshold before acquiring lock', (t) => 
     {
       lockPath,
       env: { QE_BUILD_MIN_FREE_MB: '2048' },
-      platform: 'test',
-      freemem: () => 1024 * 1024 * 1024,
+      // Reliable probe reading 1024 MB (< threshold) — the gate must deny.
+      platform: 'linux',
+      readFileSync: () => 'MemAvailable: 1048576 kB\n',
     },
   );
   assert.equal(result.admitted, false);
   assert.equal(result.reason, 'memory');
-  assert.equal(result.message, BUILD_BLOCK_MESSAGE);
+  assert.equal(result.message, MEMORY_BLOCK_MESSAGE);
   assert.equal(fs.existsSync(lockPath), false);
+});
+
+test('checkBuildAdmission does not deny on the unreliable os.freemem fallback', (t) => {
+  const { lockPath } = tempLock(t);
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-a', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MIN_FREE_MB: '2048' },
+      // Unknown platform forces the os.freemem fallback; 100 MB is far below the
+      // threshold, but the fallback reading is untrustworthy so it must NOT block.
+      platform: 'test',
+      freemem: () => 100 * 1024 * 1024,
+    },
+  );
+  assert.equal(result.memory.source, 'fallback:os.freemem');
+  assert.equal(result.admitted, true);
+  assert.notEqual(result.reason, 'memory');
 });
 
 test('checkBuildAdmission allows when disabled without taking lock', (t) => {
@@ -376,7 +396,7 @@ test('memory and lock blocks return distinct, reason-specific messages', (t) => 
   const memLock = tempLock(t);
   const memory = checkBuildAdmission(
     { pid: process.pid, ownerId: 'm', command: 'npm test' },
-    { lockPath: memLock.lockPath, env: { QE_BUILD_MIN_FREE_MB: '2048' }, platform: 'test', freemem: () => 1024 * 1024 * 1024 },
+    { lockPath: memLock.lockPath, env: { QE_BUILD_MIN_FREE_MB: '2048' }, platform: 'linux', readFileSync: () => 'MemAvailable: 1048576 kB\n' },
   );
   assert.equal(memory.reason, 'memory');
   assert.equal(memory.message, MEMORY_BLOCK_MESSAGE);

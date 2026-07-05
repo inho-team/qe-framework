@@ -72,7 +72,7 @@ export function isHeavyBuildCommand(command) {
   if (typeof command !== 'string' || command.trim() === '') return false;
   return (
     matchesExecutable(command, /(?:^|[;&|(\n`])\s*(?:\.\/)?(?:gradlew|gradle|mvnw|mvn)(?:\s|$)/) ||
-    matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+build|test)(?:\s|$)/)
+    matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+)?(?:build|test)(?:\s|$)/)
   );
 }
 
@@ -246,7 +246,13 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
   }
 
   const memory = probeAvailableMemory({ ...options, env });
-  if (!memory.ok) {
+  // Only deny on a trustworthy reading. The os.freemem fallback reports "free"
+  // (not "available") memory — chronically low on macOS — so denying on it would
+  // manufacture false blocks whenever the reliable probe (vm_stat / /proc/meminfo)
+  // is unavailable. When the probe is unreliable we skip the memory denial; the
+  // lock below still serializes concurrent heavy builds.
+  const memoryProbeReliable = memory.source === 'darwin:vm_stat' || memory.source === 'linux:/proc/meminfo';
+  if (memoryProbeReliable && !memory.ok) {
     return { admitted: false, reason: 'memory', message: MEMORY_BLOCK_MESSAGE, memory };
   }
 
