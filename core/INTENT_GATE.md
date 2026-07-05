@@ -31,7 +31,6 @@ All skills and agents refer to this classification to determine whether a reques
 | **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Refer to qe-admin-mcp maintainer workflows |
 | **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qfind-skills |
 | **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Refer to qe-admin-mcp maintainer workflows |
-| **Alias management** | "create alias", "register shortcut", "path alias", "command alias" | Qalias |
 | **User profile** | "analyze my patterns", "user profile", "command patterns", "my style" | Qprofile |
 | **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Refer to qe-admin-mcp maintainer workflows |
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |

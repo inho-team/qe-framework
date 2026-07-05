@@ -49,7 +49,6 @@ const PROTECTED_CORE = new Set([
   'Qwiki-query',
   'Qprofile',
   'Qproject-sync',
-  'Qcatalog-diet',
 ]);
 
 const OPTIONAL_NAME_PATTERNS = [

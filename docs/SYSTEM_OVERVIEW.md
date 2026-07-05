@@ -234,7 +234,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->46<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->43<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
@@ -242,7 +242,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 | Context & Config | 5 | Qcontext, Qsivs-config, Qrefresh, Qmemory, Qcompact |
 | Docs & Writing | 1 | Qwriting-clearly |
 | Research | 3 | Qautoresearch, Qfact-checker, Qsource-verifier |
-| Other | 46 | `Qfind-skills` or `Qhelp` to discover |
+| Other | 43 | `Qfind-skills` or `Qhelp` to discover |
 
 ---
 
