@@ -31,7 +31,6 @@ All skills and agents refer to this classification to determine whether a reques
 | **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Refer to qe-admin-mcp maintainer workflows |
 | **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qfind-skills |
 | **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Refer to qe-admin-mcp maintainer workflows |
-| **User profile** | "analyze my patterns", "user profile", "command patterns", "my style" | Qprofile |
 | **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Refer to qe-admin-mcp maintainer workflows |
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |
 | **Domain knowledge** | "domain docs", "domain knowledge", "domain rules", "business rules docs" | Refer to .qe/docs/ for existing domain knowledge documents |
@@ -47,11 +46,7 @@ When there is no explicit invocation, detect keywords in the user's message.
 - Multiple intents overlap → ask the user for clarification
 - Exactly one match → execute the corresponding skill or agent
 
-### 3. Qprofile integration
-Refer to `.qe/profile/command-patterns.md` to reflect the user's historical patterns.
-- If "take a look at this" has historically been a review request → route to Ecode-reviewer
-
-### 4. Ambiguous cases
+### 3. Ambiguous cases
 When intent cannot be determined, ask the user:
 - "What would you like to do? (Generate spec / Run code / Research / Other)"
 

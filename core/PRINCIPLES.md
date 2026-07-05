@@ -171,7 +171,6 @@ Agent invocation should consider model complexity and availability within Claude
 |-------|------------------|-----------|
 | Earchive-executor | haiku | Archival = simple metadata collection & storage |
 | Erefresh-executor | haiku | Refresh = straightforward data update loops |
-| Eprofile-collector | haiku | Profile collection = basic I/O operations |
 | Ecode-debugger | sonnet | Debugging = intermediate complexity analysis & tracing |
 | Ecode-reviewer | sonnet | Code review = pattern matching & quality assessment |
 | Ecode-test-engineer | sonnet | Testing = standard engineering (test design, implementation) |

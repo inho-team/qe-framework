@@ -42,7 +42,7 @@ function mkFixture() {
   mkSkill(root, 'skills/coding-experts/frontend/Qreact-expert', 'Qreact-expert');
   mkSkill(root, 'skills/Qmisc', 'Qmisc');
   mkdirSync(join(root, 'agents'), { recursive: true });
-  writeFileSync(join(root, 'agents', 'Eprofile-collector.md'), '# agent\n');
+  writeFileSync(join(root, 'agents', 'Earchive-executor.md'), '# agent\n');
   const home = join(root, 'home');
   mkSkill(home, '.codex/skills/coding-experts/backend/Qrails-expert', 'Qrails-expert');
   return { root, home };

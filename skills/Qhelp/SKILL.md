@@ -71,7 +71,6 @@ META
   /Qversion                Show current version
   /Qfind-skills            Search skills.sh marketplace
   /Qalias                  Path & command aliases
-  /Qprofile                Analyze usage patterns
   /Qhelp                   This help screen
 
 ADMIN
@@ -84,7 +83,7 @@ AGENTS (auto-selected by complexity)
          Ecode-test-engineer, Ecode-doc-writer, Edoc-generator,
          Egrad-writer, Epm-planner, Erefresh-executor,
          Ecompact-executor, Ehandoff-executor
-  LOW    Earchive-executor, Ecommit-executor, Eprofile-collector
+  LOW    Earchive-executor, Ecommit-executor
 ```
 
 ## Will

@@ -8,7 +8,7 @@ Optimizes cost while maintaining quality.
 
 | Tier | Model | Use Case | Examples |
 |------|-------|----------|---------|
-| **LOW** | haiku | Simple lookups, file copy, format conversion | Eprofile-collector, Earchive-executor, Ecommit-executor |
+| **LOW** | haiku | Simple lookups, file copy, format conversion | Earchive-executor, Ecommit-executor |
 | **MEDIUM** | sonnet | Standard implementation, code writing, review | Etask-executor, Ecode-reviewer, Ecode-test-engineer, Edoc-generator |
 | **HIGH** | opus | Complex analysis, architecture design, deep research | Edeep-researcher, Eqa-orchestrator (judgment phase) |
 
@@ -18,7 +18,6 @@ Optimizes cost while maintaining quality.
 - File move / copy / delete
 - Simple text transformation
 - State file read / write
-- Pattern collection (profiling)
 - Expected execution time: under 10 seconds
 
 ### MEDIUM Tier (sonnet)
@@ -71,7 +70,6 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 
 | Agent | Default Tier | Escalation |
 |-------|-------------|------------|
-| Eprofile-collector | LOW | — |
 | Earchive-executor | LOW | — |
 | Ecommit-executor | LOW | — |
 | Etask-executor | MEDIUM | HIGH (complex checklists) |

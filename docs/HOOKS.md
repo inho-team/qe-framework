@@ -47,9 +47,9 @@ workflow; the supported path is explicit trust review.
 | TaskCompleted | native hook + Codex wrapper | Runs completion-state maintenance where available. |
 
 Codex hook block messages render Codex-native skill commands with the `$`
-prefix, for example `$Qcommit` and `$Qbranch`. Version/release admin blocks
-point maintainers to `qe-admin-mcp` instead of a default installed user skill.
-Claude hook block messages keep the Claude slash-command prefix for core skills.
+prefix, for example `$Qcommit`. Version/release admin blocks point maintainers
+to `qe-admin-mcp` instead of a default installed user skill. Claude hook block
+messages keep the Claude slash-command prefix for core skills.
 
 The Codex lifecycle wrapper forwards the original hook payload to the shared QE
 hook script, sets `QE_CLIENT=codex`, and rewrites slash-command hints (`/Q...`)
@@ -108,7 +108,6 @@ thrown error and therefore bypasses the safety net by design.
 | Trigger | Routed to | Notes |
 |---------|-----------|-------|
 | `git commit ...` (Bash) | Claude `/Qcommit`, Codex `$Qcommit` | raw commit blocked |
-| `gh pr create ...` (Bash) | Claude `/Qbranch`, Codex `$Qbranch` | raw PR creation blocked |
 | **write sink** into `plugin.json` + `version` (Bash) | `qe-admin-mcp` release/bump workflow | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
 | `sed`/`perl`/`ruby -i` / `--in-place` (Bash) | Edit tool | use the Edit tool |
 | Edit of `plugin.json` whose new text has `"version"` | `qe-admin-mcp` release/bump workflow | version field is admin-owned |
