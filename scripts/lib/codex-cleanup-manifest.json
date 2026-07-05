@@ -68,8 +68,8 @@
     "Qmcp-builder",
     "Qpdf",
     "Qpptx",
-    "Qxlsx",
-    "Qrt"
+    "Qrt",
+    "Qxlsx"
   ],
   "externalOwnerPointers": [
     {
