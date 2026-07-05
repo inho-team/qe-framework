@@ -49,11 +49,6 @@ const DEFAULTS = {
   // error cascade compounds further.
   error_delegate_count: 5,              // delegate after N errors in window
 
-  // [why this value]: Every 20 tool calls gives a meaningful slice of session activity
-  // without running the collector so frequently that it dominates tool call overhead.
-  // At typical session pace (~2 calls/min) this fires roughly every 10 minutes.
-  profile_collect_interval: 20,         // collect profile every N tool calls
-
   // [why this value]: Domain docs change less frequently than command patterns, so
   // a longer interval (50 calls ≈ 25 min) avoids regenerating docs mid-task while
   // still refreshing them within a multi-hour session.

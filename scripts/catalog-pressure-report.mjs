@@ -25,7 +25,7 @@ const CORE_AUTO = new Set([
   'Mbump',
 ]);
 const EXPLICIT_ONLY = new Set([
-  'Qarchive', 'Qupdate', 'Qdoctor', 'Qprofile', 'Qfind-skills',
+  'Qarchive', 'Qupdate', 'Qdoctor', 'Qfind-skills',
   'Qjira-cli', 'Qissue', 'Qmcp-setup', 'Qsivs-config',
 ]);
 

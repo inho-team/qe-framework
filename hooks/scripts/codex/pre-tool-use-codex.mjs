@@ -84,19 +84,6 @@ if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
   });
 }
 
-if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
-  if (isBypassed('Qbranch')) {
-    console.log(JSON.stringify({ continue: true }));
-    process.exit(0);
-  }
-  emitBlock({
-    skill: 'Qbranch',
-    reason: 'Raw gh pr create is blocked. Use $Qbranch instead.',
-    action: 'Use $Qbranch instead',
-    bypass: 'skill-bypass.json with skill:"Qbranch"',
-  });
-}
-
 const writesPluginJson =
   /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
 if (writesPluginJson && /version/.test(cmd)) {

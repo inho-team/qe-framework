@@ -42,15 +42,6 @@ test('blocks raw git commit in Codex Bash command', () => {
   assert.match(result.stderr, /Use \$Qcommit instead/);
 });
 
-test('blocks raw gh pr create in Codex Bash command', () => {
-  const result = runHook('gh pr create');
-
-  assert.equal(result.status, 2);
-  assert.match(result.stderr, /\[QE:BLOCK\]/);
-  assert.match(result.stderr, /skill=Qbranch/);
-  assert.match(result.stderr, /Use \$Qbranch instead/);
-});
-
 test('blocks in-place edit in Codex Bash command', () => {
   const result = runHook('sed -i s/a/b/ f.txt');
 

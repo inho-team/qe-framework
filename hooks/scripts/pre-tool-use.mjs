@@ -313,14 +313,6 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       });
     }
 
-    // gh pr create → Qbranch
-    if (matchesExecutable(cmd, /\bgh\s+pr\s+create\b/)) {
-      overrideRules.push({
-        skill: 'Qbranch',
-        msg: `Raw gh pr create is blocked. Use ${skillCommand('Qbranch')} instead.`
-      });
-    }
-
     // version bump: only a real WRITE SINK into plugin.json — redirect (`> plugin.json`
     // / `>> plugin.json`), `tee plugin.json`, or `dd of=…plugin.json` — counts. The
     // write sink must live in an EXECUTABLE region (so `echo "...plugin.json..."` text
@@ -632,10 +624,6 @@ const errState = state.tool_errors || { errors: [] };
 const hasRecentToolErrors = Array.isArray(errState.errors) &&
   errState.errors.length > 0 &&
   (Date.now() - (errState.window_start || 0)) <= cfg.error_window_ms;
-
-if (currentCalls > 0 && currentCalls % cfg.profile_collect_interval === 0 && !hasRecentToolErrors) {
-  hints.push('Run Eprofile-collector in background to update command patterns.');
-}
 
 const docsInterval = cfg.docs_collect_interval || 100;
 if (currentCalls > 0 && currentCalls % docsInterval === 0 && !hasRecentToolErrors) {

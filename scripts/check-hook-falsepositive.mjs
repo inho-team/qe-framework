@@ -113,7 +113,6 @@ const EXEC_ORACLE = [
   ['bash <<EOF\ngit commit -m x\nEOF', 'block:Qcommit', 'O008 shell heredoc exec'],
   ['ssh host <<EOF\ngit commit -m x\nEOF', 'block:Qcommit', 'O009 remote shell heredoc'],
   ['echo "gh pr create"', 'pass', 'O010 quoted pr-create'],
-  ['gh pr create --fill', 'block:Qbranch', 'O011 real pr-create'],
   ['echo "edit .claude-plugin/plugin.json version"', 'pass', 'O012 quoted plugin.json mention'],
   ['echo \'{"version":"9.9.9"}\' > .claude-plugin/plugin.json', 'block:qe-admin-version', 'O013 real version write'],
   ['', 'pass', 'O015 empty command (fail-open)'],
