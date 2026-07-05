@@ -4,17 +4,44 @@ Requirements: R1, R2, R4, NFR1, NFR2, NFR3, NFR4, NFR6
 
 ## Scope
 
-`qe-mcp` is a supervisor control/status API, not a daemon host. OS-native
-schedulers own timed execution, process restart semantics, heartbeat production,
-and monitor command invocation. `qe-framework` owns SessionStart/Notification
-rendering and user-facing guidance.
+`qe-mcp` is a supervisor control/status API. OS-native schedulers own timed
+execution, process restart semantics, heartbeat production, and monitor command
+invocation — EXCEPT for the single opt-in resident event producer sanctioned in
+"Resident Event Producer (D032)" below. `qe-framework` owns
+SessionStart/Notification rendering and user-facing guidance.
 
-Phase 1 and later supervisor surfaces must not introduce internal MCP timers,
-resident MCP scheduler loops, hidden background daemon starts, silent
+Phase 1 and later supervisor surfaces must not introduce silent
 remediation, source writes, client config writes, secret or raw environment
 access, runner delegation, or recursive agent/tool invocation.
 
 In short, silent remediation is forbidden.
+
+### Resident Event Producer (opt-in, single-producer) — D032
+
+The original prohibition on "internal MCP timers / resident MCP scheduler loops /
+hidden background daemon starts" is relaxed to a **conditional allowance** for an
+in-process supervisor event producer, under ALL of the following invariants
+(ADR D032). Absent any one of these, the resident loop stays forbidden:
+
+- **Opt-in only.** The loop is inert unless `QE_MCP_SUPERVISOR_DAEMON=on`. Default
+  off — existing deployments are byte-for-byte unaffected.
+- **Single producer.** Because an MCP server is spawned per client session, at
+  most one instance may run the loop. Ownership is held by a single-producer lock
+  (`locks/producer.lock`: pid + createdAt + heartbeatAt) acquired with atomic
+  `wx`; non-owners stay passive. A dead owner (dead pid, or heartbeat past
+  max-age) is stale-reaped so another instance can take over.
+- **Graceful shutdown.** The loop clears its interval and releases the lock on
+  stdin end/close and SIGTERM/SIGINT. A crash leaves the lock to heartbeat
+  max-age reaping.
+- **Retention enforced.** The producer owns `events.jsonl` retention (latest
+  1,000 events or 30 days) and applies it on every append.
+- **No new powers.** The loop may only run the fixed `MONITOR_SPECS` safe
+  commands (arg-array, no shell) and append events. All other prohibitions
+  (source/config writes, secrets, runner delegation, recursion, silent
+  remediation) remain in force.
+
+This is the ONLY sanctioned resident loop. Any other internal timer or hidden
+daemon start remains forbidden.
 
 Existing `auto-refresh` and `qcron` paths are framework-owned housekeeping for
 `.qe/analysis`. The supervisor contract does not reuse that hidden scheduler
@@ -24,7 +51,7 @@ pattern. Convergence requires a later ADR and phase.
 
 | Term | Existing QE MCP Boundary | Supervisor Contract |
 | --- | --- | --- |
-| Scheduling owner | External scheduler only | No MCP timers or daemon loops |
+| Scheduling owner | External scheduler only | External scheduler, OR one opt-in single-producer resident loop (D032) |
 | Permission classes | read-only/report-only/recoverable-write/source-write/config-write/secret/env/runner delegation | Supervisor status is read-only/report-only; ack writes only ack state |
 | Recoverable writes | Explicit approval fingerprint | Not part of Phase 1/2 supervisor install dry-run |
 | No source/config writes | Forbidden by default | Supervisor reporting cannot modify source or client config |
