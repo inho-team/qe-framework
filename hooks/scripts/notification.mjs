@@ -18,7 +18,11 @@ if (!data) {
   process.exit(0);
 }
 
-const cwd = getCwd(data);
+// Honor the payload's project dir (consistent with pre-tool-use / post-tool-use /
+// stop-handler / session-start); getCwd() alone ignores its arg and returns
+// process.cwd(), which reads/writes .qe state in the wrong dir when the payload
+// carries an explicit cwd.
+const cwd = data.cwd || data.directory || getCwd(data);
 const hints = [];
 const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
 const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;

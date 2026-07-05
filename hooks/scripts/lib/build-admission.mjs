@@ -72,7 +72,7 @@ export function isHeavyBuildCommand(command) {
   if (typeof command !== 'string' || command.trim() === '') return false;
   return (
     matchesExecutable(command, /(?:^|[;&|(\n`])\s*(?:\.\/)?(?:gradlew|gradle|mvnw|mvn)(?:\s|$)/) ||
-    matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+)?(?:build|test)(?:\s|$)/)
+    matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+)?(?:build|test)(?::[\w:-]+)?(?:\s|$)/)
   );
 }
 
@@ -255,14 +255,17 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
   if (memoryProbeReliable && !memory.ok) {
     return { admitted: false, reason: 'memory', message: MEMORY_BLOCK_MESSAGE, memory };
   }
+  // memorySkipped: an unreliable probe reported below threshold but we did NOT
+  // deny (see comment above). Surfaced so callers can make the bypass visible.
+  const memorySkipped = !memoryProbeReliable && !memory.ok;
 
   const lock = acquireBuildLock(metadata, options);
   if (!lock.acquired && lock.reason === 'write-failed') {
-    return { admitted: true, failOpen: true, reason: 'lock-write-failed', memory, lock };
+    return { admitted: true, failOpen: true, reason: 'lock-write-failed', memory, lock, memorySkipped };
   }
   if (!lock.acquired) {
     return { admitted: false, reason: 'lock', message: LOCK_BLOCK_MESSAGE, memory, lock };
   }
 
-  return { admitted: true, disabled: false, memory, lock };
+  return { admitted: true, disabled: false, memory, lock, memorySkipped };
 }

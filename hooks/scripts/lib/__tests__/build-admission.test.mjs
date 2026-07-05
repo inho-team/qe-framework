@@ -92,6 +92,10 @@ test('heavy build classifier detects build commands and ignores executable data'
   assert.equal(isHeavyBuildCommand('bash -lc "mvn test"'), true);
   assert.equal(isHeavyBuildCommand('npm run build'), true);
   assert.equal(isHeavyBuildCommand('npm run test'), true);
+  assert.equal(isHeavyBuildCommand('npm run build:prod'), true);
+  assert.equal(isHeavyBuildCommand('npm run test:unit'), true);
+  assert.equal(isHeavyBuildCommand('npm run buildx'), false);
+  assert.equal(isHeavyBuildCommand('npm run build-css'), false);
   assert.equal(isHeavyBuildCommand('npm test -- --runInBand'), true);
   assert.equal(isHeavyBuildCommand('echo "npm test"'), false);
   assert.equal(isHeavyBuildCommand('cat <<EOF\n./gradlew test\nEOF'), false);
@@ -181,6 +185,7 @@ test('checkBuildAdmission does not deny on the unreliable os.freemem fallback', 
   assert.equal(result.memory.source, 'fallback:os.freemem');
   assert.equal(result.admitted, true);
   assert.notEqual(result.reason, 'memory');
+  assert.equal(result.memorySkipped, true);
 });
 
 test('checkBuildAdmission allows when disabled without taking lock', (t) => {

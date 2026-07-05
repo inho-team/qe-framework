@@ -401,6 +401,9 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
             action: blockMsg,
             bypass: 'QE_BUILD_ADMISSION=off',
           });
+        } else if (admission.memorySkipped) {
+          // Make the os.freemem-fallback bypass visible instead of silent.
+          hints.push(`[build-admission] memory probe unreliable (${admission.memory?.source}); skipped memory check, lock enforced.`);
         }
       } catch {
         // fail-open: unexpected admission bugs must not block tool execution.
