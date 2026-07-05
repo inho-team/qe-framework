@@ -193,8 +193,7 @@ These three documents are the backbone of the framework. Every other component e
 | `Qcommit` | Git commit without AI traces (utility layer) |
 | `Qcompact` / `Qresume` | Context preservation and restoration across sessions |
 | `skill-budget.mjs` | Skill token budget monitoring and overflow detection |
-| `metrics-collector.mjs` | Harness engineering metrics aggregation (6 metrics) |
-| `telemetry.mjs` | Session telemetry JSONL export |
+| `metrics.mjs` | Harness metrics aggregation + session telemetry JSONL |
 | `trace-logger.mjs` | Agent decision tracing for observability |
 
 ---

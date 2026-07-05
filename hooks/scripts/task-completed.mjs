@@ -6,8 +6,7 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import { readStdinJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { runTaskCompletedActions } from './lib/task-completed-actions.mjs';
-import { initMetrics, recordTaskCompletion } from './lib/metrics-collector.mjs';
-import { appendTelemetry } from './lib/telemetry.mjs';
+import { initMetrics, recordTaskCompletion, appendTelemetry } from './lib/metrics.mjs';
 
 const data = readStdinJson();
 if (!data) {

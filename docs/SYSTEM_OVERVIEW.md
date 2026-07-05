@@ -311,8 +311,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ### Observability & Measurement (Phase 5)
 - 6 harness engineering metrics (METRICS_SPEC.md)
-- `metrics-collector.mjs`: Session-scoped metric aggregation
-- `telemetry.mjs`: JSONL telemetry export (.qe/telemetry/)
+- `metrics.mjs`: Harness metric aggregation + JSONL telemetry export (.qe/telemetry/)
 - `trace-logger.mjs`: Agent decision tracing (.qe/traces/)
 - Claude SessionEnd + TaskCompleted hooks wired to metrics/telemetry
 
