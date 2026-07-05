@@ -259,6 +259,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
 
   // Check bypass flag (unified state OR standalone file)
   let bypass = state.skill_bypass;
+  let acceptedBypassFile = null; // path of the standalone flag that was accepted, for one-shot consumption
   if (!bypass || !bypass.active) {
     // Look for the standalone flag across every root the cwd derivation could pick,
     // not just the single derived `cwd`. A cross-repo commit (e.g. Ecommit-executor
@@ -285,6 +286,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
         }
         if (parsed && parsed.active) {
           bypass = parsed;
+          acceptedBypassFile = bypassFile;
           break;
         }
       } catch { /* corrupt flag at this root — try the next candidate */ }
@@ -298,6 +300,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     bypassSkill = bypass.skill || null;
   }
   let consumeSkillEntryBypass = false;
+  let bypassUsed = false; // a rule was actually bypassed by the active flag this call
 
   // Define override rules: [condition, blocked skill name, message]
   const overrideRules = [];
@@ -375,6 +378,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       bypassSkill === rule.skill ||
       (Array.isArray(rule.also) && rule.also.includes(bypassSkill));
     if (bypassMatchesRule) {
+      bypassUsed = true;
       if (rule.skill === 'Qcommit' && bypass?.source === 'skill-entry-hook') {
         consumeSkillEntryBypass = true;
       }
@@ -396,6 +400,14 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
 
   if (consumeSkillEntryBypass && state.skill_bypass?.source === 'skill-entry-hook') {
     delete state.skill_bypass;
+  }
+
+  // One-shot: a standalone flag file that actually granted a bypass this call is
+  // deleted, so a stale flag cannot authorize a SECOND unrelated gated command
+  // within its 120s TTL. Only consumed when the flag was truly used (a rule was
+  // bypassed) — a blocked command exits earlier and never reaches here.
+  if (bypassUsed && acceptedBypassFile) {
+    try { unlinkSync(acceptedBypassFile); } catch { /* best-effort; TTL still bounds reuse */ }
   }
 
   // Machine-global heavy build admission. This intentionally runs after the

@@ -41,6 +41,7 @@ Never leaves AI traces (e.g., Co-Authored-By).
    git add <relevant files> && git commit -m "..." ; rm -f .qe/state/skill-bypass.json
    ```
 10. Confirm any fallback flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
+11. **The standalone flag is one-shot.** Current hooks consume (delete) it the moment it grants the commit — so the trailing `rm` is usually a no-op. **If `git commit` fails for a non-guard reason (e.g. "nothing to commit", a failing pre-commit hook) and you retry, re-create the flag with the Write tool before each retry** — a consumed flag will not authorize a second commit.
 
 ## Conventional Commit Validation (Step 4)
 

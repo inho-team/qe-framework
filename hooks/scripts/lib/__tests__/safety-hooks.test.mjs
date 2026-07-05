@@ -791,6 +791,51 @@ test('pre-tool-use: bypass flag at the tool workdir (cross-repo commit) is honor
   assert.notStrictEqual(res.status, 2); // pre-fix this was hard-blocked (2)
 });
 
+test('pre-tool-use: a standalone bypass flag is one-shot — consumed after first use', (t) => {
+  // A stale flag must not authorize a SECOND unrelated commit within its TTL: once
+  // it grants a bypass, the hook deletes it.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-oneshot-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit', ts: Date.now() }));
+
+  const first = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "first"' } });
+  assert.notStrictEqual(first.status, 2); // first commit allowed
+  assert.ok(!fs.existsSync(flagPath)); // flag consumed on use
+
+  const second = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "second"' } });
+  assert.strictEqual(second.status, 2); // second commit blocked — no reusable flag
+});
+
+test('pre-tool-use: an unused flag (no gated rule matched) is NOT consumed', (t) => {
+  // A flag present while running a non-gated command must survive — consumption
+  // happens only when the flag actually grants a bypass.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nouse-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit', ts: Date.now() }));
+
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'ls -la' } });
+  assert.notStrictEqual(res.status, 2); // non-gated command allowed
+  assert.ok(fs.existsSync(flagPath)); // flag untouched (not used)
+});
+
+test('pre-tool-use: a non-matching flag on a blocked command is NOT consumed', (t) => {
+  // Flag for a different skill does not bypass the git-commit rule → command is
+  // hard-blocked, and the flag must remain (it was never used).
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nomatch-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qrun-task', ts: Date.now() }));
+
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m x' } });
+  assert.strictEqual(res.status, 2); // blocked — flag skill does not match Qcommit rule
+  assert.ok(fs.existsSync(flagPath)); // flag remains (not consumed)
+});
+
 test('pre-tool-use: a stale flag in the hook process cwd does NOT authorize an unrelated commit', (t) => {
   // Security: process.cwd() is the hook's own dir, not the commit target. A flag
   // there (e.g. left over within the 120s TTL) must not grant a bypass when the
