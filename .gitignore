@@ -36,3 +36,6 @@ GEMINI.md
 *.pdf
 harness-engineering-talk*.md
 gbrain-분석.md
+
+# QE shadow-git snapshot store (never commit snapshot internals to the real repo)
+.qe/.snapshots/

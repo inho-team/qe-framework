@@ -2,7 +2,9 @@
 'use strict';
 
 import { readFileSync, existsSync } from 'fs';
-import { join } from 'path';
+import { join, resolve, dirname } from 'path';
+import { fileURLToPath } from 'url';
+import { spawn } from 'child_process';
 import { readUnifiedState, writeUnifiedState, updateContextMemo, markMemoModified, getCwd } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { checkComments, isCheckableFile } from './lib/comment-checker.mjs';
@@ -97,6 +99,42 @@ if (!isError && toolName === 'Read') {
   if (filePath) {
     // Mark as modified so pre-tool-use allows re-read of the updated file
     markMemoModified(state, filePath);
+
+    // --- Shadow snapshot trigger (fail-safe, detached) ---
+    // Spawns qe-shadow.mjs snapshot as a detached child so it never blocks
+    // or wedges the session. Errors in the child are silently discarded.
+    try {
+      // Resolve the wrapper root that holds scripts/qe-shadow.mjs. From this
+      // file (hooks/scripts/post-tool-use.mjs) the wrapper is 3 levels up
+      // (scripts -> hooks -> qe-framework -> wrapper). When the hook runs from
+      // an installed plugin cache that relative path won't reach the user's
+      // project, so fall back to walking up from the payload cwd.
+      const hooksDir = dirname(fileURLToPath(import.meta.url));
+      let wrapperRoot = resolve(hooksDir, '..', '..', '..');
+      let shadowCli = resolve(wrapperRoot, 'scripts', 'qe-shadow.mjs');
+      if (!existsSync(shadowCli)) {
+        let dir = resolve(cwd || process.cwd());
+        for (let i = 0; i < 6; i++) {
+          const candidate = resolve(dir, 'scripts', 'qe-shadow.mjs');
+          if (existsSync(candidate)) { wrapperRoot = dir; shadowCli = candidate; break; }
+          const parent = dirname(dir);
+          if (parent === dir) break;
+          dir = parent;
+        }
+      }
+      if (existsSync(shadowCli)) {
+        const source = toolName.toLowerCase(); // 'write' or 'edit'
+        const sid = process.env.QE_SESSION_ID || process.env.CLAUDE_SESSION_ID || '';
+        const child = spawn(
+          process.execPath,
+          [shadowCli, 'snapshot', '--source', source, ...(sid ? ['--sid', sid] : [])],
+          { detached: true, stdio: 'ignore', cwd: wrapperRoot },
+        );
+        child.unref();
+      }
+    } catch {
+      // fail-open: shadow trigger must never throw or slow the hook
+    }
   }
 }
 
