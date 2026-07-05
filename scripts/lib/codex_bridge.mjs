@@ -376,13 +376,16 @@ The "verify" stage has been split into "implement" (coding) and "verify" (valida
 }
 
 /**
- * Load .qe/sivs-config.json from current working directory
- * Falls back to legacy .qe/svs-config.json for backward compatibility
+ * Load .qe/sivs-config.json from a project directory.
+ * Falls back to legacy .qe/svs-config.json for backward compatibility.
+ * @param {string} [cwd] - project root to read from; defaults to process.cwd().
+ *   Hook callers should pass their resolved session cwd so config loading stays
+ *   consistent with the rest of the hook (audit log, routing, context injection).
  * @returns {object} parsed config or empty object if file doesn't exist
  */
-export function loadSivsConfig() {
-  const configPath = join(process.cwd(), '.qe', 'sivs-config.json');
-  const legacyPath = join(process.cwd(), '.qe', 'svs-config.json');
+export function loadSivsConfig(cwd = process.cwd()) {
+  const configPath = join(cwd, '.qe', 'sivs-config.json');
+  const legacyPath = join(cwd, '.qe', 'svs-config.json');
 
   const pathToLoad = existsSync(configPath) ? configPath : (existsSync(legacyPath) ? legacyPath : null);
 

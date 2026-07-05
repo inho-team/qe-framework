@@ -195,7 +195,7 @@ if (toolName === 'Skill') {
         const { loadSivsConfig, resolveEngine } = await import(
           pathToFileURL(bridgePath).href
         );
-        const sivsConfig = loadSivsConfig();
+        const sivsConfig = loadSivsConfig(cwd);
         const routing = resolveEngine(sivsStage, sivsConfig);
         if (routing.engine === 'codex') {
           if (!routing.warning) {
@@ -528,7 +528,7 @@ if (toolName === 'Agent') {
     const { loadSivsConfig, isCodexReachable } = await import(
       pathToFileURL(bridgePath).href
     );
-    const sivsConfig = loadSivsConfig();
+    const sivsConfig = loadSivsConfig(cwd);
     if (sivsConfig && Object.keys(sivsConfig).length > 0) {
       const toolInput = data.tool_input || data.toolInput || {};
       const reachable = isCodexReachable(state);
@@ -567,7 +567,7 @@ if (toolName === 'Agent') {
       // the one path where routing is not enforced with no signal. Leave an
       // audit breadcrumb so a disabled gate is not invisible. Enforcement flow
       // is unchanged; this branch only appends to the audit log.
-      const cfgBase = join(process.cwd(), '.qe');
+      const cfgBase = join(cwd, '.qe');
       if (existsSync(join(cfgBase, 'sivs-config.json')) || existsSync(join(cfgBase, 'svs-config.json'))) {
         appendAuditLog(cwd, {
           stage: null,

@@ -13,6 +13,7 @@ import {
   expandProfile,
   getDefaultSivsConfig,
   getCodexCommand,
+  loadSivsConfig,
   resolveEngine,
   resolveProfileName,
 } from '../codex_bridge.mjs';
@@ -234,4 +235,28 @@ test('resolveEngine leaves claude stages untouched when Claude is reachable', ()
   );
   // No base/reachability signal → unchanged legacy behaviour.
   assert.deepEqual(resolveEngine('spec', {}, { codexAvailable: true }), { engine: 'claude' });
+});
+
+test('loadSivsConfig reads from the passed cwd, not just process.cwd()', () => {
+  const dir = fixtureDir();
+  writeFixture(dir, '.qe/sivs-config.json', JSON.stringify({ profile: 'codex-head', spec: { engine: 'codex' } }));
+  const cfg = loadSivsConfig(dir);
+  assert.equal(cfg.profile, 'codex-head');
+  assert.equal(cfg.spec.engine, 'codex');
+});
+
+test('loadSivsConfig(cwd) returns {} when no config file exists there', () => {
+  assert.deepEqual(loadSivsConfig(fixtureDir()), {});
+});
+
+test('loadSivsConfig(cwd) falls back to legacy svs-config.json', () => {
+  const dir = fixtureDir();
+  writeFixture(dir, '.qe/svs-config.json', JSON.stringify({ verify: { engine: 'codex' } }));
+  assert.equal(loadSivsConfig(dir).verify.engine, 'codex');
+});
+
+test('loadSivsConfig(cwd) returns {} on malformed JSON (silent-disable path)', () => {
+  const dir = fixtureDir();
+  writeFixture(dir, '.qe/sivs-config.json', '{ not: valid json ');
+  assert.deepEqual(loadSivsConfig(dir), {});
 });
