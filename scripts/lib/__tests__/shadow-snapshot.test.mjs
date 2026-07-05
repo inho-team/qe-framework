@@ -772,6 +772,146 @@ process.exit(failures > 0 ? 1 : 0);
 }
 
 // ---------------------------------------------------------------------------
+// (l) age-based auto-prune trigger — fires even when count < threshold
+// ---------------------------------------------------------------------------
+//
+// Strategy: run a subprocess with QE_SHADOW_MAX_AGE_MS=0 so every commit is
+// immediately "too old". We create a small number of snapshots (well below the
+// count threshold) and assert that auto-prune still fired, trimming old
+// snapshots while keeping the newest one as the safety recovery point.
+// ---------------------------------------------------------------------------
+
+console.log('\n--- (l) age-based auto-prune trigger (QE_SHADOW_MAX_AGE_MS=0) ---');
+
+{
+  const agePruneScript = join(TEMP_BASE, '_ageprune_test.mjs');
+  const agePruneRoot = join(TEMP_BASE, '_ageprune_root');
+  mkdirSync(join(agePruneRoot, '.qe'), { recursive: true });
+
+  // Inline import path for shadow-snapshot.mjs resolved relative to the test.
+  const shadowLibPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'shadow-snapshot.mjs',
+  );
+
+  // The script:
+  //  1. Uses QE_SHADOW_MAX_AGE_MS=0 (age=0 ms → every commit instantly stale).
+  //  2. Uses QE_SHADOW_MAX_SNAPSHOTS=10 QE_SHADOW_PRUNE_BATCH=5 (threshold=15).
+  //  3. Creates only 3 snapshots — well below the count threshold of 15.
+  //  4. Asserts auto-prune still fired (final count < 3, i.e. old ones trimmed).
+  //  5. Asserts at least 1 recovery point remains (safety guarantee).
+  const ageScriptContent = `
+import { spawnSync } from 'node:child_process';
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+
+const ROOT   = ${JSON.stringify(agePruneRoot)};
+const GIT_DIR = join(ROOT, '.qe', '.snapshots', 'shadow.git');
+
+/**
+ * Run a git command against the isolated age-prune shadow repo.
+ *
+ * @param {string[]} args - Git arguments (without 'git').
+ * @returns {{ stdout: string, status: number }}
+ */
+function shadowGit(args) {
+  const r = spawnSync('git', ['--git-dir', GIT_DIR, '--work-tree', ROOT, ...args], {
+    encoding: 'utf8', cwd: ROOT,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat' },
+  });
+  return { stdout: (r.stdout || '').trim(), status: r.status ?? 1 };
+}
+
+let failures = 0;
+const SNAPSHOTS_TO_CREATE = 3;  // well below count threshold of 15
+
+for (let i = 1; i <= SNAPSHOTS_TO_CREATE; i++) {
+  const f = join(ROOT, '.qe', \`_age_\${i}.txt\`);
+  writeFileSync(f, \`age-prune file \${i} ts=\${Date.now()}\\n\`);
+  snapshot({ source: \`age-\${i}\` }, ROOT);
+}
+
+const { stdout: countStr, status: cStatus } = shadowGit(['rev-list', '--count', 'HEAD']);
+const count = parseInt(countStr, 10);
+console.log(\`[age-prune-test] commit count after \${SNAPSHOTS_TO_CREATE} snapshots: \${count}\`);
+
+// Age trigger should have fired on snapshot 2 onwards (oldest commit is always > 0 ms old).
+// After prune the safety guarantee keeps at least 1 commit; so count must be < SNAPSHOTS_TO_CREATE.
+if (cStatus === 0 && count < SNAPSHOTS_TO_CREATE) {
+  console.log(\`PASS age-trigger fired: count (\${count}) < snapshots created (\${SNAPSHOTS_TO_CREATE}) — prune ran by age\`);
+} else {
+  console.log(\`FAIL age-trigger did not fire: count (\${count}) should be < \${SNAPSHOTS_TO_CREATE}\`);
+  failures++;
+}
+
+// Safety: never zero recovery points.
+if (cStatus === 0 && count >= 1) {
+  console.log(\`PASS safety: at least 1 recovery point remains (\${count})\`);
+} else {
+  console.log(\`FAIL safety: no recovery points remain (count=\${count})\`);
+  failures++;
+}
+
+// HEAD should still be a snapshot commit (newest preserved).
+const { stdout: headMsg } = shadowGit(['log', '-1', '--format=%s', 'HEAD']);
+if (/snapshot:|age-/.test(headMsg)) {
+  console.log(\`PASS HEAD is a snapshot commit after age-based prune: "\${headMsg}"\`);
+} else {
+  console.log(\`FAIL HEAD is not a snapshot commit: "\${headMsg}"\`);
+  failures++;
+}
+
+process.exit(failures > 0 ? 1 : 0);
+`;
+
+  writeFileSync(agePruneScript, ageScriptContent);
+
+  const apResult = spawnSync(
+    process.execPath,
+    [agePruneScript],
+    {
+      encoding: 'utf8',
+      cwd: agePruneRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: agePruneRoot,
+        QE_SHADOW_MAX_SNAPSHOTS: '10',
+        QE_SHADOW_PRUNE_BATCH: '5',
+        QE_SHADOW_MAX_AGE_MS: '0',   // every existing snapshot instantly qualifies as beyond age
+      },
+      timeout: 120_000,
+    },
+  );
+
+  const apOut = (apResult.stdout || '').trim();
+  const apErr = (apResult.stderr || '').trim();
+
+  const innerLines = apOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'));
+  for (const line of innerLines) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) {
+      pass(`age-prune: ${label}`);
+    } else {
+      fail(`age-prune: ${label}`, apErr || '(no stderr)');
+    }
+  }
+
+  if (apResult.status !== 0 && innerLines.length === 0) {
+    fail('age-prune subprocess ran without crash', `exit=${apResult.status}\nstdout: ${apOut}\nstderr: ${apErr}`);
+  }
+
+  const countLine = apOut.split('\n').find(l => l.includes('commit count after'));
+  if (countLine) console.log(`  [l] ${countLine}`);
+
+  try { rmSync(agePruneRoot, { recursive: true, force: true }); } catch {}
+  try { rmSync(agePruneScript, { force: true }); } catch {}
+}
+
+// ---------------------------------------------------------------------------
 // Cleanup temp directory
 // ---------------------------------------------------------------------------
 

@@ -68,8 +68,15 @@ const PRUNE_BATCH = (() => {
   return (Number.isFinite(v) && v >= 1) ? v : 50;
 })();
 
-/** Maximum age kept by prune, in milliseconds (72 h). */
-const MAX_AGE_MS = 72 * 60 * 60 * 1000;
+/**
+ * Maximum age kept by prune, in milliseconds (72 h).
+ * Env override: QE_SHADOW_MAX_AGE_MS (integer ms). Useful for tests.
+ * Production default: 259200000 (72 h).
+ */
+const MAX_AGE_MS = (() => {
+  const v = parseInt(process.env.QE_SHADOW_MAX_AGE_MS, 10);
+  return (Number.isFinite(v) && v >= 0) ? v : 72 * 60 * 60 * 1000;
+})();
 
 // ---------------------------------------------------------------------------
 // Store-root resolver (Item 3)
@@ -412,18 +419,43 @@ export function snapshot({ source = 'manual', sid = '' } = {}, root) {
   // ---------------------------------------------------------------------------
   if (resultSha) {
     try {
+      // Count-based trigger: high-water mark check.
       const { stdout: countStr, status: countStatus } = git(
         ['rev-list', '--count', 'HEAD'],
         { gitDir, workTree: storeRoot, check: false },
       );
+      let countTrigger = false;
       if (countStatus === 0) {
         const count = parseInt(countStr, 10);
         if (Number.isFinite(count) && count >= MAX_SNAPSHOTS + PRUNE_BATCH) {
-          console.log(
-            `[qe-shadow] auto-prune triggered (${count} commits >= ${MAX_SNAPSHOTS + PRUNE_BATCH}); pruning to ${MAX_SNAPSHOTS}...`,
-          );
-          prune(storeRoot);
+          countTrigger = true;
         }
+      }
+
+      // Age-based trigger: check whether the OLDEST snapshot exceeds MAX_AGE_MS.
+      // Use `git log --max-parents=0 -1 --format=%ct` to read the root commit's
+      // committer timestamp in one cheap plumbing call (no graph traversal).
+      let ageTrigger = false;
+      const { stdout: oldestCt, status: oldestStatus } = git(
+        ['log', '--max-parents=0', '-1', '--format=%ct'],
+        { gitDir, workTree: storeRoot, check: false },
+      );
+      if (oldestStatus === 0 && oldestCt) {
+        const oldestEpochSeconds = parseInt(oldestCt, 10);
+        if (Number.isFinite(oldestEpochSeconds)) {
+          const ageMs = Date.now() - oldestEpochSeconds * 1000;
+          if (ageMs > MAX_AGE_MS) {
+            ageTrigger = true;
+          }
+        }
+      }
+
+      if (countTrigger || ageTrigger) {
+        const reason = countTrigger
+          ? `${parseInt(countStr, 10)} commits >= ${MAX_SNAPSHOTS + PRUNE_BATCH}`
+          : `oldest snapshot age > ${MAX_AGE_MS} ms`;
+        console.log(`[qe-shadow] auto-prune triggered (${reason}); pruning to ${MAX_SNAPSHOTS}...`);
+        prune(storeRoot);
       }
     } catch (pruneErr) {
       console.warn(`[qe-shadow] auto-prune warning (snapshot still succeeded): ${pruneErr.message}`);
