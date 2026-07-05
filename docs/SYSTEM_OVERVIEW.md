@@ -245,7 +245,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Agent Fleet (<!--qe:agents-->27<!--/qe:agents--> agents)
+## Agent Fleet (<!--qe:agents-->24<!--/qe:agents--> agents)
 
 | Agent | Responsibility |
 |-------|---------------|

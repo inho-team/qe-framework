@@ -143,13 +143,13 @@ test('(b2) reinstall removes stray duplicate QE agent sections', (t) => {
   const staleConfig = [
     'model = "gpt-5"',
     '',
-    '[agents."Eanalysis-supervisor"]',
+    '[agents."Ecode-reviewer"]',
     'description = "stale"',
     'config_file = "/tmp/stale.toml"',
     '',
     QE_FENCE_BEGIN,
     '',
-    '[agents."Eanalysis-supervisor"]',
+    '[agents."Ecode-reviewer"]',
     'description = "old fenced"',
     'config_file = "/tmp/old.toml"',
     '',
@@ -161,8 +161,8 @@ test('(b2) reinstall removes stray duplicate QE agent sections', (t) => {
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
 
   const configContent = fs.readFileSync(path.join(homeDir, '.codex', 'config.toml'), 'utf8');
-  const matches = configContent.match(/\[agents\."Eanalysis-supervisor"\]/g) || [];
-  assert.equal(matches.length, 1, 'exactly one Eanalysis-supervisor section remains');
+  const matches = configContent.match(/\[agents\."Ecode-reviewer"\]/g) || [];
+  assert.equal(matches.length, 1, 'exactly one Ecode-reviewer section remains');
   assert.ok(!configContent.includes('/tmp/stale.toml'), 'stray stale QE agent section removed');
   assert.ok(!configContent.includes('/tmp/old.toml'), 'old fenced QE agent section removed');
 });

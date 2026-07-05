@@ -79,7 +79,7 @@
   },
   "agent_tiers": {
     "LOW": ["Earchive-executor", "Ecommit-executor"],
-    "MEDIUM": ["Etask-executor", "Ecode-debugger", "Ecode-reviewer", "Ecode-test-engineer", "Ecode-doc-writer", "Ecode-quality-supervisor", "Edocs-supervisor", "Eanalysis-supervisor", "Edoc-generator", "Egrad-writer", "Epm-planner", "Erefresh-executor", "Ecompact-executor", "Ehandoff-executor"],
+    "MEDIUM": ["Etask-executor", "Ecode-debugger", "Ecode-reviewer", "Ecode-test-engineer", "Ecode-doc-writer", "Edoc-generator", "Egrad-writer", "Epm-planner", "Erefresh-executor", "Ecompact-executor", "Ehandoff-executor"],
     "HIGH": ["Edeep-researcher", "Eqa-orchestrator", "Esecurity-officer", "Esupervision-orchestrator"]
   }
 }

@@ -3,7 +3,7 @@
 > This document defines the foundational philosophy of the QE Framework.
 > Every skill, agent, and hook in this framework exists to serve this philosophy.
 > When in doubt about a design decision, return to this document.
-> All changes to this file are supervised via Edocs-supervisor.
+> All changes to this file are supervised via Esupervision-orchestrator.
 
 ---
 
@@ -146,9 +146,9 @@ Supervision domains in this framework:
 | Domain | Agent | Evaluates |
 |--------|-------|-----------|
 | Security | Esecurity-officer | Vulnerabilities, data exposure, auth flaws |
-| Code quality | Ecode-quality-supervisor | Correctness, maintainability, test coverage |
-| Documentation | Edocs-supervisor | Accuracy, completeness, clarity |
-| Analysis | Eanalysis-supervisor | Validity of findings, source reliability |
+| Code quality | Esupervision-orchestrator | Correctness, maintainability, test coverage |
+| Documentation | Esupervision-orchestrator | Accuracy, completeness, clarity |
+| Analysis | Esupervision-orchestrator | Validity of findings, source reliability |
 
 ### Stage 5 — Remediate (on FAIL)
 
@@ -185,9 +185,6 @@ These three documents are the backbone of the framework. Every other component e
 | `Qatomic-run` | Parallel implementation via Haiku Waves (Stage 2) |
 | `Etask-executor` | Implements checklist items one by one (Stage 2) |
 | `Esupervision-orchestrator` | Coordinates all supervision agents (Stage 4) |
-| `Ecode-quality-supervisor` | Code quality supervision domain |
-| `Edocs-supervisor` | Documentation supervision domain |
-| `Eanalysis-supervisor` | Analysis and fact supervision domain |
 | `Esecurity-officer` | Security supervision domain |
 | `Qcode-run-task` | Test → review → fix loop within Stage 3 |
 | All hooks | Support the loop: context management, intent routing, state tracking |

@@ -1,0 +1,214 @@
+# LLM-read reference consumed by Esupervision-orchestrator (no machine loader by design; cf. agents/references/supervision-scales.md).
+common:
+  grade_rules:
+    PASS: "Zero findings."
+    PARTIAL: "Only WARN or INFO findings; no FAIL findings."
+    FAIL: "One or more FAIL findings."
+  return_format:
+    - "Grade: PASS | PARTIAL | FAIL"
+    - "Findings: N items"
+    - "Details:"
+    - "- [SEVERITY] {category}: {issue} -> {rework instruction}"
+  rules:
+    - "Every FAIL and WARN finding must include a concrete rework instruction after ->."
+    - "INFO findings may be omitted if they do not affect the grade."
+
+domains:
+  code:
+    scope:
+      includes:
+        - test coverage sufficiency
+        - code smell detection
+        - architecture consistency
+        - duplicate code
+        - cyclomatic complexity
+      excludes:
+        security: "Out of scope; delegate to Esecurity-officer."
+    delegates:
+      mode: parallel
+      required:
+        - Ecode-reviewer
+        - Ecode-test-engineer
+    categories:
+      test-coverage:
+        sufficient:
+          - "Every public function/method has at least one test."
+          - "Happy path plus at least one edge/error case per function."
+          - "Test exists and covers happy plus edge cases: INFO or clean."
+        severities:
+          - signal: "Core business logic has no test at all."
+            severity: FAIL
+          - signal: "Test file exists but key branches are untested."
+            severity: WARN
+      code-smell:
+        severities:
+          - signal: "Method length >30 lines."
+            severity: WARN
+          - signal: "Class/file length >300 lines."
+            severity: WARN
+          - signal: "Parameter count >5 per function."
+            severity: WARN
+          - signal: "Nested depth >3 levels."
+            severity: WARN
+          - signal: "God object / feature envy, clear case."
+            severity: FAIL
+          - signal: "Dead code, unused exports, or unreachable branches."
+            severity: WARN
+      architecture:
+        severities:
+          - signal: "Layering violated, for example domain imports infra directly."
+            severity: FAIL
+          - signal: "Circular dependency."
+            severity: FAIL
+          - signal: "Naming convention inconsistency vs. surrounding code."
+            severity: WARN
+          - signal: "Module boundary crossed without interface."
+            severity: WARN
+      duplicate:
+        severities:
+          - signal: "Exact function body duplicated."
+            severity: FAIL
+          - signal: "Near-duplicate with only variable name changes."
+            severity: WARN
+          - signal: "Identical logic block copied across 2+ files."
+            severity: WARN
+      cyclomatic:
+        severities:
+          - signal: "Complexity 1-10."
+            severity: Clean
+          - signal: "Complexity 11-15."
+            severity: WARN
+          - signal: "Complexity >15."
+            severity: FAIL
+
+  docs:
+    scope:
+      includes:
+        - completeness
+        - accuracy
+        - structural consistency
+        - link validity
+        - example sufficiency
+    categories:
+      completeness:
+        required_sections:
+          agent-spec: "frontmatter, Role, Will, Will Not, at least one workflow or format section"
+          skill-spec: "frontmatter, description of what the skill does, step-by-step workflow"
+          README: "Overview, Usage/Quickstart, at least one example"
+          ADR: "Context, Decision, Consequences"
+          guide: "Introduction, at least one procedural section"
+        severities:
+          - signal: "Required section completely absent."
+            severity: FAIL
+          - signal: "Required section present but empty or placeholder only."
+            severity: WARN
+          - signal: "Optional section missing, for example Examples in a simple doc."
+            severity: INFO
+      accuracy:
+        severities:
+          - signal: "File path referenced in doc does not exist."
+            severity: FAIL
+          - signal: "Function/method name in doc does not match actual code."
+            severity: FAIL
+          - signal: "Config key or env variable name incorrect."
+            severity: FAIL
+          - signal: "Version or command syntax outdated by more than one major version."
+            severity: WARN
+          - signal: "Minor wording inconsistency, for example folder vs directory."
+            severity: INFO
+      structural-consistency:
+        severities:
+          - signal: "Frontmatter fields missing compared to sibling docs of same type."
+            severity: WARN
+          - signal: "Heading hierarchy broken, for example H3 without H2."
+            severity: WARN
+          - signal: "Section ordering significantly different from project conventions."
+            severity: INFO
+          - signal: "Inconsistent code block language tag usage."
+            severity: INFO
+      link-validity:
+        severities:
+          - signal: "Internal link points to a non-existent file."
+            severity: FAIL
+          - signal: "Relative path link broken due to incorrect depth."
+            severity: FAIL
+          - signal: "Anchor link target does not exist in the document."
+            severity: WARN
+      example-sufficiency:
+        severities:
+          - signal: "Feature described with no usage example at all."
+            severity: WARN
+          - signal: "Only a non-runnable pseudo-code example for a runnable feature."
+            severity: WARN
+          - signal: "Example present and demonstrably runnable."
+            severity: Clean
+
+  analysis:
+    scope:
+      includes:
+        - evidential sufficiency
+        - conclusion validity
+        - scope adequacy
+        - bias check
+        - actionability
+    categories:
+      evidential-sufficiency:
+        severities:
+          - signal: "Major claim with zero supporting evidence or source."
+            severity: FAIL
+          - signal: "Claim backed only by unattributed assertion."
+            severity: WARN
+          - signal: "Claim backed by a single weak source with no corroboration."
+            severity: WARN
+          - signal: "Quantitative claim missing units, sample size, or methodology."
+            severity: WARN
+          - signal: "Evidence present and clearly attributed to an identifiable source."
+            severity: Clean
+      conclusion-validity:
+        severities:
+          - signal: "Conclusion directly contradicts the evidence presented."
+            severity: FAIL
+          - signal: "Causal claim inferred from correlation without acknowledgment."
+            severity: FAIL
+          - signal: "Conclusion goes significantly beyond what the evidence supports."
+            severity: WARN
+          - signal: "Logical gap between evidence and conclusion without bridging reasoning."
+            severity: WARN
+          - signal: "Conclusion is proportionate and traceable to the evidence."
+            severity: Clean
+      scope-adequacy:
+        severities:
+          - signal: "Original question entirely unanswered."
+            severity: FAIL
+          - signal: "Key sub-question ignored without explanation."
+            severity: WARN
+          - signal: "Analysis addresses adjacent topic instead of the core question."
+            severity: WARN
+          - signal: "Scope explicitly narrowed with stated rationale."
+            severity: Clean
+          - signal: "All dimensions of the question addressed."
+            severity: Clean
+      bias-check:
+        severities:
+          - signal: "Only one option presented when alternatives exist and matter."
+            severity: FAIL
+          - signal: "Counter-arguments or risks of the recommended option absent."
+            severity: WARN
+          - signal: "Stakeholder perspectives that materially affect the conclusion are missing."
+            severity: WARN
+          - signal: "Disconfirming evidence acknowledged and addressed."
+            severity: Clean
+          - signal: "Trade-offs stated explicitly."
+            severity: Clean
+      actionability:
+        severities:
+          - signal: "No recommendation or next step of any kind."
+            severity: FAIL
+          - signal: "Recommendation too vague to act on."
+            severity: WARN
+          - signal: "Decision criteria present but no guidance on how to apply them."
+            severity: WARN
+          - signal: "Recommendation is concrete, with clear ownership or next step."
+            severity: Clean
+          - signal: "Risk factors and fallback options stated."
+            severity: Clean

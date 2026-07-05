@@ -85,9 +85,6 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 | Erefresh-executor | LOW | — |
 | Ecompact-executor | LOW | — |
 | Ehandoff-executor | LOW | — |
-| Eanalysis-supervisor | LOW | HIGH (complex analysis) |
-| Ecode-quality-supervisor | LOW | HIGH (architecture review) |
-| Edocs-supervisor | LOW | — |
 | Esecurity-officer | LOW | HIGH (vulnerability audit) |
 | Esupervision-orchestrator | LOW | HIGH (quality audit) |
 | Qplan | HIGH | — |

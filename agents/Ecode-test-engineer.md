@@ -149,5 +149,5 @@ class UserServiceTest {
 - Always run tests after writing them to confirm they pass
 - Do not target unnecessarily high coverage (prioritize core logic)
 - Before starting, read `.qe/agent-results/Ecode-reviewer-latest.md` if it exists (review findings inform test targets)
-- If coverage below 50%, write trigger: `.qe/agent-triggers/Ecode-quality-supervisor.trigger.md`
+- If coverage below 50%, write trigger: `.qe/agent-triggers/Esupervision-orchestrator.trigger.md`
 - After completion, write result to `.qe/agent-results/Ecode-test-engineer-latest.md`

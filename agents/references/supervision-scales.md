@@ -15,9 +15,9 @@ recommendedModel: sonnet
 
 | Task Type | Supervision Agents | Description |
 |-----------|-------------------|-------------|
-| `code` | Ecode-quality-supervisor, Esecurity-officer | Code quality + security audit |
-| `docs` | Edocs-supervisor | Documentation quality, accuracy, completeness |
-| `analysis` | Eanalysis-supervisor | Analysis rigor, methodology, conclusion validity |
+| `code` | Esupervision-orchestrator | Code quality + security audit |
+| `docs` | Esupervision-orchestrator | Documentation quality, accuracy, completeness |
+| `analysis` | Esupervision-orchestrator | Analysis rigor, methodology, conclusion validity |
 | `other` | (self — generic supervision) | General quality check performed by this orchestrator directly |
 
 ## Loop Counter Management

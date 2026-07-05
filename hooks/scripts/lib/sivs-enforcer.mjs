@@ -22,8 +22,6 @@ const STAGE_MAP = {
   'qe-framework:Etask-executor': 'implement',
   'Esupervision-orchestrator': 'supervise',
   'qe-framework:Esupervision-orchestrator': 'supervise',
-  'Ecode-quality-supervisor': 'verify',
-  'qe-framework:Ecode-quality-supervisor': 'verify',
   'Ecode-reviewer': 'verify',
   'qe-framework:Ecode-reviewer': 'verify',
 };

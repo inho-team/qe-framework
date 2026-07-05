@@ -64,7 +64,6 @@ When spawning another agent, **check `.qe/agent-results/` for relevant prior res
 | Ecode-debugger | Ecode-test-engineer (test failures), Ecode-reviewer (code smells) |
 | Etask-executor | Erefresh-executor (project state) |
 | Esecurity-officer | Ecode-reviewer (architecture findings) |
-| Ecode-quality-supervisor | Ecode-reviewer + Ecode-test-engineer (both) |
 
 Format: append `## Prior Agent Context\n{result content}` to the delegation prompt.
 
@@ -84,10 +83,10 @@ Trigger conditions:
 
 | Source Agent | Condition | Triggers |
 |-------------|-----------|----------|
-| Erefresh-executor | Architecture change detected | Ecode-quality-supervisor |
+| Erefresh-executor | Architecture change detected | Esupervision-orchestrator |
 | Erefresh-executor | New dependency added | Esecurity-officer |
 | Ecode-reviewer | Security concern found | Esecurity-officer |
-| Ecode-test-engineer | Coverage below 50% | Ecode-quality-supervisor |
+| Ecode-test-engineer | Coverage below 50% | Esupervision-orchestrator |
 
 The orchestrating skill (Qrun-task, Qutopia) checks `.qe/agent-triggers/` after each agent completes and spawns triggered agents automatically.
 

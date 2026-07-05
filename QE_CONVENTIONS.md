@@ -511,15 +511,12 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Earchive-executor` | Archive tasks to .qe/.archive/ |
 | `Ecode-debugger` | Bug root cause analysis |
 | `Ecode-doc-writer` | Technical documentation writing |
-| `Ecode-quality-supervisor` | Code quality audit (PASS/PARTIAL/FAIL) |
 | `Ecode-reviewer` | Code review (quality/security/perf) |
 | `Ecode-test-engineer` | Test writing and coverage |
 | `Ecommit-executor` | Git commit operations (used by Qcommit) |
 | `Ecompact-executor` | Context save/restore |
 | `Edeep-researcher` | Multi-source research |
 | `Edoc-generator` | Batch document generation |
-| `Edocs-supervisor` | Documentation audit (PASS/PARTIAL/FAIL) |
-| `Eanalysis-supervisor` | Analysis audit (PASS/PARTIAL/FAIL) |
 | `Egrad-writer` | Academic paper chapter writing |
 | `Ehandoff-executor` | Session handoff documents |
 | `Epm-planner` | PRD/roadmap/story planning |

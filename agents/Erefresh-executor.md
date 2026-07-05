@@ -92,7 +92,7 @@ Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints fr
 - Record history in .qe/changelog.md
 - Tag external changes
 - Write triggers when significant changes detected:
-  - Architecture change → `.qe/agent-triggers/Ecode-quality-supervisor.trigger.md`
+  - Architecture change → `.qe/agent-triggers/Esupervision-orchestrator.trigger.md`
   - New dependency added → `.qe/agent-triggers/Esecurity-officer.trigger.md`
 - Write result to `.qe/agent-results/Erefresh-executor-latest.md`
 
