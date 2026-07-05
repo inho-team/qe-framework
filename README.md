@@ -442,7 +442,7 @@ qe-framework/
 ├── skills/                  # skill definitions
 │   ├── Q*/                  # user-facing skills
 │   └── M*/                  # maintenance skills
-├── agents/                  # 21 agent definitions
+├── agents/                  # 28 agent definitions
 ├── core/                    # Principles, schemas, rules
 ├── scripts/                 # Runtime utilities + shared libs
 ├── hooks/                   # Git/session hooks
