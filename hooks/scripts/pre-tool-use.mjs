@@ -260,17 +260,34 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   // Check bypass flag (unified state OR standalone file)
   let bypass = state.skill_bypass;
   if (!bypass || !bypass.active) {
-    const bypassFile = join(cwd, '.qe', 'state', 'skill-bypass.json');
-    if (existsSync(bypassFile)) {
+    // Look for the standalone flag across every root the cwd derivation could pick,
+    // not just the single derived `cwd`. A cross-repo commit (e.g. Ecommit-executor
+    // committing a sibling repo) runs with a workdir/cwd that may differ from where
+    // the flag was written; checking each candidate root keeps the flag findable
+    // wherever the executor placed it. Same trust boundary + 120s TTL still apply.
+    // Only payload-derived roots (session + the tool's own workdir/cwd) may carry a
+    // bypass flag. process.cwd() is the HOOK process's dir — unrelated to the commit
+    // target — so a stale flag there must NOT authorize an unrelated commit; it is a
+    // last-resort fallback only when the payload names no root at all (mirrors the
+    // former single-cwd derivation, whose final fallback was process.cwd()).
+    const payloadRoots = [data.cwd, data.directory, rootToolInput.workdir, rootToolInput.cwd].filter(Boolean);
+    const candidateRoots = [...new Set(payloadRoots.length ? payloadRoots : [process.cwd()])];
+    for (const root of candidateRoots) {
+      const bypassFile = join(root, '.qe', 'state', 'skill-bypass.json');
+      if (!existsSync(bypassFile)) continue;
       try {
-        bypass = JSON.parse(readFileSync(bypassFile, 'utf8'));
+        const parsed = JSON.parse(readFileSync(bypassFile, 'utf8'));
         // A flag written via the Write tool (e.g. Ecommit-executor) has no `ts` — Write
         // cannot stamp $(date). Fall back to the file mtime so the 120s TTL still applies.
         // Bash-written flags keep their `ts` and are unaffected.
-        if (bypass && bypass.active && !bypass.ts) {
-          bypass.ts = statSync(bypassFile).mtimeMs;
+        if (parsed && parsed.active && !parsed.ts) {
+          parsed.ts = statSync(bypassFile).mtimeMs;
         }
-      } catch { bypass = null; }
+        if (parsed && parsed.active) {
+          bypass = parsed;
+          break;
+        }
+      } catch { /* corrupt flag at this root — try the next candidate */ }
     }
   }
   let bypassSkill = null;

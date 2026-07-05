@@ -767,6 +767,58 @@ test('pre-tool-use: admin-version bypass flag allows the release-train commit (r
   assert.notStrictEqual(runCommitGuard('qe-admin-version'), 2);
 });
 
+test('pre-tool-use: bypass flag at the tool workdir (cross-repo commit) is honored', (t) => {
+  // Ecommit-executor committing a sibling repo: data.cwd is the session dir but
+  // the git command runs with a workdir pointing at the target repo, where the
+  // flag was written. The flag must be found via the candidate roots, not only
+  // the single derived cwd.
+  const sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-xrepo-session-'));
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-xrepo-target-'));
+  t.after(() => {
+    fs.rmSync(sessionDir, { recursive: true, force: true });
+    fs.rmSync(repoDir, { recursive: true, force: true });
+  });
+  // Flag lives in the TARGET repo (tool workdir), NOT in data.cwd (session dir).
+  fs.mkdirSync(path.join(repoDir, '.qe', 'state'), { recursive: true });
+  fs.writeFileSync(
+    path.join(repoDir, '.qe', 'state', 'skill-bypass.json'),
+    JSON.stringify({ active: true, skill: 'Qcommit', ts: Date.now() }),
+  );
+  const res = runHookPayload(sessionDir, {
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "chore: release v9.9.9"', workdir: repoDir },
+  });
+  assert.notStrictEqual(res.status, 2); // pre-fix this was hard-blocked (2)
+});
+
+test('pre-tool-use: a stale flag in the hook process cwd does NOT authorize an unrelated commit', (t) => {
+  // Security: process.cwd() is the hook's own dir, not the commit target. A flag
+  // there (e.g. left over within the 120s TTL) must not grant a bypass when the
+  // payload names real roots that have no flag.
+  const procCwd = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-proccwd-'));
+  const sessionDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-proc-session-'));
+  const repoDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-proc-target-'));
+  t.after(() => {
+    for (const d of [procCwd, sessionDir, repoDir]) fs.rmSync(d, { recursive: true, force: true });
+  });
+  // Flag ONLY in the hook process cwd — not in data.cwd or the tool workdir.
+  fs.mkdirSync(path.join(procCwd, '.qe', 'state'), { recursive: true });
+  fs.writeFileSync(
+    path.join(procCwd, '.qe', 'state', 'skill-bypass.json'),
+    JSON.stringify({ active: true, skill: 'Qcommit', ts: Date.now() }),
+  );
+  const res = spawnSync(process.execPath, [HOOK_PATH], {
+    input: JSON.stringify({
+      cwd: sessionDir,
+      tool_name: 'Bash',
+      tool_input: { command: 'git commit -m "chore: release v9.9.9"', workdir: repoDir },
+    }),
+    encoding: 'utf8',
+    cwd: procCwd, // the hook's process.cwd() holds the stale flag
+  });
+  assert.strictEqual(res.status, 2); // must still hard-block
+});
+
 test('pre-tool-use: an unrelated bypass flag does NOT allow git commit', () => {
   assert.strictEqual(runCommitGuard('Qrun-task'), 2);
 });
