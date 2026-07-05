@@ -48,8 +48,8 @@ WORKFLOW
 
 DEVELOPMENT
   /Qcode-run-task          Quality loop: test → review → fix ($Qcode-run-task on Codex)
-  /Qmcp-setup              MCP server setup + building guide
-  /Qmcp-ensure             Install/verify QE MCP companion preflight
+  /Qmcp setup              MCP server setup + building guide
+  /Qmcp ensure             Install/verify QE MCP companion preflight
 
 TASK MANAGEMENT
   /Qinit                   Initialize QE in a project
@@ -57,7 +57,7 @@ TASK MANAGEMENT
   /Qresume                 Restore previous session context
   /Qcompact                Save context / session handoff ($Qcompact on Codex)
   /Quser-action            Track external actions the user must perform
-  /Qarchive                Archive completed tasks
+  /Qgc archive             Archive completed tasks
 
 DOCUMENTATION
   /Qwriting-clearly        Clear writing + AI pattern removal

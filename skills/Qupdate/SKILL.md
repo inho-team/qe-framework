@@ -88,11 +88,11 @@ Choose exactly one path:
 - Do not recommend `npm update -g @inho-team/qe-framework` unless the package is published to npm.
 
 ### Step 2: Ensure/update the QE MCP companion (target C)
-Invoke `{adapter.commandPrefix}Qmcp-ensure` to centralize the MCP companion preflight.
+Invoke `{adapter.commandPrefix}Qmcp ensure` to centralize the MCP companion preflight.
 That skill owns detection, missing-package install, registry initialization, and health
 verification for `@inho-team/qe-mcp`.
 
-After `Qmcp-ensure` returns `PASS`, update the companion to latest as part of this update
+After `Qmcp ensure` returns `PASS`, update the companion to latest as part of this update
 workflow:
 
 ```bash
@@ -107,9 +107,9 @@ Selection rule:
   documented local checks instead of global install.
 - If `qe-mcp sync` reports a client-specific warning, continue only with that client's
   MCP-dependent features marked degraded until the client config is fixed.
-- If `Qmcp-ensure` returns `WARN`, continue only with MCP-dependent features marked
+- If `Qmcp ensure` returns `WARN`, continue only with MCP-dependent features marked
   degraded.
-- If `Qmcp-ensure` returns `FAIL`, do not claim MCP tools are usable.
+- If `Qmcp ensure` returns `FAIL`, do not claim MCP tools are usable.
 - Do not copy the expert corpus into `qe-framework`.
 
 ### Step 3: Update the codex-plugin-cc bridge (target D)

@@ -317,8 +317,8 @@ Claude: /Qhelp
 Codex:  $Qhelp
 Claude: /Qsecret
 Codex:  $Qsecret
-Claude: /Qmcp-sync
-Codex:  $Qmcp-sync
+Claude: /Qmcp sync
+Codex:  $Qmcp sync
 Claude: /Qutopia status   # check autonomous mode (read section 11 first!)
 Codex:  $Qutopia status
 ```

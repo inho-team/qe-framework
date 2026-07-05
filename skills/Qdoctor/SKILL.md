@@ -16,7 +16,7 @@ Diagnose QE runtime health and define safe repair actions for:
 
 Qdoctor is a diagnostic and repair workflow. It may run safe idempotent fixes, but it must
 not upgrade packages, release versions, or rewrite project source code. Use `Qupdate` for
-updates and `Qmcp-sync` for MCP client config sync.
+updates and `Qmcp sync` for MCP client config sync.
 
 ## Execution Procedure
 
@@ -64,7 +64,7 @@ Verify:
 - `qe-framework` version is readable from the installed package or checkout.
 - `qe-mcp` is installed or a clear install command is available.
 - Framework package does not depend on bundled `skills-optional` or framework-side MCP scripts.
-- `Qmcp-sync` points to external `@inho-team/qe-mcp`.
+- `Qmcp sync` points to external `@inho-team/qe-mcp`.
 
 Recommended install repairs:
 
@@ -74,7 +74,7 @@ npm install -g @inho-team/qe-mcp
 ```
 
 Use these only when the user explicitly wants package installation. For the MCP companion,
-prefer `{adapter.commandPrefix}Qmcp-ensure` so detection, install, registry initialization,
+prefer `{adapter.commandPrefix}Qmcp ensure` so detection, install, registry initialization,
 and verification stay centralized.
 
 ### Step 3: Project `.qe/` Consistency
@@ -129,7 +129,7 @@ Fixes applied:
 - ...
 
 Recommended next action:
-- Qupdate | Qmcp-sync | Qinit | Qrefresh | manual package install
+- Qupdate | Qmcp sync | Qinit | Qrefresh | manual package install
 ```
 
 ## Validation
@@ -143,7 +143,7 @@ Recommended next action:
 | "Run Qdoctor and fix QE dependency drift" | Diagnose framework/MCP and apply only safe repairs |
 | "Check whether my .qe folder is corrupted" | Validate `.qe/` structure and JSON, recommend repairs |
 | "Update QE to latest" | Use Qupdate instead |
-| "Sync MCP clients" | Use Qmcp-sync instead |
+| "Sync MCP clients" | Use Qmcp sync instead |
 
 ## Will
 - Diagnose framework, MCP, and project `.qe/` health
@@ -154,4 +154,4 @@ Recommended next action:
 - Release packages or create tags
 - Commit changes
 - Delete `.qe/` data automatically
-- Replace Qupdate or Qmcp-sync
+- Replace Qupdate or Qmcp sync

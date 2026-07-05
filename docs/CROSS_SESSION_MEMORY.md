@@ -92,5 +92,5 @@ Claude Code's built-in auto memory at `~/.claude/projects/{path}/memory/`:
 
 1. Review `.qe/state/` periodically — remove stale session dirs
 2. Keep Auto Memory `MEMORY.md` under 200 lines
-3. Archive completed handoff docs (Qsweep handles this)
+3. Archive completed handoff docs (Qgc sweep handles this)
 4. Prune unified-state of obsolete keys on session start

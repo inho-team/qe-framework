@@ -212,7 +212,7 @@ Skip agent triggers if no trigger files exist.
 2. Move files to `completed/`
 3. **Update Status**: Call `updateClaudeStatus(cwd, uuid, "✅")`. This updates the active task registry, preferring `.qe/TASK_LOG.md`.
 4. `type: code` → call `Ecode-doc-writer`; `type: docs` → call `Edoc-generator`
-5. Auto-run `{adapter.commandPrefix}Qarchive` in background
+5. Auto-run `{adapter.commandPrefix}Qgc archive` in background
 6. Clean up `.qe/agent-results/` (delete result files older than current task)
 
 Report: UUID, items completed, verification passed, changed files.

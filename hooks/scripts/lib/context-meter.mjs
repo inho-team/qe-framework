@@ -217,7 +217,7 @@ function isUsableModelId(id) {
  * Read a DURABLE, model-keyed context-window limit auto-detected in a prior
  * session. Unlike {@link readCachedRatio}/{@link readCachedLimit}, this lives in
  * the committed-style `.qe/config.json` (not the volatile `.qe/state/` cache),
- * so it survives a full state-folder wipe (`/Qsweep`, manual cleanup) — the
+ * so it survives a full state-folder wipe (`Qgc sweep`, manual cleanup) — the
  * exact event that otherwise forces re-detection from scratch and reopens the
  * "1M run scored against 200k" false-pressure window.
  *

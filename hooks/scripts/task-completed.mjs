@@ -44,7 +44,7 @@ if (taskId) {
 }
 
 // Auto-archive gap fix: append TASK_LOG row, move pending→completed, and
-// flag /Qarchive when the completed backlog crosses ARCHIVE_THRESHOLD.
+// flag Qgc archive when the completed backlog crosses ARCHIVE_THRESHOLD.
 // Idempotent — safe to retry on duplicate TaskCompleted events.
 let actionSummary = null;
 try {

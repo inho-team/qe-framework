@@ -33,7 +33,7 @@ function event(overrides = {}) {
     details: 'bounded detail',
     evidence_path: '.qe/state/supervisor/logs/qe-mcp-doctor.log',
     evidence_fingerprint: 'sha256:a',
-    remediation_hint: 'Run Qmcp-ensure',
+    remediation_hint: 'Run Qmcp ensure',
     ...overrides,
   };
 }

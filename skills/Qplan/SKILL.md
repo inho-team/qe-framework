@@ -43,7 +43,7 @@ Before starting planning, verify that the QE framework is set up. Treat the proj
 
 ### Step 0.4: QE MCP Companion Preflight
 
-Invoke `{adapter.commandPrefix}Qmcp-ensure` before MCP-backed expert lookup, MCP runner tools, or cross-agent help are used during planning.
+Invoke `{adapter.commandPrefix}Qmcp ensure` before MCP-backed expert lookup, MCP runner tools, or cross-agent help are used during planning.
 
 - `PASS` → MCP-backed planning assistance is available.
 - `WARN` → continue with local-only planning and mention that MCP expert lookup is degraded.

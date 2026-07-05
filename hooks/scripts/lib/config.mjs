@@ -71,7 +71,7 @@ const DEFAULTS = {
   // Auto-apply on Stop hook uses deterministic signals (completed/ folders, fully-checked
   // pairs, filename-embedded dates) and moves to .archive/ (recoverable). Opt-out via
   // .qe/config.json { "hooks": { "sweep_auto": false } } for users who prefer manual control.
-  sweep_auto: true,                    // auto-apply Qsweep archive moves on Stop hook
+  sweep_auto: true,                    // auto-apply Qgc sweep archive moves on Stop hook
 
   // [why default true]: the OUTPUT_STYLE drama gate (ADR-025 R3) is cost-0 on clean
   // turns (Stage-1 regex only) and fail-open without credentials, so it is safe to

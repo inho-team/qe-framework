@@ -305,7 +305,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | health check / repair | `Qdoctor` | Verifies framework, MCP companion, and `.qe/` consistency before repair |
 | context save / handoff | `Qcompact` | Structured snapshot, recoverable in future sessions |
 | context restore | `Qresume` | Reconstructs working state from snapshot |
-| archive tasks | `Qarchive` | Moves files into versioned archive with index |
+| archive tasks | `Qgc archive` | Moves files into versioned archive with index |
 | project refresh | `Qrefresh` | Re-analyzes all four analysis files in one pass |
 
 ---
@@ -326,14 +326,14 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qproject-sync` | Sync project source files with a reference/standard project |
 | `Qcompact` | Save context / session handoff |
 | `Qresume` | Restore saved context |
-| `Qarchive` | Archive completed tasks |
+| `Qgc archive` | Archive completed tasks |
 | `Qcommit` | Human-style git commit (no AI traces) |
 | `Qalias` | Define path/command shortcuts |
 | `Qcc-setup` | Shell alias setup for Claude & Codex (cc, ccc, ccd, cx, cxd) |
 | `Qcommand-creator` | Create slash commands |
 | `Qfind-skills` | Find/install skills from skills.sh |
-| `Qmcp-setup` | MCP server setup, configuration, and custom server building guide |
-| `Qmcp-sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
+| `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
+| `Qmcp sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
 | `Qutopia` | Fully autonomous execution mode |
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |

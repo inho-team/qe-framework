@@ -1,6 +1,6 @@
 ---
 name: Earchive-executor
-description: A background sub-agent that archives completed task files into .qe/.archive/ by version. Invoke when Qrun-task or Qarchive needs to persist completed tasks to the archive.
+description: A background sub-agent that archives completed task files into .qe/.archive/ by version. Invoke when Qrun-task or Qgc archive needs to persist completed tasks to the archive.
 tools: Read, Write, Edit, Grep, Glob, Bash
 recommendedModel: haiku
 ---
@@ -13,7 +13,7 @@ Runs silently in the background.
 
 ## Invocation Conditions
 - **Automatic**: When Qrun-task marks a task as completed
-- **Manual**: When delegated by the Qarchive skill
+- **Manual**: When delegated by Qgc archive
 
 ## Execution Steps
 
