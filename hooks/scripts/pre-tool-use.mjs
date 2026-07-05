@@ -560,6 +560,23 @@ if (toolName === 'Agent') {
       if (result.action === 'fallback') {
         hints.push(`[SIVS FALLBACK] ${result.stage} stage configured for codex but falling back to claude: ${result.reason}. Fix: ensure codex-plugin-cc is installed and operational.`);
       }
+    } else {
+      // Visibility-only (no behavior change): loadSivsConfig() returned empty.
+      // If a config file nevertheless exists on disk, SIVS enforcement is
+      // silently inactive (malformed/unparseable, or intentionally emptied) —
+      // the one path where routing is not enforced with no signal. Leave an
+      // audit breadcrumb so a disabled gate is not invisible. Enforcement flow
+      // is unchanged; this branch only appends to the audit log.
+      const cfgBase = join(process.cwd(), '.qe');
+      if (existsSync(join(cfgBase, 'sivs-config.json')) || existsSync(join(cfgBase, 'svs-config.json'))) {
+        appendAuditLog(cwd, {
+          stage: null,
+          configuredEngine: null,
+          actualEngine: null,
+          action: 'skip',
+          reason: 'config_present_but_inactive',
+        });
+      }
     }
   } catch {
     // Fault-tolerant: never let SIVS enforcer crash the hook
