@@ -131,38 +131,25 @@ if (result.stderr) process.stderr.write(codexify(result.stderr));
 
 // --- Shadow snapshot trigger for Codex Write/Edit events (fail-safe, detached) ---
 // Fires after the real hook result is forwarded so it never delays output.
-// Errors are silently discarded — must never wedge the Codex session.
+// The child is fire-and-forget (detached: true + child.unref()), so the hook's
+// own latency is unaffected by the snapshot's git runtime — the ≤500 ms hook
+// budget is satisfied regardless of how long the child takes to complete.
+// No separate timeout is needed; errors are silently discarded and must never
+// wedge the Codex session.
+// Stable path: hooks/scripts/codex/lifecycle-codex.mjs → ../../../scripts/qe-shadow.mjs
+// The lib resolves the .qe store root from cwd at runtime.
 try {
   const toolName = (() => {
     try { return (input ? JSON.parse(input) : {}).tool_name || ''; } catch { return ''; }
   })();
   if (['Write', 'Edit'].includes(toolName) && eventName === 'PostToolUse') {
-    // Resolve shadow CLI: first try the relative path from hooksRoot.
-    // If not found, walk up from the payload cwd (up to 6 levels) as a fallback,
-    // mirroring the approach in post-tool-use.mjs.
-    const wrapperRoot = resolve(hooksRoot, '..', '..');
-    let shadowCli = resolve(wrapperRoot, 'scripts', 'qe-shadow.mjs');
-    if (!existsSync(shadowCli)) {
-      // Fallback: walk up from hookCwd looking for scripts/qe-shadow.mjs
-      let searchDir = hookCwd;
-      for (let i = 0; i < 6; i++) {
-        const candidate = resolve(searchDir, 'scripts', 'qe-shadow.mjs');
-        if (existsSync(candidate)) {
-          shadowCli = candidate;
-          break;
-        }
-        const parent = resolve(searchDir, '..');
-        if (parent === searchDir) break; // filesystem root
-        searchDir = parent;
-      }
-    }
+    const shadowCli = resolve(here, '..', '..', '..', 'scripts', 'qe-shadow.mjs');
     if (existsSync(shadowCli)) {
-      const resolvedWrapperRoot = resolve(shadowCli, '..', '..');
       const sid = process.env.QE_SESSION_ID || process.env.CLAUDE_SESSION_ID || '';
       const child = spawn(
         process.execPath,
         [shadowCli, 'snapshot', '--source', 'codex', ...(sid ? ['--sid', sid] : [])],
-        { detached: true, stdio: 'ignore', cwd: resolvedWrapperRoot },
+        { detached: true, stdio: 'ignore', cwd: hookCwd },
       );
       child.unref();
     }

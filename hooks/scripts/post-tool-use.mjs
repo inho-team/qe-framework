@@ -101,34 +101,24 @@ if (!isError && toolName === 'Read') {
     markMemoModified(state, filePath);
 
     // --- Shadow snapshot trigger (fail-safe, detached) ---
-    // Spawns qe-shadow.mjs snapshot as a detached child so it never blocks
-    // or wedges the session. Errors in the child are silently discarded.
+    // Spawns qe-shadow.mjs as a detached child (detached: true + child.unref()).
+    // Because the child is fire-and-forget, the hook itself returns immediately
+    // regardless of how long the snapshot's git operations take — the ≤500 ms
+    // hook latency budget is unaffected by the child's runtime. No separate
+    // timeout is needed here; slow or failing git runs are silently discarded.
+    // Stable path: hooks/scripts/post-tool-use.mjs → ../../scripts/qe-shadow.mjs
+    // The lib resolves the .qe store root from cwd at runtime, so no wrapper
+    // path wiring is needed here.
     try {
-      // Resolve the wrapper root that holds scripts/qe-shadow.mjs. From this
-      // file (hooks/scripts/post-tool-use.mjs) the wrapper is 3 levels up
-      // (scripts -> hooks -> qe-framework -> wrapper). When the hook runs from
-      // an installed plugin cache that relative path won't reach the user's
-      // project, so fall back to walking up from the payload cwd.
       const hooksDir = dirname(fileURLToPath(import.meta.url));
-      let wrapperRoot = resolve(hooksDir, '..', '..', '..');
-      let shadowCli = resolve(wrapperRoot, 'scripts', 'qe-shadow.mjs');
-      if (!existsSync(shadowCli)) {
-        let dir = resolve(cwd || process.cwd());
-        for (let i = 0; i < 6; i++) {
-          const candidate = resolve(dir, 'scripts', 'qe-shadow.mjs');
-          if (existsSync(candidate)) { wrapperRoot = dir; shadowCli = candidate; break; }
-          const parent = dirname(dir);
-          if (parent === dir) break;
-          dir = parent;
-        }
-      }
+      const shadowCli = resolve(hooksDir, '..', '..', 'scripts', 'qe-shadow.mjs');
       if (existsSync(shadowCli)) {
         const source = toolName.toLowerCase(); // 'write' or 'edit'
         const sid = process.env.QE_SESSION_ID || process.env.CLAUDE_SESSION_ID || '';
         const child = spawn(
           process.execPath,
           [shadowCli, 'snapshot', '--source', source, ...(sid ? ['--sid', sid] : [])],
-          { detached: true, stdio: 'ignore', cwd: wrapperRoot },
+          { detached: true, stdio: 'ignore', cwd: cwd || process.cwd() },
         );
         child.unref();
       }
