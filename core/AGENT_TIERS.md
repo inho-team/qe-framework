@@ -73,7 +73,7 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 | Earchive-executor | LOW | — |
 | Ecommit-executor | LOW | — |
 | Etask-executor | MEDIUM | HIGH (complex checklists) |
-| Ecode-debugger | MEDIUM | HIGH (unknown root cause) |
+| Ecode-debugger | MEDIUM | HIGH (unknown root cause, competing-hypotheses/disconfirmation tracing) |
 | Ecode-reviewer | MEDIUM | — |
 | Ecode-test-engineer | MEDIUM | — |
 | Edoc-writer | MEDIUM | HIGH (batch multi-format docs) |
@@ -84,12 +84,10 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 | Erefresh-executor | LOW | — |
 | Ecompact-executor | LOW | — |
 | Ehandoff-executor | LOW | — |
-| Esecurity-officer | LOW | HIGH (vulnerability audit) |
+| Esecurity-officer | LOW | HIGH (vulnerability audit, dependency/CVE analysis) |
 | Esupervision-orchestrator | LOW | HIGH (quality audit) |
 | Qplan | HIGH | — |
-| Etracer | MEDIUM | HIGH (deep investigation) |
 | Econtract-judge | MEDIUM | — |
-| Edependency-auditor | LOW | MEDIUM (deep CVE analysis) |
 | Eperformance-profiler | MEDIUM | HIGH (complex profiling) |
 
 ## Escalation Rules

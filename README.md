@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->29<!--/qe:skills--> skills | <!--qe:agents-->22<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->29<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -374,7 +374,7 @@ optional expert corpus.
 
 **Recommended lifecycle:** Claude `/Qutopia status` -> `/Qutopia` (or `--work` / `--qa`) -> `/Qutopia off`; Codex `$Qutopia status` -> `$Qutopia` -> `$Qutopia off`. Leaving it on across sessions is how accidents happen.
 
-## Agent Fleet (<!--qe:agents-->22<!--/qe:agents--> agents)
+## Agent Fleet (<!--qe:agents-->20<!--/qe:agents--> agents)
 
 | Agent | Role |
 |-------|------|
