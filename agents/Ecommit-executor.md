@@ -30,25 +30,32 @@ Never leaves AI traces (e.g., Co-Authored-By).
 8. **Fallback only for older hooks:** if the commit is still blocked because the
    installed hook does not support skill-entry capabilities, set the skill bypass
    flag using the Write tool — NOT Bash. Use the **Write tool** to create
-   `.qe/state/skill-bypass.json` with exactly this content:
+   `.qe/state/skill-bypass.json` binding the flag to the **exact commit command you
+   will run next** (the `command` field). Always include it — this scopes the
+   bypass to one command so a stale flag can never authorize an unrelated commit
+   (older hooks ignore the field, so it is always safe):
    ```json
-   {"active":true,"skill":"Qcommit"}
+   {"active":true,"skill":"Qcommit","command":"git commit -m \"<your message>\""}
    ```
    > ✅ **Why the Write tool, not Bash:** a Write tool call can never be combined with `git commit` into a single command, so the flag is guaranteed to be on disk before the gated commit runs. (A flag written by Bash in the same `&&` chain is not yet on disk when the PreToolUse hook checks the command, so the commit is blocked. This is the failure mode the Write tool eliminates structurally.)
    > **120-second TTL:** the hook uses the file's mtime when no `ts` is present, so create the flag right before committing — not at the start of your status/diff analysis — or it expires.
-9. **Execute the commit in the NEXT step, with a Bash tool call** (separate from any fallback Write call). Staging may share this call, and cleanup may be appended after the commit (only `git commit` is gated, so `git add` and `rm` run freely once the flag is in place):
+9. **Execute the commit as its OWN Bash tool call**, byte-for-byte identical to the
+   `command` you bound in step 8 (do NOT chain `git add`/`rm` into it, or the bound
+   string won't match and the commit is blocked). Stage in a **prior** Bash call and
+   clean up in a **later** one (only `git commit` is gated, so `git add`/`rm` run freely):
    ```bash
-   git add <relevant files> && git commit -m "..." ; rm -f .qe/state/skill-bypass.json
+   # prior call:  git add <relevant files>
+   git commit -m "..."
+   # later call:  rm -f .qe/state/skill-bypass.json
    ```
 10. Confirm any fallback flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
 11. **The standalone flag is one-shot.** Current hooks consume (delete) it the moment it grants the commit — so the trailing `rm` is usually a no-op. **If `git commit` fails for a non-guard reason (e.g. "nothing to commit", a failing pre-commit hook) and you retry, re-create the flag with the Write tool before each retry** — a consumed flag will not authorize a second commit.
-12. **Bind the flag to your exact command (recommended, opt-in).** Add a `command` field whose value is the **exact Bash command string you will run next**, then run precisely that command. This scopes the bypass to one command so a stale flag can never authorize an unrelated commit:
-    ```json
-    {"active":true,"skill":"Qcommit","command":"git commit -m \"<your message>\""}
-    ```
-    - Run the commit as its **own** Bash call (do not chain `git add`/`rm` into the bound command, or the strings won't match). Stage in a prior call; clean up in a later call.
-    - Trim-compared, fail-closed: if the flag's `command` does not exactly match the command, the commit is blocked — re-create the flag with the correct command and retry.
-    - Older hooks ignore `command` (backward-compatible), so including it is always safe.
+12. **Command binding rules** (the `command` field from step 8):
+    - Trim-compared, fail-closed: if the flag's `command` does not exactly match the
+      command you run, the commit is blocked — re-create the flag with the correct
+      command and retry.
+    - Present-but-empty / whitespace-only / non-string `command` is also fail-closed,
+      so never write a blank binding — either bind the real command or omit the field.
 
 ## Conventional Commit Validation (Step 4)
 
