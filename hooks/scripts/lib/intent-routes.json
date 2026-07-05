@@ -9,7 +9,7 @@
     "bug/error/not-working/crash": "Ecode-debugger",
     "code-review/review-code": "Ecode-reviewer",
     "write-test/test-coverage/unit-test": "Ecode-test-engineer",
-    "write-docs/documentation/explain-code": "Ecode-doc-writer",
+    "write-docs/documentation/explain-code": "Edoc-writer",
     "commit/push/save changes/커밋/푸시": "Qcommit",
     "refresh/sync/update-analysis/analysis snapshot/.qe/analysis/갱신/분석 데이터": "Qrefresh",
     "debug-method/root-cause/systematic-debugging": "Qsystematic-debugging",
@@ -79,7 +79,7 @@
   },
   "agent_tiers": {
     "LOW": ["Earchive-executor", "Ecommit-executor"],
-    "MEDIUM": ["Etask-executor", "Ecode-debugger", "Ecode-reviewer", "Ecode-test-engineer", "Ecode-doc-writer", "Edoc-generator", "Egrad-writer", "Epm-planner", "Erefresh-executor", "Ecompact-executor", "Ehandoff-executor"],
+    "MEDIUM": ["Etask-executor", "Ecode-debugger", "Ecode-reviewer", "Ecode-test-engineer", "Edoc-writer", "Egrad-writer", "Epm-planner", "Erefresh-executor", "Ecompact-executor", "Ehandoff-executor"],
     "HIGH": ["Edeep-researcher", "Eqa-orchestrator", "Esecurity-officer", "Esupervision-orchestrator"]
   }
 }

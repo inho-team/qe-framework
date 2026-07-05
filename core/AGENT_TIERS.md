@@ -9,7 +9,7 @@ Optimizes cost while maintaining quality.
 | Tier | Model | Use Case | Examples |
 |------|-------|----------|---------|
 | **LOW** | haiku | Simple lookups, file copy, format conversion | Earchive-executor, Ecommit-executor |
-| **MEDIUM** | sonnet | Standard implementation, code writing, review | Etask-executor, Ecode-reviewer, Ecode-test-engineer, Edoc-generator |
+| **MEDIUM** | sonnet | Standard implementation, code writing, review | Etask-executor, Ecode-reviewer, Ecode-test-engineer, Edoc-writer |
 | **HIGH** | opus | Complex analysis, architecture design, deep research | Edeep-researcher, Eqa-orchestrator (judgment phase) |
 
 ## Auto-Selection Criteria
@@ -76,8 +76,7 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 | Ecode-debugger | MEDIUM | HIGH (unknown root cause) |
 | Ecode-reviewer | MEDIUM | — |
 | Ecode-test-engineer | MEDIUM | — |
-| Ecode-doc-writer | MEDIUM | — |
-| Edoc-generator | LOW | MEDIUM (batch docs) |
+| Edoc-writer | MEDIUM | HIGH (batch multi-format docs) |
 | Egrad-writer | MEDIUM | HIGH (Discussion section) |
 | Epm-planner | MEDIUM | HIGH (complex PRD) |
 | Edeep-researcher | HIGH | — |

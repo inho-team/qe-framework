@@ -29,7 +29,7 @@ regression tests, heals failures, and reports findings.
 | Auditor (optional) | Visual pixel-diff + a11y/UX + design-token outliers | read source + browser, read-only, never writes | screenshots + review heuristics |
 | Generator | Markdown -> Playwright regression code | read/write code + browser | `Qplaywright-expert` skill |
 | Healer | Reproduce failures, patch selectors | read/write code + browser | `Eqa-orchestrator` agent |
-| Reporter | Findings -> PR comment | write comment only | `Eqa-reporter` agent |
+| Reporter | Findings -> PR comment | write comment only | `Eqa-orchestrator` (Reporter mode) |
 
 Calling convention:
 - `Q*` backings are skills. Invoke them via the skill mechanism.
@@ -52,7 +52,7 @@ Required delegations:
 - Generator uses `Qplaywright-expert` to create deterministic CLI-runnable Playwright specs.
 - Healer is delegated to `Eqa-orchestrator`; it runs the test -> review -> fix loop and is capped at
   3 iterations.
-- Reporter is delegated to `Eqa-reporter`; it writes a report and may comment on a PR, but must
+- Reporter is delegated to `Eqa-orchestrator` (Reporter mode); it writes a report and may comment on a PR, but must
   never merge or push.
 
 ## Prerequisites (Step 0 — Verify, Never Assume)
@@ -129,7 +129,7 @@ selector/code patches, capped at 3 iterations. Healer proposes; it does not sile
 
 ### Step 6 — Report (Reporter)
 
-Spawn `Eqa-reporter` via Agent to assemble a structured report:
+Spawn `Eqa-orchestrator` via Agent in Reporter mode to assemble a structured report:
 - Bugs found
 - Tests added
 - Heals applied

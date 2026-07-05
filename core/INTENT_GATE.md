@@ -16,7 +16,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Debugging** | "bug", "error", "not working", "why doesn't this work" | Ecode-debugger |
 | **Review** | "review", "check", "look at this", "is this ok?" | Ecode-reviewer |
 | **Testing** | "test", "coverage" | Ecode-test-engineer |
-| **Documentation** | "docs", "explain", "README", "document" | Ecode-doc-writer |
+| **Documentation** | "docs", "explain", "README", "document" | Edoc-writer |
 | **Commit** | "commit", "push", "save changes", "커밋", "푸시" | Qcommit |
 | **Refresh** | "refresh analysis", "sync analysis", ".qe/analysis", "analysis snapshot", "분석 데이터 갱신" | Qrefresh |
 | **Plugin update** | "update plugin", "upgrade", "update qe", "update codex", "codex plugin" | Qupdate |

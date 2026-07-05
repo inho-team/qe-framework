@@ -64,7 +64,7 @@ The council must preserve bounded roles:
 - Explorer is `Eqa-explorer`, browser-only, no source.
 - Generator uses `Qplaywright-expert`.
 - Healer is `Eqa-orchestrator`.
-- Reporter is `Eqa-reporter`.
+- Reporter is a mode within `Eqa-orchestrator`.
 
 Never pass a `Q*` skill name as an Agent `subagent_type`; `Q*` entries are skills, `E*` entries are
 agents.

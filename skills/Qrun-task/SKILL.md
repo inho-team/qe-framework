@@ -206,7 +206,7 @@ Skip agent triggers if no trigger files exist.
 1. Mark all items `[x]` in TASK_REQUEST and VERIFY_CHECKLIST
 2. Move files to `completed/`
 3. **Update Status**: Call `updateClaudeStatus(cwd, uuid, "✅")`. This updates the active task registry, preferring `.qe/TASK_LOG.md`.
-4. `type: code` → call `Ecode-doc-writer`; `type: docs` → call `Edoc-generator`
+4. `type: code` / `type: docs` → call `Edoc-writer`
 5. Auto-run `{adapter.commandPrefix}Qgc archive` in background
 6. Clean up `.qe/agent-results/` (delete result files older than current task)
 

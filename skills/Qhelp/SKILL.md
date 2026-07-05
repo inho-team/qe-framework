@@ -82,7 +82,7 @@ ADMIN
 AGENTS (auto-selected by complexity)
   HIGH   Edeep-researcher, Eqa-orchestrator
   MEDIUM Etask-executor, Ecode-debugger, Ecode-reviewer,
-         Ecode-test-engineer, Ecode-doc-writer, Edoc-generator,
+         Ecode-test-engineer, Edoc-writer,
          Egrad-writer, Epm-planner, Erefresh-executor,
          Ecompact-executor, Ehandoff-executor
   LOW    Earchive-executor, Ecommit-executor
