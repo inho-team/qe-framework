@@ -1,39 +1,35 @@
 ---
 name: Qcritical-review
-description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Use for 'review critically', 'stress test this', 'devil advocate', or auto-invoked by Qgenerate-spec, Qcode-run-task, Esupervision. Distinct from general open-ended debate — this is stage-aware, verdict-producing, and SIVS-integrated."
-invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review of a spec, implementation, or merge candidate.
+description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qcode-run-task, Esupervision."
+invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review, structured debate, or code risk proof.
 recommendedModel: sonnet
 ---
 
 # Qcritical-review — Adversarial Verification
 
 ## Role
-Stress-tests artifacts at each SIVS stage through adversarial sub-agents. Produces a structured PASS/WARN/FAIL verdict. Designed to be called standalone or auto-invoked by other SIVS skills.
+Stress-tests artifacts at each SIVS stage through adversarial sub-agents. Produces a structured PASS/WARN/FAIL verdict. Designed to be called standalone or auto-invoked by other SIVS skills. Debate and risk modes are additive compatibility modes; they do not replace the SIVS gate.
 
 ## Client Adapter Compatibility
 
 - **Claude**: spawn reviewer agents via Agent tool and `subagent_type` as described below.
 - **Codex native**: prefer native Codex subagents through the installed agent TOML. QE-installed TOML files carry `model` and `model_reasoning_effort` converted from each agent's `recommendedModel`.
-- **Codex inline fallback**: only when native subagent delegation is unavailable, run the reviewer roles as role-separated inline passes in the Lead session and mark the fallback explicitly.
+- **Codex inline fallback**: only when native subagent delegation is unavailable, run reviewer roles as role-separated inline passes in the Lead session and mark the fallback explicitly.
 - **Interaction**: ambiguous target selection and WARN/FAIL decisions use the interaction adapter. Claude uses `AskUserQuestion`; Codex interactive uses concise plain-text choices; Codex non-interactive applies the safe recommended default or stops on destructive ambiguity.
 - **Command rendering**: user-visible examples use the active client's command prefix.
 
 ## CLI Interface
 
-```
+```text
 {adapter.commandPrefix}Qcritical-review --stage spec                  # Review a spec document
 {adapter.commandPrefix}Qcritical-review --stage verify                # Review an implementation
 {adapter.commandPrefix}Qcritical-review --stage supervise             # Review merge readiness
 {adapter.commandPrefix}Qcritical-review --mode cross-model            # Use both Claude + Codex as reviewers
 {adapter.commandPrefix}Qcritical-review --stage verify --mode cross-model   # Combine stage + mode
+{adapter.commandPrefix}Qcritical-review --debate <topic>              # Structured multi-round debate
+{adapter.commandPrefix}Qcritical-review --risk {UUID}                 # Evidence-backed code risk proof
 {adapter.commandPrefix}Qcritical-review <file>                        # Auto-detect stage from file type
 {adapter.commandPrefix}Qcritical-review                               # Auto-detect from recent SIVS context
-```
-
-Rendered examples:
-```
-Claude: /Qcritical-review --stage verify
-Codex:  $Qcritical-review --stage verify
 ```
 
 ## Review Modes
@@ -42,17 +38,20 @@ Codex:  $Qcritical-review --stage verify
 |------|--------|-------------|
 | `claude-only` (default) | 3 Claude sub-agents | Fast, low-cost reviews |
 | `cross-model` | 2 Claude + 1 Codex | High-stakes reviews needing independent model perspectives |
+| `--debate <topic>` | Debate agents/engines | Structured debate; see [./reference/debate-mode.md](./reference/debate-mode.md) |
+| `--risk {UUID}` | Erisk-proof-auditor | Code Risk Gate proof; see [./reference/risk-mode.md](./reference/risk-mode.md) |
 
 In `cross-model` mode, the most adversarial agent per stage is routed to Codex:
-- **Spec**: Edge Case Finder → Codex
-- **Verify**: Devil's Advocate → Codex
-- **Supervise**: Merge Blocker → Codex
 
-This ensures the strongest critic uses a genuinely independent model, eliminating same-model confirmation bias.
+| Stage | Codex Agent | Why This One |
+|-------|------------|-------------|
+| `spec` | Edge Case Finder | boundary critic uses a different engine |
+| `verify` | Devil's Advocate | strongest implementation critic uses a different engine |
+| `supervise` | Merge Blocker | merge opposition uses a different engine |
 
 ## 9-Step Protocol
 
-Each review session runs a structured sequence of up to 9 steps drawn from the OMC critic protocol. Not every SIVS stage runs all 9 steps — see the stage mapping column in the Stage Detection table below.
+Each review session runs a structured sequence of up to 9 steps drawn from the OMC critic protocol. Not every SIVS stage runs all 9 steps.
 
 | # | Step | Summary |
 |---|------|---------|
@@ -66,20 +65,20 @@ Each review session runs a structured sequence of up to 9 steps drawn from the O
 | 8 | Adversarial Escalation | Trigger max-adversarial mode on CRITICAL findings or 3+ MAJOR |
 | 9 | Explicit Gap Analysis | Catalog what is missing — requirements, assumptions, omitted context |
 
-Full definitions (trigger conditions, output schemas, examples): [./reference/nine-step-protocol.md](./reference/nine-step-protocol.md)
+Full definitions: [./reference/nine-step-protocol.md](./reference/nine-step-protocol.md)
 
 ## Stage Detection (when --stage is omitted)
 
 | Stage | Detected From | 9-Step Mapping |
 |-------|--------------|----------------|
-| `spec` | `TASK_REQUEST*.md` or spec file | Steps 1, 2, 4, 9 (Pre-commitment, Multi-perspective, Ambiguity Scan, Gap Analysis) |
-| `verify` | Source code or diff | Steps 3, 5, 6 (Pre-Mortem, Devil's Advocate, Self-audit) |
-| `supervise` | PR or merge context | Steps 7, 8 (Realist Check, Adversarial Escalation) |
+| `spec` | `TASK_REQUEST*.md` or spec file | Steps 1, 2, 4, 9 |
+| `verify` | Source code or diff | Steps 3, 5, 6 |
+| `supervise` | PR or merge context | Steps 7, 8 |
 
 Detection order:
-1. If a file argument is given: match against the Stage column above
-2. If no argument: check `.qe/state/unified-state.json` for last SIVS stage
-3. If ambiguous: ask user via the interaction adapter
+1. If a file argument is given: match against the Stage column above.
+2. If no argument: check `.qe/state/unified-state.json` for last SIVS stage.
+3. If ambiguous: ask user via the interaction adapter.
 
 ## Execution Procedure
 
@@ -97,12 +96,7 @@ Spawn **3 reviewer roles** via the agent adapter. Claude uses 3 sub-agents in pa
 
 #### Spec Stage Agents
 
-The Spec stage runs two cognitive **modes** — **Structural** (구조적 사고) and
-**Critical** (비판적 사고) — plus a boundary-focused finder. Full mode
-definitions (posture, key questions, adversarial instruction, must-nots) live in
-[./reference/thinking-modes.md](./reference/thinking-modes.md). These agents
-implement the **mandatory Spec self-reference gate** —
-see [./reference/spec-gate-protocol.md](./reference/spec-gate-protocol.md).
+Full mode definitions live in [./reference/thinking-modes.md](./reference/thinking-modes.md). These agents implement the mandatory Spec self-reference gate: [./reference/spec-gate-protocol.md](./reference/spec-gate-protocol.md).
 
 | Agent | Mode | Role | Key Questions |
 |-------|------|------|--------------|
@@ -110,17 +104,9 @@ see [./reference/spec-gate-protocol.md](./reference/spec-gate-protocol.md).
 | **Critical Reviewer** | Critical | Devil's advocate on the spec's substance | "What false assumption is this built on? What error case / production scenario is absent? Where will this spec lead the implementer wrong?" |
 | **Edge Case Finder** | Critical (boundary) | Identify boundary conditions | "What happens at zero? At max? With concurrent access? With malformed input? With network failure?" |
 
-The **Critical Reviewer** is the designated most-adversarial agent and is the one
-auto-upgraded to a cross-model engine when codex is reachable (see Engine Routing
-per Mode below).
-
 #### Verify Stage Agents
 
-Cognitive mode: **Critical** (비판적 사고) — see
-[./reference/thinking-modes.md](./reference/thinking-modes.md) Mode 2. These three
-agents implement the **mandatory Verify gate** —
-[./reference/verify-gate-protocol.md](./reference/verify-gate-protocol.md).
-**Devil's Advocate** is the cross-model-upgrade target.
+These agents implement the mandatory Verify gate: [./reference/verify-gate-protocol.md](./reference/verify-gate-protocol.md). **Devil's Advocate** is the cross-model-upgrade target.
 
 | Agent | Role | Key Questions |
 |-------|------|--------------|
@@ -128,19 +114,11 @@ agents implement the **mandatory Verify gate** —
 | **Security Auditor** | Find vulnerabilities | "Is there injection? Auth bypass? Data leak? OWASP Top 10 exposure?" |
 | **Performance Skeptic** | Challenge efficiency | "What's the time complexity? Does it scale? Are there N+1 queries? Memory leaks?" |
 
-For `type: code`, all Verify-stage agents also receive the TASK_REQUEST Risk
-Register and must explicitly challenge low-probability high-impact failures:
-data loss/corruption, permission escalation, concurrency/race behavior,
-rollback viability, and unverified assumptions. A HIGH/CRITICAL risk without a
-mitigation, test, defensive code path, or explicit defer rationale is a FAIL.
+For `type: code`, all Verify-stage agents also receive the TASK_REQUEST Risk Register and must explicitly challenge low-probability high-impact failures: data loss/corruption, permission escalation, concurrency/race behavior, rollback viability, and unverified assumptions. A HIGH/CRITICAL risk without a mitigation, test, defensive code path, or explicit defer rationale is a FAIL.
 
 #### Supervise Stage Agents
 
-Cognitive mode: **Meticulous** (꼼꼼한 사고) — see
-[./reference/thinking-modes.md](./reference/thinking-modes.md) Mode 3. These three
-agents implement the **mandatory Supervise gate** (runs only after binary Verify
-passes) — [./reference/supervise-gate-protocol.md](./reference/supervise-gate-protocol.md).
-**Merge Blocker** is the cross-model-upgrade target.
+These agents implement the mandatory Supervise gate: [./reference/supervise-gate-protocol.md](./reference/supervise-gate-protocol.md). **Merge Blocker** is the cross-model-upgrade target.
 
 | Agent | Role | Key Questions |
 |-------|------|--------------|
@@ -148,29 +126,17 @@ passes) — [./reference/supervise-gate-protocol.md](./reference/supervise-gate-
 | **Merge Advocate** | Argue for merging | "What's the cost of delay? Is the remaining risk acceptable? Does it meet the spec?" |
 | **Impartial Judge** | Weigh both sides | "Which concerns are valid? Which are hypothetical? What's the actual risk level?" |
 
-For `type: code`, the Supervise-stage review is the final **Code Risk Gate**
-owner. Merge Blocker must assume the worst credible production outcome and
-attempt to block merge on any unhandled HIGH/CRITICAL risk, missing rollback
-story, hidden residual risk, or unverified assumption. Merge Advocate may accept
-only risks that are explicitly mitigated, tested, or deferred with a named
-rationale. Impartial Judge must distinguish `verified`, `mitigated`, `deferred`,
-and `unknown`; `unknown` HIGH/CRITICAL risk is a FAIL.
+For `type: code`, the Supervise-stage review is the final **Code Risk Gate** owner. Merge Blocker must assume the worst credible production outcome and attempt to block merge on any unhandled HIGH/CRITICAL risk, missing rollback story, hidden residual risk, or unverified assumption. Merge Advocate may accept only risks that are explicitly mitigated, tested, or deferred with a named rationale. Impartial Judge must distinguish `verified`, `mitigated`, `deferred`, and `unknown`; `unknown` HIGH/CRITICAL risk is a FAIL.
 
-Supervise-stage agents MUST read the `Qrisk-proof` report for `type: code`
-tasks. Missing `.qe/agent-results/risk-proof-{UUID}.md` is a FAIL unless the
-task is docs/analysis or no code changed. The report is the authoritative Risk
-Proof input; final-report wording is not accepted as evidence.
+Supervise-stage agents MUST read the `Qrisk-proof` report for `type: code` tasks. Missing `.qe/agent-results/risk-proof-{UUID}.md` is a FAIL unless the task is docs/analysis or no code changed. The report is the authoritative Risk Proof input; final-report wording is not accepted as evidence.
 
 ### Step 3: Each Agent Output Format
-
-Each agent MUST return a structured analysis:
 
 ```markdown
 ## [Agent Role]
 
 ### Findings
 1. [Finding with severity: CRITICAL / HIGH / MEDIUM / LOW]
-2. ...
 
 ### Evidence
 - [Specific file:line or section reference for each finding]
@@ -183,49 +149,18 @@ Each agent MUST return a structured analysis:
 
 ### Step 4: Aggregate Verdicts
 
-Collect all 3 agent reports and produce a unified verdict:
+Collect all 3 agent reports and produce a unified verdict. Before aggregation, collect each reviewer result via `wait_agent` or the active client equivalent, then close every completed reviewer handle with `close_agent` or the active client equivalent. The final report must state `open handles: 0` or include stale warning entries.
 
-Before aggregation, collect each reviewer result via `wait_agent` or the active
-client equivalent, then close every completed reviewer handle with `close_agent`
-or the active client equivalent. Reviewer handles that exceed their timeout are
-reported as `stale` with role, stage, and timeout reason. The final report must
-state `open handles: 0` or include stale warning entries. A close cleanup warning
-does not override a PASS/WARN/FAIL verdict unless the reviewer result was not
-collected.
+Condensed report schema:
 
-```
+```text
 Critical Review Report
-══════════════════════
-
 Stage: [spec | verify | supervise]
-Target: [artifact name/path]
-
-┌─ Gap Hunter ─────────────── WARN ─┐
-│ 2 medium findings                  │
-│ - Missing error handling for X     │
-│ - No mention of concurrent access  │
-└────────────────────────────────────┘
-
-┌─ Scope Critic ───────────── PASS ─┐
-│ No significant concerns            │
-└────────────────────────────────────┘
-
-┌─ Edge Case Finder ───────── FAIL ─┐
-│ 1 critical finding                 │
-│ - Division by zero when count = 0  │
-└────────────────────────────────────┘
-
-Overall: FAIL
-Reason: 1 critical finding requires resolution before proceeding.
-
-Action Items:
-  1. [CRITICAL] Handle division by zero in calculate_average()
-  2. [MEDIUM] Add error handling for timeout scenario
-  3. [MEDIUM] Document concurrent access behavior
-
-Subagent Lifecycle:
-  open handles: 0
-  stale warnings: none
+Target: [artifact]
+Reviewer verdicts: [role + engine + PASS/WARN/FAIL + finding count]
+Overall: PASS | WARN | FAIL
+Action Items: [severity + concrete fix]
+Subagent Lifecycle: open handles: 0; stale warnings: none
 ```
 
 ### Step 5: Verdict Rules
@@ -246,119 +181,49 @@ Display the full report, then ask:
 
 ## Agent Spawn Rules
 
-1. All 3 agents run **in parallel** where the active client supports it (Claude: single message, 3 Agent tool calls; Codex: native subagents if available; otherwise role-separated inline passes)
-2. Agent prompts must include:
-   - The full artifact content (spec text, diff, or PR summary)
-   - Their assigned role and questions (from the stage table above)
-   - The required output format
-   - Instruction: "Be adversarial. Your job is to find problems, not confirm quality."
-3. Agents must NOT be told what other agents are looking for
-4. The Lead must track each spawned reviewer handle until it is waited,
-   collected, and closed. `Waiting for ...` is normal only before the reviewer
-   exits or times out; after that point, label it as a stale warning in the
-   report.
+1. All 3 agents run **in parallel** where supported.
+2. Prompts include artifact content, role/questions, output format, and: "Be adversarial. Your job is to find problems, not confirm quality."
+3. Agents must NOT be told what other agents are looking for.
+4. The Lead waits, collects, and closes every reviewer handle; stale handles are warnings.
 
-### Engine Routing per Mode
+## Engine Routing per Mode
 
-**claude-only (default):**
-- All 3 agents use `subagent_type: "general-purpose"`
+**claude-only (default):** all 3 agents use `subagent_type: "general-purpose"`.
 
-**codex-native base session:**
-- If native Codex subagents are available, route each reviewer role to the matching native agent.
-- If not available, run all reviewer roles as role-separated inline passes and mark `crossmodel=degraded`, `mode=role-separated-inline`.
+**codex-native base session:** use native Codex subagents when available; otherwise run role-separated inline passes and mark `crossmodel=degraded`, `mode=role-separated-inline`.
 
-**cross-model:**
-1. First, resolve the base client and bridge availability:
-   - Claude base: check Codex availability through `codex_bridge.mjs` / codex-plugin-cc.
-   - Codex base: use native Codex reviewers when the stage engine is Codex; for Claude-stage review, check `Qclaude-rescue` / `claude_bridge.mjs`.
-2. Claude-base Codex bridge check:
-   ```bash
-   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'scripts','lib','codex_bridge.mjs')).href);const r=await m.getCodexPluginInfo();console.log(JSON.stringify(r))})()"
-   ```
-3. If `installed: true` on Claude base: route the designated adversarial agent to Codex via `subagent_type: "codex:codex-rescue"`.
-4. If unavailable: fall back to same-engine reviewers with a notice and mark `crossmodel=false` or `crossmodel=degraded`.
-5. On Codex base without native subagents, run reviewer roles as `degraded-inline`; do not claim Claude Agent-tool parity.
+**cross-model:** resolve bridge availability through `codex_bridge.mjs` / `Qclaude-rescue` equivalents. Route the designated adversarial agent to `codex:codex-rescue` when available; otherwise fall back to same-engine reviewers with `crossmodel=false` or `crossmodel=degraded`.
 
-| Stage | Codex Agent | Why This One |
-|-------|------------|-------------|
-| `spec` | Critical Reviewer | The strongest spec critic should be a genuinely different engine |
-| `verify` | Devil's Advocate | The strongest critic should be a different model |
-| `supervise` | Merge Blocker | Merge opposition must be genuinely independent |
+### Automatic cross-model upgrade (mandatory Spec gate)
 
-On Claude-base cross-model review, the remaining 2 agents use Claude sub-agents. On Codex-base review, the remaining roles use native Codex subagents or the documented `degraded-inline` fallback unless a Claude-stage bridge is available.
+The manual `--mode cross-model` above is opt-in. The **mandatory Spec self-reference gate** (invoked by Qgenerate-spec Step 2.6) instead upgrades **automatically and with zero configuration** (DECISION_LOG D012):
 
-#### Automatic cross-model upgrade (mandatory Spec gate)
+1. **Baseline (always runs):** all Spec agents are same-engine sub-agents (`subagent_type: "general-purpose"`). Fully functional with **no codex installed** — independence comes from fresh context + adversarial role.
+2. **Auto-upgrade:** detect codex reachability via `getCodexPluginInfo()` / `isCodexReachable()` from `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer** to `subagent_type: "codex:codex-rescue"` for a truly independent engine.
+3. **Same-engine fallback:** if codex is absent or unreachable, silently keep the same-engine baseline. **Codex is never a required dependency.**
 
-The manual `--mode cross-model` above is opt-in. The **mandatory Spec
-self-reference gate** (invoked by Qgenerate-spec Step 2.6) instead upgrades
-**automatically and with zero configuration** (DECISION_LOG D012):
+The same automatic upgrade applies to the **Verify gate** (cross-model target = Devil's Advocate) and the **Supervise gate** (cross-model target = Merge Blocker).
 
-1. **Baseline (always runs):** all Spec agents are same-engine sub-agents
-   (`subagent_type: "general-purpose"`). Fully functional with **no codex
-   installed** — independence comes from fresh context + adversarial role.
-2. **Auto-upgrade:** detect codex reachability via
-   `getCodexPluginInfo()` / `isCodexReachable()` from
-   `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer**
-   to `subagent_type: "codex:codex-rescue"` for a truly independent engine.
-3. **Same-engine fallback:** if codex is absent or unreachable, silently keep the
-   same-engine baseline. **Codex is never a required dependency.**
-
-This makes the strongest critic genuinely independent when possible, while
-guaranteeing the gate always runs even in an all-Claude (or all-Codex) homogeneous
-setup — which is exactly the self-reference case this gate exists to defend.
-
-The same automatic upgrade applies to the **Verify gate** (cross-model target =
-Devil's Advocate) and the **Supervise gate** (cross-model target = Merge Blocker).
-
-**Cross-model failure fallback (all gates):** an optional upgrade must never
-block a mandatory gate or silently pass as if it were cross-model.
-- If the codex sub-agent errors or times out → log `crossmodel=false` + reason,
-  **re-run that one agent on Claude** (`general-purpose`), and mark the gate
-  result **`degraded`** → at least **WARN** (independence was reduced).
-- If the Claude re-run also fails → **WARN-blocked** (NOT PASS), requiring
-  explicit user override, with audit `reason=double-failure`.
+**Cross-model failure fallback (all gates):** an optional upgrade must never block a mandatory gate or silently pass as if it were cross-model.
+- If the codex sub-agent errors or times out → log `crossmodel=false` + reason, **re-run that one agent on Claude** (`general-purpose`), and mark the gate result **`degraded`** → at least **WARN** (independence was reduced).
+- If the Claude re-run also fails → **WARN-blocked** (NOT PASS), requiring explicit user override, with audit `reason=double-failure`.
 
 #### Bootstrap clause (reviewing Qcritical-review itself)
 
-When a change touches `Qcritical-review` or its `reference/*-gate-protocol.md`
-files, the gate cannot trust its own (possibly-changed) behavior to review that
-change — a self-reference within the self-reference defense. In that case the
-review MUST run against the **pre-change baseline** of these files plus an
-**explicit diff inspection** of the proposed change, rather than the in-tree
-(modified) version. This prevents a broken gate edit from approving itself.
-
-### Report Labeling
-In cross-model mode, each agent box in the report shows the engine used:
-```
-┌─ Devil's Advocate [Codex] ─── FAIL ─┐
-┌─ Security Auditor [Claude] ── WARN ─┐
-┌─ Performance Skeptic [Claude]─ PASS ─┐
-```
+When a change touches `Qcritical-review` or its `reference/*-gate-protocol.md` files, the gate cannot trust its own (possibly-changed) behavior to review that change — a self-reference within the self-reference defense. In that case the review MUST run against the **pre-change baseline** of these files plus an **explicit diff inspection** of the proposed change, rather than the in-tree (modified) version. This prevents a broken gate edit from approving itself.
 
 ## Integration Points
 
-This skill is designed to be called by other SIVS skills:
-
-| Caller Skill | When | Stage |
-|-------------|------|-------|
+| Caller Skill | When | Stage / Mode |
+|-------------|------|--------------|
 | `Qgenerate-spec` / `Qgs` | After spec generation | `spec` |
 | `Qcode-run-task` | After verify loop passes | `verify` |
-| `Qrisk-proof` | After Verify and before Supervise for code risk evidence | `risk-proof` |
+| `Qcode-run-task` | After Verify and before Supervise for code risk evidence | `--risk {UUID}` |
+| `Qrisk-proof` | Compatibility caller for risk proof while shim exists | `--risk {UUID}` |
+| `Qdebate` | Compatibility caller for structured debates while shim exists | `--debate <topic>` |
 | `Esupervision-orchestrator` | Before final verdict | `supervise` |
 
-Callers invoke via: `{adapter.commandPrefix}Qcritical-review --stage <stage>`
-
-## Will
-- Spawn 3 adversarial sub-agents per stage
-- Produce structured PASS/WARN/FAIL verdict with evidence
-- Run agents in parallel for speed
-- Adapt critical lens to SIVS stage
-
-## Will Not
-- Replace Qdebate for open-ended topic debates
-- Replace general open-ended debate or brainstorming
-- Auto-fix issues (only identify and report)
-- Run more than 3 agents (focused critique over broad coverage)
+Callers invoke stage review via: `{adapter.commandPrefix}Qcritical-review --stage <stage>`
 
 ## Attribution
 

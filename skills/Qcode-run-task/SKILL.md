@@ -336,8 +336,10 @@ or
 ### Step 4.10: Risk Proof Gate
 
 After the adversarial Verify gate passes (Step 4.9), run the mandatory
-`Qrisk-proof` evidence gate for every `type: code` task before Supervise or final
-reporting. This is the depth check that final-report wording cannot provide.
+`Qcritical-review --risk {UUID}` evidence gate for every `type: code` task before
+Supervise or final reporting. This is the depth check that final-report wording
+cannot provide. Legacy `Qrisk-proof {UUID}` remains valid through the shim path,
+but new guidance should invoke Qcritical-review risk mode.
 
 **Skip conditions:**
 - `type: docs` / `type: analysis`
@@ -345,7 +347,7 @@ reporting. This is the depth check that final-report wording cannot provide.
 
 **Procedure:**
 
-1. Invoke `{adapter.commandPrefix}Qrisk-proof {UUID}`.
+1. Invoke `{adapter.commandPrefix}Qcritical-review --risk {UUID}`.
 2. Pass TASK_REQUEST, VERIFY_CHECKLIST, changed files, test/build evidence, and
    Verify-gate findings.
 3. Require a persisted report at `.qe/agent-results/risk-proof-{UUID}.md`.

@@ -68,7 +68,10 @@
     "agentation/visual-feedback/UI-annotation": "Qagentation",
     "stitch/stitch-setup/stitch-mcp": "Qstitch-cli",
     "show-version/qe-version/check-version/버전/확인": "Qversion",
-    "audit/evaluate/inspect/health-check/qe-audit": "Qdoctor"
+    "audit/evaluate/inspect/health-check/qe-audit": "Qdoctor",
+    "critical-review/adversarial-review/stress-test/devil-advocate": "Qcritical-review",
+    "debate/structured-debate/argue/pros-cons/tradeoffs/codex-vs-claude/self-debate": "Qcritical-review",
+    "risk-proof/risk-gate/code-risk/high-risk/residual-risk/unknown-risk": "Qcritical-review"
   },
   "agent_tiers": {
     "LOW": ["Eprofile-collector", "Earchive-executor", "Ecommit-executor"],

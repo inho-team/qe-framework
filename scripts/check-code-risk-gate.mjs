@@ -8,9 +8,10 @@
  */
 
 import { readFileSync } from 'fs';
-import { resolve } from 'path';
+import { dirname, resolve } from 'path';
+import { fileURLToPath } from 'url';
 
-const root = process.cwd();
+const root = resolve(dirname(fileURLToPath(import.meta.url)), '..');
 
 const checks = [
   {
@@ -85,6 +86,19 @@ const checks = [
   },
   {
     file: 'skills/Qrisk-proof/SKILL.md',
+    terms: [
+      'Qrisk-proof',
+      'Erisk-proof-auditor',
+      'Risk Proof Matrix',
+      'Missing/placeholder `## Risk Register`',
+      'verified-safe',
+      'deferred-with-owner',
+      '.qe/agent-results/risk-proof-{UUID}.md',
+      'New unregistered `CRITICAL` or `HIGH` risk'
+    ]
+  },
+  {
+    file: 'skills/Qcritical-review/reference/risk-mode.md',
     terms: [
       'Qrisk-proof',
       'Erisk-proof-auditor',
