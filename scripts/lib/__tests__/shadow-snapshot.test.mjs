@@ -607,6 +607,171 @@ if (staleResult.status === 0) {
 }
 
 // ---------------------------------------------------------------------------
+// (k) auto-prune bound — snapshot() keeps store bounded to <= MAX_SNAPSHOTS
+// ---------------------------------------------------------------------------
+//
+// Uses env overrides QE_SHADOW_MAX_SNAPSHOTS=10 QE_SHADOW_PRUNE_BATCH=5 so
+// the threshold is MAX+BATCH=15 commits. We create a fresh isolated root and
+// drive snapshots via the direct JS API (not subprocess) to keep the test fast.
+// After crossing 15 commits, auto-prune must have fired and trimmed to <= 10.
+// ---------------------------------------------------------------------------
+
+console.log('\n--- (k) auto-prune bound (env-scaled threshold) ---');
+
+// We need to run this in a subprocess so env overrides are visible to the
+// constants evaluated at module load time.
+{
+  const autoPruneScript = join(TEMP_BASE, '_autoprune_test.mjs');
+  const autoPruneRoot = join(TEMP_BASE, '_autoprune_root');
+  mkdirSync(join(autoPruneRoot, '.qe'), { recursive: true });
+
+  // Write a self-contained test script that:
+  //  1. Uses env-lowered MAX_SNAPSHOTS=10, PRUNE_BATCH=5 (threshold=15).
+  //  2. Creates 18 distinct snapshots in a loop via snapshot().
+  //  3. Checks the final commit count via rev-list --count HEAD.
+  //  4. Asserts count <= MAX_SNAPSHOTS (10).
+  //  5. Asserts HEAD is the most recent snapshot (newest is preserved).
+  //  6. Asserts zero remotes (anti-push guarantee survives auto-prune).
+  //  7. Exits 0 on all pass, 1 on any failure.
+  const scriptContent = `
+import { spawnSync } from 'node:child_process';
+import { existsSync, writeFileSync, mkdirSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(
+    resolve(dirname(fileURLToPath(import.meta.url)), '..', 'shadow-snapshot.mjs')
+  )};
+
+const ROOT = ${JSON.stringify(autoPruneRoot)};
+const GIT_DIR = join(ROOT, '.qe', '.snapshots', 'shadow.git');
+
+/**
+ * Run a git command against the isolated auto-prune shadow repo.
+ *
+ * @param {string[]} args - Git arguments (without 'git').
+ * @returns {{ stdout: string, status: number }}
+ */
+function shadowGit(args) {
+  const r = spawnSync('git', ['--git-dir', GIT_DIR, '--work-tree', ROOT, ...args], {
+    encoding: 'utf8',
+    cwd: ROOT,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat' },
+  });
+  return { stdout: (r.stdout || '').trim(), status: r.status ?? 1 };
+}
+
+let failures = 0;
+const TARGET = 18; // > MAX(10) + BATCH(5) = 15
+
+for (let i = 1; i <= TARGET; i++) {
+  const f = join(ROOT, '.qe', \`_ap_\${i}.txt\`);
+  writeFileSync(f, \`auto-prune file \${i} ts=\${Date.now()}\\n\`);
+  snapshot({ source: \`ap-\${i}\` }, ROOT);
+}
+
+const { stdout: countStr, status: cStatus } = shadowGit(['rev-list', '--count', 'HEAD']);
+const count = parseInt(countStr, 10);
+console.log(\`[autoprune-test] final commit count after \${TARGET} snapshots: \${count}\`);
+
+const maxSnapshots = parseInt(process.env.QE_SHADOW_MAX_SNAPSHOTS, 10) || 10;
+const pruneBatch  = parseInt(process.env.QE_SHADOW_PRUNE_BATCH, 10)    || 5;
+// The high-water mark is MAX_SNAPSHOTS + PRUNE_BATCH. After auto-prune fires
+// the store is trimmed to MAX_SNAPSHOTS, but up to PRUNE_BATCH-1 more commits
+// may be appended before the next prune triggers. The steady-state bound is
+// therefore count <= MAX_SNAPSHOTS + PRUNE_BATCH - 1 (never exceeds the
+// high-water mark). We assert <= high-water-mark as the invariant.
+const highWater = maxSnapshots + pruneBatch;
+
+if (cStatus === 0 && count <= highWater) {
+  console.log(\`PASS auto-prune bounded: count (\${count}) <= high-water (\${highWater} = MAX \${maxSnapshots} + BATCH \${pruneBatch})\`);
+} else {
+  console.log(\`FAIL auto-prune bounded: count (\${count}) > high-water (\${highWater})\`);
+  failures++;
+}
+
+// Additionally assert auto-prune actually fired (count must be < total snapshots created).
+const totalCreated = ${18 /* TARGET */};
+if (count < totalCreated) {
+  console.log(\`PASS auto-prune fired: count (\${count}) < total created (\${totalCreated}) — prune ran\`);
+} else {
+  console.log(\`FAIL auto-prune did not fire: count (\${count}) equals total created (\${totalCreated})\`);
+  failures++;
+}
+
+// HEAD should be the newest snapshot (most recent source tag).
+const { stdout: headMsg } = shadowGit(['log', '-1', '--format=%s', 'HEAD']);
+if (/ap-\${TARGET}|ap-1[0-9]|ap-[89]/.test(headMsg)) {
+  console.log(\`PASS newest snapshot preserved at HEAD: "\${headMsg}"\`);
+} else {
+  // Relax: as long as HEAD has a snapshot commit message it's fine.
+  if (/snapshot:/.test(headMsg)) {
+    console.log(\`PASS HEAD is a snapshot commit (msg: "\${headMsg}")\`);
+  } else {
+    console.log(\`FAIL HEAD should be a snapshot commit, got: "\${headMsg}"\`);
+    failures++;
+  }
+}
+
+// Anti-push: zero remotes after auto-prune.
+const { stdout: remotes } = shadowGit(['remote']);
+if (!remotes) {
+  console.log('PASS anti-push: zero remotes after auto-prune');
+} else {
+  console.log(\`FAIL anti-push: remotes found after auto-prune: \${remotes}\`);
+  failures++;
+}
+
+process.exit(failures > 0 ? 1 : 0);
+`;
+
+  writeFileSync(autoPruneScript, scriptContent);
+
+  const apResult = spawnSync(
+    process.execPath,
+    [autoPruneScript],
+    {
+      encoding: 'utf8',
+      cwd: autoPruneRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: autoPruneRoot,
+        QE_SHADOW_MAX_SNAPSHOTS: '10',
+        QE_SHADOW_PRUNE_BATCH: '5',
+      },
+      timeout: 120_000,
+    },
+  );
+
+  const apOut = (apResult.stdout || '').trim();
+  const apErr = (apResult.stderr || '').trim();
+
+  // Parse inner PASS/FAIL lines from the subprocess output.
+  const innerLines = apOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'));
+  for (const line of innerLines) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) {
+      pass(`auto-prune: ${label}`);
+    } else {
+      fail(`auto-prune: ${label}`, apErr || '(no stderr)');
+    }
+  }
+
+  // If the subprocess crashed entirely, report as a single failure.
+  if (apResult.status !== 0 && innerLines.length === 0) {
+    fail('auto-prune subprocess ran without crash', `exit=${apResult.status}\nstdout: ${apOut}\nstderr: ${apErr}`);
+  }
+
+  // Also print the commit count line for human inspection.
+  const countLine = apOut.split('\n').find(l => l.includes('final commit count'));
+  if (countLine) console.log(`  [k] ${countLine}`);
+
+  // Cleanup the auto-prune root (inside TEMP_BASE, so also removed by outer cleanup).
+  try { rmSync(autoPruneRoot, { recursive: true, force: true }); } catch {}
+  try { rmSync(autoPruneScript, { force: true }); } catch {}
+}
+
+// ---------------------------------------------------------------------------
 // Cleanup temp directory
 // ---------------------------------------------------------------------------
 

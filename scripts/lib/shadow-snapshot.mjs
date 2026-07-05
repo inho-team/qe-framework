@@ -44,8 +44,30 @@ import { dirname, join, resolve, isAbsolute } from 'node:path';
 // Constants
 // ---------------------------------------------------------------------------
 
-/** Maximum number of snapshots kept by prune. */
-const MAX_SNAPSHOTS = 200;
+/**
+ * Maximum number of snapshots kept by prune.
+ * Env override: QE_SHADOW_MAX_SNAPSHOTS (integer). Useful for tests and CI.
+ * Production default: 200.
+ */
+const MAX_SNAPSHOTS = (() => {
+  const v = parseInt(process.env.QE_SHADOW_MAX_SNAPSHOTS, 10);
+  return (Number.isFinite(v) && v >= 1) ? v : 200;
+})();
+
+/**
+ * Batch size for auto-prune hysteresis: snapshot() triggers prune() only when
+ * the commit count reaches MAX_SNAPSHOTS + PRUNE_BATCH (≥ 250 by default).
+ * This avoids running the commit-tree rewrite on every single snapshot —
+ * prune fires roughly once every PRUNE_BATCH snapshots, keeping the store
+ * bounded at ≤ MAX_SNAPSHOTS + PRUNE_BATCH commits, trimmed to MAX_SNAPSHOTS.
+ * Env override: QE_SHADOW_PRUNE_BATCH (integer). Useful for tests.
+ * Production default: 50.
+ */
+const PRUNE_BATCH = (() => {
+  const v = parseInt(process.env.QE_SHADOW_PRUNE_BATCH, 10);
+  return (Number.isFinite(v) && v >= 1) ? v : 50;
+})();
+
 /** Maximum age kept by prune, in milliseconds (72 h). */
 const MAX_AGE_MS = 72 * 60 * 60 * 1000;
 
@@ -351,6 +373,10 @@ export function snapshot({ source = 'manual', sid = '' } = {}, root) {
   ensureShadowRepo(storeRoot);
   assertNoRemote(storeRoot);
 
+  // Capture the result in an outer variable so the auto-prune block (which runs
+  // after the lock is released) can still return it to the caller.
+  let resultSha = '';
+
   const release = acquireLock(lockFile);
   try {
     g(['add', '--all']);
@@ -366,12 +392,45 @@ export function snapshot({ source = 'manual', sid = '' } = {}, root) {
     const message = `snapshot: ${timestamp} source:${source}${sidPart}`;
 
     g(['commit', '--allow-empty-message', '-m', message]);
-    const sha = g(['rev-parse', 'HEAD']).stdout;
-    console.log(`[qe-shadow] snapshot created: ${sha.slice(0, 12)} (${source})`);
-    return sha;
+    resultSha = g(['rev-parse', 'HEAD']).stdout;
+    console.log(`[qe-shadow] snapshot created: ${resultSha.slice(0, 12)} (${source})`);
   } finally {
+    // Release the snapshot lock BEFORE the auto-prune check.
+    // prune() acquires its own lock; holding both would risk deadlock.
     release();
   }
+
+  // ---------------------------------------------------------------------------
+  // Auto-prune: high-water-mark check (runs AFTER releasing the snapshot lock).
+  //
+  // Cheaply count commits via rev-list --count. If the store has reached the
+  // high-water mark (MAX_SNAPSHOTS + PRUNE_BATCH, default 250), call prune()
+  // to trim back to MAX_SNAPSHOTS. Using a batch threshold means the expensive
+  // commit-tree rewrite runs ~once every PRUNE_BATCH snapshots rather than on
+  // every call. A prune failure is logged but never propagated — the snapshot
+  // itself already succeeded and must remain usable.
+  // ---------------------------------------------------------------------------
+  if (resultSha) {
+    try {
+      const { stdout: countStr, status: countStatus } = git(
+        ['rev-list', '--count', 'HEAD'],
+        { gitDir, workTree: storeRoot, check: false },
+      );
+      if (countStatus === 0) {
+        const count = parseInt(countStr, 10);
+        if (Number.isFinite(count) && count >= MAX_SNAPSHOTS + PRUNE_BATCH) {
+          console.log(
+            `[qe-shadow] auto-prune triggered (${count} commits >= ${MAX_SNAPSHOTS + PRUNE_BATCH}); pruning to ${MAX_SNAPSHOTS}...`,
+          );
+          prune(storeRoot);
+        }
+      }
+    } catch (pruneErr) {
+      console.warn(`[qe-shadow] auto-prune warning (snapshot still succeeded): ${pruneErr.message}`);
+    }
+  }
+
+  return resultSha;
 }
 
 // ---------------------------------------------------------------------------
