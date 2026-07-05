@@ -321,6 +321,10 @@ export function resolveEngine(stage, config = {}, options = {}) {
     // Reverse fallback: a Codex-native session cannot reach Claude. Route the
     // stage to Codex instead of stalling on an unreachable Head/Body engine.
     if (options.base === 'codex' && options.claudeReachable === false) {
+      // `stageConfig.model` is intentionally omitted: this stage was configured
+      // for the claude engine, so its model override names a Claude model and
+      // would be invalid if forwarded to a Codex command. Only engine-neutral
+      // options (effort/background) carry over.
       return {
         engine: 'codex',
         command: getCodexCommand(stage, { effort: stageConfig.effort, background: stageConfig.background }),
