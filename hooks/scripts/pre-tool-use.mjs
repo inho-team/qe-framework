@@ -297,7 +297,22 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   // Wider than the action itself but short enough that a stale flag (skipped cleanup)
   // self-expires. Gives slow executors (status/diff/log analysis) margin before the commit.
   if (bypass && bypass.active && (Date.now() - (bypass.ts || 0)) < 120000) {
-    bypassSkill = bypass.skill || null;
+    // Command-binding is opt-in via the `command` field:
+    //  - field ABSENT  → authorizes any command matching the skill (unchanged).
+    //  - field PRESENT → authorizes ONLY that exact command (trim-compared, must be a
+    //    non-empty string). Empty / whitespace-only / non-string / mismatch is
+    //    fail-closed, so a malformed or stale bound flag can never widen back to
+    //    "any command". Presence is detected by the key, not by truthiness.
+    const hasCommandField = bypass.command !== undefined && bypass.command !== null;
+    if (!hasCommandField) {
+      bypassSkill = bypass.skill || null;
+    } else {
+      const boundCommand = typeof bypass.command === 'string' ? bypass.command.trim() : '';
+      const currentCommand = (toolInput.command || '').trim();
+      if (boundCommand.length > 0 && boundCommand === currentCommand) {
+        bypassSkill = bypass.skill || null;
+      }
+    }
   }
   let consumeSkillEntryBypass = false;
   let bypassUsed = false; // a rule was actually bypassed by the active flag this call

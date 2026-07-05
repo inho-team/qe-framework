@@ -791,6 +791,68 @@ test('pre-tool-use: bypass flag at the tool workdir (cross-repo commit) is honor
   assert.notStrictEqual(res.status, 2); // pre-fix this was hard-blocked (2)
 });
 
+test('pre-tool-use: a command-bound flag authorizes only its exact command', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-bound-match-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  const command = 'git commit -m "bound message"';
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit', command }));
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.notStrictEqual(res.status, 2); // exact-command match → allowed
+});
+
+test('pre-tool-use: a command-bound flag does NOT authorize a different command (stale-flag close-out)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-bound-mismatch-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  // Flag was armed for an OLD commit; a fresh unrelated commit must not ride it.
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit', command: 'git commit -m "old"' }));
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "fresh unrelated"' } });
+  assert.strictEqual(res.status, 2); // mismatch → fail-closed (blocked)
+});
+
+test('pre-tool-use: a flag with no command field keeps backward-compatible behavior', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-bound-nofield-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit' })); // no `command`
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "anything"' } });
+  assert.notStrictEqual(res.status, 2); // unbound flag still authorizes any matching-skill commit
+});
+
+for (const [label, badCommand] of [['empty', ''], ['whitespace-only', '   '], ['non-string-number', 42], ['non-string-array', []], ['non-string-bool', true]]) {
+  test(`pre-tool-use: a present-but-${label} command field is fail-closed (does NOT widen to any command)`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), `qe-bound-${label}-`));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+    fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+    // `command` is PRESENT but empty/blank — must NOT degrade to unbound "any command".
+    fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit', command: badCommand }));
+    const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "x"' } });
+    assert.strictEqual(res.status, 2); // fail-closed
+  });
+}
+
+test('pre-tool-use: a command-bound flag is NOT consumed on a mismatched command (persists for its own command)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-bound-nomatch-keep-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  const bound = 'git commit -m "the intended commit"';
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qcommit', command: bound }));
+  // An unrelated commit runs first: blocked AND the flag must survive (deleting it
+  // here would let any command DoS a legitimate bound flag).
+  const other = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "unrelated"' } });
+  assert.strictEqual(other.status, 2);
+  assert.ok(fs.existsSync(flagPath)); // not consumed by a non-matching command
+  // The bound command still works afterwards.
+  const intended = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: bound } });
+  assert.notStrictEqual(intended.status, 2);
+});
+
 test('pre-tool-use: a standalone bypass flag is one-shot — consumed after first use', (t) => {
   // A stale flag must not authorize a SECOND unrelated commit within its TTL: once
   // it grants a bypass, the hook deletes it.

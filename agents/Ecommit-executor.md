@@ -42,6 +42,13 @@ Never leaves AI traces (e.g., Co-Authored-By).
    ```
 10. Confirm any fallback flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
 11. **The standalone flag is one-shot.** Current hooks consume (delete) it the moment it grants the commit — so the trailing `rm` is usually a no-op. **If `git commit` fails for a non-guard reason (e.g. "nothing to commit", a failing pre-commit hook) and you retry, re-create the flag with the Write tool before each retry** — a consumed flag will not authorize a second commit.
+12. **Bind the flag to your exact command (recommended, opt-in).** Add a `command` field whose value is the **exact Bash command string you will run next**, then run precisely that command. This scopes the bypass to one command so a stale flag can never authorize an unrelated commit:
+    ```json
+    {"active":true,"skill":"Qcommit","command":"git commit -m \"<your message>\""}
+    ```
+    - Run the commit as its **own** Bash call (do not chain `git add`/`rm` into the bound command, or the strings won't match). Stage in a prior call; clean up in a later call.
+    - Trim-compared, fail-closed: if the flag's `command` does not exactly match the command, the commit is blocked — re-create the flag with the correct command and retry.
+    - Older hooks ignore `command` (backward-compatible), so including it is always safe.
 
 ## Conventional Commit Validation (Step 4)
 
