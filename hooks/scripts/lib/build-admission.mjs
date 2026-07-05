@@ -24,15 +24,22 @@ export const BUILD_BLOCK_MESSAGE = MEMORY_BLOCK_MESSAGE;
 const LOCK_FILE_NAME = 'qe-framework-build-admission.lock.json';
 
 export function parseVmStat(text, pageSize = 4096) {
+  const str = String(text || '');
+  // vm_stat's header reports the page size ("... (page size of 16384 bytes)").
+  // Prefer it so the darwin probe needs no separate `pagesize` exec (one fewer
+  // PATH-dependent call that could fail and force the unreliable os.freemem
+  // fallback). The pageSize argument stays as the fallback / test override.
+  const header = str.match(/page size of (\d+) bytes/i);
+  const effectivePageSize = header ? Number.parseInt(header[1], 10) : pageSize;
   const values = {};
-  for (const line of String(text || '').split('\n')) {
+  for (const line of str.split('\n')) {
     const match = line.match(/^Pages\s+([^:]+):\s+([0-9.]+)/);
     if (!match) continue;
     values[match[1].trim().toLowerCase()] = Number.parseInt(match[2], 10);
   }
   const free = values.free || 0;
   const inactive = values.inactive || 0;
-  return Math.floor(((free + inactive) * pageSize) / 1024 / 1024);
+  return Math.floor(((free + inactive) * effectivePageSize) / 1024 / 1024);
 }
 
 export function parseMeminfo(text) {
@@ -72,7 +79,7 @@ export function isHeavyBuildCommand(command) {
   if (typeof command !== 'string' || command.trim() === '') return false;
   return (
     matchesExecutable(command, /(?:^|[;&|(\n`])\s*(?:\.\/)?(?:gradlew|gradle|mvnw|mvn)(?:\s|$)/) ||
-    matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+)?(?:build|test)(?::[\w:-]+)?(?:\s|$)/)
+    matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+)?(?:build|test)(?:[:\-][\w:-]*)?(?:\s|$)/)
   );
 }
 
@@ -112,10 +119,17 @@ export function probeAvailableMemory(options = {}) {
 
   if (platform === 'darwin') {
     try {
-      const pageSizeText = runExecFileSync('pagesize', { encoding: 'utf8', timeout: 1000 });
-      const pageSize = Number.parseInt(String(pageSizeText).trim(), 10) || 4096;
-      const vmStat = runExecFileSync('vm_stat', { encoding: 'utf8', timeout: 1000 });
-      availableMb = parseVmStat(vmStat, pageSize);
+      // Absolute path so a hook subprocess with a stripped PATH still reaches the
+      // reliable probe instead of silently dropping to the os.freemem fallback.
+      // Page size comes from the vm_stat header (parseVmStat), so no separate
+      // `pagesize` exec is needed.
+      const vmStat = runExecFileSync('/usr/bin/vm_stat', { encoding: 'utf8', timeout: 1000 });
+      // parseVmStat prefers the page size in the vm_stat header. The default is
+      // only used if that header is ever absent — pick it by arch (Apple Silicon
+      // = 16 KiB) so a missing header cannot 4x-under-report and manufacture a
+      // false memory denial on arm64.
+      const archPageSize = (options.arch || os.arch()) === 'arm64' ? 16384 : 4096;
+      availableMb = parseVmStat(vmStat, archPageSize);
       source = 'darwin:vm_stat';
     } catch {
       availableMb = null;

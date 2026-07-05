@@ -56,6 +56,45 @@ test('memory probe parses macOS vm_stat free plus inactive pages', () => {
   assert.equal(parseVmStat(vmStat, 4096), 15);
 });
 
+test('memory probe reads page size from the vm_stat header when present', () => {
+  const vmStat = [
+    'Mach Virtual Memory Statistics: (page size of 16384 bytes)',
+    'Pages free:                               1000.',
+    'Pages inactive:                           3000.',
+  ].join('\n');
+  // Header says 16384; the arg default (4096) must be overridden by it.
+  assert.equal(parseVmStat(vmStat), Math.floor((4000 * 16384) / 1024 / 1024));
+  // No header → fall back to the pageSize argument.
+  assert.equal(parseVmStat('Pages free: 1000.\nPages inactive: 3000.', 4096), 15);
+});
+
+test('darwin probe calls only /usr/bin/vm_stat with no pagesize exec', () => {
+  const calls = [];
+  const result = probeAvailableMemory({
+    platform: 'darwin',
+    arch: 'arm64',
+    execFileSync: (cmd) => {
+      calls.push(cmd);
+      return 'Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free: 1000.\nPages inactive: 3000.\n';
+    },
+    env: {},
+  });
+  assert.deepEqual(calls, ['/usr/bin/vm_stat']);
+  assert.equal(result.source, 'darwin:vm_stat');
+  assert.equal(result.availableMb, Math.floor((4000 * 16384) / 1024 / 1024));
+});
+
+test('darwin probe uses arch page size when the vm_stat header is missing', () => {
+  const result = probeAvailableMemory({
+    platform: 'darwin',
+    arch: 'arm64',
+    execFileSync: () => 'Pages free: 1000.\nPages inactive: 3000.\n',
+    env: {},
+  });
+  // No header → must default to 16384 on arm64, not 4096 (no 4x under-report).
+  assert.equal(result.availableMb, Math.floor((4000 * 16384) / 1024 / 1024));
+});
+
 test('memory probe parses Linux MemAvailable', () => {
   assert.equal(parseMeminfo('MemTotal: 100 kB\nMemAvailable: 2097152 kB\n'), 2048);
 });
@@ -94,8 +133,10 @@ test('heavy build classifier detects build commands and ignores executable data'
   assert.equal(isHeavyBuildCommand('npm run test'), true);
   assert.equal(isHeavyBuildCommand('npm run build:prod'), true);
   assert.equal(isHeavyBuildCommand('npm run test:unit'), true);
+  assert.equal(isHeavyBuildCommand('npm run build-css'), true);
+  assert.equal(isHeavyBuildCommand('npm run test-e2e'), true);
   assert.equal(isHeavyBuildCommand('npm run buildx'), false);
-  assert.equal(isHeavyBuildCommand('npm run build-css'), false);
+  assert.equal(isHeavyBuildCommand('npm run buildinfo'), false);
   assert.equal(isHeavyBuildCommand('npm test -- --runInBand'), true);
   assert.equal(isHeavyBuildCommand('echo "npm test"'), false);
   assert.equal(isHeavyBuildCommand('cat <<EOF\n./gradlew test\nEOF'), false);
