@@ -275,7 +275,7 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
     '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
     `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · version/release admin → qe-admin-mcp · ` +
     `show version → ${skillCommand('Qversion')} · context save → ${skillCommand('Qcompact')} · restore → ${skillCommand('Qresume')} · ` +
-    `archive tasks → ${skillCommand('Qarchive')} · refresh analysis → ${skillCommand('Qrefresh')}.` + fullMapPointer
+    `archive tasks → ${skillCommand('Qgc')} archive · refresh analysis → ${skillCommand('Qrefresh')}.` + fullMapPointer
   );
 }
 

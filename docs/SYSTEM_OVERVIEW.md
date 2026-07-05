@@ -234,7 +234,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->49<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->50<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
