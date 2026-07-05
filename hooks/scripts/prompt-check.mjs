@@ -10,9 +10,6 @@ import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/stat
 import { loadConfig } from './lib/config.mjs';
 import { parseHelpFlag } from './lib/help-flag-parser.mjs';
 import { readClaudeOAuthToken } from './lib/claude-token.mjs';
-// wiki-retrieve top-level은 fs/path만 import한다(wiki-router는 그 안에서 lazy) → 매 프롬프트
-// selfTest 부작용 없음. estimateTokens를 여기서 static import하면 그 위험이 생기므로 안 한다.
-import { wikiRetrieve, PUSH_FLOOR } from '../../scripts/lib/wiki-retrieve.mjs';
 import { readCurrentSid, readCurrentSessionId, readSessionName } from './lib/session-resolver.mjs';
 import { resolvePseStateHint } from './lib/pse-state-router.mjs';
 
@@ -311,22 +308,6 @@ try {
   }
 } catch {
   // fail-open: state hints are advisory and must never block prompt handling
-}
-
-// --- Wiki knowledge hint (push) — appended AFTER existing hints so a wiki failure can
-// never suppress INTENT/HELP. Own try/catch → fail-open. wikiRetrieve short-circuits to []
-// when .qe/wiki is absent (one statSync), so non-wiki projects pay ~nothing and emit nothing.
-try {
-  const wikiHits = await wikiRetrieve(userMessage, cwd);
-  if (wikiHits.length > 0 && wikiHits[0].score >= PUSH_FLOOR) {
-    const slugs = wikiHits.slice(0, 2).map((h) => String(h.pageRef).replace(/^.*\//, '')).join(', ');
-    // 토큰 예산: slug-only + 120자 상한(≈≤40토큰). estimateTokens는 selfTest 위험 때문에 import 안 함.
-    let line = `[Wiki] 관련 지식: ${slugs} — /Qwiki-query로 상세`;
-    if (line.length > 120) line = line.slice(0, 119) + '…';
-    hints.push(line);
-  }
-} catch {
-  // fail-open: wiki hint is advisory, never block the hook
 }
 
 // --- Session auto-naming (AI-driven) + topic-change refresh ---

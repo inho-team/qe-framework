@@ -2,7 +2,6 @@
 'use strict';
 
 import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSync } from 'fs';
-import { countInbox as countWikiInbox } from './lib/wiki-status.mjs';
 import { join } from 'path';
 import { homedir } from 'os';
 import { pathToFileURL } from 'url';
@@ -411,16 +410,6 @@ try {
   if (line) messages.push(line);
 } catch {
   // Fault tolerance — sweep is advisory, never block session start
-}
-
-// --- Qwiki inbox queue (only when .qe/wiki exists with uncompiled sources) ---
-try {
-  const uncompiled = countWikiInbox(cwd); // shallow readdir, no recursion, 0 when absent
-  if (uncompiled > 0) {
-    messages.push(`[Wiki] ${uncompiled} uncompiled source${uncompiled > 1 ? 's' : ''} in .qe/wiki/inbox — run ${skillCommand('Qwiki-compile')}.`);
-  }
-} catch {
-  // Fault tolerance — wiki status is advisory, never block session start
 }
 
 // --- GC (Garbage Collection) Freshness Check ---

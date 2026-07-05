@@ -42,9 +42,6 @@ const PROTECTED_CORE = new Set([
   'Qupdate',
   'Qcontext',
   'Qmemory',
-  'Qwiki-compile',
-  'Qwiki-ingest',
-  'Qwiki-query',
 ]);
 
 const OPTIONAL_NAME_PATTERNS = [

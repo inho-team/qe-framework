@@ -77,12 +77,6 @@ help, invoke `{adapter.commandPrefix}Qmcp ensure`.
 ## Workflow
 
 ### Step 1: Context Acquisition (Mandatory)
-**Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만):** `test -d .qe/wiki`가 참이면, 스펙 작성 전
-이 task가 건드릴 도메인 지식을 회수한다 — QE 플러그인의 `scripts/lib/wiki-retrieve.mjs`를 cwd=현재
-프로젝트로 실행(`node <plugin>/scripts/lib/wiki-retrieve.mjs "<task 의도>"`) → 반환된 provenance-기반
-페이지를 스펙 컨텍스트로 반영(`tier: reviewed` 우선). **`.qe/wiki/`가 없으면 명령 실행 없이 조용히 skip**
-(비-wiki 무영향).
-
 Before collecting user info, identify the strategic context:
 1. **Resolve active plan** (slug-based Named Plan layout):
    - If the first CLI token matches `{slug}:` (where slug is `[a-z0-9][a-z0-9-]{0,63}`), use that as the plan slug and strip it from the argument string.

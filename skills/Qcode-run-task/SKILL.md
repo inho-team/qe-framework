@@ -25,11 +25,6 @@ An assistant that ensures quality by performing a **test → review → fix → 
 - **Codex client adapter**: use role-separated inline execution only if equivalent native subagent delegation is unavailable; preserve the QA role contract and mark the fallback explicitly.
 - **Command rendering**: examples and handoffs use `adapter.commandPrefix`.
 
-## Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만)
-review/fix 전, `test -d .qe/wiki`가 참이면 변경 파일 관련 누적 지식(conventions·gotcha·결정)을 회수한다 —
-`node <QE plugin>/scripts/lib/wiki-retrieve.mjs "<변경 요지/파일>"` (cwd=현재 프로젝트) → 리뷰 기준에
-반영(`tier: reviewed` 우선). **`.qe/wiki/`가 없으면 명령 실행 없이 조용히 skip**(비-wiki 무영향).
-
 ## Prerequisites
 - Step 3 (implementation execution) of `Qrun-task` is complete
 - Task has `type: code` specified in TASK_REQUEST

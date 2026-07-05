@@ -29,11 +29,7 @@
     "Qupdate",
     "Qutopia",
     "Qverify-contract",
-    "Qversion",
-    "Qwiki-compile",
-    "Qwiki-ingest",
-    "Qwiki-lint",
-    "Qwiki-query"
+    "Qversion"
   ],
   "legacyCleanupSkills": [
     "Mbump",

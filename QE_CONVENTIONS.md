@@ -338,18 +338,6 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |
 | `Qgc` | Code garbage collection (drift, violations, dead code) |
 
-### Knowledge Wiki (Qwiki — `.qe/wiki/` layer)
-| Skill | Purpose |
-|-------|---------|
-| `Qwiki-ingest` | Save a source (URL/file/text) into `.qe/wiki/inbox` — save only, no synthesis |
-| `Qwiki-compile` | Synthesize inbox → wiki pages (canonicalize, router/index/overview, raw move, Qcommit) |
-| `Qwiki-query` | 2-phase routed retrieval (Phase A route / Phase B search) with provenance + fileback |
-| `Qwiki-lint` | 7-check wiki health audit (contradictions, orphans, dead links, index/router, shard cap, tier, conventions↔router) |
-
-> Distinct from `Qmemory` (volatile fact cards), `Qcontext` (per-folder loading), `.qe/analysis`
-> (code snapshot). wiki = canonical project knowledge; others are pointers (DECISION_LOG D-WIKI-02).
-> Full guide: `docs/QWIKI.md`. compile/query/lint are utility skills outside SIVS stage routing; commits via Qcommit only.
-
 ### Task Execution
 | Skill | Purpose |
 |-------|---------|
