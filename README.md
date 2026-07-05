@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->36<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->34<!--/qe:skills--> skills | <!--qe:agents-->27<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 ---
 
@@ -323,7 +323,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->36<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->34<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic
@@ -348,11 +348,11 @@ optional expert corpus.
 | **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
 | **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` `Qdoctor` | 6 |
-| **Project** | `Qcommit` `Qproject-sync` | 2 |
+| **Project** | `Qcommit` `Qrefresh --sync` | 2 |
 | **Quality** | `Qgc` `Qsource-verifier` | 2 |
 | **Docs & Writing** | `Qwriting-clearly` | 1 |
 | **Research** | `Qautoresearch` `Qfact-checker` `Qsource-verifier` | 3 |
-| **More** | `/Qfind-skills` or `/Qhelp` on Claude; `$Qfind-skills` or `$Qhelp` on Codex | Extended catalog |
+| **More** | `/Qhelp find` on Claude; `$Qhelp find` on Codex | Extended catalog |
 
 #### ⚠️ Autonomous Mode (`/Qutopia` / `$Qutopia`) — Use With Caution
 

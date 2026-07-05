@@ -1,12 +1,4 @@
----
-name: Qfind-skills
-description: Finds and installs skills from skills.sh. Use when you want to find a skill, install a skill, browse available skills, or search skills.sh. Fetches skill content and creates SKILL.md files directly.
-invocation_trigger: When framework initialization, maintenance, or audit is required.
-recommendedModel: haiku
----
-
-
-# Qfind-skills: Skill Search and Installation
+# Qhelp Find Mode — Skill Search and Installation
 
 Searches the skills.sh ecosystem for skills, analyzes the original SKILL.md, and directly creates them as QE skills for the active client.
 
@@ -40,7 +32,8 @@ curl -s https://raw.githubusercontent.com/<owner>/<repo>/main/skills/<skill-name
 ```
 
 Or via WebFetch:
-```
+
+```text
 WebFetch https://github.com/<owner>/<repo>/blob/main/skills/<skill-name>/SKILL.md
 ```
 
@@ -50,9 +43,9 @@ WebFetch https://github.com/<owner>/<repo>/blob/main/skills/<skill-name>/SKILL.m
 - Claude adapter: `AskUserQuestion`
 - Codex interactive adapter: concise plain-text choices with the same labels
 
-- **Claude global**: `~/.claude/skills/<skill-name>/SKILL.md` — available in Claude projects
-- **Claude local**: `.claude/skills/<skill-name>/SKILL.md` — available in the current Claude project
-- **Codex global**: `~/.codex/skills/<skill-name>/SKILL.md` — available in Codex when the Codex skill loader is active
+- **Claude global**: `~/.claude/skills/<skill-name>/SKILL.md` - available in Claude projects
+- **Claude local**: `.claude/skills/<skill-name>/SKILL.md` - available in the current Claude project
+- **Codex global**: `~/.codex/skills/<skill-name>/SKILL.md` - available in Codex when the Codex skill loader is active
 - **Codex local/project**: use the repository `skills/<skill-name>/SKILL.md` source layout and let the installer sync to Codex assets
 
 ### Step 4: Create SKILL.md

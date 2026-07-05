@@ -321,9 +321,8 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qdoctor` | Diagnose and repair QE dependency and `.qe/` project-state health |
 | `Qinit` | Initial setup and directory structure |
 | `Qplan` | Strategic roadmap and phase management (.qe/planning/) |
-| `Qrefresh` | Refresh project analysis data |
+| `Qrefresh` | Refresh project analysis data; use `Qrefresh --sync` to sync source files with a reference/standard project |
 | `Qmap-codebase` | Automated brownfield codebase analysis (4 parallel agents) |
-| `Qproject-sync` | Sync project source files with a reference/standard project |
 | `Qcompact` | Save context / session handoff |
 | `Qresume` | Restore saved context |
 | `Qgc archive` | Archive completed tasks |
@@ -331,7 +330,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qalias` | Define path/command shortcuts |
 | `Qcc-setup` | Shell alias setup for Claude & Codex (cc, ccc, ccd, cx, cxd) |
 | `Qcommand-creator` | Create slash commands |
-| `Qfind-skills` | Find/install skills from skills.sh |
+| `Qhelp find` | Find/install skills from skills.sh |
 | `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
 | `Qmcp sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |

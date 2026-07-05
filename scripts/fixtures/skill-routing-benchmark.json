@@ -155,8 +155,8 @@
       "prompt": "PRD 쓰는 데 맞는 스킬 좀 찾아줘.",
       "locale": "ko",
       "category": "research",
-      "expected": "Qfind-skills",
-      "aliases": ["Qfind-skills"],
+      "expected": "Qhelp",
+      "aliases": ["Qhelp"],
       "confidence": 0.95,
       "reason": "The user is asking to discover a suitable skill, not to produce the PRD directly."
     },

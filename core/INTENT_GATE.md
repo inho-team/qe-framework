@@ -29,7 +29,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **QA test plan** | "test plan", "test cases", "regression suite", "QA testing", "bug report template" | Qqa |
 | **Humanize text** | "humanize", "remove AI writing", "make it sound natural", "AI trace" | Qwriting-clearly |
 | **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Refer to qe-admin-mcp maintainer workflows |
-| **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qfind-skills |
+| **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qhelp |
 | **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Refer to qe-admin-mcp maintainer workflows |
 | **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Refer to qe-admin-mcp maintainer workflows |
 | **Writing quality** | "write clearly", "improve prose", "writing quality", "Strunk", "concise writing" | Qwriting-clearly |

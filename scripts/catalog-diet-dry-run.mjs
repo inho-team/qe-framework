@@ -45,7 +45,6 @@ const PROTECTED_CORE = new Set([
   'Qwiki-compile',
   'Qwiki-ingest',
   'Qwiki-query',
-  'Qproject-sync',
 ]);
 
 const OPTIONAL_NAME_PATTERNS = [

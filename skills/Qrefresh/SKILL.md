@@ -1,6 +1,6 @@
 ---
 name: Qrefresh
-description: Manually refreshes project analysis data. Use when refreshing, updating, or syncing .qe/analysis/ files.
+description: Manually refreshes project analysis data. Use when refreshing, updating, or syncing .qe/analysis/ files. Also supports --sync mode for synchronizing project source files with a reference/standard project via reference/project-sync.md.
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku
 ---
@@ -12,12 +12,18 @@ recommendedModel: haiku
 A skill that manually refreshes project analysis data and shows the user a summary of changes.
 Actual refresh work is delegated to the `Erefresh-executor` sub-agent.
 
+`--sync` mode is separate: it synchronizes project source files with a reference/standard/template project by following `reference/project-sync.md`. Default Qrefresh updates `.qe/analysis/` data and does not sync source files.
+
 ## Why Use This
 - **Token optimization**: With up-to-date analysis data, Claude does not need to repeatedly scan files to understand the project. Reading `.qe/analysis/` is sufficient to understand the entire project, greatly reducing token consumption.
 - **Context efficiency**: Instead of agents/skills using Glob and Grep to understand structure every time, they can reference the already-organized analysis files.
 - **Improved accuracy**: Working from always up-to-date project information prevents mistakes caused by stale data.
 
 ## Execution Procedure
+
+### Mode Selection
+- **Default**: refresh `.qe/analysis/` project analysis data.
+- **`--sync`**: sync project source files with a reference/standard/template project. Read and follow `reference/project-sync.md`; do not run the default analysis refresh unless the user also asks for it.
 
 ### Step 1: Call Erefresh-executor
 Run the `Erefresh-executor` sub-agent to perform the analysis refresh.
@@ -53,8 +59,10 @@ If the analysis results show that CLAUDE.md content differs from the current pro
 - Call Erefresh-executor
 - Display change summary
 - Suggest CLAUDE.md update
+- In `--sync` mode, synchronize source files with a reference/standard/template project by following `reference/project-sync.md`
 
 ## Will Not
 - Perform analysis directly → delegate to Erefresh-executor
-- Modify source code
+- Modify source code in default refresh mode
 - Modify CLAUDE.md without user approval
+- Treat `--sync` source-file synchronization as the same operation as `.qe/analysis/` refresh

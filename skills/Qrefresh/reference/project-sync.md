@@ -1,40 +1,27 @@
----
-name: Qproject-sync
-description: "Synchronizes a project with a reference/standard project. Use when syncing project code with a template or upstream standard, merging upstream changes, or keeping a project aligned with a canonical base. Trigger phrases: 'project sync', 'sync standard', 'sync template', 'merge upstream', 'synchronize project', 'sync with standard', 'template sync'. Distinct from Qrefresh which refreshes .qe/ analysis data — this syncs actual project source files with a reference/standard project."
-user_invocable: true
-metadata: 
-author: anthropic
-version: 1.0.0
-invocation_trigger: When framework initialization, maintenance, or audit is required.
-recommendedModel: haiku
----
-
-# Qproject-sync — Project Sync with Standard/Reference
-
-## Role
+# Qrefresh --sync Mode — Project Sync with Standard/Reference
 
 Synchronizes the current project with a reference (standard/template) project.
 Classifies each changed file by sync category, shows a report, and applies selective merges based on user choices.
+
+This mode syncs actual project source files with a reference/standard project. It is distinct from the default Qrefresh behavior, which refreshes `.qe/analysis/` data and does not modify source code.
 
 > **MANDATORY:** All user confirmations MUST use the QE interaction adapter. Claude uses `AskUserQuestion`; Codex uses equivalent concise choices.
 
 ## Examples
 
-```
+```text
 User: "Sync with standard"
-→ Qproject-sync: diff against configured standard, show classification report, apply chosen merges
+-> Qrefresh --sync: diff against configured standard, show classification report, apply chosen merges
 
 User: "sync this project with ~/templates/front-std"
-→ Qproject-sync: accepts explicit path, runs full sync workflow
+-> Qrefresh --sync: accepts explicit path, runs full sync workflow
 
 User: "Project sync dry-run"
-→ Qproject-sync: shows classification report only, applies nothing
+-> Qrefresh --sync --dry-run: shows classification report only, applies nothing
 
 User: "merge upstream changes automatically"
-→ Qproject-sync: --auto mode, applies only "Standard update" files without asking per file
+-> Qrefresh --sync --auto: applies only "Standard update" files without asking per file
 ```
-
----
 
 ## Step 0: Resolve Reference Path
 
@@ -42,8 +29,6 @@ User: "merge upstream changes automatically"
 2. If not, check `.qe/config.json` or `.qe/sync.json` for `standardProjectPath`.
 3. If still not found, use the interaction adapter to ask: "Enter the path to the reference/standard project."
 4. Verify the path exists. If not, report error and stop.
-
----
 
 ## Step 1: Diff Analysis
 
@@ -58,8 +43,6 @@ diff -rq --exclude=".git" --exclude="node_modules" --exclude="dist" \
 Additionally, track git history to detect customizations:
 - A file is **customized** if the current project has commits modifying it beyond the initial template copy.
 - A file is **default** if the current project file matches the original template baseline (or has no local commits touching it).
-
----
 
 ## Step 2: Classify Each Changed File
 
@@ -77,38 +60,34 @@ Heuristics for "customized":
 - File content differs from both the reference AND a stored baseline snapshot in `.qe/sync-baseline/`.
 - When baseline is unavailable, treat any content difference as potentially customized and flag for review.
 
----
-
 ## Step 3: Classification Report
 
 Always show this report before any changes are applied.
 
-```
-== Qproject-sync Report ==
+```text
+== Qrefresh --sync Report ==
 
 Reference: <path>
 Current:   <cwd>
 
-[Standard update]  (safe to auto-merge — N files)
+[Standard update]  (safe to auto-merge - N files)
   src/lib/api-client.ts
   config/vite.config.ts
 
-[Project-specific] (manual review required — N files)
+[Project-specific] (manual review required - N files)
   src/features/auth/AuthPage.tsx   <-- both sides changed
   .env.example
 
-[New in standard]  (not in current project — N files)
+[New in standard]  (not in current project - N files)
   src/shared/ui/Toast.tsx
 
-[Removed from standard] (reference deleted — N files)
+[Removed from standard] (reference deleted - N files)
   src/legacy/OldModal.tsx
 
 Mode: <dry-run | auto | interactive>
 ```
 
 If `--dry-run`, stop here. Output the report and exit.
-
----
 
 ## Step 4: Execute Selective Sync
 
@@ -117,7 +96,7 @@ Output the report only. No file changes.
 
 ### --auto mode
 - Apply all **Standard update** files automatically.
-- Skip **Project-specific** files (log them as "skipped — manual review needed").
+- Skip **Project-specific** files (log them as "skipped - manual review needed").
 - For **New in standard**: apply automatically only if the file has no counterpart in current project.
 - For **Removed from standard**: skip (never auto-delete; always ask).
 - Report a summary of applied vs skipped files.
@@ -132,7 +111,7 @@ For each file group, use the interaction adapter with these options:
 
 **Project-specific group:**
 - Open 3-way diff view instruction (show command to run)
-- Apply reference version (overwrite local — confirm once more)
+- Apply reference version (overwrite local - confirm once more)
 - Keep current version
 - Skip
 
@@ -146,8 +125,6 @@ For each file group, use the interaction adapter with these options:
 - Keep files
 - Skip
 
----
-
 ## Step 5: API Signature Migration
 
 After file merges are applied, detect renamed or changed function signatures between reference and current.
@@ -160,13 +137,11 @@ After file merges are applied, detect renamed or changed function signatures bet
 4. Use the interaction adapter: "Apply these N API renames automatically?" (Yes / Review each / Skip).
 5. Apply approved renames via targeted file edits (preserve surrounding code).
 
----
-
 ## Step 6: Summary Report
 
 After sync completes:
 
-```
+```text
 == Sync Complete ==
 
 Applied:  N files
@@ -184,17 +159,13 @@ Run `git diff` to review all changes before committing.
 
 Suggest running Qcommit after review.
 
----
-
 ## Modes Reference
 
 | Flag | Behavior |
 |------|----------|
-| `--dry-run` | Report only, no changes |
-| `--auto` | Apply safe merges without per-file prompts |
-| `--interactive` | Per-file decisions via the interaction adapter (default) |
-
----
+| `--sync --dry-run` | Report only, no changes |
+| `--sync --auto` | Apply safe merges without per-file prompts |
+| `--sync --interactive` | Per-file decisions via the interaction adapter (default) |
 
 ## Will
 
@@ -203,12 +174,12 @@ Suggest running Qcommit after review.
 - Show classification report before any changes
 - Apply selective sync based on mode and user choices
 - Detect and auto-migrate renamed API signatures at call sites
-- Support --dry-run, --auto, and --interactive modes
+- Support `--sync --dry-run`, `--sync --auto`, and `--sync --interactive`
 
 ## Will Not
 
 - Auto-delete files from the current project without confirmation
-- Overwrite **Project-specific** files in --auto mode
+- Overwrite **Project-specific** files in `--sync --auto` mode
 - Sync `.git/`, `node_modules/`, `dist/`, or secrets (`.env`)
 - Modify files outside the current project root
-- Substitute for Qrefresh (which refreshes .qe/ analysis, not project source)
+- Substitute for the default Qrefresh analysis refresh mode

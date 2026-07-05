@@ -1,6 +1,6 @@
 ---
 name: Qhelp
-description: Shows QE Framework usage overview. With no arg, prints the full catalog. With a skill name arg (e.g., /Qhelp Qcommit), reads that skill's SKILL.md and summarizes it in the user's language.
+description: Shows QE Framework usage overview. With no arg, prints the full catalog. With a skill name arg (e.g., /Qhelp Qcommit), reads that skill's SKILL.md and summarizes it in the user's language. Also supports find/search skills mode via reference/find-skills.md.
 invocation_trigger: User asks for help, uses /Qhelp, or invokes any QE skill with --help / -h flag.
 recommendedModel: haiku
 ---
@@ -8,9 +8,10 @@ recommendedModel: haiku
 # Qhelp — QE Framework Reference & Per-Skill Help
 
 ## Role
-Two modes:
+Three modes:
 1. **No argument**: print the full QE Framework reference card (all skills).
 2. **With skill argument**: read that skill's SKILL.md and generate a per-skill usage summary in the user's language.
+3. **Find/search skills**: when the user asks to find, search, browse, or install skills from skills.sh, follow `reference/find-skills.md`.
 
 ## Workflow
 
@@ -32,6 +33,10 @@ Print the full reference card below directly to the user.
    - ja: "概要" / "使用タイミング" / "主な動作" / "使用例"
    - other: English
 6. Keep total output ≤400 words.
+
+### Mode C: Find/search skills
+When the request is about finding a skill, searching skills.sh, browsing available skills, or installing a discovered skill, read and follow `reference/find-skills.md`.
+This mode searches skills.sh, fetches original SKILL.md content, converts it to a QE-compatible `SKILL.md`, confirms the install location through the QE interaction adapter, writes the file, and verifies installation.
 
 ## Reference Card (Mode A output)
 
@@ -69,7 +74,7 @@ PLANNING
 
 META
   /Qversion                Show current version
-  /Qfind-skills            Search skills.sh marketplace
+  /Qhelp find              Search skills.sh marketplace
   /Qalias                  Path & command aliases
   /Qhelp                   This help screen
 
@@ -89,11 +94,12 @@ AGENTS (auto-selected by complexity)
 ## Will
 - Display the quick reference card (Mode A)
 - Read a specific skill's SKILL.md and generate a 4-section summary in the user's language (Mode B)
+- Search skills.sh and install discovered QE-compatible skills by following `reference/find-skills.md` (Mode C)
 - Provide skill-name suggestions when a requested skill is not found
 
 ## Will Not
 - Execute any commands from the target skill
-- Modify any files
+- Modify files in Modes A or B
 - Translate the reference card itself (Mode A stays in its native mixed form)
 
 ## Skill Budget Status
