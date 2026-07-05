@@ -56,6 +56,4 @@
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
 | `/Qautoresearch` | When deep domain knowledge or external API research is needed. | Automates technical research and summarizes findings. |
-| `/Qwriting-clearly` | When documentation or reports need to be more concise and clear, or when text sounds robotic or AI-like. | Improves readability, removes AI writing patterns (Strunk + AI pattern removal). |
-
 ---

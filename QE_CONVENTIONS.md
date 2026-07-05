@@ -366,7 +366,6 @@ These skills are optimized for common workflows and consistently outperform gene
 ### Writing & Documentation
 | Skill | Purpose |
 |-------|---------|
-| `Qwriting-clearly` | Improve prose clarity and remove AI writing patterns (Strunk's principles + AI pattern removal) |
 | `Qdoc-comment` | Add inline code documentation |
 | `Qdoc-converter` | Convert between MD/DOCX/PDF/PPTX/HTML |
 | `Qcontent-research-writer` | Research-driven article writing |

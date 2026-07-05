@@ -64,9 +64,6 @@ TASK MANAGEMENT
   /Quser-action            Track external actions the user must perform
   /Qgc archive             Archive completed tasks
 
-DOCUMENTATION
-  /Qwriting-clearly        Clear writing + AI pattern removal
-
 PLANNING
   /Qplan                   Plan a milestone/project
   /Qgs                     Generate executable task specs

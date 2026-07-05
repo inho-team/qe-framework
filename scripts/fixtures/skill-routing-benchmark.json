@@ -201,16 +201,6 @@
       "reason": "The request moves from plan/phase context into executable task specification generation."
     },
     {
-      "id": "docs-clarity-ko",
-      "prompt": "이 보고서 문장을 더 간결하고 자연스럽게 다듬어줘.",
-      "locale": "ko",
-      "category": "docs",
-      "expected": "Qwriting-clearly",
-      "aliases": ["Qwriting-clearly"],
-      "confidence": 0.98,
-      "reason": "The request is about rewriting prose for clarity and natural style."
-    },
-    {
       "id": "docs-help-en",
       "prompt": "Show the QE command catalog and explain what Qcommit does.",
       "locale": "en",

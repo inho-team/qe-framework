@@ -33,8 +33,7 @@
     "Qwiki-compile",
     "Qwiki-ingest",
     "Qwiki-lint",
-    "Qwiki-query",
-    "Qwriting-clearly"
+    "Qwiki-query"
   ],
   "legacyCleanupSkills": [
     "Mbump",
