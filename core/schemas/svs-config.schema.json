@@ -5,6 +5,11 @@
   "type": "object",
   "additionalProperties": false,
   "properties": {
+    "profile": {
+      "type": "string",
+      "enum": ["claude-head", "codex-head", "all-claude", "all-codex", "custom"],
+      "description": "Named SIVS role profile. Head = spec + supervise, Body = implement + verify. Metadata only: the per-stage engine entries are the source of truth for routing. 'custom' marks a config edited stage-by-stage away from any named profile."
+    },
     "spec": {
       "$ref": "#/definitions/stageConfig",
       "description": "Configuration for the Spec stage"

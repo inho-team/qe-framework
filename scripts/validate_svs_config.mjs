@@ -2,14 +2,15 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getDefaultSivsConfig } from './lib/codex_bridge.mjs';
+import { getDefaultSivsConfig, resolveProfileName } from './lib/codex_bridge.mjs';
 
 const CONFIG_PATH = path.join(process.cwd(), '.qe', 'sivs-config.json');
 const LEGACY_CONFIG_PATH = path.join(process.cwd(), '.qe', 'svs-config.json');
 
 const ALLOWED_ENGINES = ['claude', 'codex'];
 const ALLOWED_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
-const ALLOWED_TOP_LEVEL_KEYS = new Set(['spec', 'implement', 'verify', 'supervise']);
+const ALLOWED_PROFILES = ['claude-head', 'codex-head', 'all-claude', 'all-codex', 'custom'];
+const ALLOWED_TOP_LEVEL_KEYS = new Set(['profile', 'spec', 'implement', 'verify', 'supervise']);
 const ALLOWED_STAGE_KEYS = new Set(['engine', 'model', 'effort', 'background', 'compaction']);
 
 /**
@@ -22,7 +23,16 @@ function validateConfig(config) {
   // Check top-level keys
   for (const key of Object.keys(config)) {
     if (!ALLOWED_TOP_LEVEL_KEYS.has(key)) {
-      errors.push(`Invalid top-level key "${key}". Allowed: spec, implement, verify, supervise`);
+      errors.push(`Invalid top-level key "${key}". Allowed: profile, spec, implement, verify, supervise`);
+    }
+  }
+
+  // Validate profile (metadata field; stage entries remain the source of truth)
+  if (config.profile !== undefined) {
+    if (typeof config.profile !== 'string') {
+      errors.push(`profile must be a string, got ${typeof config.profile}`);
+    } else if (!ALLOWED_PROFILES.includes(config.profile)) {
+      errors.push(`profile must be one of [${ALLOWED_PROFILES.join(', ')}], got "${config.profile}"`);
     }
   }
 
@@ -192,7 +202,14 @@ function main() {
     }
 
     const resolved = resolveConfig(config);
+    const effectiveProfile = resolveProfileName(config);
+    const declaredProfile = config.profile;
     console.log('[sivs-config] Valid configuration:');
+    if (declaredProfile && declaredProfile !== effectiveProfile) {
+      console.log(`  profile      ${declaredProfile} (declared) / ${effectiveProfile} (effective from stages)`);
+    } else {
+      console.log(`  profile      ${effectiveProfile}`);
+    }
     console.log(formatConfig(resolved));
     process.exit(0);
   } catch (e) {

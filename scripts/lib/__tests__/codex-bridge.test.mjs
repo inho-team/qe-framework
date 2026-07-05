@@ -7,11 +7,14 @@ import test from 'node:test';
 import {
   DELEGATION_ARTIFACT_BYTE_CAP,
   DELEGATION_TRUNCATION_MARKER,
+  SIVS_PROFILES,
   buildDelegationContext,
   buildDelegationPayload,
+  expandProfile,
   getDefaultSivsConfig,
   getCodexCommand,
   resolveEngine,
+  resolveProfileName,
 } from '../codex_bridge.mjs';
 
 function fixtureDir() {
@@ -174,4 +177,61 @@ test('audit metadata record has artifact list and byte counts but no body conten
     record.artifacts.map((artifact) => artifact.truncated),
     [false, false]
   );
+});
+
+test('expandProfile produces explicit stage engines with a profile field', () => {
+  assert.deepEqual(expandProfile('codex-head'), {
+    profile: 'codex-head',
+    spec: { engine: 'codex' },
+    implement: { engine: 'claude' },
+    verify: { engine: 'claude' },
+    supervise: { engine: 'codex' },
+  });
+  assert.deepEqual(expandProfile('claude-head'), {
+    profile: 'claude-head',
+    spec: { engine: 'claude' },
+    implement: { engine: 'codex' },
+    verify: { engine: 'codex' },
+    supervise: { engine: 'claude' },
+  });
+});
+
+test('expandProfile throws on unknown profile name', () => {
+  assert.throws(() => expandProfile('nonexistent'), /Unknown SIVS profile/);
+});
+
+test('every named profile round-trips through resolveProfileName', () => {
+  for (const name of Object.keys(SIVS_PROFILES)) {
+    const expanded = expandProfile(name);
+    // codexAvailable is irrelevant here because every stage is set explicitly.
+    assert.equal(resolveProfileName(expanded, { codexAvailable: true }), name);
+    assert.equal(resolveProfileName(expanded, { codexAvailable: false }), name);
+  }
+});
+
+test('resolveProfileName maps Codex-aware defaults to claude-head and reports custom mixes', () => {
+  assert.equal(resolveProfileName({}, { codexAvailable: true }), 'claude-head');
+  assert.equal(resolveProfileName({}, { codexAvailable: false }), 'all-claude');
+  const mixed = { spec: { engine: 'codex' }, implement: { engine: 'codex' }, verify: { engine: 'claude' }, supervise: { engine: 'claude' } };
+  assert.equal(resolveProfileName(mixed, { codexAvailable: true }), 'custom');
+});
+
+test('resolveEngine reverse-falls-back to Codex when Claude is unreachable in a codex-base session', () => {
+  const result = resolveEngine(
+    'supervise',
+    { supervise: { engine: 'claude', effort: 'high' } },
+    { codexAvailable: true, base: 'codex', claudeReachable: false }
+  );
+  assert.equal(result.engine, 'codex');
+  assert.equal(result.command.command, '/codex:review --effort high');
+  assert.match(result.warning, /Claude unreachable/);
+});
+
+test('resolveEngine leaves claude stages untouched when Claude is reachable', () => {
+  assert.deepEqual(
+    resolveEngine('supervise', { supervise: { engine: 'claude' } }, { base: 'codex', claudeReachable: true }),
+    { engine: 'claude' }
+  );
+  // No base/reachability signal → unchanged legacy behaviour.
+  assert.deepEqual(resolveEngine('spec', {}, { codexAvailable: true }), { engine: 'claude' });
 });

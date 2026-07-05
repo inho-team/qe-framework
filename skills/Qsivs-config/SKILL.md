@@ -27,6 +27,34 @@ Verify prefer Codex to reduce Claude session token pressure. Explicit
 > is auto-upgraded to a cross-model engine, otherwise the same-engine baseline
 > runs. See `skills/Qcritical-review/reference/*-gate-protocol.md`.
 
+## Fallback
+Engine assignment is a preference, not a hard requirement. At runtime
+`resolveEngine()` degrades a stage to the reachable engine when the requested one
+is unavailable:
+- **codex → claude** — a stage set to `codex` runs on Claude when codex-plugin-cc
+  is not installed (Claude-base sessions).
+- **claude → codex** — a stage set to `claude` runs on Codex when the session is
+  Codex-native (`base: 'codex'`) and Claude is unreachable.
+
+`show` reports the requested engine; the fallback warning names the effective
+engine used. Homogeneous profiles (`all-claude` / `all-codex`) never trigger
+fallback because both roles target the same engine.
+
+## Cross-engine invocation (MCP only)
+When the Head engine must call the Body engine (or vice versa) — e.g. a
+Claude-led Supervise stage asking Codex for a second-opinion review, or a
+Codex-led Spec stage asking Claude to resolve an ambiguity — route the call
+**through the qe-mcp expert-library MCP tools**, never a direct CLI shell-out:
+
+- `mcp__qeExpertLibrary__qe_run_codex_agent` — invoke Codex
+- `mcp__qeExpertLibrary__qe_run_claude_agent` — invoke Claude
+- `mcp__qeExpertLibrary__qe_delegate_agent` — engine-agnostic (`target_engine`)
+
+These carry `call_depth` / `call_chain_id` / `origin_engine` recursion guards and
+a `max_concurrent_runs: 1` bound. **Do not** invoke `codex-companion.mjs` (or any
+`node .../scripts/*.mjs` runner) directly for cross-engine work; direct library
+shell-outs bypass the recursion guard and the audit trail.
+
 ## Storage Location
 `.qe/sivs-config.json`
 
@@ -44,9 +72,23 @@ Parse the user's input after the active-client command (`{adapter.commandPrefix}
 |------------|-------------|
 | (none)     | Show current configuration (same as `show`) |
 | `show`     | Show current configuration with status |
+| `profile`  | Apply a named Head/Body role profile to all stages at once |
 | `set`      | Set engine/model/effort for a stage |
 | `reset`    | Reset a stage or all stages to defaults (claude) |
 | `--help`   | Show usage guide |
+
+**Profiles (Head = spec + supervise, Body = implement + verify):**
+| Profile | spec | implement | verify | supervise | Meaning |
+|---------|------|-----------|--------|-----------|---------|
+| `claude-head` | claude | codex | codex | claude | Claude designs/judges (Head), Codex executes (Body). Default posture. |
+| `codex-head` | codex | claude | claude | codex | Codex designs/judges (Head), Claude executes (Body). |
+| `all-claude` | claude | claude | claude | claude | Homogeneous Claude (Codex absent or unused). |
+| `all-codex` | codex | codex | codex | codex | Homogeneous Codex (Claude absent or unused). |
+
+A profile is a thin preset over the four stage entries. `show` reports the
+effective profile derived from the stage engines; a per-stage `set` that breaks a
+named pattern surfaces as `custom`. The stage engines remain the source of truth
+for routing — the stored `profile` field is metadata only.
 
 **Stages:** `spec`, `implement`, `verify`, `supervise`
 
@@ -79,6 +121,8 @@ If `--help` flag is present anywhere, jump to **Step HELP**.
 ```
 SIVS Engine Routing (.qe/sivs-config.json)
 ──────────────────────────────────────────
+  Profile:  claude-head   (Head=Claude, Body=Codex)
+
   Stage        Engine   Model          Effort
   spec         claude   -              -
   implement    codex    gpt-5.4        high
@@ -87,6 +131,10 @@ SIVS Engine Routing (.qe/sivs-config.json)
 
 Codex plugin: installed (v1.2.3)
 ```
+
+Derive the Profile line via `resolveProfileName(config)` from
+`scripts/lib/codex_bridge.mjs`. If the stored `profile` field disagrees with the
+engines actually set, show both, e.g. `codex-head (declared) / custom (effective)`.
 
 If any stage uses codex but plugin is not installed, append:
 ```
@@ -132,6 +180,21 @@ treat it as an implicit `set`:
 {adapter.commandPrefix}Qsivs-config spec claude high                 # same as: set spec claude --effort high
 ```
 
+#### Subcommand: `profile`
+1. Validate: profile name must be one of `claude-head`, `codex-head`, `all-claude`, `all-codex`
+2. Expand the profile into explicit stage engines via `expandProfile(name)` from `scripts/lib/codex_bridge.mjs`; this returns a `profile` field plus one `{ engine }` entry per stage
+3. Write `.qe/sivs-config.json` with the expanded object (preserving any existing per-stage `model`/`effort`/`background`/`compaction` overrides where the engine is unchanged)
+4. Check engine readiness for the active base client and warn on any stage whose engine is unreachable (fallback still applies at runtime — see **Fallback**)
+5. Display the updated config (same format as `show`), including the profile name
+
+**Examples:**
+```
+{adapter.commandPrefix}Qsivs-config profile codex-head     # Codex Head / Claude Body
+{adapter.commandPrefix}Qsivs-config profile claude-head    # Claude Head / Codex Body (default)
+{adapter.commandPrefix}Qsivs-config profile all-codex      # homogeneous Codex
+{adapter.commandPrefix}Qsivs-config profile all-claude     # homogeneous Claude
+```
+
 #### Subcommand: `reset`
 1. If `--all` or no stage specified: delete `.qe/sivs-config.json` entirely
 2. If stage specified: remove that stage's entry from config (falls back to default claude)
@@ -152,13 +215,15 @@ Qsivs-config — SIVS Engine Routing Manager
 Usage:
   {adapter.commandPrefix}Qsivs-config                              Show current config
   {adapter.commandPrefix}Qsivs-config show                         Show current config (verbose)
+  {adapter.commandPrefix}Qsivs-config profile <name>               Apply a Head/Body role profile
   {adapter.commandPrefix}Qsivs-config set <stage> <engine> [opts]  Set engine for a stage
   {adapter.commandPrefix}Qsivs-config <stage> <engine> [opts]      Shorthand for set
   {adapter.commandPrefix}Qsivs-config reset [stage|--all]          Reset to defaults
   {adapter.commandPrefix}Qsivs-config --help                       Show this help
 
-Stages:  spec | implement | verify | supervise
-Engines: claude | codex
+Profiles: claude-head | codex-head | all-claude | all-codex
+Stages:   spec | implement | verify | supervise
+Engines:  claude | codex
 
 Options:
   --model <name>     Model override (e.g., gpt-5.4, gpt-5-codex-mini)
@@ -186,6 +251,8 @@ Schema:      core/schemas/svs-config.schema.json
 ```
 
 ## Validation Rules
+- Profile (for `profile` subcommand) must be one of: `claude-head`, `codex-head`, `all-claude`, `all-codex`
+- Stored `profile` field must be one of the above or `custom`
 - Stage must be one of: `spec`, `implement`, `verify`, `supervise`
   - **Stage options:** `engine`, `model`, `effort`, `background`, `compaction`
 - Engine must be one of: `claude`, `codex`
@@ -206,6 +273,7 @@ Schema:      core/schemas/svs-config.schema.json
 
 ## Will
 - Read, display, and modify `.qe/sivs-config.json`
+- Apply named Head/Body role profiles (`profile <name>`) and report the effective profile
 - Validate inputs against the schema
 - Warn about missing bridge/readiness for the active base client
 - Handle legacy config migration

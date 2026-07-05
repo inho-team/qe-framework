@@ -234,10 +234,79 @@ export function buildDelegationPayload(stage, options = {}) {
 }
 
 /**
+ * The four SIVS stages, in canonical order.
+ * @type {string[]}
+ */
+export const SIVS_STAGES = ['spec', 'implement', 'verify', 'supervise'];
+
+/**
+ * Named SIVS role profiles. Head = spec + supervise (design + final judgment);
+ * Body = implement + verify (execution + validation). Selecting a profile expands
+ * to explicit per-stage engine entries so resolveEngine() and the routing enforcer
+ * keep reading stage entries unchanged.
+ *
+ * - `claude-head` — Claude designs/judges (Head), Codex executes (Body). Default.
+ * - `codex-head`  — Codex designs/judges (Head), Claude executes (Body).
+ * - `all-claude`  — homogeneous Claude (Codex absent or unused).
+ * - `all-codex`   — homogeneous Codex (Claude absent or unused).
+ * @type {Record<string, { spec: string, implement: string, verify: string, supervise: string }>}
+ */
+export const SIVS_PROFILES = {
+  'claude-head': { spec: 'claude', implement: 'codex', verify: 'codex', supervise: 'claude' },
+  'codex-head': { spec: 'codex', implement: 'claude', verify: 'claude', supervise: 'codex' },
+  'all-claude': { spec: 'claude', implement: 'claude', verify: 'claude', supervise: 'claude' },
+  'all-codex': { spec: 'codex', implement: 'codex', verify: 'codex', supervise: 'codex' },
+};
+
+/**
+ * Expand a named profile into an explicit sivs-config object.
+ * The returned object carries a `profile` metadata field plus one engine entry
+ * per stage. The enforcer and resolveEngine() read the stage entries and ignore
+ * the metadata field, so routing behaviour is unchanged.
+ * @param {string} name - one of SIVS_PROFILES keys
+ * @returns {object} { profile, spec, implement, verify, supervise }
+ * @throws {Error} when the profile name is unknown
+ */
+export function expandProfile(name) {
+  const map = SIVS_PROFILES[name];
+  if (!map) {
+    throw new Error(`Unknown SIVS profile "${name}". Valid: ${Object.keys(SIVS_PROFILES).join(', ')}`);
+  }
+  const config = { profile: name };
+  for (const stage of SIVS_STAGES) {
+    config[stage] = { engine: map[stage] };
+  }
+  return config;
+}
+
+/**
+ * Detect which named profile a config's stage engines correspond to.
+ * Compares only the resolved engine per stage (unset stages fall back to the
+ * environment-aware defaults); returns 'custom' when no named profile matches.
+ * Model/effort/background/compaction overrides are ignored for matching.
+ * @param {object} [config] - parsed sivs-config.json (may include a profile field)
+ * @param {object} [options] - { codexAvailable?: boolean } to fill unset stages
+ * @returns {string} profile name or 'custom'
+ */
+export function resolveProfileName(config = {}, options = {}) {
+  const defaults = getDefaultSivsConfig(options);
+  const engines = {};
+  for (const stage of SIVS_STAGES) {
+    engines[stage] = config?.[stage]?.engine || defaults[stage].engine;
+  }
+  for (const [name, map] of Object.entries(SIVS_PROFILES)) {
+    if (SIVS_STAGES.every((stage) => engines[stage] === map[stage])) {
+      return name;
+    }
+  }
+  return 'custom';
+}
+
+/**
  * Resolve which engine to use for a given SIVS stage
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
  * @param {object} config - parsed sivs-config.json object (or empty for defaults)
- * @param {object} [options] - { codexAvailable?: boolean } test/config override
+ * @param {object} [options] - { codexAvailable?: boolean, base?: 'claude'|'codex', claudeReachable?: boolean }
  * @returns {object} { engine: string, warning?: string, command?: object }
  */
 export function resolveEngine(stage, config = {}, options = {}) {
@@ -249,6 +318,15 @@ export function resolveEngine(stage, config = {}, options = {}) {
   const engine = stageConfig.engine || 'claude';
 
   if (engine === 'claude') {
+    // Reverse fallback: a Codex-native session cannot reach Claude. Route the
+    // stage to Codex instead of stalling on an unreachable Head/Body engine.
+    if (options.base === 'codex' && options.claudeReachable === false) {
+      return {
+        engine: 'codex',
+        command: getCodexCommand(stage, { effort: stageConfig.effort, background: stageConfig.background }),
+        warning: 'Claude unreachable in a codex-base session. Falling back to Codex for this stage.'
+      };
+    }
     return { engine: 'claude' };
   }
 
