@@ -8,7 +8,7 @@ import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState, getContextMemo, isMemoValid, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from './lib/shell-scanner.mjs';
-import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, isHeavyBuildCommand } from './lib/build-admission.mjs';
+import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -388,23 +388,17 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const cmd = toolInput.command || '';
     if (isHeavyBuildCommand(cmd)) {
       try {
-        const sessionId = data.session_id || data.sessionId || '';
-        const toolUseId = data.tool_use_id || data.toolUseId || '';
-        const transcriptPath = data.transcript_path || data.transcriptPath || '';
-        const admission = checkBuildAdmission({
-          cwd,
-          command: cmd,
-          sessionId,
-          toolUseId,
-          transcriptPath,
-        });
+        // Derive lock metadata from the raw payload via the shared helper so
+        // acquire (here) and release (post-tool-use) produce an identical ownerId.
+        const admission = checkBuildAdmission(deriveBuildLockMetadata(data));
         if (admission.disabled) {
           hints.push('[build-admission] QE_BUILD_ADMISSION=off; heavy build gate disabled.');
         } else if (!admission.admitted) {
+          const blockMsg = admission.message || BUILD_BLOCK_MESSAGE;
           emitBlock({
             skill: '_build_admission',
-            reason: BUILD_BLOCK_MESSAGE,
-            action: BUILD_BLOCK_MESSAGE,
+            reason: blockMsg,
+            action: blockMsg,
             bypass: 'QE_BUILD_ADMISSION=off',
           });
         }

@@ -16,7 +16,10 @@ import { matchesExecutable } from './shell-scanner.mjs';
 
 export const DEFAULT_BUILD_MIN_FREE_MB = 1536;
 export const DEFAULT_LOCK_MAX_AGE_MS = 4 * 60 * 60 * 1000;
-export const BUILD_BLOCK_MESSAGE = 'insufficient memory / competing build in progress — wait and retry';
+export const MEMORY_BLOCK_MESSAGE = 'insufficient free memory for a heavy build — wait and retry';
+export const LOCK_BLOCK_MESSAGE = 'another heavy build holds the machine build lock — wait and retry';
+// Back-compat alias for callers importing the pre-split constant (memory path).
+export const BUILD_BLOCK_MESSAGE = MEMORY_BLOCK_MESSAGE;
 
 const LOCK_FILE_NAME = 'qe-framework-build-admission.lock.json';
 
@@ -64,6 +67,29 @@ export function isHeavyBuildCommand(command) {
     matchesExecutable(command, /(?:^|[;&|(\n`])\s*(?:\.\/)?(?:gradlew|gradle|mvnw|mvn)(?:\s|$)/) ||
     matchesExecutable(command, /(?:^|[;&|(\n`])\s*npm\s+(?:run\s+build|test)(?:\s|$)/)
   );
+}
+
+/**
+ * Derive the build-lock ownership metadata from a raw hook payload.
+ *
+ * Single source of truth shared by PreToolUse (acquire) and PostToolUse
+ * (release) so both compute an identical `ownerId`. Deriving these fields in
+ * two different places previously let the release path miss the tool's own
+ * `workdir`/`cwd`, breaking ownership and stranding the machine-global lock.
+ *
+ * @param {object} data - Raw hook payload (Claude Code hook JSON).
+ * @returns {{cwd: string, command: string, sessionId: string, toolUseId: string, transcriptPath: string}}
+ *   Metadata whose hash (see {@link buildLockOwnerId}) identifies the lock owner.
+ */
+export function deriveBuildLockMetadata(data = {}) {
+  const toolInput = (data && (data.tool_input || data.toolInput)) || {};
+  return {
+    cwd: data.cwd || data.directory || toolInput.workdir || toolInput.cwd || process.cwd(),
+    command: toolInput.command || '',
+    sessionId: data.session_id || data.sessionId || '',
+    toolUseId: data.tool_use_id || data.toolUseId || '',
+    transcriptPath: data.transcript_path || data.transcriptPath || '',
+  };
 }
 
 export function probeAvailableMemory(options = {}) {
@@ -214,7 +240,7 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
 
   const memory = probeAvailableMemory({ ...options, env });
   if (!memory.ok) {
-    return { admitted: false, reason: 'memory', message: BUILD_BLOCK_MESSAGE, memory };
+    return { admitted: false, reason: 'memory', message: MEMORY_BLOCK_MESSAGE, memory };
   }
 
   const lock = acquireBuildLock(metadata, options);
@@ -222,7 +248,7 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
     return { admitted: true, failOpen: true, reason: 'lock-write-failed', memory, lock };
   }
   if (!lock.acquired) {
-    return { admitted: false, reason: 'lock', message: BUILD_BLOCK_MESSAGE, memory, lock };
+    return { admitted: false, reason: 'lock', message: LOCK_BLOCK_MESSAGE, memory, lock };
   }
 
   return { admitted: true, disabled: false, memory, lock };

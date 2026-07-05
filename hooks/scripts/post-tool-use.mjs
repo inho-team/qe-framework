@@ -7,7 +7,7 @@ import { readUnifiedState, writeUnifiedState, updateContextMemo, markMemoModifie
 import { loadConfig } from './lib/config.mjs';
 import { checkComments, isCheckableFile } from './lib/comment-checker.mjs';
 import { runLint, isLintableFile } from './lib/lint-runner.mjs';
-import { isHeavyBuildCommand, releaseBuildLock } from './lib/build-admission.mjs';
+import { deriveBuildLockMetadata, isHeavyBuildCommand, releaseBuildLock } from './lib/build-admission.mjs';
 
 // --- Fail-open safety net ---
 // A PostToolUse error must never wedge the session. PostToolUse only emits soft hints
@@ -50,7 +50,6 @@ try {
 }
 
 const cwd = getCwd(data);
-const payloadCwd = data.cwd || data.directory || cwd;
 const cfg = loadConfig(cwd);
 const toolName = data.tool_name || data.toolName || '';
 const isError = data.tool_response?.includes?.('error') ||
@@ -69,16 +68,12 @@ const state = readUnifiedState(cwd);
 // regardless of success or failure; light Bash commands cannot release locks.
 if (toolName === 'Bash') {
   try {
-    const toolInput = data.tool_input || data.toolInput || {};
-    const command = toolInput.command || '';
-    if (isHeavyBuildCommand(command)) {
-      releaseBuildLock({
-        cwd: payloadCwd,
-        command,
-        sessionId: data.session_id || data.sessionId || '',
-        toolUseId: data.tool_use_id || data.toolUseId || '',
-        transcriptPath: data.transcript_path || data.transcriptPath || '',
-      });
+    // Derive lock metadata via the shared helper so the ownerId computed here
+    // matches the one from pre-tool-use acquire; otherwise release fails as
+    // not-owner and the machine-global lock strands until max-age.
+    const meta = deriveBuildLockMetadata(data);
+    if (isHeavyBuildCommand(meta.command)) {
+      releaseBuildLock(meta);
     }
   } catch {
     // fail-open: release failures fall back to stale reaping/max-age.

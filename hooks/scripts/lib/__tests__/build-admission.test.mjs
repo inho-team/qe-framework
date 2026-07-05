@@ -11,8 +11,11 @@ import { fileURLToPath } from 'node:url';
 import {
   BUILD_BLOCK_MESSAGE,
   DEFAULT_BUILD_MIN_FREE_MB,
+  LOCK_BLOCK_MESSAGE,
+  MEMORY_BLOCK_MESSAGE,
   acquireBuildLock,
   checkBuildAdmission,
+  deriveBuildLockMetadata,
   getBuildThresholdMb,
   isBuildAdmissionDisabled,
   isBuildLockStale,
@@ -199,7 +202,7 @@ test('pre-tool-use blocks heavy build below threshold and leaves no lock', (t) =
     QE_BUILD_MIN_FREE_MB: '999999999',
   });
   assert.equal(res.status, 2);
-  assert.match(res.stderr, /insufficient memory \/ competing build in progress — wait and retry/);
+  assert.match(res.stderr, /insufficient free memory for a heavy build — wait and retry/);
   assert.equal(fs.existsSync(lockPath), false);
 });
 
@@ -217,7 +220,7 @@ test('pre-tool-use blocks heavy build on live competing lock', (t) => {
     QE_BUILD_MIN_FREE_MB: '1',
   });
   assert.equal(res.status, 2);
-  assert.match(res.stderr, /insufficient memory \/ competing build in progress — wait and retry/);
+  assert.match(res.stderr, /another heavy build holds the machine build lock — wait and retry/);
   assert.equal(readBuildLock({ lockPath }).ownerId, 'competitor');
 });
 
@@ -296,4 +299,62 @@ test('pre-tool-use allows heavy build when QE_BUILD_ADMISSION=off', (t) => {
   });
   assert.equal(res.status, 0);
   assert.equal(fs.existsSync(lockPath), false);
+});
+
+test('deriveBuildLockMetadata reads tool workdir when payload omits cwd', () => {
+  const meta = deriveBuildLockMetadata({
+    session_id: 's',
+    tool_use_id: 't',
+    tool_input: { command: 'npm run build', workdir: '/tmp/wd' },
+  });
+  assert.equal(meta.cwd, '/tmp/wd');
+  assert.equal(meta.command, 'npm run build');
+  assert.equal(meta.sessionId, 's');
+  assert.equal(meta.toolUseId, 't');
+});
+
+test('release succeeds when payload omits cwd but carries tool workdir (ownerId parity regression)', (t) => {
+  const { dir, lockPath } = tempLock(t);
+  // Payload intentionally omits data.cwd; the tool carries its own workdir.
+  // Before the parity fix, pre derived cwd from tool workdir while post fell back
+  // to process.cwd(), so ownerId diverged and release left the lock stranded.
+  const payload = {
+    session_id: 'session-parity',
+    tool_use_id: 'tool-parity',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm run build', workdir: dir },
+  };
+  const pre = runHook(PRE_HOOK, payload, {
+    QE_BUILD_LOCK_PATH: lockPath,
+    QE_BUILD_MIN_FREE_MB: '1',
+  });
+  assert.equal(pre.status, 0);
+  assert.equal(readBuildLock({ lockPath }).sessionId, 'session-parity');
+
+  const post = runHook(POST_HOOK, { ...payload, exit_code: 0, tool_response: 'ok' }, {
+    QE_BUILD_LOCK_PATH: lockPath,
+  });
+  assert.equal(post.status, 0);
+  assert.equal(readBuildLock({ lockPath }), null);
+});
+
+test('memory and lock blocks return distinct, reason-specific messages', (t) => {
+  const memLock = tempLock(t);
+  const memory = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'm', command: 'npm test' },
+    { lockPath: memLock.lockPath, env: { QE_BUILD_MIN_FREE_MB: '2048' }, platform: 'test', freemem: () => 1024 * 1024 * 1024 },
+  );
+  assert.equal(memory.reason, 'memory');
+  assert.equal(memory.message, MEMORY_BLOCK_MESSAGE);
+
+  const lockDir = tempLock(t);
+  acquireBuildLock({ pid: process.pid, ownerId: 'holder' }, { lockPath: lockDir.lockPath });
+  const locked = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'contender', command: 'npm test' },
+    { lockPath: lockDir.lockPath, env: { QE_BUILD_MIN_FREE_MB: '1' }, platform: 'test', freemem: () => 4096 * 1024 * 1024 },
+  );
+  assert.equal(locked.reason, 'lock');
+  assert.equal(locked.message, LOCK_BLOCK_MESSAGE);
+
+  assert.notEqual(MEMORY_BLOCK_MESSAGE, LOCK_BLOCK_MESSAGE);
 });
