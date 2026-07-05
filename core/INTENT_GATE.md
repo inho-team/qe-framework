@@ -26,7 +26,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Handoff** | "handoff", "save state", "save context", "end session", "컨텍스트 저장" | Qcompact |
 | **PM documents** | "PRD", "product requirements", "user story", "meeting notes", "create presentation" | Epm-planner |
 | **MCP server** | "MCP server", "Model Context Protocol", "FastMCP", "MCP SDK", "MCP integration" | Qmcp-setup |
-| **QA test plan** | "test plan", "test cases", "regression suite", "QA testing", "bug report template" | Qqa-test-planner |
+| **QA test plan** | "test plan", "test cases", "regression suite", "QA testing", "bug report template" | Qqa |
 | **Humanize text** | "humanize", "remove AI writing", "make it sound natural", "AI trace" | Qwriting-clearly |
 | **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Refer to qe-admin-mcp maintainer workflows |
 | **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qfind-skills |

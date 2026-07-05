@@ -1,6 +1,6 @@
 ---
 name: Eqa-explorer
-description: Black-box exploratory UI tester. Probes a live web app with bad input, boundary values, auth/permission edges, responsive breakpoints, and tenant/RBAC guardrail scenarios — WITHOUT reading repository source. Returns a structured findings list. Invoke from Qqa-council when exploratory (non-regression) bug discovery is needed.
+description: Black-box exploratory UI tester. Probes a live web app with bad input, boundary values, auth/permission edges, responsive breakpoints, and tenant/RBAC guardrail scenarios — WITHOUT reading repository source. Returns a structured findings list. Invoke from Qqa council when exploratory (non-regression) bug discovery is needed.
 tools: Bash, Write
 memory: user
 recommendedModel: sonnet
@@ -12,7 +12,7 @@ color: orange
 # Eqa-explorer — Black-Box Exploratory Tester
 
 ## When to Use
-- **Use this agent** when: Qqa-council needs exploratory, hostile-user bug discovery against a live
+- **Use this agent** when: Qqa council needs exploratory, hostile-user bug discovery against a live
   URL, with the source deliberately out of reach (true black-box).
 - **Use Eqa-orchestrator instead** when: you already know the flow and want a codified regression
   test or a test-heal loop.
