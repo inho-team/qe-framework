@@ -23,6 +23,12 @@ export const DEFAULT_LOCK_MAX_AGE_MS = 4 * 60 * 60 * 1000;
 export const DEFAULT_BUILD_MEM_SAMPLES = 3;
 export const DEFAULT_BUILD_MEM_SAMPLE_GAP_MS = 120;
 export const MAX_BUILD_MEM_SAMPLE_TOTAL_MS = 400;
+// Exec timeout (ms) for the vm_stat probe. Bounds the initial reading — which
+// runs before the confirmation deadline — so a hung vm_stat cannot stall tool
+// admission indefinitely. On timeout the probe throws and drops to the (never-
+// denying) os.freemem fallback, so a lower value trades probe reliability for a
+// tighter worst-case latency ceiling.
+export const DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS = 1000;
 export const MEMORY_BLOCK_MESSAGE = 'insufficient free memory for a heavy build — wait and retry';
 export const LOCK_BLOCK_MESSAGE = 'another heavy build holds the machine build lock — wait and retry';
 // Back-compat alias for callers importing the pre-split constant (memory path).
@@ -114,6 +120,22 @@ export function getBuildMemSampleGapMs(env = process.env) {
   if (raw === undefined || raw === '') return DEFAULT_BUILD_MEM_SAMPLE_GAP_MS;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_BUILD_MEM_SAMPLE_GAP_MS;
+}
+
+/**
+ * Exec timeout (ms) for the vm_stat memory probe. `QE_BUILD_MEM_PROBE_TIMEOUT_MS`
+ * overrides; invalid or non-positive values fall back to
+ * {@link DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS}. Bounds the worst-case latency of the
+ * initial probe, which runs outside the confirmation deadline.
+ *
+ * @param {NodeJS.ProcessEnv} [env] - Environment to read.
+ * @returns {number} Probe timeout in ms (> 0).
+ */
+export function getBuildMemProbeTimeoutMs(env = process.env) {
+  const raw = env.QE_BUILD_MEM_PROBE_TIMEOUT_MS;
+  if (raw === undefined || raw === '') return DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS;
 }
 
 /**
@@ -320,8 +342,13 @@ export function probeMemoryWithConfirmation(options = {}) {
     ? options.totalBudgetMs
     : MAX_BUILD_MEM_SAMPLE_TOTAL_MS;
 
+  // The initial probe runs outside the confirmation deadline, so give it its own
+  // configurable exec timeout to cap worst-case admission latency.
+  const firstTimeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+    ? options.timeoutMs
+    : getBuildMemProbeTimeoutMs(env);
   const samples = [];
-  const first = probe({ ...options, env });
+  const first = probe({ ...options, env, timeoutMs: firstTimeoutMs });
   samples.push(first);
   if (first.ok) {
     return { ...first, samples, sampleCount: samples.length };

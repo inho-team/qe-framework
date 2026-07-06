@@ -21,7 +21,9 @@ import {
   isBuildAdmissionDisabled,
   isBuildLockStale,
   isHeavyBuildCommand,
+  DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS,
   formatLockBlockDetail,
+  getBuildMemProbeTimeoutMs,
   parseMeminfo,
   parseVmStat,
   probeAvailableMemory,
@@ -617,6 +619,26 @@ test('formatLockBlockDetail handles a raw record and omits missing fields withou
   assert.equal(formatLockBlockDetail({ pid: 9 }, 0), 'held by pid 9');
 });
 
+test('probe timeout env parsing accepts positive override and rejects invalid values', () => {
+  assert.equal(getBuildMemProbeTimeoutMs({ QE_BUILD_MEM_PROBE_TIMEOUT_MS: '250' }), 250);
+  assert.equal(getBuildMemProbeTimeoutMs({ QE_BUILD_MEM_PROBE_TIMEOUT_MS: 'nope' }), DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS);
+  assert.equal(getBuildMemProbeTimeoutMs({ QE_BUILD_MEM_PROBE_TIMEOUT_MS: '0' }), DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS);
+  assert.equal(getBuildMemProbeTimeoutMs({}), DEFAULT_BUILD_MEM_PROBE_TIMEOUT_MS);
+});
+
+test('the initial probe receives a bounded exec timeout from QE_BUILD_MEM_PROBE_TIMEOUT_MS', () => {
+  let firstTimeout = null;
+  probeMemoryWithConfirmation({
+    env: { QE_BUILD_MEM_PROBE_TIMEOUT_MS: '250', QE_BUILD_MEM_SAMPLES: '1' },
+    sleep: () => {},
+    probe: (o) => {
+      if (firstTimeout === null) firstTimeout = o.timeoutMs;
+      return { availableMb: 8000, thresholdMb: 1536, source: 'darwin:vm_stat', ok: true };
+    },
+  });
+  assert.equal(firstTimeout, 250); // first probe is bounded, not the raw 1000ms default
+});
+
 test('confirmation sampling stops re-probing once the wall-clock budget is exhausted', (t) => {
   const { lockPath } = tempLock(t);
   // An injected clock that jumps 500ms per read — past the 400ms default budget —
@@ -644,27 +666,31 @@ test('confirmation sampling stops re-probing once the wall-clock budget is exhau
 test('confirmation re-probe receives a shrinking exec timeout bounded by the budget', () => {
   // The confirmation path must hand each re-probe a positive timeoutMs no larger
   // than the remaining budget, so a hung vm_stat cannot overrun the deadline.
-  const timeouts = [];
+  const allTimeouts = [];
   let clockMs = 0;
   probeMemoryWithConfirmation({
-    env: { QE_BUILD_MEM_SAMPLES: '3' },
+    env: { QE_BUILD_MEM_SAMPLES: '3', QE_BUILD_MEM_PROBE_TIMEOUT_MS: '1000' },
     totalBudgetMs: 400,
     gapMs: 0,
     clock: () => { const v = clockMs; clockMs += 50; return v; },
     sleep: () => {},
     probe: (o) => {
-      if (o.timeoutMs != null) timeouts.push(o.timeoutMs);
+      allTimeouts.push(o.timeoutMs);
       return { availableMb: 500, thresholdMb: 1536, source: 'darwin:vm_stat', ok: false };
     },
   });
-  assert.ok(timeouts.length >= 2, 'at least two re-probes should run to compare');
-  for (const t of timeouts) {
+  // allTimeouts[0] is the INITIAL probe (bounded by the probe-timeout config, 1000),
+  // which runs outside the confirmation budget. The re-probes are the rest.
+  assert.equal(allTimeouts[0], 1000);
+  const reprobes = allTimeouts.slice(1);
+  assert.ok(reprobes.length >= 2, 'at least two re-probes should run to compare');
+  for (const t of reprobes) {
     assert.ok(t > 0 && t <= 400, `re-probe timeout ${t} must be in (0, budget]`);
   }
   // Strictly shrinking: each re-probe gets less headroom than the previous one as
   // the wall-clock budget is consumed. A broken impl passing a fixed value fails.
-  for (let k = 1; k < timeouts.length; k++) {
-    assert.ok(timeouts[k] < timeouts[k - 1], `timeout must shrink: ${timeouts[k - 1]} -> ${timeouts[k]}`);
+  for (let k = 1; k < reprobes.length; k++) {
+    assert.ok(reprobes[k] < reprobes[k - 1], `timeout must shrink: ${reprobes[k - 1]} -> ${reprobes[k]}`);
   }
 });
 
