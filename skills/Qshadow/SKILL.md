@@ -70,6 +70,21 @@ Removes snapshots older than 72 hours or beyond the 200-commit cap using a safe
 the existing branch). Always keeps at least 1 recovery point — never empties the
 shadow repo.
 
+## Configuration
+
+All knobs are optional — the defaults match the original hook behaviour.
+
+| Variable / File | Default | Effect |
+|---|---|---|
+| `QE_SHADOW_DEBOUNCE_MS` | `2000` | Minimum milliseconds between auto-snapshots. If the last HEAD commit is younger than this window, the incoming snapshot is silently skipped. Set to `0` to disable debouncing entirely. |
+| `QE_SHADOW_DISABLE` | _(unset)_ | Set to `1`, `true`, or `yes` to disable snapshotting globally for the current process. `list`/`diff`/`restore`/`prune` are unaffected. |
+| `.qe/.shadow-disabled` | _(absent)_ | Create this empty marker file inside a project's `.qe/` directory to disable snapshotting for that project only. Remove the file to re-enable. `list`/`diff`/`restore`/`prune` still work while the marker is present. |
+| `QE_SHADOW_MAX_SNAPSHOTS` | `200` | Maximum commits kept by `prune`. |
+| `QE_SHADOW_PRUNE_BATCH` | `50` | Hysteresis band: `prune` is triggered automatically only when the commit count reaches `MAX_SNAPSHOTS + PRUNE_BATCH` (default 250), then trims back to `MAX_SNAPSHOTS`. |
+| `QE_SHADOW_MAX_AGE_MS` | `259200000` (72 h) | Maximum age in milliseconds before `prune` drops a snapshot. |
+
+**`snapshot --force`** bypasses the debounce window and always creates a commit (as long as there are actual changes). Use it for manual on-demand checkpoints that must record regardless of how recent the last auto-snapshot was. Hook invocations (`--source write/edit/codex`) do not pass `--force` and remain subject to debouncing.
+
 ## Store-Root Resolution
 The shadow store root is resolved at runtime by walking up from `cwd` to the nearest
 ancestor that contains a `.qe/` directory. In the qe-workspace wrapper this resolves

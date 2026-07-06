@@ -78,6 +78,22 @@ const MAX_AGE_MS = (() => {
   return (Number.isFinite(v) && v >= 0) ? v : 72 * 60 * 60 * 1000;
 })();
 
+/**
+ * Debounce window in milliseconds.
+ * When DEBOUNCE_MS > 0, snapshot() skips creating a new commit if the most
+ * recent HEAD commit is younger than DEBOUNCE_MS. This reduces per-edit
+ * spawn churn when hooks fire on every Write/Edit tool use.
+ * Set to 0 to disable debouncing entirely.
+ * Env override: QE_SHADOW_DEBOUNCE_MS (integer ms). Useful for tests.
+ * Production default: 2000 (2 s).
+ */
+function envInt(name, defaultVal) {
+  const v = parseInt(process.env[name], 10);
+  return (Number.isFinite(v) && v >= 0) ? v : defaultVal;
+}
+
+const DEBOUNCE_MS = envInt('QE_SHADOW_DEBOUNCE_MS', 2000);
+
 // ---------------------------------------------------------------------------
 // Store-root resolver (Item 3)
 // ---------------------------------------------------------------------------
@@ -369,16 +385,66 @@ function acquireLock(lockFile, maxAgeMs = 5000) {
  * @param {object} [opts]
  * @param {string} [opts.source='manual'] - Trigger source: edit|write|codex|manual.
  * @param {string} [opts.sid=''] - Session identifier when available.
+ * @param {boolean} [opts.force=false] - If true, bypass the debounce window and
+ *   always create a commit (as long as there are actual changes). Use for manual
+ *   on-demand snapshots that must always commit.
  * @param {string} [root] - Shadow store root. Defaults to `findShadowRoot()`.
- * @returns {string} The new commit SHA, or empty string if nothing to commit.
+ * @returns {string} The new commit SHA, or empty string if nothing to commit / debounced.
  */
-export function snapshot({ source = 'manual', sid = '' } = {}, root) {
-  const storeRoot = root || findShadowRoot();
+export function snapshot({ source = 'manual', sid = '', force = false } = {}, root) {
+  // --- Opt-out gate ---
+  // Check QE_SHADOW_DISABLE env var first (cheapest check, no filesystem I/O).
+  const disableEnv = process.env.QE_SHADOW_DISABLE;
+  if (disableEnv === '1' || disableEnv === 'true' || disableEnv === 'yes') {
+    console.log('[qe-shadow] snapshotting disabled (QE_SHADOW_DISABLE); skipping.');
+    return '';
+  }
+
+  // Resolve the store root so we can check the marker file.
+  // If findShadowRoot throws (no .qe/ found), there is nothing to snapshot.
+  let storeRoot;
+  try {
+    storeRoot = root || findShadowRoot();
+  } catch {
+    // No .qe/ directory found — nothing to snapshot, return quietly.
+    return '';
+  }
+
+  // Check for the per-project opt-out marker file.
+  if (existsSync(join(storeRoot, '.qe', '.shadow-disabled'))) {
+    console.log('[qe-shadow] snapshotting disabled (.qe/.shadow-disabled marker); skipping.');
+    return '';
+  }
+
   const { gitDir, lockFile } = shadowPaths(storeRoot);
   const g = (args, opts) => git(args, { gitDir, workTree: storeRoot, ...opts });
 
   ensureShadowRepo(storeRoot);
   assertNoRemote(storeRoot);
+
+  // --- Debounce gate ---
+  // Skip this snapshot if the most recent HEAD commit is younger than DEBOUNCE_MS,
+  // unless force=true or DEBOUNCE_MS is 0 (disabled) or there are no commits yet.
+  if (!force && DEBOUNCE_MS > 0) {
+    // Check whether the repo has any commits at all.
+    const { stdout: headCt, status: headStatus } = git(
+      ['log', '-1', '--format=%ct', 'HEAD'],
+      { gitDir, workTree: storeRoot, check: false },
+    );
+    if (headStatus === 0 && headCt) {
+      const headEpochMs = parseInt(headCt, 10) * 1000;
+      if (Number.isFinite(headEpochMs)) {
+        const msSinceLast = Date.now() - headEpochMs;
+        if (msSinceLast < DEBOUNCE_MS) {
+          console.log(
+            `[qe-shadow] debounced (last snapshot ${msSinceLast}ms ago); skipping.`,
+          );
+          return '';
+        }
+      }
+    }
+    // If headStatus !== 0 the repo has no commits yet — do NOT debounce.
+  }
 
   // Capture the result in an outer variable so the auto-prune block (which runs
   // after the lock is released) can still return it to the caller.

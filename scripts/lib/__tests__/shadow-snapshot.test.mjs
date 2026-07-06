@@ -105,7 +105,14 @@ function nodeRun(args) {
   const r = spawnSync(process.execPath, args, {
     encoding: 'utf8',
     cwd: TEMP_BASE,
-    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat' },
+    env: {
+      ...process.env,
+      GIT_TERMINAL_PROMPT: '0',
+      GIT_PAGER: 'cat',
+      // Disable debounce for all shared-TEMP_BASE CLI tests (a–l) so rapid
+      // sequential snapshots always commit, preserving pre-debounce behaviour.
+      QE_SHADOW_DEBOUNCE_MS: '0',
+    },
   });
   return { stdout: (r.stdout || '').trim(), stderr: (r.stderr || '').trim(), status: r.status ?? 1 };
 }
@@ -994,6 +1001,560 @@ process.exit(failures > 0 ? 1 : 0);
 
   try { rmSync(agePruneRoot, { recursive: true, force: true }); } catch {}
   try { rmSync(agePruneScript, { force: true }); } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// (m) Debounce — rapid second snapshot is skipped; force bypasses window
+// ---------------------------------------------------------------------------
+//
+// Strategy: run a subprocess with QE_SHADOW_DEBOUNCE_MS=5000 (5 s window) so
+// a second immediate call within the window is skipped, then verify --force
+// on the CLI and force:true on the API still produce a new commit.
+// ---------------------------------------------------------------------------
+
+console.log('\n--- (m) Debounce ---');
+
+{
+  const debounceScript = join(TEMP_BASE, '_debounce_test.mjs');
+  const debounceRoot = join(TEMP_BASE, '_debounce_root');
+  mkdirSync(join(debounceRoot, '.qe'), { recursive: true });
+
+  const shadowLibPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'shadow-snapshot.mjs',
+  );
+
+  const debounceScriptContent = `
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+
+const ROOT = ${JSON.stringify(debounceRoot)};
+let failures = 0;
+
+// First snapshot — no prior commits, must always succeed.
+writeFileSync(join(ROOT, '.qe', '_db1.txt'), 'file1\\n');
+const sha1 = snapshot({ source: 'debounce-first' }, ROOT);
+if (sha1) {
+  console.log('PASS first snapshot succeeded (no prior commits; debounce skipped)');
+} else {
+  console.log('FAIL first snapshot should always succeed (no prior commits)');
+  failures++;
+}
+
+// Second snapshot immediately after — within DEBOUNCE_MS=5000 window → must be skipped.
+writeFileSync(join(ROOT, '.qe', '_db2.txt'), 'file2\\n');
+const sha2 = snapshot({ source: 'debounce-second' }, ROOT);
+if (!sha2) {
+  console.log('PASS second immediate snapshot debounced (returned empty string)');
+} else {
+  console.log(\`FAIL second snapshot should have been debounced, got sha: \${sha2}\`);
+  failures++;
+}
+
+// Verify commit count is still 1 (debounced snapshot did not create a commit).
+import { spawnSync } from 'node:child_process';
+import { join as _join } from 'node:path';
+const GIT_DIR = _join(ROOT, '.qe', '.snapshots', 'shadow.git');
+/**
+ * Run a git command against the isolated debounce-test shadow repo.
+ *
+ * @param {string[]} args - Git arguments (without 'git').
+ * @returns {{ stdout: string, status: number }}
+ */
+function shadowGit(args) {
+  const r = spawnSync('git', ['--git-dir', GIT_DIR, '--work-tree', ROOT, ...args], {
+    encoding: 'utf8', cwd: ROOT,
+    env: { ...process.env, GIT_TERMINAL_PROMPT: '0', GIT_PAGER: 'cat' },
+  });
+  return { stdout: (r.stdout || '').trim(), status: r.status ?? 1 };
+}
+const { stdout: countStr } = shadowGit(['rev-list', '--count', 'HEAD']);
+const count = parseInt(countStr, 10);
+if (count === 1) {
+  console.log(\`PASS commit count is still 1 after debounced call (count=\${count})\`);
+} else {
+  console.log(\`FAIL commit count should be 1 after debounce, got \${count}\`);
+  failures++;
+}
+
+// Third snapshot with force:true — must create a new commit even within window.
+writeFileSync(join(ROOT, '.qe', '_db3.txt'), 'file3\\n');
+const sha3 = snapshot({ source: 'debounce-force', force: true }, ROOT);
+if (sha3) {
+  console.log(\`PASS force:true bypassed debounce, new commit created: \${sha3.slice(0, 12)}\`);
+} else {
+  console.log('FAIL force:true should have created a new commit regardless of debounce window');
+  failures++;
+}
+
+const { stdout: countStr2 } = shadowGit(['rev-list', '--count', 'HEAD']);
+const count2 = parseInt(countStr2, 10);
+if (count2 === 2) {
+  console.log(\`PASS commit count is 2 after forced snapshot (count=\${count2})\`);
+} else {
+  console.log(\`FAIL commit count should be 2 after forced snapshot, got \${count2}\`);
+  failures++;
+}
+
+process.exit(failures > 0 ? 1 : 0);
+`;
+
+  writeFileSync(debounceScript, debounceScriptContent);
+
+  const dbResult = spawnSync(
+    process.execPath,
+    [debounceScript],
+    {
+      encoding: 'utf8',
+      cwd: debounceRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: debounceRoot,
+        QE_SHADOW_DEBOUNCE_MS: '5000',   // 5 s window — second call within window is skipped
+      },
+      timeout: 60_000,
+    },
+  );
+
+  const dbOut = (dbResult.stdout || '').trim();
+  const dbErr = (dbResult.stderr || '').trim();
+  const dbLines = dbOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'));
+  for (const line of dbLines) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) pass(`debounce: ${label}`);
+    else fail(`debounce: ${label}`, dbErr || '(no stderr)');
+  }
+  if (dbResult.status !== 0 && dbLines.length === 0) {
+    fail('debounce subprocess ran without crash', `exit=${dbResult.status}\nstdout: ${dbOut}\nstderr: ${dbErr}`);
+  }
+
+  // CLI test: --force flag via nodeRun-style subprocess.
+  // Re-use debounceRoot which now has 2 commits; HEAD is recent so debounce active.
+  writeFileSync(join(debounceRoot, '.qe', '_db_cli_force.txt'), 'cli-force\n');
+  const cliForceResult = spawnSync(
+    process.execPath,
+    [SHADOW_CLI, 'snapshot', '--source', 'cli-force-test', '--force'],
+    {
+      encoding: 'utf8',
+      cwd: debounceRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: debounceRoot,
+        QE_SHADOW_DEBOUNCE_MS: '5000',
+      },
+      timeout: 30_000,
+    },
+  );
+  if (cliForceResult.status === 0 && /snapshot created/i.test(cliForceResult.stdout)) {
+    pass('debounce: CLI --force flag creates a commit within debounce window');
+  } else {
+    fail(
+      'debounce: CLI --force flag creates a commit within debounce window',
+      `exit=${cliForceResult.status} out: ${cliForceResult.stdout} err: ${cliForceResult.stderr}`,
+    );
+  }
+
+  // CLI test: without --force, snapshot within window is skipped.
+  writeFileSync(join(debounceRoot, '.qe', '_db_cli_nodebounce.txt'), 'no-force\n');
+  const cliNoForceResult = spawnSync(
+    process.execPath,
+    [SHADOW_CLI, 'snapshot', '--source', 'cli-nodebounce-test'],
+    {
+      encoding: 'utf8',
+      cwd: debounceRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: debounceRoot,
+        QE_SHADOW_DEBOUNCE_MS: '5000',
+      },
+      timeout: 30_000,
+    },
+  );
+  if (cliNoForceResult.status === 0 && /debounced/i.test(cliNoForceResult.stdout)) {
+    pass('debounce: CLI without --force is skipped within debounce window');
+  } else {
+    fail(
+      'debounce: CLI without --force is skipped within debounce window',
+      `exit=${cliNoForceResult.status} out: ${cliNoForceResult.stdout} err: ${cliNoForceResult.stderr}`,
+    );
+  }
+
+  // Debounce disabled: DEBOUNCE_MS=0 should never debounce.
+  const debounceOffRoot = join(TEMP_BASE, '_debounce_off_root');
+  mkdirSync(join(debounceOffRoot, '.qe'), { recursive: true });
+
+  const offScript = join(TEMP_BASE, '_debounce_off.mjs');
+  writeFileSync(offScript, `
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+const ROOT = ${JSON.stringify(debounceOffRoot)};
+let failures = 0;
+writeFileSync(join(ROOT, '.qe', '_off1.txt'), 'off1\\n');
+const s1 = snapshot({ source: 'off-1' }, ROOT);
+writeFileSync(join(ROOT, '.qe', '_off2.txt'), 'off2\\n');
+const s2 = snapshot({ source: 'off-2' }, ROOT);
+if (s1 && s2) {
+  console.log('PASS DEBOUNCE_MS=0 both snapshots committed (debounce disabled)');
+} else {
+  console.log(\`FAIL DEBOUNCE_MS=0 expected both commits, got s1=\${s1||'empty'} s2=\${s2||'empty'}\`);
+  failures++;
+}
+process.exit(failures > 0 ? 1 : 0);
+`);
+
+  const offResult = spawnSync(
+    process.execPath,
+    [offScript],
+    {
+      encoding: 'utf8',
+      cwd: debounceOffRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: debounceOffRoot,
+        QE_SHADOW_DEBOUNCE_MS: '0',
+      },
+      timeout: 30_000,
+    },
+  );
+  const offOut = (offResult.stdout || '').trim();
+  const offErr = (offResult.stderr || '').trim();
+  const offLines = offOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'));
+  for (const line of offLines) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) pass(`debounce: ${label}`);
+    else fail(`debounce: ${label}`, offErr || '(no stderr)');
+  }
+  if (offResult.status !== 0 && offLines.length === 0) {
+    fail('debounce-off subprocess ran without crash', `exit=${offResult.status}\nstdout: ${offOut}\nstderr: ${offErr}`);
+  }
+
+  try { rmSync(debounceScript, { force: true }); } catch {}
+  try { rmSync(offScript, { force: true }); } catch {}
+}
+
+// ---------------------------------------------------------------------------
+// (n) Opt-out — env QE_SHADOW_DISABLE and marker file .qe/.shadow-disabled
+// ---------------------------------------------------------------------------
+
+console.log('\n--- (n) Opt-out (env + marker file) ---');
+
+{
+  const optOutRoot = join(TEMP_BASE, '_optout_root');
+  mkdirSync(join(optOutRoot, '.qe'), { recursive: true });
+
+  const shadowLibPath = resolve(
+    dirname(fileURLToPath(import.meta.url)),
+    '..',
+    'shadow-snapshot.mjs',
+  );
+
+  // n1: QE_SHADOW_DISABLE=1 → snapshot no-ops, no shadow repo created.
+  const disableEnvScript = join(TEMP_BASE, '_optout_env.mjs');
+  writeFileSync(disableEnvScript, `
+import { writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+const ROOT = ${JSON.stringify(optOutRoot)};
+let failures = 0;
+writeFileSync(join(ROOT, '.qe', '_optout1.txt'), 'data\\n');
+const sha = snapshot({ source: 'optout-env' }, ROOT);
+if (!sha) {
+  console.log('PASS QE_SHADOW_DISABLE=1 snapshot returned empty (no-op)');
+} else {
+  console.log(\`FAIL QE_SHADOW_DISABLE=1 should have been a no-op, got sha: \${sha}\`);
+  failures++;
+}
+// Shadow repo should NOT have been created.
+const gitDir = join(ROOT, '.qe', '.snapshots', 'shadow.git', 'HEAD');
+if (!existsSync(gitDir)) {
+  console.log('PASS QE_SHADOW_DISABLE=1 shadow repo not created');
+} else {
+  console.log('FAIL shadow repo should not have been created under QE_SHADOW_DISABLE=1');
+  failures++;
+}
+process.exit(failures > 0 ? 1 : 0);
+`);
+
+  const envResult = spawnSync(
+    process.execPath,
+    [disableEnvScript],
+    {
+      encoding: 'utf8',
+      cwd: optOutRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: optOutRoot,
+        QE_SHADOW_DISABLE: '1',
+        QE_SHADOW_DEBOUNCE_MS: '0',
+      },
+      timeout: 30_000,
+    },
+  );
+  const envOut = (envResult.stdout || '').trim();
+  const envErr = (envResult.stderr || '').trim();
+  for (const line of envOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'))) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) pass(`opt-out: ${label}`);
+    else fail(`opt-out: ${label}`, envErr || '(no stderr)');
+  }
+  if (envResult.status !== 0 && !envOut.includes('PASS') && !envOut.includes('FAIL')) {
+    fail('opt-out env subprocess ran without crash', `exit=${envResult.status}\nstdout: ${envOut}\nstderr: ${envErr}`);
+  }
+  try { rmSync(disableEnvScript, { force: true }); } catch {}
+
+  // n2: No disable env → snapshot works normally.
+  const optOutRoot2 = join(TEMP_BASE, '_optout_root2');
+  mkdirSync(join(optOutRoot2, '.qe'), { recursive: true });
+  const enabledScript = join(TEMP_BASE, '_optout_enabled.mjs');
+  writeFileSync(enabledScript, `
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+const ROOT = ${JSON.stringify(optOutRoot2)};
+let failures = 0;
+writeFileSync(join(ROOT, '.qe', '_enabled1.txt'), 'data\\n');
+const sha = snapshot({ source: 'optout-enabled' }, ROOT);
+if (sha) {
+  console.log(\`PASS without disable, snapshot works normally (sha: \${sha.slice(0,12)})\`);
+} else {
+  console.log('FAIL without disable env, snapshot should create a commit');
+  failures++;
+}
+process.exit(failures > 0 ? 1 : 0);
+`);
+
+  const enabledResult = spawnSync(
+    process.execPath,
+    [enabledScript],
+    {
+      encoding: 'utf8',
+      cwd: optOutRoot2,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: optOutRoot2,
+        QE_SHADOW_DEBOUNCE_MS: '0',
+        // QE_SHADOW_DISABLE intentionally not set
+      },
+      timeout: 30_000,
+    },
+  );
+  const enOut = (enabledResult.stdout || '').trim();
+  const enErr = (enabledResult.stderr || '').trim();
+  for (const line of enOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'))) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) pass(`opt-out: ${label}`);
+    else fail(`opt-out: ${label}`, enErr || '(no stderr)');
+  }
+  if (enabledResult.status !== 0 && !enOut.includes('PASS') && !enOut.includes('FAIL')) {
+    fail('opt-out enabled subprocess ran without crash', `exit=${enabledResult.status}\nstdout: ${enOut}\nstderr: ${enErr}`);
+  }
+  try { rmSync(enabledScript, { force: true }); } catch {}
+
+  // n3: Marker file .qe/.shadow-disabled → snapshot no-ops.
+  const markerRoot = join(TEMP_BASE, '_marker_root');
+  mkdirSync(join(markerRoot, '.qe'), { recursive: true });
+  writeFileSync(join(markerRoot, '.qe', '.shadow-disabled'), '');
+
+  const markerScript = join(TEMP_BASE, '_optout_marker.mjs');
+  writeFileSync(markerScript, `
+import { writeFileSync, existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+const ROOT = ${JSON.stringify(markerRoot)};
+let failures = 0;
+writeFileSync(join(ROOT, '.qe', '_marker1.txt'), 'data\\n');
+const sha = snapshot({ source: 'marker-disabled' }, ROOT);
+if (!sha) {
+  console.log('PASS .shadow-disabled marker: snapshot no-ops (empty return)');
+} else {
+  console.log(\`FAIL .shadow-disabled marker should have suppressed snapshot, got sha: \${sha}\`);
+  failures++;
+}
+const gitDir = join(ROOT, '.qe', '.snapshots', 'shadow.git', 'HEAD');
+if (!existsSync(gitDir)) {
+  console.log('PASS .shadow-disabled marker: shadow repo not created');
+} else {
+  console.log('FAIL shadow repo should not have been created with .shadow-disabled marker');
+  failures++;
+}
+process.exit(failures > 0 ? 1 : 0);
+`);
+
+  const markerResult = spawnSync(
+    process.execPath,
+    [markerScript],
+    {
+      encoding: 'utf8',
+      cwd: markerRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: markerRoot,
+        QE_SHADOW_DEBOUNCE_MS: '0',
+      },
+      timeout: 30_000,
+    },
+  );
+  const markerOut = (markerResult.stdout || '').trim();
+  const markerErr = (markerResult.stderr || '').trim();
+  for (const line of markerOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'))) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) pass(`opt-out: ${label}`);
+    else fail(`opt-out: ${label}`, markerErr || '(no stderr)');
+  }
+  if (markerResult.status !== 0 && !markerOut.includes('PASS') && !markerOut.includes('FAIL')) {
+    fail('opt-out marker subprocess ran without crash', `exit=${markerResult.status}\nstdout: ${markerOut}\nstderr: ${markerErr}`);
+  }
+  try { rmSync(markerScript, { force: true }); } catch {}
+
+  // n4: Remove marker → snapshot works again.
+  const markerRemovedScript = join(TEMP_BASE, '_optout_marker_removed.mjs');
+  // Remove the marker file from markerRoot.
+  try { rmSync(join(markerRoot, '.qe', '.shadow-disabled'), { force: true }); } catch {}
+  writeFileSync(markerRemovedScript, `
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+const ROOT = ${JSON.stringify(markerRoot)};
+let failures = 0;
+writeFileSync(join(ROOT, '.qe', '_marker_removed.txt'), 'data\\n');
+const sha = snapshot({ source: 'marker-removed' }, ROOT);
+if (sha) {
+  console.log(\`PASS after removing .shadow-disabled, snapshot works again (sha: \${sha.slice(0,12)})\`);
+} else {
+  console.log('FAIL removing .shadow-disabled marker should allow snapshots again');
+  failures++;
+}
+process.exit(failures > 0 ? 1 : 0);
+`);
+
+  const removedResult = spawnSync(
+    process.execPath,
+    [markerRemovedScript],
+    {
+      encoding: 'utf8',
+      cwd: markerRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: markerRoot,
+        QE_SHADOW_DEBOUNCE_MS: '0',
+      },
+      timeout: 30_000,
+    },
+  );
+  const removedOut = (removedResult.stdout || '').trim();
+  const removedErr = (removedResult.stderr || '').trim();
+  for (const line of removedOut.split('\n').filter(l => l.startsWith('PASS') || l.startsWith('FAIL'))) {
+    const label = line.slice(5).trim();
+    if (line.startsWith('PASS')) pass(`opt-out: ${label}`);
+    else fail(`opt-out: ${label}`, removedErr || '(no stderr)');
+  }
+  if (removedResult.status !== 0 && !removedOut.includes('PASS') && !removedOut.includes('FAIL')) {
+    fail('opt-out marker-removed subprocess ran without crash', `exit=${removedResult.status}\nstdout: ${removedOut}\nstderr: ${removedErr}`);
+  }
+  try { rmSync(markerRemovedScript, { force: true }); } catch {}
+
+  // n5: Opt-out does NOT block restore — with disable env set, restore still works.
+  // First build a shadow repo with one commit, then verify restore still functions.
+  const restoreOptRoot = join(TEMP_BASE, '_optout_restore_root');
+  mkdirSync(join(restoreOptRoot, '.qe'), { recursive: true });
+  const restoreOptFile = join(restoreOptRoot, '.qe', '_restore_opt_test.txt');
+
+  // Build a commit without disable (DEBOUNCE_MS=0 for speed).
+  const buildCommitScript = join(TEMP_BASE, '_build_commit.mjs');
+  writeFileSync(restoreOptFile, 'ORIGINAL_CONTENT\n');
+  writeFileSync(buildCommitScript, `
+import { writeFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { snapshot } from ${JSON.stringify(shadowLibPath)};
+const ROOT = ${JSON.stringify(restoreOptRoot)};
+const sha = snapshot({ source: 'build-for-restore-opt' }, ROOT);
+console.log('SHA:' + sha);
+`);
+  const buildResult = spawnSync(
+    process.execPath,
+    [buildCommitScript],
+    {
+      encoding: 'utf8',
+      cwd: restoreOptRoot,
+      env: {
+        ...process.env,
+        GIT_TERMINAL_PROMPT: '0',
+        GIT_PAGER: 'cat',
+        QE_SHADOW_ROOT: restoreOptRoot,
+        QE_SHADOW_DEBOUNCE_MS: '0',
+      },
+      timeout: 30_000,
+    },
+  );
+  try { rmSync(buildCommitScript, { force: true }); } catch {}
+  const builtSha = ((buildResult.stdout || '').match(/SHA:([0-9a-f]{40})/) || [])[1] || '';
+
+  if (builtSha) {
+    // Damage the file on disk (not snapshotted).
+    writeFileSync(restoreOptFile, '');
+
+    // Now attempt restore WITH QE_SHADOW_DISABLE=1 — restore should still work.
+    const restoreOptResult = spawnSync(
+      process.execPath,
+      [SHADOW_CLI, 'restore', builtSha, '.qe/_restore_opt_test.txt', '--confirm'],
+      {
+        encoding: 'utf8',
+        cwd: restoreOptRoot,
+        env: {
+          ...process.env,
+          GIT_TERMINAL_PROMPT: '0',
+          GIT_PAGER: 'cat',
+          QE_SHADOW_ROOT: restoreOptRoot,
+          QE_SHADOW_DISABLE: '1',
+          QE_SHADOW_DEBOUNCE_MS: '0',
+        },
+        timeout: 30_000,
+      },
+    );
+
+    if (restoreOptResult.status === 0) {
+      pass('opt-out: restore still works when QE_SHADOW_DISABLE=1');
+    } else {
+      fail(
+        'opt-out: restore still works when QE_SHADOW_DISABLE=1',
+        `exit=${restoreOptResult.status} out: ${restoreOptResult.stdout} err: ${restoreOptResult.stderr}`,
+      );
+    }
+
+    let restoredContent = '';
+    try { restoredContent = readFileSync(restoreOptFile, 'utf8').trim(); } catch {}
+    if (restoredContent === 'ORIGINAL_CONTENT') {
+      pass('opt-out: restore recovered file content despite QE_SHADOW_DISABLE=1');
+    } else {
+      fail(
+        'opt-out: restore recovered file content despite QE_SHADOW_DISABLE=1',
+        `expected "ORIGINAL_CONTENT" got "${restoredContent}"`,
+      );
+    }
+  } else {
+    fail('opt-out restore test: could not build initial commit', `buildResult: ${buildResult.stdout} ${buildResult.stderr}`);
+    // Still need to count the two sub-assertions as failures so total is right.
+    failed += 1;
+  }
 }
 
 // ---------------------------------------------------------------------------

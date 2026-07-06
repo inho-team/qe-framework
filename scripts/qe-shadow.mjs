@@ -33,8 +33,9 @@ switch (sub) {
     const sidFlag = rest.indexOf('--sid');
     const source = sourceFlag >= 0 ? rest[sourceFlag + 1] : 'manual';
     const sid = sidFlag >= 0 ? rest[sidFlag + 1] : (process.env.QE_SESSION_ID || '');
+    const force = rest.includes('--force');
     try {
-      snapshot({ source, sid });
+      snapshot({ source, sid, force });
     } catch (err) {
       console.error(err.message);
       process.exit(1);
@@ -74,10 +75,11 @@ switch (sub) {
   default:
     console.log(`Usage: qe-shadow.mjs <snapshot|list|diff|restore|prune> [options]
 
-  snapshot [--source <edit|write|codex>] [--sid <id>]
+  snapshot [--source <edit|write|codex>] [--sid <id>] [--force]
+                              (--force bypasses the debounce window)
   list     [<n>]              (default: last 20)
   diff     <ref>
-  restore  <ref> [path]       (dry-run by default; use --confirm to apply, --force to overwrite dirty files)
+  restore  <ref> [path]       (dry-run by default; use --confirm to apply)
   prune                       (enforce 200-snapshot / 72 h policy)
 `);
     process.exit(sub ? 1 : 0);
