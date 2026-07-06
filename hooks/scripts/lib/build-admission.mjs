@@ -16,6 +16,13 @@ import { matchesExecutable } from './shell-scanner.mjs';
 
 export const DEFAULT_BUILD_MIN_FREE_MB = 1536;
 export const DEFAULT_LOCK_MAX_AGE_MS = 4 * 60 * 60 * 1000;
+// Confirmation sampling for the memory gate. A single vm_stat reading is
+// volatile on macOS (free+inactive swings as caches churn), so a lone dip must
+// not manufacture a block. We re-sample only when the first reliable reading is
+// below threshold, bounded by a small total delay so the happy path stays free.
+export const DEFAULT_BUILD_MEM_SAMPLES = 3;
+export const DEFAULT_BUILD_MEM_SAMPLE_GAP_MS = 120;
+export const MAX_BUILD_MEM_SAMPLE_TOTAL_MS = 400;
 export const MEMORY_BLOCK_MESSAGE = 'insufficient free memory for a heavy build — wait and retry';
 export const LOCK_BLOCK_MESSAGE = 'another heavy build holds the machine build lock — wait and retry';
 // Back-compat alias for callers importing the pre-split constant (memory path).
@@ -53,6 +60,37 @@ export function getBuildThresholdMb(env = process.env) {
   if (raw === undefined || raw === '') return DEFAULT_BUILD_MIN_FREE_MB;
   const parsed = Number.parseInt(raw, 10);
   return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_BUILD_MIN_FREE_MB;
+}
+
+/**
+ * Number of memory samples the confirmation probe may take before denying.
+ * Includes the first reading. `QE_BUILD_MEM_SAMPLES` overrides; invalid or
+ * non-positive values fall back to {@link DEFAULT_BUILD_MEM_SAMPLES}.
+ *
+ * @param {NodeJS.ProcessEnv} [env] - Environment to read.
+ * @returns {number} Sample count (>= 1).
+ */
+export function getBuildMemSamples(env = process.env) {
+  const raw = env.QE_BUILD_MEM_SAMPLES;
+  if (raw === undefined || raw === '') return DEFAULT_BUILD_MEM_SAMPLES;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : DEFAULT_BUILD_MEM_SAMPLES;
+}
+
+/**
+ * Delay between confirmation samples in milliseconds. `QE_BUILD_MEM_SAMPLE_GAP_MS`
+ * overrides; invalid or negative values fall back to
+ * {@link DEFAULT_BUILD_MEM_SAMPLE_GAP_MS}. The total delay across all samples is
+ * additionally capped by {@link MAX_BUILD_MEM_SAMPLE_TOTAL_MS}.
+ *
+ * @param {NodeJS.ProcessEnv} [env] - Environment to read.
+ * @returns {number} Gap in ms (>= 0).
+ */
+export function getBuildMemSampleGapMs(env = process.env) {
+  const raw = env.QE_BUILD_MEM_SAMPLE_GAP_MS;
+  if (raw === undefined || raw === '') return DEFAULT_BUILD_MEM_SAMPLE_GAP_MS;
+  const parsed = Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_BUILD_MEM_SAMPLE_GAP_MS;
 }
 
 export function isBuildAdmissionDisabled(env = process.env) {
@@ -154,6 +192,130 @@ export function probeAvailableMemory(options = {}) {
     source,
     ok: availableMb >= thresholdMb,
   };
+}
+
+/**
+ * PATH-independent synchronous sleep. Hooks run in a synchronous context, so we
+ * block via Atomics.wait on a throwaway SharedArrayBuffer rather than shelling
+ * out to `sleep` (which a stripped-PATH subprocess might not reach). Degrades to
+ * a no-op if Atomics/SharedArrayBuffer are unavailable — samples then stay
+ * spaced only by the probe's own exec time. Never throws.
+ *
+ * @param {number} ms - Milliseconds to block. Non-positive values return at once.
+ */
+function sleepSync(ms) {
+  if (!(ms > 0)) return;
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch {
+    /* Atomics/SharedArrayBuffer unavailable — skip the delay, never throw. */
+  }
+}
+
+/**
+ * Probe available memory with confirmation re-sampling to absorb transient dips.
+ *
+ * Fast path: the first reading is returned immediately when it is at/above
+ * threshold (`ok`) — the common case pays zero extra latency. An unreliable
+ * first reading (os.freemem fallback) is also returned as-is, because
+ * {@link checkBuildAdmission} never denies on it and re-sampling would only
+ * repeat an untrustworthy value. Only when the first *reliable* reading is below
+ * threshold do we re-sample up to `samples` times total, spaced by `gapMs` and
+ * bounded by {@link MAX_BUILD_MEM_SAMPLE_TOTAL_MS}. The first sample that clears
+ * the threshold wins and admits; if every sample is below, the most favorable
+ * reading is returned so the denial reflects the best case observed.
+ *
+ * @param {object} [options] - Passes through to {@link probeAvailableMemory}. May
+ *   also carry `probe`/`sleep` (test injection), `samples`, `gapMs`, and `env`.
+ * @returns {{availableMb:number, thresholdMb:number, source:string, ok:boolean,
+ *   samples:object[], sampleCount:number}} The decisive reading plus the sample trail.
+ */
+export function probeMemoryWithConfirmation(options = {}) {
+  const env = options.env || process.env;
+  const probe = options.probe || ((o) => probeAvailableMemory(o));
+  const sleep = options.sleep || sleepSync;
+  const maxSamples = Math.max(1, options.samples || getBuildMemSamples(env));
+  const gapMs = options.gapMs != null ? options.gapMs : getBuildMemSampleGapMs(env);
+
+  const samples = [];
+  const first = probe({ ...options, env });
+  samples.push(first);
+  if (first.ok) {
+    return { ...first, samples, sampleCount: samples.length };
+  }
+  const firstReliable = first.source === 'darwin:vm_stat' || first.source === 'linux:/proc/meminfo';
+  if (!firstReliable) {
+    return { ...first, samples, sampleCount: samples.length };
+  }
+
+  // `best` is the most favorable RELIABLE reading seen. It seeds from `first`
+  // (reliable by the branch guard above) and only ever advances to another
+  // reliable sample. A retry that drops to the untrustworthy os.freemem fallback
+  // (e.g. a transient vm_stat failure) must NOT influence the decision: letting
+  // its reading become `best` could hand checkBuildAdmission an unreliable source
+  // that skips the denial, admitting a genuinely low machine. So unreliable
+  // retries are recorded for diagnostics but never admit and never become `best`.
+  let budgetMs = MAX_BUILD_MEM_SAMPLE_TOTAL_MS;
+  let best = first;
+  for (let i = 1; i < maxSamples; i++) {
+    const wait = Math.min(gapMs, budgetMs);
+    if (wait > 0) {
+      sleep(wait);
+      budgetMs -= wait;
+    }
+    const next = probe({ ...options, env });
+    samples.push(next);
+    const nextReliable = next.source === 'darwin:vm_stat' || next.source === 'linux:/proc/meminfo';
+    if (nextReliable) {
+      if (next.availableMb > best.availableMb) best = next;
+      if (next.ok) {
+        return { ...next, samples, sampleCount: samples.length };
+      }
+    }
+    if (budgetMs <= 0) break;
+  }
+  // Every reliable sample was below threshold → return a reliable reading so the
+  // caller denies. Any unreliable retry is intentionally not the reported value.
+  return { ...best, samples, sampleCount: samples.length };
+}
+
+/**
+ * Human-readable diagnostic for a memory denial: the live numbers a static
+ * message hides, so an operator can tell *why* the gate fired instead of
+ * guessing (e.g. mistaking it for a stale lock).
+ *
+ * @param {{availableMb:number, thresholdMb:number, source:string, sampleCount?:number}} memory
+ * @returns {string} e.g. `800MB free < 1536MB required (darwin:vm_stat, 3× sampled)`.
+ */
+export function formatMemoryBlockDetail(memory) {
+  if (!memory) return '';
+  const sampled = memory.sampleCount ? `, ${memory.sampleCount}× sampled` : '';
+  return `${memory.availableMb}MB free < ${memory.thresholdMb}MB required (${memory.source}${sampled})`;
+}
+
+/**
+ * Human-readable diagnostic for a lock denial: which process holds the machine
+ * build lock, for how long, and from where — so a leaked/foreign lock is
+ * diagnosable at the point of blocking.
+ *
+ * @param {object} lock - Either an acquire result (`{lock: record}`) or a raw
+ *   lock record with `pid`/`createdAt`/`cwd`.
+ * @param {number} [now] - Reference time in ms (injectable for tests).
+ * @returns {string} e.g. `held by pid 4242 for 5min cwd /repo` (parts with no
+ *   value are omitted).
+ */
+export function formatLockBlockDetail(lock, now = Date.now()) {
+  const rec = lock && lock.lock ? lock.lock : lock;
+  if (!rec || typeof rec !== 'object') return '';
+  const parts = [];
+  if (rec.pid != null) parts.push(`held by pid ${rec.pid}`);
+  const createdMs = Date.parse(rec.createdAt || rec.timestamp || '');
+  if (Number.isFinite(createdMs)) {
+    const ageMin = Math.max(0, Math.round((now - createdMs) / 60000));
+    parts.push(`for ${ageMin}min`);
+  }
+  if (rec.cwd) parts.push(`cwd ${rec.cwd}`);
+  return parts.join(' ');
 }
 
 export function readBuildLock(options = {}) {
@@ -259,7 +421,9 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
     return { admitted: true, disabled: true, memory: null, lock: null };
   }
 
-  const memory = probeAvailableMemory({ ...options, env });
+  // Confirmation sampling absorbs a lone macOS free+inactive dip so a healthy
+  // machine is not falsely blocked; a passing first reading still costs nothing.
+  const memory = probeMemoryWithConfirmation({ ...options, env });
   // Only deny on a trustworthy reading. The os.freemem fallback reports "free"
   // (not "available") memory — chronically low on macOS — so denying on it would
   // manufacture false blocks whenever the reliable probe (vm_stat / /proc/meminfo)
@@ -267,7 +431,8 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
   // lock below still serializes concurrent heavy builds.
   const memoryProbeReliable = memory.source === 'darwin:vm_stat' || memory.source === 'linux:/proc/meminfo';
   if (memoryProbeReliable && !memory.ok) {
-    return { admitted: false, reason: 'memory', message: MEMORY_BLOCK_MESSAGE, memory };
+    // detail carries the live numbers so the block is self-diagnosing.
+    return { admitted: false, reason: 'memory', message: MEMORY_BLOCK_MESSAGE, detail: formatMemoryBlockDetail(memory), memory };
   }
   // memorySkipped: an unreliable probe reported below threshold but we did NOT
   // deny (see comment above). Surfaced so callers can make the bypass visible.
@@ -278,7 +443,9 @@ export function checkBuildAdmission(metadata = {}, options = {}) {
     return { admitted: true, failOpen: true, reason: 'lock-write-failed', memory, lock, memorySkipped };
   }
   if (!lock.acquired) {
-    return { admitted: false, reason: 'lock', message: LOCK_BLOCK_MESSAGE, memory, lock };
+    // detail names the holding pid/age/cwd so a foreign or leaked lock is
+    // diagnosable at the block instead of being mistaken for a memory issue.
+    return { admitted: false, reason: 'lock', message: LOCK_BLOCK_MESSAGE, detail: formatLockBlockDetail(lock, options.now), memory, lock };
   }
 
   return { admitted: true, disabled: false, memory, lock, memorySkipped };

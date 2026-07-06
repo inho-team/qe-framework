@@ -438,7 +438,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
         if (admission.disabled) {
           hints.push('[build-admission] QE_BUILD_ADMISSION=off; heavy build gate disabled.');
         } else if (!admission.admitted) {
-          const blockMsg = admission.message || BUILD_BLOCK_MESSAGE;
+          const baseMsg = admission.message || BUILD_BLOCK_MESSAGE;
+          // Append the reason-specific diagnostic (live memory numbers, or the
+          // lock holder's pid/age/cwd) so the block is self-explaining and cannot
+          // be misdiagnosed (e.g. a memory dip mistaken for a stale lock).
+          const blockMsg = admission.detail ? `${baseMsg} — ${admission.detail}` : baseMsg;
           emitBlock({
             skill: '_build_admission',
             reason: blockMsg,

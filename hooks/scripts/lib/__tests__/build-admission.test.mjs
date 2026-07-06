@@ -21,12 +21,17 @@ import {
   isBuildAdmissionDisabled,
   isBuildLockStale,
   isHeavyBuildCommand,
+  formatLockBlockDetail,
   parseMeminfo,
   parseVmStat,
   probeAvailableMemory,
+  probeMemoryWithConfirmation,
   readBuildLock,
   releaseBuildLock,
 } from '../build-admission.mjs';
+
+const OK_READING = { availableMb: 8000, thresholdMb: 1536, source: 'darwin:vm_stat', ok: true };
+const LOW_READING = { availableMb: 800, thresholdMb: 1536, source: 'darwin:vm_stat', ok: false };
 
 const PRE_HOOK = fileURLToPath(new URL('../../pre-tool-use.mjs', import.meta.url));
 const POST_HOOK = fileURLToPath(new URL('../../post-tool-use.mjs', import.meta.url));
@@ -436,6 +441,198 @@ test('buildLockOwnerId ignores command/toolUseId/transcriptPath, keys on cwd+ses
   assert.equal(a, b);
   const different = buildLockOwnerId({ cwd: '/other', sessionId: 's', pid: 1 });
   assert.notEqual(a, different);
+});
+
+test('probeMemoryWithConfirmation returns after one sample when the first reading passes', () => {
+  let calls = 0;
+  const result = probeMemoryWithConfirmation({
+    env: { QE_BUILD_MEM_SAMPLES: '3' },
+    probe: () => { calls += 1; return { ...OK_READING }; },
+    sleep: () => { throw new Error('happy path must not sleep'); },
+  });
+  assert.equal(calls, 1);
+  assert.equal(result.sampleCount, 1);
+  assert.equal(result.ok, true);
+});
+
+test('a passing first memory sample admits without re-probing (zero added latency)', (t) => {
+  const { lockPath } = tempLock(t);
+  let calls = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-ok', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MEM_SAMPLES: '3' },
+      probe: () => { calls += 1; return { ...OK_READING }; },
+      sleep: () => { throw new Error('happy path must not sleep'); },
+    },
+  );
+  assert.equal(result.admitted, true);
+  assert.equal(calls, 1);
+  assert.equal(result.memory.sampleCount, 1);
+});
+
+test('a transient memory dip does not block when a later sample recovers', (t) => {
+  const { lockPath } = tempLock(t);
+  const readings = [{ ...LOW_READING }, { ...OK_READING }, { ...OK_READING }];
+  let i = 0;
+  let slept = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-dip', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MEM_SAMPLES: '3' },
+      probe: () => readings[Math.min(i++, readings.length - 1)],
+      sleep: () => { slept += 1; },
+    },
+  );
+  assert.equal(result.admitted, true);
+  assert.notEqual(result.reason, 'memory');
+  assert.equal(i, 2); // first (low) + one confirmation (ok) — stops on recovery
+  assert.equal(slept, 1); // one gap before the recovering sample
+});
+
+test('sustained low memory blocks and the block detail carries the live numbers', (t) => {
+  const { lockPath } = tempLock(t);
+  let calls = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-low', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MEM_SAMPLES: '3' },
+      probe: () => { calls += 1; return { ...LOW_READING }; },
+      sleep: () => {},
+    },
+  );
+  assert.equal(result.admitted, false);
+  assert.equal(result.reason, 'memory');
+  assert.equal(result.message, MEMORY_BLOCK_MESSAGE); // base constant unchanged
+  assert.equal(calls, 3); // first + 2 confirmations, all below threshold
+  assert.match(result.detail, /800MB free < 1536MB required/);
+  assert.match(result.detail, /darwin:vm_stat/);
+  assert.match(result.detail, /3× sampled/);
+  assert.equal(fs.existsSync(lockPath), false);
+});
+
+test('the unreliable os.freemem fallback is not re-sampled and never denies', (t) => {
+  const { lockPath } = tempLock(t);
+  let calls = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-fb', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MIN_FREE_MB: '2048', QE_BUILD_MEM_SAMPLES: '3' },
+      platform: 'test',
+      freemem: () => { calls += 1; return 100 * 1024 * 1024; },
+      sleep: () => { throw new Error('fallback must not re-sample'); },
+    },
+  );
+  assert.equal(result.admitted, true);
+  assert.equal(result.memorySkipped, true);
+  assert.equal(result.memory.source, 'fallback:os.freemem');
+  assert.equal(result.memory.sampleCount, 1);
+  assert.equal(calls, 1);
+});
+
+test('lock block detail reports the holding pid, age, and cwd', (t) => {
+  const { lockPath } = tempLock(t);
+  const createdAt = new Date(1_000_000).toISOString();
+  fs.writeFileSync(lockPath, JSON.stringify({ pid: 4242, ownerId: 'holder', createdAt, cwd: '/repo/x' }));
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'contender', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MIN_FREE_MB: '1' },
+      platform: 'linux',
+      readFileSync: () => 'MemAvailable: 8388608 kB\n', // 8192 MB → memory passes on first sample
+      now: 1_000_000 + 5 * 60_000,
+      isProcessAlive: () => true,
+    },
+  );
+  assert.equal(result.admitted, false);
+  assert.equal(result.reason, 'lock');
+  assert.equal(result.message, LOCK_BLOCK_MESSAGE); // base constant unchanged
+  assert.match(result.detail, /held by pid 4242/);
+  assert.match(result.detail, /for 5min/);
+  assert.match(result.detail, /cwd \/repo\/x/);
+});
+
+test('pre-tool-use surfaces the memory diagnostic numbers in the block message', (t) => {
+  const { dir, lockPath } = tempLock(t);
+  const res = runHook(PRE_HOOK, {
+    cwd: dir,
+    session_id: 'session-diag',
+    tool_use_id: 'tool-diag',
+    tool_name: 'Bash',
+    tool_input: { command: 'npm test' },
+  }, {
+    QE_BUILD_LOCK_PATH: lockPath,
+    QE_BUILD_MIN_FREE_MB: '999999999',
+    QE_BUILD_MEM_SAMPLES: '1', // keep the subprocess fast; still exercises the detail path
+  });
+  assert.equal(res.status, 2);
+  // Base message preserved (back-compat) AND enriched with live numbers.
+  assert.match(res.stderr, /insufficient free memory for a heavy build — wait and retry/);
+  assert.match(res.stderr, /MB free < 999999999MB required/);
+  assert.equal(fs.existsSync(lockPath), false);
+});
+
+test('an unreliable fallback retry cannot flip a sustained reliable-low reading to admit', (t) => {
+  const { lockPath } = tempLock(t);
+  // First sample: reliable vm_stat, below threshold. Second sample: a transient
+  // vm_stat failure drops to os.freemem fallback reading a HIGHER (but still
+  // below-threshold) number. The fallback must NOT become the reported reading,
+  // or checkBuildAdmission would skip the denial and admit a genuinely low box.
+  const readings = [
+    { availableMb: 700, thresholdMb: 1536, source: 'darwin:vm_stat', ok: false },
+    { availableMb: 1200, thresholdMb: 1536, source: 'fallback:os.freemem', ok: false },
+    { availableMb: 750, thresholdMb: 1536, source: 'darwin:vm_stat', ok: false },
+  ];
+  let i = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-flip', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MEM_SAMPLES: '3' },
+      probe: () => readings[Math.min(i++, readings.length - 1)],
+      sleep: () => {},
+    },
+  );
+  assert.equal(result.admitted, false);
+  assert.equal(result.reason, 'memory');
+  // Reported reading must be a RELIABLE source (never the fallback outlier).
+  assert.equal(result.memory.source, 'darwin:vm_stat');
+  assert.equal(fs.existsSync(lockPath), false);
+});
+
+test('formatLockBlockDetail handles a raw record and omits missing fields without throwing', () => {
+  const full = formatLockBlockDetail({ pid: 7, createdAt: new Date(0).toISOString(), cwd: '/r' }, 5 * 60_000);
+  assert.match(full, /held by pid 7/);
+  assert.match(full, /for 5min/);
+  assert.match(full, /cwd \/r/);
+  // Missing everything → empty string, no throw. Null → empty string, no throw.
+  assert.equal(formatLockBlockDetail({}, 0), '');
+  assert.equal(formatLockBlockDetail(null, 0), '');
+  // pid only, no timestamp/cwd.
+  assert.equal(formatLockBlockDetail({ pid: 9 }, 0), 'held by pid 9');
+});
+
+test('sleepSync degrades to a no-op path without breaking sampling (default sleep)', (t) => {
+  const { lockPath } = tempLock(t);
+  // Exercise the REAL sleepSync (no injected sleep) on the deny path with gap 0
+  // so the loop runs its sleep branch guard without adding wall-clock.
+  let calls = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-realsleep', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MEM_SAMPLES: '2', QE_BUILD_MEM_SAMPLE_GAP_MS: '0' },
+      probe: () => { calls += 1; return { availableMb: 500, thresholdMb: 1536, source: 'linux:/proc/meminfo', ok: false }; },
+    },
+  );
+  assert.equal(result.admitted, false);
+  assert.equal(result.reason, 'memory');
+  assert.equal(calls, 2);
 });
 
 test('memory and lock blocks return distinct, reason-specific messages', (t) => {
