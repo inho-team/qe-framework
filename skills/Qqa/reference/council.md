@@ -71,8 +71,41 @@ git rev-parse --is-inside-work-tree 2>/dev/null
 - Target URL is required. Ask the user for the running app URL, for example
   `http://localhost:3000`.
 - Do not guess the URL. If none is running, stop and ask the user to start it.
-- Playwright MCP is preferred for Explorer. Fall back to browser automation only if MCP is
-  unavailable.
+- **Resolve the Eyes transport before Explore** (both engines). Determine the active `engine`
+  (see Engine-Neutral Eyes below), then verify + probe via `scripts/lib/eyes-mcp.mjs`:
+  `resolveEngine(engine)` → `verifyMcpIdentity(engine)` → `runStartupProbe()` → `resolveBrowserTransport(engine)`.
+  Report the resolved transport (`mcp` / `browser-driver`) or the typed stop
+  (`MCP_START_FAILED` / `PLAYWRIGHT_NOT_INSTALLED` / `INVALID_ENGINE`). On Codex without a
+  `@playwright/mcp` entry, surface the pinned `generateCodexMcpAddGuidance()` string and pause for
+  user confirmation — never auto-run it.
+
+## Engine-Neutral Eyes (Dual-Engine Browser)
+
+The browser-touching roles (Planner, Explorer, Auditor, Healer) drive the live app through an
+**engine-neutral Eyes layer** so the council runs identically on Claude and Codex. Full contract,
+fallback ladder, liveness receipt schema, and safety-gate details live in
+[`eyes.md`](./eyes.md). Summary:
+
+- **Engine is injected, never runtime-detected.** The council passes an explicit `engine`
+  (`claude` | `codex`) into `runEyesRole` / the Eyes helpers, with `QE_ACTIVE_CLIENT` as the only
+  env fallback. Under a rescue delegation, pin `engine` to the layer that actually drives the
+  browser. Any other value is rejected with `INVALID_ENGINE`.
+- **Both engines drive the browser via Playwright MCP** (identity-matched to `@playwright/mcp`),
+  with the unmodified `scripts/lib/browser-driver.mjs` library as the programmatic fallback.
+- **Explicit MCP invocation contract** — roles call the Playwright MCP tools by name, not by
+  vibe: `browser_navigate` (go to the resolved URL), `browser_snapshot` (accessibility tree for
+  black-box assertions), `browser_take_screenshot` (evidence), `browser_console_messages`
+  (console capture). A tool error or `MCP_START_FAILED` triggers the fallback ladder, not a silent
+  skip.
+- **Fallback ladder (no infinite fallback):** Playwright MCP (startup-probe passed) →
+  `browser-driver` library → typed stop. Fallback keeps the same `evidence/<engine>/` directory.
+- **3-state liveness receipt** distinguishes *engine unavailable* / *ran-but-not-executed
+  (soft no-op)* / *ran-with-no-findings* — an empty findings list is never read as a clean pass.
+- **Per-capture safety gate:** the non-prod URL check re-runs on the resolved `page.url()` before
+  each capture (blocks server/SPA/iframe redirect-to-prod), on both engines.
+
+Black-box contract is preserved on both engines: MCP browser tools observe the running app only and
+must not read repository source.
 
 ## Workflow
 
@@ -95,12 +128,18 @@ review-ready Markdown scenario list. Pause for user review before execution.
 
 ### Step 3 — Explore (Explorer, Black-Box)
 
-For `explore` or `full`, spawn `Eqa-explorer` via the Agent tool. It probes the live URL with bad
-input, edge cases, responsive breakpoints, interaction checks, and requested guardrail scenarios.
+For `explore` or `full`, spawn `Eqa-explorer` via the Agent tool. **Pass the resolved `engine` and
+Eyes transport into the spawn** (the receiving point for engine injection) so the Explorer drives
+the browser through the same Playwright MCP contract on either engine. It probes the live URL with
+bad input, edge cases, responsive breakpoints, interaction checks, and requested guardrail
+scenarios, using `browser_navigate` / `browser_snapshot` / `browser_take_screenshot` /
+`browser_console_messages`.
 
-Explorer output: findings list with title, repro steps, severity, screenshot path, and area.
+Explorer output: findings list with title, repro steps, severity, screenshot path (under
+`evidence/<engine>/`), and area, plus the run's liveness receipt so an empty findings list is
+distinguishable from an engine that never executed.
 
-Hard rule: Explorer must not read repo source.
+Hard rule: Explorer must not read repo source (holds on both engines).
 
 ### Step 3.5 — Visual & A11y Pass (Optional Auditor)
 
