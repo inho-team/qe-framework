@@ -12,13 +12,16 @@ import { join } from 'path';
 
 const INSTALL_HINT = 'npm i -D playwright && npx playwright install chromium';
 
-// Test seam: __setPlaywrightForTest injects a fake module so the API shape can be
-// exercised without a real browser. Null means "load the real playwright package".
+// Test seam: __setPlaywrightForTest injects either a fake module object (to exercise
+// the API shape without a real browser) or a loader FUNCTION (which may throw, to
+// simulate playwright being absent regardless of whether it is actually installed).
+// Null means "load the real playwright package". This keeps the unit tests
+// deterministic in both installed and not-installed environments.
 let playwrightOverride = null;
 
-// Test-only: inject (or clear with null) the playwright module used by the driver.
-export function __setPlaywrightForTest(mod) {
-  playwrightOverride = mod;
+// Test-only: inject a fake module, a loader function, or null to clear.
+export function __setPlaywrightForTest(modOrLoader) {
+  playwrightOverride = modOrLoader;
 }
 
 function notInstalledError() {
@@ -28,9 +31,13 @@ function notInstalledError() {
 }
 
 async function requirePlaywright() {
-  if (playwrightOverride) return playwrightOverride;
+  const loader = typeof playwrightOverride === 'function'
+    ? playwrightOverride
+    : playwrightOverride
+      ? async () => playwrightOverride
+      : () => import('playwright');
   try {
-    return await import('playwright');
+    return await loader();
   } catch {
     throw notInstalledError();
   }
@@ -49,7 +56,7 @@ export async function isBrowserAvailable() {
 // Launch a browser session. Supports session reuse via a storageState JSON
 // (path or parsed object) and, for persistent profiles, a userDataDir.
 // Returns { browser, context, page, consoleMessages }.
-export async function launch({ url, headless = true, storageState, userDataDir, browserType = 'chromium' } = {}) {
+export async function launch({ url, headless = true, storageState, userDataDir, browserType = 'chromium', timeoutMs = 30000 } = {}) {
   const pw = await requirePlaywright();
   const engine = pw[browserType] || pw.chromium;
   const consoleMessages = [];
@@ -59,9 +66,11 @@ export async function launch({ url, headless = true, storageState, userDataDir, 
   if (userDataDir) {
     // Persistent context owns its own browser process; storageState is ignored here
     // because the profile directory already carries auth/session state.
-    context = await engine.launchPersistentContext(userDataDir, { headless });
+    context = await engine.launchPersistentContext(userDataDir, { headless, timeout: timeoutMs });
   } else {
-    browser = await engine.launch({ headless });
+    // A bounded launch timeout gives callers (e.g. the Eyes startup probe) a hard
+    // upper bound instead of a hang; Playwright throws a TimeoutError if exceeded.
+    browser = await engine.launch({ headless, timeout: timeoutMs });
     const contextOptions = {};
     if (storageState) contextOptions.storageState = storageState;
     context = await browser.newContext(contextOptions);
@@ -71,7 +80,7 @@ export async function launch({ url, headless = true, storageState, userDataDir, 
   page.on('console', (msg) => {
     consoleMessages.push({ type: msg.type(), text: msg.text() });
   });
-  if (url) await page.goto(url);
+  if (url) await page.goto(url, { timeout: timeoutMs });
 
   return { browser, context, page, consoleMessages };
 }
@@ -97,11 +106,20 @@ export async function getPageText(session) {
   return session.page.innerText('body');
 }
 
-// Return the page's accessibility snapshot.
+// Return the page's accessibility/aria snapshot. Playwright removed
+// page.accessibility in newer releases, so prefer the current Locator.ariaSnapshot()
+// and fall back to the legacy API when present.
 export async function snapshot(session) {
   await requirePlaywright();
   if (!session || !session.page) throw new Error('[browser-driver] snapshot requires an active session');
-  return session.page.accessibility.snapshot();
+  const page = session.page;
+  if (page.accessibility && typeof page.accessibility.snapshot === 'function') {
+    return page.accessibility.snapshot();
+  }
+  if (typeof page.locator === 'function') {
+    return page.locator('body').ariaSnapshot();
+  }
+  throw new Error('[browser-driver] no accessibility snapshot API available in this Playwright version');
 }
 
 // Close the session (page → context → browser).

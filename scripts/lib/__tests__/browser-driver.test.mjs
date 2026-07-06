@@ -11,14 +11,19 @@ test('exports the full public API contract', () => {
   }
 });
 
+const ABSENT_LOADER = () => { throw new Error('Cannot find package "playwright"'); };
+
 test('isBrowserAvailable returns false when playwright is absent (never throws)', async () => {
-  driver.__setPlaywrightForTest(null); // force real load path (playwright not installed)
-  const available = await driver.isBrowserAvailable();
-  assert.equal(available, false);
+  driver.__setPlaywrightForTest(ABSENT_LOADER); // simulate absence regardless of install state
+  try {
+    assert.equal(await driver.isBrowserAvailable(), false);
+  } finally {
+    driver.__setPlaywrightForTest(null);
+  }
 });
 
 test('browser ops throw a typed PLAYWRIGHT_NOT_INSTALLED error with install hint when absent', async () => {
-  driver.__setPlaywrightForTest(null);
+  driver.__setPlaywrightForTest(ABSENT_LOADER);
   const fakeSession = { page: {}, context: {}, browser: {} };
   const ops = [
     () => driver.launch({ url: 'http://x' }),
