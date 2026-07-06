@@ -4,6 +4,14 @@
 
 > <!--qe:skills-->31<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
+**A transparent, auditable, cross-model quality gate for coding agents.** Three things set QE apart:
+
+1. **Cross-model by construction** — the model that *verifies* work never shares a provider with the model that *wrote* it. Independence is enforced structurally (pool-disjointness in `core/engines.json`), not by trust.
+2. **Auditable** — every routing decision and gate verdict is logged (`.qe/state/sivs-audit.log`, gate audits); nothing is a black box you take on faith.
+3. **Transparent** — the whole loop is plain files and skills you can read: `Plan → Spec → Execute → Verify`, no hidden orchestration.
+
+**See it work:** run `/Qplan` on a real task and watch the spec gate reject a weak plan, then a cross-model Verify grade the result. Independence guarantee: [`docs/SIVS_INDEPENDENCE.md`](docs/SIVS_INDEPENDENCE.md) · Positioning FAQ: [`docs/POSITIONING.md`](docs/POSITIONING.md).
+
 ---
 
 ### 📖 Try it in your browser — 5-minute tour
