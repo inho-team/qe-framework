@@ -617,6 +617,57 @@ test('formatLockBlockDetail handles a raw record and omits missing fields withou
   assert.equal(formatLockBlockDetail({ pid: 9 }, 0), 'held by pid 9');
 });
 
+test('confirmation sampling stops re-probing once the wall-clock budget is exhausted', (t) => {
+  const { lockPath } = tempLock(t);
+  // An injected clock that jumps 500ms per read — past the 400ms default budget —
+  // proves the deadline covers wall time (not just sleep) and halts re-probing.
+  let calls = 0;
+  let clockMs = 0;
+  const result = checkBuildAdmission(
+    { pid: process.pid, ownerId: 'owner-budget', command: 'npm test' },
+    {
+      lockPath,
+      env: { QE_BUILD_MEM_SAMPLES: '5' }, // would take 5 samples if unbounded
+      probe: () => { calls += 1; return { availableMb: 500, thresholdMb: 1536, source: 'darwin:vm_stat', ok: false }; },
+      sleep: () => {},
+      clock: () => { const v = clockMs; clockMs += 500; return v; },
+    },
+  );
+  assert.equal(result.reason, 'memory'); // still denies (reliable low)
+  // Deterministic clock trips the budget before the first re-probe, so ONLY the
+  // initial probe runs. Exactly 1 (not <=2) rules out a "never re-probes at all"
+  // impl passing by accident — the companion sustained-low test (calls===3 with a
+  // generous budget) proves re-probing does happen when the budget allows.
+  assert.equal(calls, 1);
+});
+
+test('confirmation re-probe receives a shrinking exec timeout bounded by the budget', () => {
+  // The confirmation path must hand each re-probe a positive timeoutMs no larger
+  // than the remaining budget, so a hung vm_stat cannot overrun the deadline.
+  const timeouts = [];
+  let clockMs = 0;
+  probeMemoryWithConfirmation({
+    env: { QE_BUILD_MEM_SAMPLES: '3' },
+    totalBudgetMs: 400,
+    gapMs: 0,
+    clock: () => { const v = clockMs; clockMs += 50; return v; },
+    sleep: () => {},
+    probe: (o) => {
+      if (o.timeoutMs != null) timeouts.push(o.timeoutMs);
+      return { availableMb: 500, thresholdMb: 1536, source: 'darwin:vm_stat', ok: false };
+    },
+  });
+  assert.ok(timeouts.length >= 2, 'at least two re-probes should run to compare');
+  for (const t of timeouts) {
+    assert.ok(t > 0 && t <= 400, `re-probe timeout ${t} must be in (0, budget]`);
+  }
+  // Strictly shrinking: each re-probe gets less headroom than the previous one as
+  // the wall-clock budget is consumed. A broken impl passing a fixed value fails.
+  for (let k = 1; k < timeouts.length; k++) {
+    assert.ok(timeouts[k] < timeouts[k - 1], `timeout must shrink: ${timeouts[k - 1]} -> ${timeouts[k]}`);
+  }
+});
+
 test('sleepSync degrades to a no-op path without breaking sampling (default sleep)', (t) => {
   const { lockPath } = tempLock(t);
   // Exercise the REAL sleepSync (no injected sleep) on the deny path with gap 0

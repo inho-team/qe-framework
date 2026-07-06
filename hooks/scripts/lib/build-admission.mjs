@@ -30,6 +30,15 @@ export const BUILD_BLOCK_MESSAGE = MEMORY_BLOCK_MESSAGE;
 
 const LOCK_FILE_NAME = 'qe-framework-build-admission.lock.json';
 
+/**
+ * Parse macOS `vm_stat` output into available MB (`free + inactive` pages).
+ * Prefers the page size from the vm_stat header when present, else uses the
+ * `pageSize` argument.
+ *
+ * @param {string} text - Raw `vm_stat` stdout.
+ * @param {number} [pageSize=4096] - Fallback page size in bytes when no header.
+ * @returns {number} Available memory in MB.
+ */
 export function parseVmStat(text, pageSize = 4096) {
   const str = String(text || '');
   // vm_stat's header reports the page size ("... (page size of 16384 bytes)").
@@ -49,12 +58,26 @@ export function parseVmStat(text, pageSize = 4096) {
   return Math.floor(((free + inactive) * effectivePageSize) / 1024 / 1024);
 }
 
+/**
+ * Parse Linux `/proc/meminfo` and return `MemAvailable` in MB.
+ *
+ * @param {string} text - Raw `/proc/meminfo` contents.
+ * @returns {number|null} Available memory in MB, or null if `MemAvailable` absent.
+ */
 export function parseMeminfo(text) {
   const match = String(text || '').match(/^MemAvailable:\s+(\d+)\s+kB/im);
   if (!match) return null;
   return Math.floor(Number.parseInt(match[1], 10) / 1024);
 }
 
+/**
+ * Minimum free memory (MB) required to admit a heavy build.
+ * `QE_BUILD_MIN_FREE_MB` overrides; invalid/non-positive values fall back to
+ * {@link DEFAULT_BUILD_MIN_FREE_MB}.
+ *
+ * @param {NodeJS.ProcessEnv} [env] - Environment to read.
+ * @returns {number} Threshold in MB (> 0).
+ */
 export function getBuildThresholdMb(env = process.env) {
   const raw = env.QE_BUILD_MIN_FREE_MB;
   if (raw === undefined || raw === '') return DEFAULT_BUILD_MIN_FREE_MB;
@@ -93,14 +116,35 @@ export function getBuildMemSampleGapMs(env = process.env) {
   return Number.isFinite(parsed) && parsed >= 0 ? parsed : DEFAULT_BUILD_MEM_SAMPLE_GAP_MS;
 }
 
+/**
+ * Whether the heavy-build gate is disabled via `QE_BUILD_ADMISSION=off`.
+ *
+ * @param {NodeJS.ProcessEnv} [env] - Environment to read.
+ * @returns {boolean} True when the gate is turned off.
+ */
 export function isBuildAdmissionDisabled(env = process.env) {
   return String(env.QE_BUILD_ADMISSION || '').toLowerCase() === 'off';
 }
 
+/**
+ * Resolve the machine-global lock file path. Precedence: explicit
+ * `options.lockPath` → `QE_BUILD_LOCK_PATH` → `<os.tmpdir()>/{LOCK_FILE_NAME}`.
+ *
+ * @param {object} [options] - May carry `lockPath`.
+ * @returns {string} Absolute lock file path.
+ */
 export function getBuildLockPath(options = {}) {
   return options.lockPath || process.env.QE_BUILD_LOCK_PATH || join(os.tmpdir(), LOCK_FILE_NAME);
 }
 
+/**
+ * Compute the lock owner id as a sha256 over ONLY `{cwd, sessionId, pid}` — the
+ * fields guaranteed identical between the acquire (PreToolUse) and release
+ * (PostToolUse) payloads for the same build.
+ *
+ * @param {{cwd?:string, sessionId?:string, pid?:number}} [meta] - Identity fields.
+ * @returns {string} Hex sha256 owner id.
+ */
 export function buildLockOwnerId({ cwd = '', sessionId = '', pid = process.ppid || process.pid } = {}) {
   // Ownership MUST hash only fields guaranteed identical between the acquire
   // (PreToolUse) and release (PostToolUse) payloads for the same build, or
@@ -113,6 +157,14 @@ export function buildLockOwnerId({ cwd = '', sessionId = '', pid = process.ppid 
   return createHash('sha256').update(basis).digest('hex');
 }
 
+/**
+ * Whether a shell command launches a heavy build/test that the gate serializes
+ * (gradle/gradlew/mvn/mvnw, or `npm [run] build|test` with optional `:`/`-`
+ * suffix). Uses {@link matchesExecutable} so quoted/heredoc data is not matched.
+ *
+ * @param {string} command - The shell command line.
+ * @returns {boolean} True if it is a heavy build command.
+ */
 export function isHeavyBuildCommand(command) {
   if (typeof command !== 'string' || command.trim() === '') return false;
   return (
@@ -144,6 +196,21 @@ export function deriveBuildLockMetadata(data = {}) {
   };
 }
 
+/**
+ * Read available memory once, preferring a reliable platform source.
+ *
+ * On macOS reads `free+inactive` pages via `/usr/bin/vm_stat` (`darwin:vm_stat`);
+ * on Linux reads `MemAvailable` from `/proc/meminfo` (`linux:/proc/meminfo`).
+ * Falls back to `os.freemem()` (`fallback:os.freemem`) when the platform probe is
+ * unavailable — a reading {@link checkBuildAdmission} never denies on, because it
+ * reports "free" (not "available") memory and is chronically low on macOS. All
+ * probe inputs (`platform`, `arch`, `execFileSync`, `readFileSync`, `freemem`,
+ * `timeoutMs`, `env`) are injectable for testing.
+ *
+ * @param {object} [options] - Probe inputs / injection points.
+ * @returns {{availableMb:number, thresholdMb:number, source:string, ok:boolean}}
+ *   The reading, the active threshold, its source, and whether it clears threshold.
+ */
 export function probeAvailableMemory(options = {}) {
   const env = options.env || process.env;
   const thresholdMb = getBuildThresholdMb(env);
@@ -151,6 +218,11 @@ export function probeAvailableMemory(options = {}) {
   const runExecFileSync = options.execFileSync || execFileSync;
   const runReadFileSync = options.readFileSync || readFileSync;
   const freemem = options.freemem || (() => os.freemem());
+  // Per-probe exec timeout. Bounded down by the confirmation sampler so a hung
+  // vm_stat on a re-probe cannot blow the overall wall-clock budget.
+  const timeoutMs = Number.isFinite(options.timeoutMs) && options.timeoutMs > 0
+    ? Math.ceil(options.timeoutMs)
+    : 1000;
 
   let availableMb = null;
   let source = 'fallback:os.freemem';
@@ -161,7 +233,7 @@ export function probeAvailableMemory(options = {}) {
       // reliable probe instead of silently dropping to the os.freemem fallback.
       // Page size comes from the vm_stat header (parseVmStat), so no separate
       // `pagesize` exec is needed.
-      const vmStat = runExecFileSync('/usr/bin/vm_stat', { encoding: 'utf8', timeout: 1000 });
+      const vmStat = runExecFileSync('/usr/bin/vm_stat', { encoding: 'utf8', timeout: timeoutMs });
       // parseVmStat prefers the page size in the vm_stat header. The default is
       // only used if that header is ever absent — pick it by arch (Apple Silicon
       // = 16 KiB) so a missing header cannot 4x-under-report and manufacture a
@@ -220,13 +292,20 @@ function sleepSync(ms) {
  * first reading (os.freemem fallback) is also returned as-is, because
  * {@link checkBuildAdmission} never denies on it and re-sampling would only
  * repeat an untrustworthy value. Only when the first *reliable* reading is below
- * threshold do we re-sample up to `samples` times total, spaced by `gapMs` and
- * bounded by {@link MAX_BUILD_MEM_SAMPLE_TOTAL_MS}. The first sample that clears
- * the threshold wins and admits; if every sample is below, the most favorable
- * reading is returned so the denial reflects the best case observed.
+ * threshold do we re-sample up to `samples` times total, spaced by `gapMs`. The
+ * wall-clock deadline of {@link MAX_BUILD_MEM_SAMPLE_TOTAL_MS} (enforced via an
+ * injectable `clock`) bounds ONLY the confirmation phase — the sleeps AND the
+ * re-probe exec time together — and each re-probe also gets a shrinking exec
+ * `timeoutMs` so one hung vm_stat cannot overrun it. Note the initial probe runs
+ * BEFORE this deadline starts and uses its own default exec timeout (up to
+ * ~1000ms), so worst-case total latency is roughly (first probe) + budget, not
+ * the budget alone. The first sample that clears the threshold wins and admits;
+ * if every reliable sample is below, the most favorable reliable reading is
+ * returned so the denial reflects the best case.
  *
  * @param {object} [options] - Passes through to {@link probeAvailableMemory}. May
- *   also carry `probe`/`sleep` (test injection), `samples`, `gapMs`, and `env`.
+ *   also carry `probe`/`sleep`/`clock` (test injection), `samples`, `gapMs`,
+ *   `totalBudgetMs`, and `env`.
  * @returns {{availableMb:number, thresholdMb:number, source:string, ok:boolean,
  *   samples:object[], sampleCount:number}} The decisive reading plus the sample trail.
  */
@@ -234,8 +313,12 @@ export function probeMemoryWithConfirmation(options = {}) {
   const env = options.env || process.env;
   const probe = options.probe || ((o) => probeAvailableMemory(o));
   const sleep = options.sleep || sleepSync;
+  const clock = options.clock || (() => Date.now());
   const maxSamples = Math.max(1, options.samples || getBuildMemSamples(env));
   const gapMs = options.gapMs != null ? options.gapMs : getBuildMemSampleGapMs(env);
+  const totalBudgetMs = Number.isFinite(options.totalBudgetMs) && options.totalBudgetMs >= 0
+    ? options.totalBudgetMs
+    : MAX_BUILD_MEM_SAMPLE_TOTAL_MS;
 
   const samples = [];
   const first = probe({ ...options, env });
@@ -255,15 +338,19 @@ export function probeMemoryWithConfirmation(options = {}) {
   // its reading become `best` could hand checkBuildAdmission an unreliable source
   // that skips the denial, admitting a genuinely low machine. So unreliable
   // retries are recorded for diagnostics but never admit and never become `best`.
-  let budgetMs = MAX_BUILD_MEM_SAMPLE_TOTAL_MS;
+  const start = clock();
   let best = first;
   for (let i = 1; i < maxSamples; i++) {
-    const wait = Math.min(gapMs, budgetMs);
-    if (wait > 0) {
-      sleep(wait);
-      budgetMs -= wait;
-    }
-    const next = probe({ ...options, env });
+    // Wall-clock budget covers BOTH the sleep and the re-probe exec, not just the
+    // sleep — so a slow vm_stat cannot push total latency past the deadline.
+    let remaining = totalBudgetMs - (clock() - start);
+    if (remaining <= 0) break;
+    const wait = Math.min(gapMs, remaining);
+    if (wait > 0) sleep(wait);
+    remaining = totalBudgetMs - (clock() - start);
+    if (remaining <= 0) break;
+    // Cap this probe's exec time to the remaining budget so it can't overrun.
+    const next = probe({ ...options, env, timeoutMs: Math.max(1, Math.min(remaining, 1000)) });
     samples.push(next);
     const nextReliable = next.source === 'darwin:vm_stat' || next.source === 'linux:/proc/meminfo';
     if (nextReliable) {
@@ -272,7 +359,6 @@ export function probeMemoryWithConfirmation(options = {}) {
         return { ...next, samples, sampleCount: samples.length };
       }
     }
-    if (budgetMs <= 0) break;
   }
   // Every reliable sample was below threshold → return a reliable reading so the
   // caller denies. Any unreliable retry is intentionally not the reported value.
@@ -318,6 +404,14 @@ export function formatLockBlockDetail(lock, now = Date.now()) {
   return parts.join(' ');
 }
 
+/**
+ * Read and parse the lock file. Returns null when absent, or a
+ * `{malformed:true, path}` sentinel when the JSON is corrupt (so callers can
+ * reap it rather than block forever).
+ *
+ * @param {object} [options] - May carry `lockPath`.
+ * @returns {object|null} The lock record, a malformed sentinel, or null.
+ */
 export function readBuildLock(options = {}) {
   const lockPath = getBuildLockPath(options);
   if (!existsSync(lockPath)) return null;
@@ -328,6 +422,15 @@ export function readBuildLock(options = {}) {
   }
 }
 
+/**
+ * Decide whether an existing lock is stale and may be reaped. Stale when
+ * malformed, timestamp invalid, older than `maxAgeMs`, the holding pid is
+ * confirmed dead, or the pid liveness is unknown AND past max age.
+ *
+ * @param {object} lock - The lock record (or malformed sentinel).
+ * @param {object} [options] - May carry `now`, `maxAgeMs`, `isProcessAlive`.
+ * @returns {{stale:boolean, reason:string}} Verdict and its reason code.
+ */
 export function isBuildLockStale(lock, options = {}) {
   if (!lock || lock.malformed) return { stale: true, reason: 'malformed' };
   const now = options.now || Date.now();
@@ -349,6 +452,12 @@ export function isBuildLockStale(lock, options = {}) {
   return { stale: false, reason: alive === true ? 'live-pid' : 'unknown-pid' };
 }
 
+/**
+ * Best-effort unlink of the lock file. Treats an already-absent file as success.
+ *
+ * @param {string} lockPath - Lock file path.
+ * @returns {boolean} True if the file is gone after the call.
+ */
 function unlinkLock(lockPath) {
   try {
     unlinkSync(lockPath);
@@ -358,6 +467,17 @@ function unlinkLock(lockPath) {
   }
 }
 
+/**
+ * Atomically acquire the machine-global build lock (O_EXCL `wx` write). If the
+ * file already exists, reaps it when {@link isBuildLockStale} says so and retries
+ * once; otherwise reports the live holder.
+ *
+ * @param {object} [metadata] - Owner fields (`pid`, `ownerId`, `cwd`, `command`,
+ *   `sessionId`, `toolUseId`).
+ * @param {object} [options] - May carry `lockPath`, `now`, `isProcessAlive`, etc.
+ * @returns {{acquired:boolean, reason?:string, lock?:object, lockPath:string, error?:string}}
+ *   Acquisition result.
+ */
 export function acquireBuildLock(metadata = {}, options = {}) {
   const lockPath = getBuildLockPath(options);
   const now = options.now || Date.now();
@@ -397,6 +517,14 @@ export function acquireBuildLock(metadata = {}, options = {}) {
   return { acquired: false, reason: 'locked-race', lock: readBuildLock({ ...options, lockPath }), lockPath };
 }
 
+/**
+ * Release the build lock only if the caller owns it (matching `ownerId` AND
+ * `pid`). A malformed lock is unlinked; a foreign lock is left untouched.
+ *
+ * @param {object} [metadata] - Owner fields used to recompute the owner id.
+ * @param {object} [options] - May carry `lockPath`.
+ * @returns {{released:boolean, reason:string, lock?:object, lockPath:string}} Result.
+ */
 export function releaseBuildLock(metadata = {}, options = {}) {
   const lockPath = getBuildLockPath(options);
   const existing = readBuildLock({ ...options, lockPath });
@@ -415,6 +543,18 @@ export function releaseBuildLock(metadata = {}, options = {}) {
   return { released: true, reason: 'owner', lockPath };
 }
 
+/**
+ * Top-level heavy-build admission decision. Order: disabled switch → memory gate
+ * (confirmation-sampled; denies only on a reliable below-threshold reading) →
+ * machine-global lock (fail-open on write error, deny on a live holder). Denials
+ * carry a `detail` string with the live diagnostic numbers.
+ *
+ * @param {object} [metadata] - Lock owner metadata (see {@link deriveBuildLockMetadata}).
+ * @param {object} [options] - Probe/lock injection points and `env`.
+ * @returns {{admitted:boolean, reason?:string, message?:string, detail?:string,
+ *   memory:object|null, lock:object|null, disabled?:boolean, failOpen?:boolean,
+ *   memorySkipped?:boolean}} The admission verdict.
+ */
 export function checkBuildAdmission(metadata = {}, options = {}) {
   const env = options.env || process.env;
   if (isBuildAdmissionDisabled(env)) {
