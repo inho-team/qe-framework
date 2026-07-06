@@ -485,6 +485,31 @@ Step 1 collects changed files, include the changed-file list and any relevant
 delegation prompt. Skip this context step for `type: docs` / `type: analysis` tasks
 when no code changed.
 
+### Review Readiness dashboard
+
+Before delegating review, render a **Review Readiness** dashboard from the changed
+files so the reviewer routing is explicit and shares the supervision taxonomy:
+
+```
+import { getChangedFiles, reviewReadiness } from '<qe>/hooks/scripts/lib/changed-files.mjs';
+const rr = reviewReadiness(getChangedFiles(cwd));
+```
+
+`reviewReadiness()` classifies each changed file into a domain
+(security / test / analysis / docs / config / code — same taxonomy as
+`core/review-routing.yaml` and `core/supervision-domains.yaml`) and lists the
+reviewers each domain routes to. Render it as:
+
+```
+Review Readiness (N files)
+  code     (3)  -> Ecode-reviewer, Ecode-test-engineer
+  security (1)  -> Esecurity-officer
+  docs     (2)  -> Edocs-supervisor
+```
+
+Use it to (a) confirm a `security` domain is always routed to `Esecurity-officer`,
+and (b) size the review — a change touching many domains needs broader delegation.
+
 ## Role Constraints
 - This skill focuses exclusively on the **test, review, and fix loop**
 - Does not add new features or change requirements

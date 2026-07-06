@@ -107,3 +107,21 @@ After the agent completes, report the commit hash and changed files to the user.
 - Include AI-related phrases or traces
 - Run git push (unless explicitly requested by the user)
 - Create an empty commit when there are no changes
+
+## Checkpoint mode (opt-in WIP commits)
+
+When `checkpoint_mode` is enabled (opt-in — off by default), long tasks may create
+lightweight **WIP checkpoint commits** so work is recoverable across sessions without
+polluting final history:
+
+- **Create**: `Qcommit --checkpoint` (or checkpoint_mode active) makes a commit with a
+  `wip: <task/uuid> <short note>` subject. WIP checkpoints skip the natural-message
+  polish and are explicitly marked so they are easy to find and squash.
+- **Resume parse**: `Qresume` recognizes trailing `wip:` checkpoint commits on the
+  branch and surfaces them as recoverable in-progress state (which task, how far).
+- **Squash on finish**: before the real commit, `Qcommit --squash-wip` (or the normal
+  flow when it detects trailing `wip:` commits) squashes all consecutive trailing
+  `wip:` checkpoints into a single natural, AI-trace-free commit. Final history
+  contains no `wip:` entries.
+
+Checkpoint mode never pushes and never squashes across a non-WIP commit boundary.

@@ -1,0 +1,52 @@
+# review-routing.yaml — maps changed-file domains to the reviewers/supervisors that
+# should look at them. The domain taxonomy is SHARED with core/supervision-domains.yaml
+# (code/docs/analysis) plus the cross-cutting security + test + config domains that the
+# supervision orchestrator delegates separately. Consumed by changed-files.mjs
+# (classifyDomain) and rendered as the Review Readiness dashboard in Qcode-run-task.
+#
+# Classification precedence (first match wins): security > test > analysis > docs > config > code.
+
+version: 1
+
+domains:
+  security:
+    # Highest precedence: auth/crypto/secret surfaces always get a security pass.
+    match:
+      path_contains: [auth, crypto, secret, security, credential, password, token, jwt, oauth]
+      basename: [.env]
+    reviewers: [Esecurity-officer]
+    note: "Security is out of scope for the code supervisor; always route separately."
+
+  test:
+    match:
+      path_contains: ["__tests__/", "/test/", "/tests/"]
+      suffix: [".test.mjs", ".test.js", ".test.ts", ".spec.ts", ".spec.js", ".spec.mjs"]
+    reviewers: [Ecode-test-engineer]
+    note: "Test changes route to the test engineer."
+
+  docs:
+    match:
+      suffix: [".md", ".mdx", ".rst", ".txt"]
+      path_contains: ["docs/"]
+    reviewers: [Edocs-supervisor]
+    note: "Shares the 'docs' supervision domain."
+
+  config:
+    match:
+      suffix: [".json", ".yaml", ".yml", ".toml", ".ini", ".env.example"]
+    reviewers: [Ecode-reviewer]
+    note: "Config drift reviewed for correctness/consistency."
+
+  analysis:
+    match:
+      path_contains: [".qe/analysis/"]
+      basename_prefix: ["ANALYSIS_"]
+    reviewers: [Eanalysis-supervisor]
+    note: "Shares the 'analysis' supervision domain."
+
+  code:
+    # Default for source files not matched above.
+    match:
+      suffix: [".mjs", ".js", ".ts", ".jsx", ".tsx", ".py", ".go", ".rs", ".java", ".rb", ".php", ".cs", ".cpp", ".c", ".kt", ".swift", ".vue"]
+    reviewers: [Ecode-reviewer, Ecode-test-engineer]
+    note: "Shares the 'code' supervision domain (Ecode-quality-supervisor delegates these)."

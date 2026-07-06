@@ -70,6 +70,13 @@ Propose next actions based on restored context:
 When restoring context, also read `.qe/analysis/` files to understand the latest project state.
 This allows starting work immediately without re-scanning the project with Glob/Grep, saving tokens.
 
+## Checkpoint (WIP) commit parse
+When checkpoint mode is in use (see `Qcommit` — opt-in WIP commits), also scan the
+current branch for trailing `wip:` checkpoint commits. Surface them as recoverable
+in-progress state: which task/UUID they belong to and how far the work got, so resume
+continues from the last checkpoint. Do not squash them here — squashing happens in the
+final `Qcommit` (`--squash-wip`).
+
 ## Will
 - Load BOTH `.qe/context/sessions/{sid}/` snapshots AND `.qe/handoffs/sessions/{sid}/` handoffs for the active sid
 - Fall back to the most recent other bucket (handoffs first) when the active sid is empty in both domains, and tell the user which bucket was used
