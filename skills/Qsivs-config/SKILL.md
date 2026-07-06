@@ -84,11 +84,25 @@ Parse the user's input after the active-client command (`{adapter.commandPrefix}
 | `codex-head` | codex | claude | claude | codex | Codex designs/judges (Head), Claude executes (Body). |
 | `all-claude` | claude | claude | claude | claude | Homogeneous Claude (Codex absent or unused). |
 | `all-codex` | codex | codex | codex | codex | Homogeneous Codex (Claude absent or unused). |
+| `implement-fugu-verify-claude` | claude | fugu | claude | claude | **Experimental.** Fugu (OpenAI-compatible) executes; Claude verifies/designs. Fugu is experiment-only. |
 
 A profile is a thin preset over the four stage entries. `show` reports the
 effective profile derived from the stage engines; a per-stage `set` that breaks a
 named pattern surfaces as `custom`. The stage engines remain the source of truth
 for routing — the stored `profile` field is metadata only.
+
+## Pool-disjointness guarantee (engine independence)
+
+Engines are modeled in `core/engines.json` as a `vendor` drawing from a provider
+`pool` (`claude`→anthropic, `codex`→openai, `fugu`→fugu). SIVS's Implement/Verify
+independence is enforced structurally by **pool-disjointness**: a Verify engine's
+vendor must NOT appear in the Implement engine's pool, so the model that checks
+work never shares a provider with the model that produced it. `checkSivsPoolDisjoint(config)`
+in `hooks/scripts/lib/sivs-enforcer.mjs` returns `{ ok, reason }`; a config that sets
+Implement and Verify to the same vendor (e.g. both `claude`) is **not** independent
+and should be flagged when applying/validating a profile. The `implement-fugu-verify-claude`
+preset is disjoint (fugu vs anthropic); `codex-head`/`claude-head` are disjoint;
+`all-claude`/`all-codex` are intentionally homogeneous (single-engine, no cross-check).
 
 **Stages:** `spec`, `implement`, `verify`, `supervise`
 

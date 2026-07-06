@@ -15,6 +15,7 @@
 
 import { appendFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
+import { checkPoolDisjoint } from './engines.mjs';
 
 // subagent_type → SIVS stage mapping
 const STAGE_MAP = {
@@ -115,4 +116,19 @@ export function appendAuditLog(cwd, entry) {
   const line = `${new Date().toISOString()} | ${entry.stage || '-'} | config=${entry.configuredEngine || '-'} | actual=${entry.actualEngine || '-'} | ${entry.action || '-'} | ${safeReason}\n`;
 
   try { appendFileSync(join(dir, 'sivs-audit.log'), line); } catch {}
+}
+
+/**
+ * Verify that a SIVS config's Implement and Verify stages draw from disjoint
+ * provider pools (the structural Implement/Verify independence guarantee).
+ * Returns { ok, reason, implement, verify }. ok=false means the Verify engine's
+ * vendor sits inside the Implement engine's pool, so the check is not independent.
+ * @param {object} sivsConfig - parsed .qe/sivs-config.json
+ * @returns {{ ok: boolean, reason: string, implement: string, verify: string }}
+ */
+export function checkSivsPoolDisjoint(sivsConfig) {
+  const implement = (sivsConfig?.implement?.engine) || 'claude';
+  const verify = (sivsConfig?.verify?.engine) || 'claude';
+  const { ok, reason } = checkPoolDisjoint(implement, verify);
+  return { ok, reason, implement, verify };
 }
