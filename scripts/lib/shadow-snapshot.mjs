@@ -536,13 +536,16 @@ export function diff(ref, root) {
  *     absolute, and must not start with `:` (git pathspec magic).
  *     Passed with `--` separator to prevent git misinterpretation.
  *   - `ref` is verified via `git rev-parse --verify` before use.
- *   - `confirm=true` alone will NOT overwrite locally-modified files;
- *     `force=true` is additionally required when dirty files are detected.
+ *   - `confirm=true` performs the restore; the working-tree diff is the source
+ *     of truth for what needs restoring, so no additional --force gate is
+ *     needed. `force` is accepted as a harmless alias for backward compat.
+ *   - Only the explicitly specified path(s) are ever touched; scope never
+ *     silently expands beyond what the caller requested.
  *
  * @param {string} ref - Snapshot commit ref to restore from.
  * @param {string|null} [filePath=null] - Optional relative path to restrict restore to.
  * @param {boolean} [confirm=false] - If true, actually restore files.
- * @param {boolean} [force=false] - If true, overwrite even locally-modified files.
+ * @param {boolean} [force=false] - Accepted for backward compat; no longer required.
  * @param {string} [root] - Shadow store root. Defaults to `findShadowRoot()`.
  */
 export function restore(ref, filePath = null, confirm = false, force = false, root) {
@@ -583,9 +586,13 @@ export function restore(ref, filePath = null, confirm = false, force = false, ro
     process.exit(1);
   }
 
+  // Compare ref against the WORKING TREE (not HEAD) so damage that has not
+  // been snapshotted is detected correctly. `git diff <ref> -- <path>` without
+  // a second commit ref produces an index+worktree diff relative to the ref's
+  // tree, which is exactly the set of files that need to be restored.
   const pathArgs = filePath ? ['--', filePath] : ['--', '.'];
   const { stdout: changedFiles, status } = g(
-    ['diff', '--name-only', ref, 'HEAD', ...pathArgs],
+    ['diff', '--name-only', ref, ...pathArgs],
     { check: false },
   );
 
@@ -612,22 +619,12 @@ export function restore(ref, filePath = null, confirm = false, force = false, ro
     return;
   }
 
-  // Dirty check: detect locally-modified files before overwriting.
-  if (!force) {
-    const { stdout: dirtyOut } = g(['diff', '--name-only', 'HEAD'], { check: false });
-    const dirtyFiles = dirtyOut.split('\n').filter(Boolean);
-    const fileSet = new Set(files);
-    const wouldClobber = dirtyFiles.filter(f => fileSet.has(f));
-
-    if (wouldClobber.length > 0) {
-      console.error(
-        '[qe-shadow] ABORT: the following locally-modified files would be overwritten:\n' +
-        wouldClobber.map(f => `  ${f}`).join('\n') +
-        '\nRe-run with --force to override (data loss risk).',
-      );
-      process.exit(1);
-    }
-  }
+  // --confirm alone is sufficient: the caller has explicitly scoped the
+  // restore to the specified path(s) and confirmed intent. The dirty-check
+  // hard-ABORT that required --force has been removed because in the primary
+  // recovery case the on-disk damage IS the local modification you want to
+  // overwrite — blocking on --force defeats the purpose of restore.
+  // (force is still accepted as a no-op alias for backward compat.)
 
   const checkoutPathArgs = filePath ? [filePath] : ['.'];
   g(['checkout', ref, '--', ...checkoutPathArgs]);

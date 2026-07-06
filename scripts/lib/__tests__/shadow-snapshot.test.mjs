@@ -482,47 +482,132 @@ if (afterPruneCount >= 1) {
 }
 
 // ---------------------------------------------------------------------------
-// (h) restore refuses to clobber locally-modified files without --force
+// (h) restore SCENARIO-B: damage on disk, not snapshotted (HEAD == good ref)
+//     This was the primary regression: ref==HEAD meant diff was empty, so
+//     nothing was restored. With the fix, diff compares ref against the working
+//     tree, so damaged-but-not-snapshotted files are correctly detected and
+//     restored with --confirm alone (no --force required).
 // ---------------------------------------------------------------------------
 
-console.log('\n--- (h) restore refuses to clobber locally-modified files ---');
+console.log('\n--- (h) restore recovery drills ---');
 
-const { stdout: earliestLogH } = shadowGit(['log', '--oneline', '--reverse', 'HEAD']);
-const earliestRefH = earliestLogH.split('\n')[0]?.split(' ')[0];
+// h1: SCENARIO B — damage not snapshotted (HEAD == good snapshot, primary bug case)
+{
+  const scenBFile = join(TEMP_BASE, '.qe', '_scenB_test.txt');
+  const goodContent = 'GOOD_CONTENT_v1';
+  writeFileSync(scenBFile, goodContent + '\n');
+  const scenBSnapResult = nodeRun([SHADOW_CLI, 'snapshot', '--source', 'scenB-good']);
+  const { stdout: scenBRef } = shadowGit(['rev-parse', 'HEAD']);
 
-if (earliestRefH) {
-  const dirtyTestFile = join(TEMP_BASE, '.qe', '_dirty_test.txt');
-  writeFileSync(dirtyTestFile, 'original-content\n');
-  nodeRun([SHADOW_CLI, 'snapshot', '--source', 'dirty-setup']);
+  // Damage the file on disk WITHOUT taking another snapshot (HEAD == good ref).
+  writeFileSync(scenBFile, '');
 
-  // Locally modify the file (not committed to shadow) — makes it "dirty".
-  writeFileSync(dirtyTestFile, 'locally-modified-content\n');
+  // Verify the damage is real.
+  let damagedContent = '';
+  try { damagedContent = readFileSync(scenBFile, 'utf8'); } catch {}
+  if (damagedContent === '') {
+    pass('scenario-B setup: file is empty (damaged) on disk');
+  } else {
+    fail('scenario-B setup: file should be empty after damage', `got: "${damagedContent}"`);
+  }
 
-  // restore with --confirm but WITHOUT --force — should be refused.
-  const refuseResult = nodeRun([
-    SHADOW_CLI, 'restore', earliestRefH, '.qe/_dirty_test.txt', '--confirm',
+  // restore with --confirm — must succeed even though HEAD == good snapshot ref.
+  const scenBRestoreResult = nodeRun([
+    SHADOW_CLI, 'restore', scenBRef, '.qe/_scenB_test.txt', '--confirm',
   ]);
 
-  if (refuseResult.status !== 0 && /ABORT|dirty|modified|force/i.test(refuseResult.stdout + refuseResult.stderr)) {
-    pass('restore --confirm refused to clobber locally-modified file');
+  if (scenBRestoreResult.status === 0) {
+    pass('scenario-B: restore --confirm succeeded (exit 0) when HEAD == ref');
   } else {
     fail(
-      'restore --confirm refused to clobber locally-modified file',
-      `exit=${refuseResult.status} out: ${refuseResult.stdout} err: ${refuseResult.stderr}`,
+      'scenario-B: restore --confirm succeeded when HEAD == ref',
+      `exit=${scenBRestoreResult.status} out: ${scenBRestoreResult.stdout} err: ${scenBRestoreResult.stderr}`,
     );
   }
 
-  let dirtyContent = '';
-  try { dirtyContent = readFileSync(dirtyTestFile, 'utf8').trim(); } catch {}
-  if (dirtyContent === 'locally-modified-content') {
-    pass('locally-modified file content preserved after refused restore');
+  let restoredContent = '';
+  try { restoredContent = readFileSync(scenBFile, 'utf8').trim(); } catch {}
+  if (restoredContent === goodContent) {
+    pass(`scenario-B: file content fully restored to snapshot version ("${restoredContent}")`);
   } else {
-    fail('locally-modified file content preserved', `got: "${dirtyContent}"`);
+    fail(
+      'scenario-B: file content fully restored to snapshot version',
+      `expected: "${goodContent}" got: "${restoredContent}"`,
+    );
   }
 
-  try { rmSync(dirtyTestFile, { force: true }); } catch {}
-} else {
-  fail('restore dirty-check test', 'no snapshot ref available');
+  try { rmSync(scenBFile, { force: true }); } catch {}
+}
+
+// h2: DRY-RUN still safe — damaged file must NOT be restored without --confirm
+{
+  const dryRunFile = join(TEMP_BASE, '.qe', '_dryrun_test.txt');
+  const origContent = 'DRY_RUN_ORIGINAL';
+  writeFileSync(dryRunFile, origContent + '\n');
+  nodeRun([SHADOW_CLI, 'snapshot', '--source', 'dryrun-good']);
+  const { stdout: dryRunRef } = shadowGit(['rev-parse', 'HEAD']);
+
+  // Damage the file on disk WITHOUT taking another snapshot.
+  writeFileSync(dryRunFile, '');
+
+  // restore WITHOUT --confirm — dry-run must leave the damaged file unchanged.
+  const dryRunResult = nodeRun([SHADOW_CLI, 'restore', dryRunRef, '.qe/_dryrun_test.txt']);
+
+  let dryRunContent = '';
+  try { dryRunContent = readFileSync(dryRunFile, 'utf8'); } catch {}
+  if (dryRunContent === '') {
+    pass('dry-run: damaged file is unchanged (still empty) without --confirm');
+  } else {
+    fail('dry-run: damaged file should be unchanged without --confirm', `got: "${dryRunContent}"`);
+  }
+
+  if (/DRY.RUN|dry.run|--confirm|--yes/i.test(dryRunResult.stdout + dryRunResult.stderr)) {
+    pass('dry-run: output mentions dry-run / --confirm requirement');
+  } else {
+    fail('dry-run: output should mention dry-run', `stdout: ${dryRunResult.stdout}`);
+  }
+
+  try { rmSync(dryRunFile, { force: true }); } catch {}
+}
+
+// h3: SCENARIO A — damage was itself snapshotted (ref=good, HEAD=damaged)
+{
+  const scenAFile = join(TEMP_BASE, '.qe', '_scenA_test.txt');
+  const scenAGood = 'SCENARIO_A_GOOD_v1';
+  writeFileSync(scenAFile, scenAGood + '\n');
+  nodeRun([SHADOW_CLI, 'snapshot', '--source', 'scenA-good']);
+  const { stdout: scenAGoodRef } = shadowGit(['rev-parse', 'HEAD']);
+
+  // Take a second snapshot with damaged content (HEAD moves to damaged commit).
+  writeFileSync(scenAFile, 'SCENARIO_A_DAMAGED\n');
+  nodeRun([SHADOW_CLI, 'snapshot', '--source', 'scenA-damaged']);
+
+  // Restore to the good ref with --confirm.
+  const scenARestoreResult = nodeRun([
+    SHADOW_CLI, 'restore', scenAGoodRef, '.qe/_scenA_test.txt', '--confirm',
+  ]);
+
+  if (scenARestoreResult.status === 0) {
+    pass('scenario-A: restore --confirm succeeded (exit 0) when HEAD != ref');
+  } else {
+    fail(
+      'scenario-A: restore --confirm succeeded when HEAD != ref',
+      `exit=${scenARestoreResult.status} out: ${scenARestoreResult.stdout} err: ${scenARestoreResult.stderr}`,
+    );
+  }
+
+  let scenAContent = '';
+  try { scenAContent = readFileSync(scenAFile, 'utf8').trim(); } catch {}
+  if (scenAContent === scenAGood) {
+    pass(`scenario-A: file content restored to good snapshot version ("${scenAContent}")`);
+  } else {
+    fail(
+      'scenario-A: file content restored to good snapshot version',
+      `expected: "${scenAGood}" got: "${scenAContent}"`,
+    );
+  }
+
+  try { rmSync(scenAFile, { force: true }); } catch {}
 }
 
 // ---------------------------------------------------------------------------
