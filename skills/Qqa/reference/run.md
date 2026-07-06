@@ -46,8 +46,37 @@ Same UUID is shared across all 3 documents for one test session.
 | `--api` | Force API call execution mode |
 | `--cli` | Force CLI execution mode |
 
-Browser QA loop (Playwright) is a Phase 6 extension. This subcommand absorbs single-pass scenario
-execution only.
+### Browser mode (Phase 6 — NOW LIVE)
+
+The real-browser QA loop is implemented in `scripts/lib/browser-driver.mjs` and drives Playwright
+on demand. Playwright is an **optional dependency**: if it is not installed, browser mode fails fast
+with an actionable install hint (`npm i -D playwright && npx playwright install chromium`). Probe
+first with `isBrowserAvailable()`.
+
+Driver API and typical order:
+
+```js
+import { isBrowserAvailable, launch, collectConsole, screenshot, snapshot, getPageText, close }
+  from '<qe>/scripts/lib/browser-driver.mjs';
+
+if (!(await isBrowserAvailable())) { /* recommend installing playwright, fall back to --api/--cli */ }
+const session = await launch({ url, headless: true, storageState: 'auth.json' });
+const { messages } = collectConsole(session);      // console.log/error captured for the report
+await screenshot(session, 'evidence/step-1.png');  // evidence
+const text = await getPageText(session);            // assertions
+await close(session);
+```
+
+- **Session reuse / auth**: pass `storageState` (a Playwright storageState JSON path or object) for
+  authenticated sessions (v1: manual capture). For a persistent profile pass `userDataDir`.
+- **Regression naming**: browser regression specs are named `qa-regression-<slug>.spec.ts`
+  (via `regressionSpecName(slug)`).
+- **Web-project detection**: `detectWebProject(cwd)` flags projects with web deps
+  (vite/next/nuxt/react-scripts/…) or config files (index.html/vite.config.*/next.config.*) so SIVS
+  can **recommend** `Qqa run --browser` (recommendation only — never auto-run).
+
+Live browser verification (real launch/screenshot/console) requires playwright to be installed; see
+the Phase 6 Wave 2 deferred checklist.
 
 ## Workflow
 

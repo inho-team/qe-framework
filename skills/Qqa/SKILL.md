@@ -28,7 +28,7 @@ The original skills remain valid and coexist:
 | Subcommand | Reference | Summary |
 |------------|-----------|---------|
 | `plan` | [`reference/plan.md`](reference/plan.md) | Generate test plans, manual test cases, regression suites, Figma verification notes, and bug report templates. Use this for QA documentation without executing the target. |
-| `run` | [`reference/run.md`](reference/run.md) | Generate scenario specs from a TASK_REQUEST, code path, URL, or description; execute browser/API/CLI scenarios once; verify and report results. Note: browser QA loop (Playwright) is a Phase 6 extension — this absorbs single-pass scenario execution only. |
+| `run` | [`reference/run.md`](reference/run.md) | Generate scenario specs from a TASK_REQUEST, code path, URL, or description; execute browser/API/CLI scenarios once; verify and report results. Browser QA loop (Playwright) is **live** via `scripts/lib/browser-driver.mjs` (Phase 6): `--browser` drives Playwright on demand (optional dependency; `detectWebProject` recommends it; regression specs named `qa-regression-<slug>.spec.ts`). |
 | `council` | [`reference/council.md`](reference/council.md) | Run the role-separated QA council: Planner -> Explorer -> Generator -> Healer -> Reporter, with bounded agent/tool contracts and optional PR automation. |
 
 ## Routing

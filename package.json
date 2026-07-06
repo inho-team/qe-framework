@@ -52,5 +52,8 @@
   },
   "type": "module",
   "private": false,
-  "license": "MIT"
+  "license": "MIT",
+  "optionalDependencies": {
+    "playwright": "^1.45.0"
+  }
 }
