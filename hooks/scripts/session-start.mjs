@@ -10,6 +10,7 @@ import { loadConfig } from './lib/config.mjs';
 import { readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { getLatestCodexJobStatus, reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
+import { topLearnings } from './lib/learnings.mjs';
 import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
 import {
   shortenSid,
@@ -485,6 +486,23 @@ try {
   }
 } catch {
   // Fault tolerance — ignore mistake registry errors
+}
+
+// --- Learning Registry: inject the decay-ranked top-N learnings (Qlearn) ---
+try {
+  const learningsPath = join(cwd, '.qe', 'learnings.md');
+  if (existsSync(learningsPath)) {
+    const top = topLearnings(readFileSync(learningsPath, 'utf8'), 5);
+    if (top.length > 0) {
+      const clip = (s) => (s && s.length > 140 ? s.slice(0, 139) + '…' : s || '');
+      const lines = top.map((l, i) => `  ${i + 1}. [${l.type}/${l.severity}] ${clip(l.learning)}`).join('\n');
+      messages.push(
+        `[LEARNINGS] Top ${top.length} by relevance (decay-ranked). Apply these:\n${lines}\n  Full list: .qe/learnings.md (manage via /Qlearn)`,
+      );
+    }
+  }
+} catch {
+  // Fault tolerance — ignore learning registry errors
 }
 
 // Cleanup: Remove stale intent-route.json for clean session start

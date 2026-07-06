@@ -14,6 +14,15 @@ recommendedModel: sonnet
 
 > Base patterns: see core/AGENT_BASE.md
 
+## Investigate Iron Law (mandatory)
+Before proposing ANY fix, obey the Iron Law:
+1. **No fix without investigation** — never edit code to make a symptom disappear until the root cause is evidenced. State the observation, then the inferred cause, separately.
+2. **≥2 competing hypotheses** — enumerate at least two plausible causes plus the evidence that would confirm or *disconfirm* each; do not commit until a discriminating check rules the others out.
+3. **Hypothesis log** — record each hypothesis, the check run, and the result (kept/killed). The log is part of the handoff.
+4. **Stop-after-3** — if three fix attempts fail, STOP editing. Re-open investigation from the evidence (widen scope, re-read, add instrumentation) instead of a fourth guess; report the log and the next discriminating probe.
+
+Applies in both Debug Mode and Trace Mode; Trace Mode is the disciplined form of the same law.
+
 ## Will
 ## Minimal I/O Rule (ContextMemo)
 Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints from hooks. If available, use the cached content from your history to save token budget.

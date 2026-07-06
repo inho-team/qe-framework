@@ -51,7 +51,10 @@ Required delegations:
 - Explorer is delegated to `Eqa-explorer`; it is black-box and must not read repository source.
 - Generator uses `Qplaywright-expert` to create deterministic CLI-runnable Playwright specs.
 - Healer is delegated to `Eqa-orchestrator`; it runs the test -> review -> fix loop and is capped at
-  3 iterations.
+  3 iterations. The Healer obeys the **Investigate Iron Law**: no fix without investigation, ≥2
+  competing hypotheses with disconfirming evidence, a hypothesis log, and **stop-after-3** — on the
+  third failed fix it stops patching and re-opens investigation from the evidence (report the log and
+  the next discriminating probe) instead of guessing again. (Same law as `Ecode-debugger`.)
 - Reporter is delegated to `Eqa-orchestrator` (Reporter mode); it writes a report and may comment on a PR, but must
   never merge or push.
 

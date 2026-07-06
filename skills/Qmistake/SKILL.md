@@ -136,3 +136,10 @@ Only unresolved entries are injected. If there are more than 10, show only criti
 - Auto-**record** mistakes without user confirmation (auto-extraction produces candidates only; promotion is always user-confirmed)
 - Delete entries (only resolve)
 - Modify project code or framework files
+
+## See also: Qlearn (superset)
+`Qmistake` records mistakes to `.qe/MISTAKE.md`. **`/Qlearn`** is the broader
+cross-session learning memory (mistakes + conventions + gotchas + decisions) in
+`.qe/learnings.md`, ranked by time-decayed relevance and injected top-N at session
+start. Prefer `Qlearn add --type mistake` for new lessons that benefit from decay
+ranking; `Qmistake` stays valid and the two registries coexist.
