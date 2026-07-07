@@ -245,6 +245,10 @@ All skills MUST respond in the same language the user used in their most recent 
 - All VERIFY_CHECKLIST checkboxes checked → ✅ Complete
 - Completed task files do not need to be referenced.
 
+### Memory Boundaries
+- **auto-memory** (`~/.claude/.../memory/`): AI 행동 교정, 사용자 선호, cross-project reference를 저장한다.
+- **Qlearn** (`.qe/learnings.md`): 프로젝트 특정 기술 교훈(mistake/gotcha/decision/convention)을 우선 기록한다. 같은 교훈을 auto-memory와 이중 저장하지 않는다.
+
 ### Codex Runtime Policy
 When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
 - **Stage defaults** — without Codex, all SIVS stages use Claude. When Codex is available, Spec and Supervise stay Claude-led while Implement and Verify prefer Codex; explicit `.qe/sivs-config.json` entries can override this.

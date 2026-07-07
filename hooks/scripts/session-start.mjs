@@ -295,17 +295,36 @@ if (existsSync(stylePath) || existsSync(qeDir)) {
   );
 }
 
-// Inject the Codex Runtime Policy as a COMPACT POINTER. Codex is preferred for
-// token-heavy implementation/verification when available; background is allowed
-// only with explicit result retrieval. Full rule lives in QE_CONVENTIONS.md.
+// Inject the Codex Runtime Policy as a COMPACT POINTER — but ONLY when Codex is
+// actually in the SIVS routing. A pure-Claude session (no codex stage/profile)
+// doesn't need the Codex foreground/background operating rules, saving ~115
+// tokens. Fail-safe: if .qe/sivs-config.json is missing or unreadable, KEEP
+// injecting so behavior never regresses. Full rule lives in QE_CONVENTIONS.md.
 if (existsSync(conventionsPath) || existsSync(qeDir)) {
-  messages.push(
-    '[QE CODEX RUNTIME] Prefer Codex for SIVS Implement/Verify and bounded repo search when available; ' +
-    'keep Spec/Supervise Claude-led unless explicitly routed otherwise. Use foreground for short Codex tasks. ' +
-    'For long Codex jobs, --background is allowed only if you retrieve results with /codex:status and ' +
-    '/codex:result <job-id> before final reporting. Keep Codex output concise: files, lines, summary, next action. ' +
-    'Full rule: QE_CONVENTIONS.md → Codex Runtime Policy.'
-  );
+  let injectCodexRuntime = true; // fail-safe default
+  try {
+    const sivsPath = join(cwd, '.qe', 'sivs-config.json');
+    if (existsSync(sivsPath)) {
+      const sivs = JSON.parse(readFileSync(sivsPath, 'utf8'));
+      const profileHasCodex = typeof sivs.profile === 'string' && sivs.profile.includes('codex');
+      const stageHasCodex = ['spec', 'implement', 'verify', 'supervise'].some(
+        (s) => sivs[s] && sivs[s].engine === 'codex'
+      );
+      injectCodexRuntime = profileHasCodex || stageHasCodex;
+    }
+    // sivs-config absent → injectCodexRuntime stays true (fail-safe, no regression)
+  } catch {
+    injectCodexRuntime = true; // read/parse error → fail-safe inject, never throw
+  }
+  if (injectCodexRuntime) {
+    messages.push(
+      '[QE CODEX RUNTIME] Prefer Codex for SIVS Implement/Verify and bounded repo search when available; ' +
+      'keep Spec/Supervise Claude-led unless explicitly routed otherwise. Use foreground for short Codex tasks. ' +
+      'For long Codex jobs, --background is allowed only if you retrieve results with /codex:status and ' +
+      '/codex:result <job-id> before final reporting. Keep Codex output concise: files, lines, summary, next action. ' +
+      'Full rule: QE_CONVENTIONS.md → Codex Runtime Policy.'
+    );
+  }
 }
 
 // Codex asset auto-sync (drift detection). Claude has no "plugin updated" hook
@@ -422,7 +441,7 @@ try {
       const lastEntry = JSON.parse(lines[lines.length - 1]);
       const lastDate = new Date(lastEntry.timestamp);
       const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSince >= 7) {
+    if (daysSince >= 14) {
       messages.push(`[GC] Last garbage collection was ${daysSince} days ago. Run ${skillCommand('Qgc')} to scan for code quality issues.`);
     }
     }
