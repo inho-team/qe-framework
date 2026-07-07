@@ -626,7 +626,7 @@ if (toolName === 'Agent') {
   }
 }
 
-// --- Qutopia QA mode: verify loop reminder ---
+// --- Qexecute -utopia QA mode: verify loop reminder ---
 const currentCalls = stats.tool_calls;
 const utopia = state.utopia_state || readStandaloneUtopiaState(cwd);
 if (utopia && utopia.enabled && utopia.mode === 'qa') {
@@ -645,7 +645,7 @@ if (utopia && utopia.enabled && utopia.mode === 'qa') {
   }
 }
 
-// --- Qutopia safety rails (hard block while autonomous mode is active) ---
+// --- Qexecute -utopia safety rails (hard block while autonomous mode is active) ---
 // Inert in normal sessions: only runs when utopia_state.enabled and not overridden.
 if (utopia && utopia.enabled && !utopia.allowUnsafe && (isShellTool(toolName) || ['Write', 'Edit'].includes(toolName))) {
   try {

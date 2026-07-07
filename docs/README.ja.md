@@ -103,9 +103,9 @@ Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 - quota 制限で runner が使えない場合は `--role-override` で一時的に再割り当てします。
 - この override は現在の実行だけに適用され、`team-config.json` は書き換えません。
 
-## ⚠️ 自律実行モード (`/Qutopia` / `$Qutopia`)
+## ⚠️ 自律実行モード (`/Qexecute -utopia` / `$Qexecute -utopia`)
 
-`Qutopia` は **すべての確認プロンプトをスキップ** して自動で進行させるセッションスイッチです。Claude では `/Qutopia`、Codex では `$Qutopia` を使います。作業は速くなりますが、誤ったファイルのコミットや `main` への直接 push といったリスクも伴います。
+`Qexecute -utopia` は **すべての確認プロンプトをスキップ** して自動で進行させるセッションスイッチです。Claude では `/Qexecute -utopia`、Codex では `$Qexecute -utopia` を使います。作業は速くなりますが、誤ったファイルのコミットや `main` への直接 push といったリスクも伴います。
 
 **有効化前の必須チェック**:
 1. 要件が明確か（アトミックな checklist あり）
@@ -114,4 +114,4 @@ Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 4. 共有ブランチ（`main`/`master`）ではないか
 5. 自動コミット・自動イテレーションを許容できるか
 
-全ガイドと ON/OFF の推奨パターンは [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling) を参照してください。**セッション終了前に Claude は `/Qutopia off`、Codex は `$Qutopia off` を実行**してください。
+全ガイドと ON/OFF の推奨パターンは [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling) を参照してください。**セッション終了前に Claude は `/Qexecute -utopia off`、Codex は `$Qexecute -utopia off` を実行**してください。

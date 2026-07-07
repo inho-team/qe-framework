@@ -248,12 +248,12 @@ On "Generate & Execute" with multiple tasks:
 
 ## Autonomous Mode Support
 
-When called from Qutopia (autonomous mode), Qgenerate-spec:
+When called from Qexecute -utopia (autonomous mode), Qgenerate-spec:
 - Skips all interaction prompts — auto-selects the documented default
 - Auto-proceeds through Steps 1-3 without user confirmation
 - Sets `<!-- chained-from: Qgenerate-spec -->` on generated TASK_REQUEST files
 
-See `Qutopia` for autonomous execution modes (`--work`, `--qa`).
+See `Qexecute -utopia` for autonomous execution modes (`-utopia`, `-utopia -verify`).
 
 ## Document Writing Rules
 

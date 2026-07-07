@@ -264,9 +264,9 @@ See `docs/CLAUDE_CODE_FEATURES.md` for verified feature reference with minimum v
 
 The following are intentional design trade-offs, not violations of the Mandatory Obligations:
 
-### 1. Qutopia SIMPLE Classification
+### 1. Qexecute -utopia SIMPLE Classification
 
-Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may execute without a formal TASK_REQUEST document. This is an intentional trade-off for micro-task velocity. The canonical SIMPLE criteria are defined in `skills/Qutopia/SKILL.md` (Single Source of Truth).
+Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may execute without a formal TASK_REQUEST document. This is an intentional trade-off for micro-task velocity. The canonical SIMPLE criteria are defined in `skills/Qexecute/SKILL.md` (`-utopia` section, Single Source of Truth).
 
 **Rationale**: Requiring a full spec for a one-line fix would add overhead that exceeds the risk of the change itself.
 
@@ -276,9 +276,9 @@ Experimental optimization loops (Qautoresearch) use metric convergence as verifi
 
 **Rationale**: In the experimental domain, hypothesis-metric feedback is the natural verification mechanism. Forcing VERIFY_CHECKLIST onto iterative experiments would break the tight feedback loop that makes experimentation effective.
 
-### 3. Qutopia Retry Loop
+### 3. Qexecute -utopia Retry Loop
 
-Retry loops in Qutopia `--work`/`--qa` modes may re-execute failed items up to 3 (work) or 5 (qa) times without generating a REMEDIATION_REQUEST. Full remediation spec generation is required only when retry limits are exceeded and the system escalates to the user.
+Retry loops in Qexecute -utopia modes (`-utopia` / `-utopia -verify`) may re-execute failed items up to 3 (work) or 5 (qa) times without generating a REMEDIATION_REQUEST. Full remediation spec generation is required only when retry limits are exceeded and the system escalates to the user.
 
 **Rationale**: For simple failures (test flakiness, minor syntax errors), generating a full remediation spec is disproportionate. The retry limit ensures that persistent failures do escalate properly.
 

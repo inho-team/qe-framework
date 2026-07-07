@@ -49,7 +49,7 @@ WORKFLOW
   /Qexecute [UUID]        Execute tasks with verification ($Qexecute on Codex)
   /Qcommit                 Commit & push (human-style, no AI traces)
   /Qupdate                 Update QE (Claude + Codex) and codex-plugin-cc bridge
-  /Qutopia [on|off]        Toggle fully autonomous mode ($Qutopia on Codex)
+  /Qexecute -utopia [on|off]        Toggle fully autonomous mode ($Qexecute -utopia on Codex)
 
 DEVELOPMENT
   /Qexecute -verify          Quality loop: test → review → fix ($Qexecute -verify on Codex)

@@ -1,6 +1,6 @@
 ---
 name: Qautoresearch
-description: "Autonomous experiment loop inspired by Karpathy's autoresearch. Repeatedly modifies target files, runs an experiment, evaluates a single metric, and keeps or discards the change — looping indefinitely until manually stopped. Use when optimizing code through iterative experimentation: ML training, algorithm benchmarks, build optimization, performance tuning, multi-file refactoring. Distinct from Edeep-researcher (web research) and Qutopia (task confirmation skip) — this skill runs a code-modify-evaluate loop."
+description: "Autonomous experiment loop inspired by Karpathy's autoresearch. Repeatedly modifies target files, runs an experiment, evaluates a single metric, and keeps or discards the change — looping indefinitely until manually stopped. Use when optimizing code through iterative experimentation: ML training, algorithm benchmarks, build optimization, performance tuning, multi-file refactoring. Distinct from Edeep-researcher (web research) and Qexecute -utopia (task confirmation skip) — this skill runs a code-modify-evaluate loop."
 metadata: 
 source: "https://github.com/karpathy/autoresearch"
 author: Andrej Karpathy (pattern), inho-team (QE adaptation)
@@ -10,7 +10,7 @@ triggers: autoresearch, experiment loop, autonomous experiment, iterate code, op
 role: specialist
 scope: implementation
 output-format: results.tsv + git branch
-related-skills: Qutopia, Edeep-researcher, Ecode-debugger, Ecode-reviewer, Ecompact-executor
+related-skills: Qexecute -utopia, Edeep-researcher, Ecode-debugger, Ecode-reviewer, Ecompact-executor
 keywords: autoresearch, experiment, autonomous, loop, metric, optimize, iterate, keep, discard, git branch, results.tsv, multi-file
 invocation_trigger: When the user wants to run iterative code-modify-evaluate experiments for optimization, ML training, algorithm benchmarks, or performance tuning.
 recommendedModel: haiku
@@ -23,7 +23,7 @@ Karpathy's autoresearch pattern generalized. Repeatedly modify target files → 
 ## When to Use
 - **This skill**: iteratively optimize code against a single metric (ML training, benchmarks, build speed, perf tuning, multi-file refactoring)
 - **Edeep-researcher**: web-based research and comparative analysis
-- **Qutopia**: skip confirmation steps on existing tasks
+- **Qexecute -utopia**: skip confirmation steps on existing tasks
 
 ## Phase 1: Setup (one-time user conversation)
 

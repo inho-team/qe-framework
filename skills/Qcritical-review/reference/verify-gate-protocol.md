@@ -91,13 +91,13 @@ loop re-enters and re-verifies. The Verify gate's default backward target is
    `Qexecute -verify` 3-round cap. After 3 rounds still FAIL → **escalate to the
    user** (do not auto-proceed).
 
-### Utopia `--work` (autonomous, non-interactive)
-The gate still runs for `type:code`/`other` in `--work` (the `--work` skip
+### Qexecute `-utopia` (autonomous, non-interactive)
+The gate still runs for `type:code`/`other` in `-utopia` (the work-path skip
 applies only to docs/analysis). It runs non-interactively: WARN is
 auto-accepted and logged; FAIL re-enters the fix loop within the 3-round cap; on
 cap exhaustion with FAIL the task is **not** marked complete — it is left
 `needs-attention` with a blocking marker for the next session (no silent
-auto-proceed past a FAIL). `--qa` mode is mandatory as before.
+auto-proceed past a FAIL). `-utopia -verify` mode is mandatory as before.
 
 ## Edge inputs
 

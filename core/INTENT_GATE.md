@@ -20,7 +20,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Commit** | "commit", "push", "save changes", "커밋", "푸시" | Qcommit |
 | **Refresh** | "refresh analysis", "sync analysis", ".qe/analysis", "analysis snapshot", "분석 데이터 갱신" | Qrefresh |
 | **Plugin update** | "update plugin", "upgrade", "update qe", "update codex", "codex plugin" | Qupdate |
-| **Utopia mode** | "utopia", "autonomous", "no questions", "auto execute" | Qutopia |
+| **Autonomous mode (Qexecute -utopia)** | "utopia", "autonomous", "no questions", "auto execute" | Qexecute |
 | **Help** | "help", "how to use", "show commands", "command catalog", "도움말" | Qhelp |
 | **Resume** | "continue", "resume", "restore" | Qresume |
 | **Handoff** | "handoff", "save state", "save context", "end session", "컨텍스트 저장" | Qcompact |

@@ -56,7 +56,7 @@
     "clarify-requirements/unclear-spec": "Qrequirements-clarity",
     "lesson-learned/lessons/retrospective": "Qlesson-learned",
     "compact/save-context/save state/handoff/end session/컨텍스트/상태 저장": "Qcompact",
-    "utopia/autonomous": "Qutopia",
+    "utopia/autonomous": "Qexecute -utopia",
     "update-plugin/upgrade-qe/update-codex/codex-plugin": "Qupdate",
     "jira/jira-ticket/sprint-manage": "Qjira-cli",
     "github-issue/feature-request/report-issue/이슈-올려/이슈-작성/버그-리포트/qissue": "Qissue",

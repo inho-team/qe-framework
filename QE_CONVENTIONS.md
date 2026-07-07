@@ -338,7 +338,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
 | `Qmcp sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
-| `Qutopia` | Fully autonomous execution mode |
+| `Qexecute -utopia` | Fully autonomous execution mode |
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |
 | `Qgc` | Code garbage collection (drift, violations, dead code) |
 

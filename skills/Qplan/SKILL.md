@@ -129,7 +129,7 @@ Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:
 
 ### Step 3.5: Session Binding (MANDATORY — all scales)
 
-Bind this plan to the current terminal session so consumer skills (Qgs/Qexecute/Qexecute -verify/Qexecute) resolve to the right plan automatically.
+Bind this plan to the current terminal session so consumer skills (Qgs/Qexecute/Qexecute -verify) resolve to the right plan automatically.
 
 1. **Project-wide pointer** (always): write `{slug}\n` into `.qe/planning/ACTIVE_PLAN`.
 2. **Session-scoped binding** (best-effort): read `.qe/state/current-session.json` written by the session-start hook. If it parses and has a `session_id`, write `.qe/planning/.sessions/{session_id}.json`:

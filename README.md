@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->29<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->28<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 **A transparent, auditable, cross-model quality gate for coding agents.** Three things set QE apart:
 
@@ -331,7 +331,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->29<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->28<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic
@@ -354,33 +354,33 @@ optional expert corpus.
 | Category | Skills | Count |
 |----------|--------|-------|
 | **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qexecute` `Qexecute` `Qexecute -verify` `Qinit` | 6 |
-| **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
+| **Autonomy** ⚠️ | `Qexecute -utopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` `Qdoctor` | 6 |
 | **Project** | `Qcommit` `Qrefresh --sync` | 2 |
 | **Quality** | `Qgc` `Qsource-verifier` | 2 |
 | **Research** | `Qautoresearch` `Qfact-checker` `Qsource-verifier` | 3 |
 | **More** | `/Qhelp find` on Claude; `$Qhelp find` on Codex | Extended catalog |
 
-#### ⚠️ Autonomous Mode (`/Qutopia` / `$Qutopia`) — Use With Caution
+#### ⚠️ Autonomous Mode (`/Qexecute -utopia` / `$Qexecute -utopia`) — Use With Caution
 
-`Qutopia` flips a session-level switch (`.qe/state/utopia-state.json`) that makes **every** subsequent skill:
+`Qexecute -utopia` flips a session-level switch (`.qe/state/utopia-state.json`) that makes **every** subsequent skill:
 
 - **Skip interaction prompts** and auto-pick the first (recommended) option
 - **Auto-approve** `Qexecute` execution and `Qgenerate-spec` outputs
-- **Auto-commit** (and, with `--ralph`, loop until `VERIFY_CHECKLIST` is fully green)
+- **Auto-commit** (and, with `-ralph`, loop until `VERIFY_CHECKLIST` is fully green)
 - On Claude, merge broad tool permissions (`Bash(*)`, `Agent(*)`, `WebFetch`, …) into `.claude/settings.json`; on Codex, keep autonomy in QE state and rely on Codex session policy plus QE hook rails
 
-**Why this is dangerous.** The "recommended" option is not always what *you* would pick. In an ambiguous spec or a mixed-scope commit, the default can silently commit wrong files, push to `main`, or chain into irreversible steps. Qutopia trades your oversight for wall-clock speed.
+**Why this is dangerous.** The "recommended" option is not always what *you* would pick. In an ambiguous spec or a mixed-scope commit, the default can silently commit wrong files, push to `main`, or chain into irreversible steps. Qexecute -utopia trades your oversight for wall-clock speed.
 
-**Only enable Qutopia when ALL of the following hold:**
+**Only enable Qexecute -utopia when ALL of the following hold:**
 
 1. The task is well-defined and repetitive (e.g., applying a known fix across many files)
 2. Every step is reversible (no `push --force`, no schema migrations on prod, no destructive deletes)
 3. You accept that commits/pushes may happen without re-confirmation
 
-**Do NOT enable Qutopia for:** exploratory work, new project kick-offs, ambiguous requirements, first-time tools, or anything on a shared/production branch.
+**Do NOT enable Qexecute -utopia for:** exploratory work, new project kick-offs, ambiguous requirements, first-time tools, or anything on a shared/production branch.
 
-**Recommended lifecycle:** Claude `/Qutopia status` -> `/Qutopia` (or `--work` / `--qa`) -> `/Qutopia off`; Codex `$Qutopia status` -> `$Qutopia` -> `$Qutopia off`. Leaving it on across sessions is how accidents happen.
+**Recommended lifecycle:** Claude `/Qexecute -utopia status` -> `/Qexecute -utopia` (or `-utopia -verify`) -> `/Qexecute -utopia off`; Codex `$Qexecute -utopia status` -> `$Qexecute -utopia` -> `$Qexecute -utopia off`. Leaving it on across sessions is how accidents happen.
 
 ## Agent Fleet (<!--qe:agents-->20<!--/qe:agents--> agents)
 

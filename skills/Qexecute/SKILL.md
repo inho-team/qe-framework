@@ -10,9 +10,9 @@ allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 # Qexecute — Unified Execution Engine
 
 ## Role
-The single entry point for executing spec documents. Qexecute consolidates the former
-`Qrun-task` (sequential), `Qatomic-run` (parallel wave), and `Qcode-run-task` (quality loop).
-It reads the actual `TASK_REQUEST` — not the user's phrasing — to decide **how** to execute.
+The single entry point for executing spec documents. Qexecute consolidates the three former
+execution engines — sequential run, parallel-wave atomic, and the code quality loop — into one
+skill. It reads the actual `TASK_REQUEST` — not the user's phrasing — to decide **how** to execute.
 
 > **MANDATORY:** All user confirmations MUST use the interaction adapter. Claude MUST use
 > `AskUserQuestion`. Codex interactive may use concise plain-text choices. Codex
@@ -25,7 +25,7 @@ It reads the actual `TASK_REQUEST` — not the user's phrasing — to decide **h
 |------------|------|----------|
 | `Qexecute {UUID}` | **default** | Read the spec → classify → **sequential** or **parallel wave** |
 | `Qexecute -verify {UUID}` | **verify** | test → review → fix → retest quality loop on already-changed code |
-| `Qexecute -utopia …` | **modifier** | No-confirmation / auto-approve. Combines with default or `-verify`. *(implemented in Task B; currently a reserved stub — see “-utopia (reserved)”.)* |
+| `Qexecute -utopia …` | **modifier** | Fully autonomous: no-confirmation / auto-approve, combines with default or `-verify`. Sub-flags `-ralph`, `off`, `status`. See “-utopia — Fully Autonomous Execution”. |
 | `-loop` | *not owned* | Redirect to `{adapter.commandPrefix}Qautoresearch` (code-modify-evaluate loop) |
 | `-scenario` | *not owned* | Redirect to `{adapter.commandPrefix}Qscenario-test` (scenario/E2E) |
 
@@ -104,8 +104,8 @@ Delegate to `Etask-executor`. Pick the worker model dynamically:
 
 | Classification | Worker model | Origin |
 |----------------|--------------|--------|
-| **wave** (parallel) | `sonnet` Etask-executor, one per active item | former Qatomic-run |
-| **sequential** | `haiku` Etask-executor | former Qrun-task |
+| **wave** (parallel) | `sonnet` Etask-executor, one per active item | wave engine |
+| **sequential** | `haiku` Etask-executor | sequential engine |
 
 Per-item `<!-- complexity: high -->` tags override upward to `sonnet`. On Codex the installed
 TOML maps `haiku → gpt-5.3-codex-spark` (low), `sonnet → gpt-5.4-mini` (medium),
@@ -181,7 +181,7 @@ the **Next Task Prompt** (remaining pending tasks).
 # Verify Mode (`-verify`) — Quality Loop
 
 Runs the **test → review → fix → retest** cycle on code already on disk. Equivalent to the
-former `Qcode-run-task`. Entered directly (`Qexecute -verify {UUID}`) or automatically after
+former `Qexecute -verify`. Entered directly (`Qexecute -verify {UUID}`) or automatically after
 default-mode Step 4.5 for `type: code`.
 
 **Default execution:** delegate the whole loop to `Eqa-orchestrator` (saves main context; it
@@ -213,12 +213,77 @@ language; state `none` explicitly if empty). Do not end on a purely positive sum
 
 ---
 
-# `-utopia` (reserved)
+# `-utopia` — Fully Autonomous Execution (modifier)
 
-`-utopia` is the no-confirmation / auto-approve modifier and is **implemented in Task B**
-(`44837422`, Qutopia absorption). Until then this flag is a reserved stub: if passed, report
-that `-utopia` is not yet active and proceed in normal (confirmed) mode. Do not silently skip
-confirmations.
+`-utopia` runs execution with **no confirmations and auto-allowed tool permissions**. It is a
+modifier: it layers onto default (execute) or `-verify` (quality loop). Absorbed from the former
+`Qexecute -utopia` skill — the state contract, safety rails, and Stop-hook loop are preserved unchanged.
+
+## Flag mapping
+| Invocation | Former | Behavior |
+|------------|--------|----------|
+| `Qexecute -utopia` | `Qexecute -utopia` / `--work` | Autonomous spec pipeline, **no** quality loop. Bare form auto-classifies SIMPLE/COMPLEX. |
+| `Qexecute -utopia -verify` | `--qa` | Autonomous + mandatory quality loop (`-verify`) + item-by-item VERIFY check. |
+| `Qexecute -utopia -ralph` | `--ralph` | Session-level Stop-hook loop: auto-repeat the PSE chain until VERIFY_CHECKLIST is fully `[x]`. Auto-picks work/qa internally; mutually exclusive with a manual `-verify` selection. |
+| `Qexecute -utopia off` | `Qexecute -utopia off` | Disable autonomous mode, restore confirmations, remove Qexecute-added permissions. |
+| `Qexecute -utopia status` | `Qexecute -utopia status` | Show current autonomous state. |
+| `Qexecute -utopia -ralph off` | `--ralph off` | Clear ralph-state, exit persistent mode immediately. |
+
+## State contract (unchanged — hooks depend on it)
+- `.qe/state/utopia-state.json`: `{ enabled, mode: "auto|work|qa", allowUnsafe: false, activatedAt }`.
+  Hooks also read `unified-state.json.utopia_state` for backward compat.
+- `.qe/state/ralph-state.json`: persists the Stop-hook loop across stop events.
+- Skills check autonomy by reading `utopia-state.json` → `enabled:true` = skip prompts, auto-select
+  first (recommended) option (except destructive/irreversible choices).
+
+## Pre-flight safety (MANDATORY before any change)
+1. **Clean tree**: `git status --porcelain` must be empty, else STOP ("commit or stash first").
+2. **Branch**: refuse `main`/`master`; auto-create + switch to `utopia/<timestamp>`, record pre-run SHA.
+3. **Scope summary**: print expected touched files/dirs before changing anything.
+4. Create `utopia-state.json` (`allowUnsafe:false`).
+5. Permissions — **Claude**: merge `permissions.allow` into `.claude/settings.json` (preserve existing:
+   Read/Write/Edit/Glob/Grep/Bash(*)/Agent(*)/WebFetch/WebSearch/NotebookEdit). **Codex**: do NOT
+   write `.claude/settings.json`; rely on Codex session policy + QE hook rails.
+
+## Enforced safety rails (not guidance)
+While autonomous, the PreToolUse hook `hooks/scripts/lib/utopia-guard.mjs` **hard-blocks** regardless
+of what the loop attempts: remote push (`git push`/`--force`), destructive git (`reset --hard`,
+`clean -f`, `checkout/restore .`, `branch -D`, `stash drop/clear`), destructive shell (`rm -r`,
+redirect-clobber, `find -delete`, `truncate`, `dd of=`), sensitive-file writes (`.env`, migrations,
+`*.tf`, `Dockerfile`, `secrets/`, keys/certs, k8s), and non-`.qe/` writes on `main`/`master`. Rails are
+inert in normal sessions. Escape hatch `allowUnsafe:true` disables all rails — **never in a shared repo.**
+
+## Request routing
+- **Bare `-utopia`**: classify SIMPLE (≤3 files, single action, no arch, <3 items → execute directly,
+  no formal TASK_REQUEST) vs COMPLEX (any of: >3 files / new feature / arch / ≥3 items → spec pipeline).
+  Auto-select work vs `-verify`: `type:code`+tests or +auth/crypto/payment → `-verify`; else → work.
+- **Pre-execution gate**: no anchor (file path / symbol / issue# / error / code block / numbered steps)
+  AND ≤20 words → redirect to `{adapter.commandPrefix}Qgs` for scoping. `force:`/`!` prefix bypasses.
+
+## Retry loop (work + `-verify`)
+On verification failure: diagnose (implementation gap / error / spec conflict / environment) → strategy
+→ re-execute failed items only → re-verify. Approach escalation: 1st retry same method, 2nd via
+`Ecode-debugger`, then escalate. Max retries: work 3, `-verify` 5. Record `retry` block in utopia-state.
+`-verify` mode: after all tasks, run **Cross-task Audit** (file conflicts, i18n gaps, style drift).
+
+## `-ralph` loop
+Stop hook detects remaining `[ ]` VERIFY items and re-injects the next until all `[x]`. Safety limits:
+`maxLoops` 50, `maxPerHour` 100, `maxConsecutiveFailures` 3 (circuit breaker → skip+log), 30-min stale
+guard. On `tool_calls > 200`/iteration → auto `{adapter.commandPrefix}Qcompact` then resume. Progress
+`[Ralph] N/M done — Loop #k`; final report `.qe/state/ralph-report.json`.
+
+## Dynamic workflow escalation
+When a task has ≥10 checklist items or touches ≥10 files, PSE may not be the best shape: suggest a
+dynamic workflow ("Create a workflow for this task" / ultracode effort), optionally paired with a
+session goal (`/goal all tests pass, or stop after N turns`) for unattended runs. Fallback: proceed
+with `-utopia` / `-utopia -verify` as normal.
+
+## Common rules
+Skill priority holds (autonomous still routes git commit through `{adapter.commandPrefix}Qcommit`;
+release/admin via `qe-admin-mcp`; QE_CONVENTIONS override map always applies). No intermediate user
+prompts after activation. After a run: print `git diff --stat <pre-run-sha>..HEAD` and the rollback
+command `git reset --hard <pre-run-sha>` (+ `git branch -D utopia/<ts>`). `-utopia off` restores
+confirmations and removes only Qexecute-added permissions.
 
 ---
 

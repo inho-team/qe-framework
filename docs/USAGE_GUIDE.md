@@ -319,8 +319,8 @@ Claude: /Qsecret
 Codex:  $Qsecret
 Claude: /Qmcp sync
 Codex:  $Qmcp sync
-Claude: /Qutopia status   # check autonomous mode (read section 11 first!)
-Codex:  $Qutopia status
+Claude: /Qexecute -utopia status   # check autonomous mode (read section 11 first!)
+Codex:  $Qexecute -utopia status
 ```
 
 Optional expert-library MCP guidance is distributed separately from this
@@ -339,9 +339,9 @@ Capabilities:
 
 See [SECRETS.md](SECRETS.md) for commands and backend behavior.
 
-## 11. Autonomous Mode (`/Qutopia` / `$Qutopia`) — ⚠️ Read Before Enabling
+## 11. Autonomous Mode (`/Qexecute -utopia` / `$Qexecute -utopia`) — ⚠️ Read Before Enabling
 
-`Qutopia` turns on a session-level flag that tells **every** QE skill to stop asking questions and drive itself. It is the single fastest way to finish a well-scoped task, and also the single fastest way to commit the wrong files, push to `main`, or chain into destructive operations you didn't approve.
+`Qexecute -utopia` turns on a session-level flag that tells **every** QE skill to stop asking questions and drive itself. It is the single fastest way to finish a well-scoped task, and also the single fastest way to commit the wrong files, push to `main`, or chain into destructive operations you didn't approve.
 
 ### What it actually does
 
@@ -351,7 +351,7 @@ When `.qe/state/utopia-state.json` is `enabled: true`:
 - `Qgenerate-spec` skips the "Generate & Execute / Generate Only / Needs Revision" prompt and proceeds to Atomic-Run.
 - `Qexecute` skips Step 2 approval and moves files straight to `in-progress`.
 - `Qcommit` runs automatically after task completion.
-- `--ralph` loops the PSE Chain until `VERIFY_CHECKLIST` is fully green, without human gate between rounds.
+- `-utopia -ralph` loops the PSE Chain until `VERIFY_CHECKLIST` is fully green, without human gate between rounds.
 - Claude: `.claude/settings.json` gains broad tool permissions: `Bash(*)`, `Agent(*)`, `WebFetch`, `WebSearch`, `NotebookEdit`.
 - Codex: `.claude/settings.json` is not modified; autonomy is controlled by QE state plus the active Codex session policy and QE hook rails.
 
@@ -359,33 +359,33 @@ When `.qe/state/utopia-state.json` is `enabled: true`:
 
 | Claude | Codex | Behavior |
 |--------|-------|----------|
-| `/Qutopia status` | `$Qutopia status` | Show current state — run this **before** toggling |
-| `/Qutopia` | `$Qutopia` | Auto-classify SIMPLE vs COMPLEX, pick work/qa mode |
-| `/Qutopia --work` | `$Qutopia --work` | Spec -> Run -> Verify (no quality loop) |
-| `/Qutopia --qa` | `$Qutopia --qa` | Spec -> Run -> Verify + full code-quality loop |
-| `/Qutopia --ralph` | `$Qutopia --ralph` | Loop until VERIFY_CHECKLIST is fully checked (no human gate between rounds) |
-| `/Qutopia --ralph off` | `$Qutopia --ralph off` | Stop Ralph loop |
-| `/Qutopia off` | `$Qutopia off` | Disable — **always run this before ending the session** |
+| `/Qexecute -utopia status` | `$Qexecute -utopia status` | Show current state — run this **before** toggling |
+| `/Qexecute -utopia` | `$Qexecute -utopia` | Auto-classify SIMPLE vs COMPLEX, pick work/qa mode |
+| `/Qexecute -utopia` | `$Qexecute -utopia` | Spec -> Run -> Verify (no quality loop) |
+| `/Qexecute -utopia -verify` | `$Qexecute -utopia -verify` | Spec -> Run -> Verify + full code-quality loop |
+| `/Qexecute -utopia -ralph` | `$Qexecute -utopia -ralph` | Loop until VERIFY_CHECKLIST is fully checked (no human gate between rounds) |
+| `/Qexecute -utopia -ralph off` | `$Qexecute -utopia -ralph off` | Stop Ralph loop |
+| `/Qexecute -utopia off` | `$Qexecute -utopia off` | Disable — **always run this before ending the session** |
 
 ### ⚠️ Pre-flight Checklist (ALL must be true)
 
-Do not enable Qutopia unless you can honestly say yes to every one of these:
+Do not enable Qexecute -utopia unless you can honestly say yes to every one of these:
 
 1. **Requirements are explicit.** You have a concrete `TASK_REQUEST` with atomic checklist items, not a vague goal. Ambiguity + autonomy = wrong answer fast.
 2. **Every planned step is reversible.** No `push --force`, no schema migrations against prod, no `rm -rf`, no operations that mutate external systems (Slack, Jira, deploys). If something goes sideways you can `git reset`, revert the PR, and move on.
 3. **Commit scope is narrow.** The working tree only contains changes related to this task. Stray edits from other work will end up in the auto-commit.
-4. **You're not on a shared branch.** Never enable Qutopia while sitting on `main`/`master` on a team repo. Create a feature branch first.
-5. **You accept auto-commit and (with `--ralph`) auto-iteration** without re-confirmation per round.
+4. **You're not on a shared branch.** Never enable Qexecute -utopia while sitting on `main`/`master` on a team repo. Create a feature branch first.
+5. **You accept auto-commit and (with `-ralph`) auto-iteration** without re-confirmation per round.
 
-If any of these is false, keep Qutopia OFF and accept the prompts — the 10 extra minutes of interaction wait is cheaper than one wrong push.
+If any of these is false, keep Qexecute -utopia OFF and accept the prompts — the 10 extra minutes of interaction wait is cheaper than one wrong push.
 
 ### Safe patterns
 
 - ✅ **Batch patch across files** on a feature branch (e.g., applying a known rename across 30 files).
 - ✅ **Re-run a known-good PSE chain** after a minor spec tweak.
-- ✅ **Overnight `--ralph` loop** on an isolated branch with CI gating the PR.
+- ✅ **Overnight `-utopia -ralph` loop** on an isolated branch with CI gating the PR.
 
-### Unsafe patterns (leave Qutopia OFF)
+### Unsafe patterns (leave Qexecute -utopia OFF)
 
 - New project kick-off, active-client `Qinit` bootstrapping, ambiguous requirements.
 - ❌ First time using a skill or agent — you don't yet know what its "recommended" option is.
@@ -397,17 +397,17 @@ If any of these is false, keep Qutopia OFF and accept the prompts — the 10 ext
 
 ```
 git checkout -b feat/<scope>       # isolate blast radius
-<prefix>Qutopia status             # confirm it's OFF; prefix is / on Claude, $ on Codex
+<prefix>Qexecute -utopia status             # confirm it's OFF; prefix is / on Claude, $ on Codex
 <prefix>Qplan "do X"               # interactive planning (still wants you in the loop here)
 <prefix>Qgs Phase 1: ...           # generates TASK_REQUEST + VERIFY_CHECKLIST
 # Review the generated spec manually — this is your last chance to catch wrong defaults
-<prefix>Qutopia --work             # NOW flip the switch, for this bounded run only
+<prefix>Qexecute -utopia             # NOW flip the switch, for this bounded run only
 # ... skills execute without prompting ...
-<prefix>Qutopia off                # ALWAYS disable when the bounded run ends
-git log && git diff origin/main    # audit what Qutopia committed before pushing
+<prefix>Qexecute -utopia off                # ALWAYS disable when the bounded run ends
+git log && git diff origin/main    # audit what Qexecute -utopia committed before pushing
 ```
 
-Leaving Qutopia on across sessions is the single most common way to get surprise commits.
+Leaving Qexecute -utopia on across sessions is the single most common way to get surprise commits.
 
 ## 12. When To Read Which Doc
 

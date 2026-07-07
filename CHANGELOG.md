@@ -28,12 +28,19 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   | `Qrun-task {UUID}` | `Qexecute {UUID}` (auto sequential) |
   | `Qatomic-run {UUID}` | `Qexecute {UUID}` (auto parallel wave) |
   | `Qcode-run-task {UUID}` | `Qexecute -verify {UUID}` |
+  | `Qutopia` | `Qexecute -utopia` (modifier) |
+  | `Qutopia --work` | `Qexecute -utopia` |
+  | `Qutopia --qa` | `Qexecute -utopia -verify` |
+  | `Qutopia --ralph` | `Qexecute -utopia -ralph` |
 
   Qexecute classifies sequential vs parallel-wave from the TASK_REQUEST itself
   (≥5 items, wave width ≥2, non-overlapping file ownership) instead of the caller
-  pre-selecting. `-utopia` no-confirmation modifier is reserved (activated in a
-  follow-up). Routing, auto-chaining, docs, agents, core, validators, and the eval
-  case were updated accordingly.
+  pre-selecting. The former `Qutopia` autonomous-execution skill was absorbed into
+  the `-utopia` modifier — the safety rails (`utopia-guard.mjs`), state contract
+  (`utopia-state.json` / `ralph-state.json`), and Stop-hook ralph loop are unchanged;
+  only the user-facing invocation moved from `/Qutopia` to `/Qexecute -utopia`.
+  Routing, auto-chaining, docs, agents, core, validators, and the eval case were
+  updated accordingly.
 
 ### Deprecated / Merged skills
 

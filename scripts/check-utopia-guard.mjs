@@ -2,7 +2,7 @@
 /**
  * check-utopia-guard.mjs  (guard — auto-discovered by check-all.mjs)
  *
- * Pins the Qutopia safety-rail contract (trust-hardening Phase 4):
+ * Pins the Qexecute -utopia safety-rail contract (trust-hardening Phase 4):
  *   - the pure classifiers flag the right risky commands / paths,
  *   - and end-to-end, the PreToolUse hook HARD-BLOCKS them only when Utopia is active
  *     (a normal session, or allowUnsafe override, is completely unaffected).
@@ -101,7 +101,7 @@ const pushCall = { tool_name: 'Bash', tool_input: { command: 'git push origin fe
   const r = runPre(tempRepo({ enabled: true }), pushCall);
   expect(r.code === 2 && /Utopia rail/.test(r.stderr), `[integration] active utopia should block git push (exit ${r.code})`);
 }
-// standalone .qe/state/utopia-state.json is the Qutopia skill contract and must also enable rails
+// standalone .qe/state/utopia-state.json is the Qexecute -utopia skill contract and must also enable rails
 {
   const r = runPre(tempRepo({ enabled: true }, { standalone: true }), pushCall);
   expect(r.code === 2 && /Utopia rail/.test(r.stderr), `[integration] standalone utopia-state should block git push (exit ${r.code})`);
