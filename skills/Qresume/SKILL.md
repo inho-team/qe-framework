@@ -62,7 +62,7 @@ It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[
 
 ### Step 3: Suggest Next Actions
 Propose next actions based on restored context:
-- If there are incomplete tasks → guide with `{adapter.commandPrefix}Qrun-task {UUID}`
+- If there are incomplete tasks → guide with `{adapter.commandPrefix}Qexecute {UUID}`
 - If new work is needed → guide with `{adapter.commandPrefix}Qgenerate-spec`
 - If decisions need review → display decision list
 

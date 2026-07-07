@@ -86,7 +86,7 @@ function buildConfigWithFence(agentEntries, prelude = '', postlude = '') {
 
 test('(a) normal purge: QE skills + agents removed, receipt written', (t) => {
   const homeDir = makeHome({
-    skills: ['Qrun-task', 'Mbump'],
+    skills: ['Qexecute', 'Mbump'],
     agentNames: ['Etask-executor', 'Edeep-researcher'],
   });
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
@@ -106,7 +106,7 @@ test('(a) normal purge: QE skills + agents removed, receipt written', (t) => {
   assert.equal(result.configEdited, true, 'config.toml fence should be stripped');
 
   // Files should be gone
-  assert.ok(!fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qrun-task')), 'Qrun-task skill removed');
+  assert.ok(!fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qexecute')), 'Qexecute skill removed');
   assert.ok(!fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Mbump')), 'Mbump skill removed');
   assert.ok(!fs.existsSync(path.join(homeDir, '.codex', 'agents', 'Etask-executor.toml')), 'agent toml removed');
   assert.ok(!fs.existsSync(path.join(homeDir, '.codex', 'agents', 'Etask-executor.md')), 'agent md removed');
@@ -175,7 +175,7 @@ test('(c) no ~/.codex directory -> graceful silent skip', (t) => {
 
 test('(d) non-QE content fully preserved after purge', (t) => {
   const homeDir = makeHome({
-    skills: ['Qrun-task'], // one real QE skill
+    skills: ['Qexecute'], // one real QE skill
   });
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
@@ -219,7 +219,7 @@ test('(d) non-QE content fully preserved after purge', (t) => {
   cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
 
   // QE skill removed
-  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qrun-task')), 'Qrun-task removed');
+  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qexecute')), 'Qexecute removed');
 
   // User skill preserved
   assert.ok(fs.existsSync(path.join(skillsDir, 'Querty-notes')), 'user skill Querty-notes preserved');
@@ -243,14 +243,14 @@ test('(d) non-QE content fully preserved after purge', (t) => {
 
 test('(e) external-owner pointer skill is preserved after purge', (t) => {
   const homeDir = makeHome({
-    skills: ['Qdesign', 'Qrun-task'],
+    skills: ['Qdesign', 'Qexecute'],
   });
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
   const result = cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
   const skillsDir = path.join(homeDir, '.codex', 'skills');
 
-  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qrun-task')), 'current framework skill removed');
+  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qexecute')), 'current framework skill removed');
   assert.ok(fs.existsSync(path.join(skillsDir, 'Qdesign')), 'external qe-mcp-owned skill preserved');
   assert.equal(
     result.skills.some((p) => p.endsWith(`${path.sep}Qdesign`)),
@@ -266,7 +266,7 @@ test('(e) external-owner pointer skill is preserved after purge', (t) => {
 
 test('(e) skill with QE-like prefix NOT in manifest is preserved', (t) => {
   const homeDir = makeHome({
-    skills: ['Qrun-task'], // in manifest
+    skills: ['Qexecute'], // in manifest
   });
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
@@ -281,13 +281,13 @@ test('(e) skill with QE-like prefix NOT in manifest is preserved', (t) => {
 
   const result = cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
 
-  // Only Qrun-task should be in removal list
+  // Only Qexecute should be in removal list
   assert.equal(result.skills.length, 1, 'only 1 skill (in manifest) targeted');
-  assert.ok(result.skills[0].includes('Qrun-task'), 'targeted skill is Qrun-task');
+  assert.ok(result.skills[0].includes('Qexecute'), 'targeted skill is Qexecute');
 
   // Manage-budget must still exist
   assert.ok(fs.existsSync(notInManifest), 'Manage-budget skill preserved');
-  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qrun-task')), 'Qrun-task removed');
+  assert.ok(!fs.existsSync(path.join(skillsDir, 'Qexecute')), 'Qexecute removed');
 });
 
 // ---------------------------------------------------------------------------
@@ -324,7 +324,7 @@ test('(f) agent with E* prefix but NOT in fence is preserved', (t) => {
 
 test('(g) dry-run writes receipt but deletes nothing', (t) => {
   const homeDir = makeHome({
-    skills: ['Qrun-task', 'Qcommit'],
+    skills: ['Qexecute', 'Qcommit'],
     agentNames: ['Edeep-researcher'],
   });
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
@@ -340,7 +340,7 @@ test('(g) dry-run writes receipt but deletes nothing', (t) => {
   assert.equal(result.configEdited, false, 'config not modified in dry-run');
 
   // Skills still exist
-  assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qrun-task')), 'Qrun-task NOT deleted in dry-run');
+  assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qexecute')), 'Qexecute NOT deleted in dry-run');
   assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qcommit')), 'Qcommit NOT deleted in dry-run');
 
   // Agent files still exist
@@ -404,7 +404,7 @@ test('regression: uninstallClaudeAssets() dry run runs without error', (t) => {
 });
 
 test('regression: uninstallClaudeAssets() with purgeCodex=false leaves codex untouched', (t) => {
-  const homeDir = makeHome({ skills: ['Qrun-task'] });
+  const homeDir = makeHome({ skills: ['Qexecute'] });
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
   fs.writeFileSync(path.join(homeDir, '.codex', 'config.toml'), '# clean\n', 'utf8');
@@ -413,8 +413,8 @@ test('regression: uninstallClaudeAssets() with purgeCodex=false leaves codex unt
   uninstallClaudeAssets({ homeDir, purgeCodex: false, log: () => {} });
 
   assert.ok(
-    fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qrun-task')),
-    'Qrun-task skill preserved when purgeCodex=false'
+    fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qexecute')),
+    'Qexecute skill preserved when purgeCodex=false'
   );
 });
 

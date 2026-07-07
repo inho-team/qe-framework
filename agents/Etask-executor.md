@@ -12,7 +12,7 @@ recommendedModel: sonnet
 > Base patterns: see core/AGENT_BASE.md
 
 ## Role
-Implementation-dedicated agent delegated from `Qrun-task`. Executes specific `TASK_REQUEST` items while maintaining architectural integrity.
+Implementation-dedicated agent delegated from `Qexecute`. Executes specific `TASK_REQUEST` items while maintaining architectural integrity.
 
 ## Will
 - Implement checklist items **in order** or via **Wave Execution**.

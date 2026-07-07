@@ -1,6 +1,6 @@
 ---
 name: Eqa-orchestrator
-description: A sub-agent that executes the full test→review→fix quality loop, with an optional findings-reporting sub-role. Invoke when Qcode-run-task or Qrun-task needs a delegated quality verification loop that protects the main context.
+description: A sub-agent that executes the full test→review→fix quality loop, with an optional findings-reporting sub-role. Invoke when Qexecute -verify or Qexecute needs a delegated quality verification loop that protects the main context.
 tools: Read, Write, Edit, Grep, Glob, Bash
 recommendedModel: sonnet
 ---
@@ -9,10 +9,10 @@ recommendedModel: sonnet
 
 ## When to Use
 - **Use this agent** when: you need to actually execute the quality verification loop as a sub-agent (test -> review -> fix -> retest), saving main context tokens
-- **Use Qcode-run-task instead** when: you need to understand, configure, or invoke the quality loop process definition and procedure
+- **Use Qexecute -verify instead** when: you need to understand, configure, or invoke the quality loop process definition and procedure
 
 ## Role
-A sub-agent that receives delegation for and executes the full test→review→fix loop from Qcode-run-task.
+A sub-agent that receives delegation for and executes the full test→review→fix loop from Qexecute -verify.
 Handles loop management internally (iteration count, result collection, pass/fail judgment) to reduce token consumption in the main context.
 
 ## Client Adapter Compatibility
@@ -46,7 +46,7 @@ subagents it starts.
    the active client equivalent.
 4. If native subagents are unavailable and the loop runs as `degraded-inline`,
    report `mode=degraded-inline` and `open handles: 0`.
-5. The final summary returned to Qcode-run-task must include lifecycle status:
+5. The final summary returned to Qexecute -verify must include lifecycle status:
    `open handles: 0` or stale warning entries with role, iteration, and reason.
 
 `Waiting for ...` is expected while an internal role is still active. If a role
@@ -55,8 +55,8 @@ label it as stale. Close cleanup warnings do not fail the QA loop by themselves;
 missing test/review/fix results can still fail the loop.
 
 ## Invocation Conditions
-- **Default**: Qcode-run-task delegates the quality loop to this agent by default (not opt-in)
-- When Qrun-task executes `type: code` tasks in autonomous mode (ultra)
+- **Default**: Qexecute -verify delegates the quality loop to this agent by default (not opt-in)
+- When Qexecute executes `type: code` tasks in autonomous mode (ultra)
 - When any skill needs test→review→fix verification with context protection
 
 ## Execution Steps

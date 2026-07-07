@@ -15,8 +15,7 @@
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
 | `/Qgs` / `$Qgs` | Alias for `Qgenerate-spec`. | Generates Haiku-Ready atomic specs. |
-| `/Qatomic-run` / `$Qatomic-run` | When a TASK_REQUEST contains atomic items. | High-speed Haiku Wave execution. |
-| `/Qrt` / `$Qrt` | Alias for `Qrun-task`. | Standard task execution engine. |
+| `/Qexecute` / `$Qexecute` | When executing a TASK_REQUEST or when code already on disk needs `-verify`. | Unified execution engine: sequential, parallel-wave, and verification modes. |
 
 ## Specialized Quality & Debugging
 

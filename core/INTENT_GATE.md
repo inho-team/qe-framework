@@ -11,7 +11,7 @@ All skills and agents refer to this classification to determine whether a reques
 | **Initialization** | "init", "initialize", "setup", "start" | Qinit |
 | **Planning** | "plan", "planning", "roadmap", "milestone", "phase", "계획", "로드맵" | Qplan |
 | **Spec generation** | "spec", "task request", "verify checklist", "create task", "task spec", "명세" | Qgenerate-spec |
-| **Execution** | "run task", "execute task", "sequential", "ordered checklist", "실행" | Qrun-task |
+| **Execution** | "run task", "execute task", "sequential", "ordered checklist", "실행" | Qexecute |
 | **Research** | "research", "compare", "which is better", "investigate" | Edeep-researcher |
 | **Debugging** | "bug", "error", "not working", "why doesn't this work" | Ecode-debugger |
 | **Review** | "review", "check", "look at this", "is this ok?" | Ecode-reviewer |
@@ -52,7 +52,7 @@ When intent cannot be determined, ask the user:
 When the same domain has both a skill and an agent:
 - "fix this bug" / "debug this error" / "not working" → Ecode-debugger (execution)
 - "write tests" / "test coverage" / "add unit tests" → Ecode-test-engineer (execution)
-- Quality loop is handled internally by Qcode-run-task → Eqa-orchestrator delegation
+- Quality loop is handled internally by Qexecute -verify → Eqa-orchestrator delegation
 
 ## Using .qe/analysis/
 Before routing, refer to `.qe/analysis/` to understand the project context.

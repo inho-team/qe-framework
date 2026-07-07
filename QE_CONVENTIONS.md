@@ -29,15 +29,15 @@ All skills, agents, and documents in this framework MUST use these standard term
 ### PSE Chain (outer workflow)
 
 ```
-Claude: /Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
-Codex:  $Qplan  →  $Qgs  →  $Qatomic-run  →  $Qcode-run-task
+Claude: /Qplan  →  /Qgs  →  /Qexecute  →  /Qexecute -verify
+Codex:  $Qplan  →  $Qgs  →  $Qexecute  →  $Qexecute -verify
         Plan       Spec      Execute          Verify
 ```
 
 - **Plan**: Define roadmap, phases, requirements (`Qplan`)
 - **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgs`)
-- **Execute**: Implement checklist items via Wave execution (`Qatomic-run`)
-- **Verify**: Test → review → fix quality loop (`Qcode-run-task`)
+- **Execute**: Implement checklist items via Wave execution (`Qexecute`)
+- **Verify**: Test → review → fix quality loop (`Qexecute -verify`)
 
 ### SIVS Loop (inner quality gate)
 
@@ -53,13 +53,13 @@ The SIVS Loop runs **inside** the Execute and Verify steps of the PSE Chain. It 
 PSE Chain (user workflow)
 ├── Plan ─────────── /Qplan
 ├── Spec ─────────── /Qgs (Qgenerate-spec)
-├── Execute ──────── /Qatomic-run or /Qrun-task
+├── Execute ──────── /Qexecute or /Qexecute
 │     └── SIVS Loop (quality gate)
 │           ├── Spec: TASK_REQUEST defines the contract
 │           ├── Implement: Actual coding and file changes
 │           ├── Verify: VERIFY_CHECKLIST confirms completion
 │           └── Supervise: Supervision agents confirm quality
-└── Verify ───────── /Qcode-run-task
+└── Verify ───────── /Qexecute -verify
       └── SIVS Loop (quality gate, final pass)
 ```
 
@@ -71,9 +71,9 @@ PSE Chain (user workflow)
 |----------|-------|------|
 | Plan | `Qplan` | Roadmap, phases, requirements |
 | Spec | `Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
-| Execute | `Qatomic-run` | Wave execution with Haiku Teammates (default) |
-| Execute | `Qrun-task` | Sequential execution (fallback for non-atomic tasks) |
-| Verify | `Qcode-run-task` | Test → review → fix quality loop |
+| Execute | `Qexecute` | Wave execution with Haiku Teammates (default) |
+| Execute | `Qexecute` | Sequential execution (fallback for non-atomic tasks) |
+| Verify | `Qexecute -verify` | Test → review → fix quality loop |
 
 ---
 
@@ -84,8 +84,8 @@ prefix is client-specific.
 
 | Active client | Skill command prefix | Example |
 |---------------|----------------------|---------|
-| Claude | `/` | `/Qatomic-run 24740a27` |
-| Codex | `$` | `$Qatomic-run 24740a27` |
+| Claude | `/` | `/Qexecute 24740a27` |
+| Codex | `$` | `$Qexecute 24740a27` |
 
 All handoffs must render through the active-client prefix. Do not show a
 slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
@@ -111,7 +111,7 @@ Every PSE Chain skill MUST end with a `## Handoff` section. The handoff follows 
 3. **Task description line** — One-line natural language summary of what the next command does, placed directly above the `Next:` line
 4. **`Next command:` block** — Place alone in a code block for easy copying, **must include UUID or Phase argument**
 5. **No explanations** — Do not add alternatives, elaborations, or choices after the command. **Never include a fallback line** (`or: /Qgenerate-spec ...`, `If that doesn't work: ...`). `/Qgs` is the registered alias for `/Qgenerate-spec` — a duplicate line is noise.
-6. **Task type branching** — Guide only `type: code` to `/Qcode-run-task`. For docs/analysis/deletion tasks, guide to the next Phase
+6. **Task type branching** — Guide only `type: code` to `/Qexecute -verify`. For docs/analysis/deletion tasks, guide to the next Phase
 7. **Short alias only** — Use the short phase label (e.g., `Phase 2: Codex Bridge`), not a copy of the full phase description. Max ~6 words.
 8. **Harness status is not completion** — If a handoff includes Execution Harness status, lane status, or status projection, it must still render the SIVS/PSE state separately. A finished lane does not replace VERIFY_CHECKLIST completion or Supervise.
 
@@ -138,7 +138,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 구현 코드의 테스트 및 품질 검증
-Next: {adapter.commandPrefix}Qcode-run-task a1b2c3d4
+Next: {adapter.commandPrefix}Qexecute -verify a1b2c3d4
 ```
 
 ### Non-code Task Complete Example
@@ -221,7 +221,7 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 All skills MUST respond in the same language the user used in their most recent message. If the user writes in Korean, all output — section titles, descriptions, summaries, handoff messages, **and handoff labels (e.g., `Next:` → `다음:`)** — must be in Korean. Only the following are exempt and stay in English:
 - File names and paths (e.g., `TASK_REQUEST_abc123.md`)
 - Code and code blocks
-- Skill/command names (e.g., `/Qgs`, `/Qatomic-run`)
+- Skill/command names (e.g., `/Qgs`, `/Qexecute`)
 - Status markers (`[x]`, `[>]`, `PSE:`)
 
 ---
@@ -278,7 +278,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 - **Token Fallback**: If real-time metrics are missing, use `Characters / 4` for estimation.
 
 ### 3. Persistent Mode Protection
-- **Active pipelines are shielded from premature stopping.** When a multi-step pipeline (SIVS loop, Wave execution, Qatomic-run) is running, persistent mode blocks the Stop hook and injects reinforcement via the Notification hook. Skills enter persistent mode at execution start and exit at their Handoff step. See `hooks/scripts/lib/persistent-mode.mjs` and `core/CONTEXT_BUDGET.md` for details.
+- **Active pipelines are shielded from premature stopping.** When a multi-step pipeline (SIVS loop, Wave execution, Qexecute) is running, persistent mode blocks the Stop hook and injects reinforcement via the Notification hook. Skills enter persistent mode at execution start and exit at their Handoff step. See `hooks/scripts/lib/persistent-mode.mjs` and `core/CONTEXT_BUDGET.md` for details.
 
 ### 4. Optimized Model Tiering
 - **Haiku (LOW)**: Default for pattern matching, structural verification (S1-S5), file I/O, and simple text transforms.
@@ -346,8 +346,8 @@ These skills are optimized for common workflows and consistently outperform gene
 | Skill | Purpose |
 |-------|---------|
 | `Qgenerate-spec` | Generate CLAUDE.md + TASK_REQUEST + VERIFY_CHECKLIST |
-| `Qrun-task` | Execute spec-based tasks |
-| `Qcode-run-task` | Test > review > fix quality loop |
+| `Qexecute` | Execute spec-based tasks |
+| `Qexecute -verify` | Test > review > fix quality loop |
 | `Qscenario-test` | Generate, execute, and verify E2E user scenarios (browser/API/CLI) |
 | `Qqa-council` | Multi-agent QA loop: explore (black-box) → codify → heal → report; optional PR-trigger scaffold |
 | `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |

@@ -15,22 +15,22 @@ The framework exists to force explicit handoffs between these stages.
 QE uses the Plan -> Spec -> Execute loop as the default path:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run
-Codex:  $Qplan -> $Qgs -> $Qatomic-run
+Claude: /Qplan -> /Qgs -> /Qexecute
+Codex:  $Qplan -> $Qgs -> $Qexecute
 ```
 
 That is followed by the quality gate:
 
 ```text
-Claude: /Qcode-run-task
-Codex:  $Qcode-run-task
+Claude: /Qexecute -verify
+Codex:  $Qexecute -verify
 ```
 
 Together, the canonical flow is:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 ## Design Principles
@@ -53,15 +53,15 @@ QE treats these as distinct responsibilities:
 In `single-model`, one runner may own every role.
 In `hybrid`, `multi-model`, or `tiered-model`, these roles can be split across different runners or model tiers.
 
-## Why `/Qatomic-run` Exists
+## Why `/Qexecute` Exists
 
-`/Qatomic-run` is not just “parallel execution”.
+`/Qexecute` is not just “parallel execution”.
 It is the default implementer-stage entry point in the canonical QE workflow.
 
 - In `single-model`, it uses the Haiku Wave execution path.
 - In `hybrid`, `multi-model`, or `tiered-model`, it should prefer the configured implementer runner.
 
-That makes `/Qatomic-run` the bridge between the original single-client system and the newer role-based orchestration model.
+That makes `/Qexecute` the bridge between the original single-client system and the newer role-based orchestration model.
 
 ## Why Multi-Model Exists
 

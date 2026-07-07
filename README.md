@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->31<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->29<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 **A transparent, auditable, cross-model quality gate for coding agents.** Three things set QE apart:
 
@@ -26,8 +26,8 @@ Rendered guides — view in any browser, no install needed.
 ---
 
 ```
-Claude: /Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
-Codex:  $Qplan  →  $Qgs  →  $Qatomic-run  →  $Qcode-run-task
+Claude: /Qplan  →  /Qgs  →  /Qexecute  →  /Qexecute -verify
+Codex:  $Qplan  →  $Qgs  →  $Qexecute  →  $Qexecute -verify
         Plan       Spec     Execute          Verify
 ```
 
@@ -209,10 +209,10 @@ The 4-step pipeline that drives all work:
 |------|--------|-------|-------------|
 | **Plan** | `/Qplan` | `$Qplan` | Roadmap, phases, requirements |
 | **Spec** | `/Qgs` | `$Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
-| **Execute** | `/Qatomic-run` | `$Qatomic-run` | Parallel Wave execution with Haiku Teammates |
-| **Verify** | `/Qcode-run-task` | `$Qcode-run-task` | Test → review → fix quality loop |
+| **Execute** | `/Qexecute` | `$Qexecute` | Parallel Wave execution with Haiku Teammates |
+| **Verify** | `/Qexecute -verify` | `$Qexecute -verify` | Test → review → fix quality loop |
 
-`/Qrun-task` (`$Qrun-task` on Codex) is the sequential fallback when tasks can't be parallelized.
+`/Qexecute` (`$Qexecute` on Codex) is the sequential fallback when tasks can't be parallelized.
 
 Codex uses the same PSE skills with `$Q...`. The QE client adapter maps Claude
 Agent-tool workflows onto Codex native subagents and falls back to role-separated
@@ -331,15 +331,15 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->31<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->29<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic
 > helper families. New here? Learn these and ignore the rest until you need them:
 >
-> Claude: `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qatomic-run` · `/Qcode-run-task` · `/Qsivs-config`
+> Claude: `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qexecute` · `/Qexecute -verify` · `/Qsivs-config`
 >
-> Codex: `$Qinit` · `$Qcontext` · `$Qplan` · `$Qgs` · `$Qatomic-run` · `$Qcode-run-task` · `$Qsivs-config`
+> Codex: `$Qinit` · `$Qcontext` · `$Qplan` · `$Qgs` · `$Qexecute` · `$Qexecute -verify` · `$Qsivs-config`
 >
 > *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The shipped catalog is intentionally kept small enough to stay discoverable.)*
 
@@ -353,7 +353,7 @@ optional expert corpus.
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qatomic-run` `Qrun-task` `Qcode-run-task` `Qinit` | 6 |
+| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qexecute` `Qexecute` `Qexecute -verify` `Qinit` | 6 |
 | **Autonomy** ⚠️ | `Qutopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` `Qdoctor` | 6 |
 | **Project** | `Qcommit` `Qrefresh --sync` | 2 |
@@ -366,7 +366,7 @@ optional expert corpus.
 `Qutopia` flips a session-level switch (`.qe/state/utopia-state.json`) that makes **every** subsequent skill:
 
 - **Skip interaction prompts** and auto-pick the first (recommended) option
-- **Auto-approve** `Qrun-task` execution and `Qgenerate-spec` outputs
+- **Auto-approve** `Qexecute` execution and `Qgenerate-spec` outputs
 - **Auto-commit** (and, with `--ralph`, loop until `VERIFY_CHECKLIST` is fully green)
 - On Claude, merge broad tool permissions (`Bash(*)`, `Agent(*)`, `WebFetch`, …) into `.claude/settings.json`; on Codex, keep autonomy in QE state and rely on Codex session policy plus QE hook rails
 

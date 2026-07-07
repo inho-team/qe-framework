@@ -19,6 +19,22 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Changed
 
+- **BREAKING — execution skills unified into `Qexecute`.** The three execution skills
+  were hard-replaced by a single `Qexecute` engine that reads the spec and auto-selects
+  its mode (no compatibility shim). Migration map:
+
+  | Removed skill | Now |
+  |---|---|
+  | `Qrun-task {UUID}` | `Qexecute {UUID}` (auto sequential) |
+  | `Qatomic-run {UUID}` | `Qexecute {UUID}` (auto parallel wave) |
+  | `Qcode-run-task {UUID}` | `Qexecute -verify {UUID}` |
+
+  Qexecute classifies sequential vs parallel-wave from the TASK_REQUEST itself
+  (≥5 items, wave width ≥2, non-overlapping file ownership) instead of the caller
+  pre-selecting. `-utopia` no-confirmation modifier is reserved (activated in a
+  follow-up). Routing, auto-chaining, docs, agents, core, validators, and the eval
+  case were updated accordingly.
+
 ### Deprecated / Merged skills
 
 These compatibility shims auto-delegate to their merged replacements and will be removed in 7.1.0.

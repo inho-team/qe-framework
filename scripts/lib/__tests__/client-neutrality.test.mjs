@@ -34,7 +34,7 @@ test('client-neutrality guard allows paired Claude and Codex examples', (t) => {
     '',
     'Claude: /Qinit',
     'Codex: $Qinit',
-    'Use {adapter.commandPrefix}Qrun-task in shared text.',
+    'Use {adapter.commandPrefix}Qexecute in shared text.',
   ].join('\n'), 'utf8');
 
   const findings = scanFiles(root, ['docs/sample.md']);

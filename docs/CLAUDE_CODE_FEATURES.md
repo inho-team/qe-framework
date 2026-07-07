@@ -93,9 +93,9 @@ PermissionRequest, SessionEnd, SubagentStop
 
 | Native Feature | QE Equivalent | Recommendation |
 |---------------|---------------|----------------|
-| `/goal` | Qcode-run-task verify loop | Use /goal for bias-free verification |
-| `/workflows` | Qatomic-run parallel waves | Use workflows for 10+ item tasks |
+| `/goal` | Qexecute -verify verify loop | Use /goal for bias-free verification |
+| `/workflows` | Qexecute parallel waves | Use workflows for 10+ item tasks |
 | `ultrareview` | Eqa-orchestrator | Use ultrareview for external code review |
 | `claude agents` | Agent tool subagents | Use agents CLI for background parallelism |
 | `--effort` | SIVS effort config | Use CLI flag for per-session override |
-| `--worktree` | `Qatomic-run --worktree` | Run wave items in isolated git worktrees when same-file editing or experimental changes need isolation (opt-in; see Qatomic-run "Worktree Isolation") |
+| `--worktree` | `Qexecute --worktree` | Run wave items in isolated git worktrees when same-file editing or experimental changes need isolation (opt-in; see Qexecute "Worktree Isolation") |

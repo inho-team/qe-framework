@@ -29,10 +29,10 @@ The SIVS (Spec → Implement → Verify → Supervise) Loop is the framework's c
 After the active-client `Qgenerate-spec` command creates spec documents, explicitly show:
 - **What was created**: project instruction artifact when applicable, TASK_REQUEST, VERIFY_CHECKLIST (plans only)
 - **What is NOT yet done**: actual output files (code, docs, analysis results)
-- Then ask user via the QE interaction adapter whether to run the active-client `Qrun-task` command immediately.
+- Then ask user via the QE interaction adapter whether to run the active-client `Qexecute` command immediately.
 
 ### 2. Task Type Banner
-In the active-client `Qrun-task` Step 2, display a prominent type banner at the TOP of the summary before any details:
+In the active-client `Qexecute` Step 2, display a prominent type banner at the TOP of the summary before any details:
 - `⚠️ TYPE: CODE` — will create/modify source code
 - `📄 TYPE: DOCS` — will create/modify documentation
 - `🔍 TYPE: ANALYSIS` — read-only analysis, no new files
@@ -53,9 +53,9 @@ The user is contacted at exactly these points — everything else is automatic:
 |---|------|------|
 | (a) | Spec generation confirmation | interaction adapter (Qgenerate-spec Step 3) |
 | (b) | Immediate execution prompt | interaction adapter (Qgenerate-spec Step 5) |
-| (c) | Task execution approval | interaction adapter (Qrun-task Step 2) |
-| (d) | Task completion | Completion report (Qrun-task Step 5) |
-| (e) | 3x supervision failure | escalation interaction prompt (Qrun-task Step 4.5) |
+| (c) | Task execution approval | interaction adapter (Qexecute Step 2) |
+| (d) | Task completion | Completion report (Qexecute Step 5) |
+| (e) | 3x supervision failure | escalation interaction prompt (Qexecute Step 4.5) |
 
 Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progress are all automatic.
 
@@ -98,7 +98,7 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 - **Protect sensitive information**: Never expose PATs, passwords, or API keys in logs, responses, or files.
 - **Prevent OWASP Top 10**: Guard against SQL Injection, XSS, missing authentication, and other basic vulnerabilities.
 - **Confirm only high-impact file operations**: Ask the user for permission before destructive, irreversible, or unusually broad file operations. Routine in-scope edits should proceed with minimal interruption.
-- **Utopia mode check**: Before prompting through the interaction adapter, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. For complex requests (3+ steps, multi-file, new features), automatically route through `Qgenerate-spec → Qrun-task → verify` pipeline. Simple task criteria: see `skills/Qutopia/SKILL.md` SIMPLE classification. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
+- **Utopia mode check**: Before prompting through the interaction adapter, check `.qe/state/utopia-state.json`. If `enabled: true`, skip confirmations and auto-select the first (recommended) option. For complex requests (3+ steps, multi-file, new features), automatically route through `Qgenerate-spec → Qexecute → verify` pipeline. Simple task criteria: see `skills/Qutopia/SKILL.md` SIMPLE classification. Utopia mode does NOT skip destructive git operations or file deletions outside `.qe/`.
 - **Pre-execution Gate**: In Utopia --work / --qa modes, before autonomous execution of complex tasks, check if the prompt has concrete anchor signals (file paths, function names, issue numbers, etc.). If the prompt is vague (no anchors + ≤15 words), redirect to Qgenerate-spec normal flow for proper scoping. Users can bypass with `force:` or `!` prefix. See the "Pre-execution Gate" section in Qgenerate-spec SKILL.md for details.
 
 ---
@@ -111,7 +111,7 @@ All code written through the QE Framework must include documentation comments on
 1. **Public functions/classes require documentation**: Every public function, method, class, struct, trait, or interface must have a documentation comment in the language's standard format
 2. **Automatic detection**: The `post-tool-use` hook runs `comment-checker` after every Write/Edit operation and reports missing documentation
 3. **Language-standard format**: Use the language's canonical documentation format (JSDoc for JS/TS, docstring for Python, Javadoc for Java, GoDoc for Go, rustdoc for Rust, etc.)
-4. **Coverage threshold**: 80% minimum comment coverage for public API in verification (Qcode-run-task)
+4. **Coverage threshold**: 80% minimum comment coverage for public API in verification (Qexecute -verify)
 5. **Private/internal exempt**: Functions/methods prefixed with `_`, `#`, or marked `private` are exempt
 
 ### Why

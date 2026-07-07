@@ -13,7 +13,7 @@ Never leaves AI traces (e.g., Co-Authored-By).
 
 ## Invocation Conditions
 - **Manual**: When delegated by the Qcommit skill
-- **Automatic**: For auto-commit after Qrun-task completion
+- **Automatic**: For auto-commit after Qexecute completion
 
 ## Execution Steps
 1. Identify changes with `git status`, `git diff`

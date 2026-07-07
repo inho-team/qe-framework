@@ -124,10 +124,10 @@ Explore the codebase, understand the structure, and write:
 
 ## Mode: Batch Office Generation
 
-Use this mode for batch document generation work delegated by workflow skills such as Qrun-task or Epm-planner. Process multiple documents in parallel during batch generation.
+Use this mode for batch document generation work delegated by workflow skills such as Qexecute or Epm-planner. Process multiple documents in parallel during batch generation.
 
 ## Role
-A sub-agent that performs document generation work in the background, delegated by workflow skills such as Qrun-task or Epm-planner. Processes multiple documents in parallel during batch generation.
+A sub-agent that performs document generation work in the background, delegated by workflow skills such as Qexecute or Epm-planner. Processes multiple documents in parallel during batch generation.
 
 ## When to Use
 - **Use this agent** when: a skill needs to generate one or more office documents as output
@@ -135,7 +135,7 @@ A sub-agent that performs document generation work in the background, delegated 
 
 ## Invocation Conditions
 - When Epm-planner requests document output (PRD, roadmap, meeting notes)
-- When a `type: docs` task is executed in Qrun-task (Step 5 - completion processing)
+- When a `type: docs` task is executed in Qexecute (Step 5 - completion processing)
 - When workflow tasks need batch document generation
 - When the user requests generation of multiple documents at once
 

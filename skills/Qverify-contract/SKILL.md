@@ -1,6 +1,6 @@
 ---
 name: Qverify-contract
-description: Verify that an implementation and its tests honor a business-logic contract stored under .qe/contracts/active/. Delegates to the Econtract-judge LLM agent on cache miss; returns cached verdict on cache hit. Use when the user says 'verify contract', 'check contract', '/Qverify-contract', or when called from /Qcode-run-task.
+description: Verify that an implementation and its tests honor a business-logic contract stored under .qe/contracts/active/. Delegates to the Econtract-judge LLM agent on cache miss; returns cached verdict on cache hit. Use when the user says 'verify contract', 'check contract', '/Qverify-contract', or when called from /Qexecute -verify.
 ---
 
 # Contract Verification (Qverify-contract)
@@ -154,5 +154,5 @@ Phase 3: Contract Layer — Verification complete
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 Contract: {name} — {verdict}
-Next: /Qcode-run-task
+Next: /Qexecute -verify
 ```

@@ -41,10 +41,10 @@ test('Pattern /Qversion -h matches', () => {
   assert.strictEqual(result.skillName, 'Qversion');
 });
 
-test('Hyphenated skill name /Qatomic-run --help matches', () => {
-  const result = parseHelpFlag('/Qatomic-run --help');
+test('Hyphenated skill name /Qexecute --help matches', () => {
+  const result = parseHelpFlag('/Qexecute --help');
   assert.strictEqual(result.matched, true);
-  assert.strictEqual(result.skillName, 'Qatomic-run');
+  assert.strictEqual(result.skillName, 'Qexecute');
 });
 
 // ============================================================================

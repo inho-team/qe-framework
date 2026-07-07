@@ -5,9 +5,9 @@
     "Qgs": "Qgenerate-spec",
     "/Qgs": "Qgenerate-spec",
     "$Qgs": "Qgenerate-spec",
-    "Qrt": "Qrun-task",
-    "/Qrt": "Qrun-task",
-    "$Qrt": "Qrun-task"
+    "Qrt": "Qexecute",
+    "/Qrt": "Qexecute",
+    "$Qrt": "Qexecute"
   },
   "cases": [
     {
@@ -55,8 +55,8 @@
       "prompt": "Execute this TASK_REQUEST sequentially because the checklist items depend on each other.",
       "locale": "en",
       "category": "pse",
-      "expected": "Qrun-task",
-      "aliases": ["Qrun-task", "Qrt"],
+      "expected": "Qexecute",
+      "aliases": ["Qexecute", "Qrt"],
       "confidence": 0.98,
       "reason": "The task is an execution request for an ordered checklist, which fits the sequential executor."
     },
@@ -65,8 +65,8 @@
       "prompt": "Run task: execute this checklist.",
       "locale": "en",
       "category": "pse",
-      "expected": "Qrun-task",
-      "aliases": ["Qrun-task", "Qrt"],
+      "expected": "Qexecute",
+      "aliases": ["Qexecute", "Qrt"],
       "confidence": 0.95,
       "reason": "Punctuation next to run-task phrasing should still route to the sequential executor."
     },
@@ -75,8 +75,8 @@
       "prompt": "코드 수정은 끝났어. 이제 테스트하고 리뷰하고 다시 고쳐서 검증 루프 돌려줘.",
       "locale": "ko",
       "category": "pse",
-      "expected": "Qcode-run-task",
-      "aliases": ["Qcode-run-task"],
+      "expected": "Qexecute -verify",
+      "aliases": ["Qexecute -verify"],
       "confidence": 0.98,
       "reason": "The prompt asks for the post-implementation test-review-fix verification loop."
     },

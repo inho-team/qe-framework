@@ -29,7 +29,7 @@ export function checkComments(filePath: string, content: string): CheckResult;
 
 ## Purpose
 
-`/Qcode-run-task`의 Step 4.8 Comment Coverage Gate에서 변경된 코드의 문서화 커버리지를 80%/50% 임계치로 평가하기 위한 엔진. 파일 단위로 public signature 개수를 세고, 각 signature 직상단 5줄 내에 language-appropriate doc comment가 있는지 확인.
+`/Qexecute -verify`의 Step 4.8 Comment Coverage Gate에서 변경된 코드의 문서화 커버리지를 80%/50% 임계치로 평가하기 위한 엔진. 파일 단위로 public signature 개수를 세고, 각 signature 직상단 5줄 내에 language-appropriate doc comment가 있는지 확인.
 
 ## Constraints
 
@@ -85,4 +85,4 @@ never: Error;
 
 - `getMatchers` 내부 함수는 export되지 않음 — 언어별 signature regex 레지스트리로만 기능
 - 함수가 검출하는 signature 수와 실제 "문서화가 필요한 public API"의 개수가 완전히 일치하진 않음 (정규식 기반이므로). 경험적으로 80%+ 정확도 목표.
-- Phase 4 Contract Layer의 **Coverage Gate** 기반으로 Qcode-run-task가 80% 미만이면 warning, 50% 미만이면 FAIL 판정
+- Phase 4 Contract Layer의 **Coverage Gate** 기반으로 Qexecute -verify가 80% 미만이면 warning, 50% 미만이면 FAIL 판정

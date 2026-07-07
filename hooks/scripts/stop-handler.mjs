@@ -134,7 +134,7 @@ if (ralphActive && ralphBlockReason) {
 const modes = [
   { name: 'ultrawork', label: 'Ultra Work — autonomous parallel execution in progress' },
   { name: 'ultraqa', label: 'Ultra QA — autonomous quality verification in progress' },
-  { name: 'qrun-task', label: 'Qrun-task executing' },
+  { name: 'qexecute', label: 'Qexecute executing' },
   { name: 'qrefresh', label: 'Erefresh-executor updating analysis' },
   { name: 'qarchive', label: 'Earchive-executor archiving' },
 ];
@@ -159,7 +159,7 @@ for (const mode of modes) {
 
 // --- Persistent Mode Check (unified-state.json) ---
 // Persistent mode is a separate mechanism from the mode-state files above.
-// It protects multi-step pipelines (SIVS loops, Wave execution, Qatomic-run)
+// It protects multi-step pipelines (SIVS loops, Wave execution, Qexecute)
 // from premature stopping even when no dedicated *-state.json file exists.
 if (!activeMode) {
   try {

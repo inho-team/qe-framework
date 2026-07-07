@@ -9,8 +9,8 @@ QE Framework は Claude Code と Codex の両方を対象にしたスペック�
 基本フロー:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 この文書は日本語のランディングページです。詳細は役割ごとに分割された文書を参照してください。
@@ -36,7 +36,7 @@ Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 
 - `single-model`
   - Claude のみを使う基本経路
-  - `/Qatomic-run` は Haiku swarm ベースの atomic execution
+  - `/Qexecute` は Haiku swarm ベースの atomic execution
 - `hybrid`
   - 一部の役割だけ外部 runner を使う
 - `multi-model`
@@ -94,8 +94,8 @@ $Qinit
 3. ワークフローを開始
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 ## 参考

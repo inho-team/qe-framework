@@ -9,8 +9,8 @@ QE Framework는 Claude Code와 Codex를 함께 지원하는 스펙 기반 작업
 기본 흐름:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 이 문서는 한국어 진입 문서입니다. 전체 설명을 한 파일에 몰아넣기보다, 주제별 문서로 나눠 안내합니다.
@@ -39,7 +39,7 @@ QE Framework v7.0는 다음의 고급 기능과 확장성을 제공합니다:
 
 - `single-model`
   - Claude만 사용하는 기본 경로
-  - `/Qatomic-run`은 Haiku swarm 기반 atomic execution
+  - `/Qexecute`은 Haiku swarm 기반 atomic execution
 - `hybrid`
   - 일부 역할만 외부 runner 사용
 - `multi-model`
@@ -99,8 +99,8 @@ $Qinit
 3. 작업 흐름 시작
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 ## 참고

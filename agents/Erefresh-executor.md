@@ -15,7 +15,7 @@ Does not respond directly to the user; results are written to files.
 By keeping `.qe/analysis/` up to date, other agents and skills can read just 4 analysis files instead of Glob/Grep/Reading dozens of files to understand the project. This **reduces token consumption by 50% or more**, lowers context window pressure, and enables longer tasks to be executed reliably. All agents and skills should prioritize reading `.qe/analysis/` files rather than direct exploration when they need to understand the project structure.
 
 ## Invocation Conditions
-- **Automatic**: Background execution before Qrun-task starts
+- **Automatic**: Background execution before Qexecute starts
 - **Manual**: When delegated by the Qrefresh skill
 
 ## Execution Steps
@@ -63,13 +63,13 @@ Always record in **reverse chronological order** so the latest entry is at the t
 
 ### Step 4: Tag External Changes
 Distinguish changes that did not go through the QE framework (Query Executor) skills/agents:
-- If the commit message contains no QE framework keywords (e.g., `Qrun-task`, `Qgenerate-spec`) → tag as `[External Change]`
+- If the commit message contains no QE framework keywords (e.g., `Qexecute`, `Qgenerate-spec`) → tag as `[External Change]`
 - If the change went through the QE framework → tag as `[QE framework (Query Executor)]`
 - This allows tracking of changes that occurred outside the framework.
 
 ## External Change Detection
 Changes are tagged as `[External Change]` if the commit message does NOT contain any of these QE framework keywords:
-- `Qrun-task`, `Qgenerate-spec`, `Qcommit`, `Qrefresh`, `Qinit`
+- `Qexecute`, `Qgenerate-spec`, `Qcommit`, `Qrefresh`, `Qinit`
 - `Etask-executor`, `Ecommit-executor`
 - `[QE]`, `[ultrawork]`, `[ultraqa]`
 

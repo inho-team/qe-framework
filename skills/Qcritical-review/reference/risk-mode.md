@@ -69,7 +69,7 @@ such as "reviewed" or "looks safe" do not count.
 4. Confirm TASK_REQUEST contains a non-empty `## Risk Register`. Missing,
    placeholder-only, or materially empty Risk Register is an immediate FAIL for
    `type: code`, even when `Qrisk-proof` is invoked directly outside
-   Qcode-run-task.
+   Qexecute -verify.
 5. Collect changed files using `git diff --name-only`, `git diff --cached
    --name-only`, and untracked files when available.
 
@@ -80,7 +80,7 @@ Pass only the task-local evidence to `Erisk-proof-auditor`:
 - TASK_REQUEST goals, checklist, and Risk Register
 - VERIFY_CHECKLIST validation criteria
 - changed files and relevant diffs
-- test/build evidence already produced by Qcode-run-task
+- test/build evidence already produced by Qexecute -verify
 - prior Verify-gate findings, if any
 
 The auditor prompt MUST say: "Your job is to break the risk proof. Find

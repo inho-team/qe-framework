@@ -220,7 +220,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: [] } });
     expect(hint.kind === 'exactly-one-pending-spec', `[pending-one] expected exactly-one-pending-spec, got ${hint.kind}`);
-    expect(hint.target === 'Qrun-task', `[pending-one] expected Qrun-task, got ${hint.target}`);
+    expect(hint.target === 'Qexecute', `[pending-one] expected Qexecute, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -262,7 +262,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: ['src/app.js'], gitAvailable: true } });
     expect(hint.kind === 'uncommitted-code', `[dirty] expected uncommitted-code, got ${hint.kind}`);
-    expect(hint.target === 'Qcode-run-task', `[dirty] expected Qcode-run-task, got ${hint.target}`);
+    expect(hint.target === 'Qexecute -verify', `[dirty] expected Qexecute -verify, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -284,7 +284,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: ['src/app.js'], gitAvailable: true } });
     expect(hint.kind === 'uncommitted-code', `[task-log-pending] expected uncommitted-code, got ${hint.kind}`);
-    expect(hint.target === 'Qcode-run-task', `[task-log-pending] expected Qcode-run-task, got ${hint.target}`);
+    expect(hint.target === 'Qexecute -verify', `[task-log-pending] expected Qexecute -verify, got ${hint.target}`);
   } finally {
     cleanup(root);
   }

@@ -128,7 +128,7 @@ first = Verify). The remediation re-enters the loop at that stage. Honors the
 "escalate after 3 iterations" cap; after 3 rounds still FAIL → escalate to user.
 
 ### 4. Reporting & Remediation
-- Return structured summary to **Qrun-task**.
+- Return structured summary to **Qexecute**.
 - If FAIL: Draft remediation content according to `core/REMEDIATION_REQUEST_FORMAT.md`.
 
 ## Output Format

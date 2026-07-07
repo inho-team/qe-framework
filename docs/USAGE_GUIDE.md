@@ -96,21 +96,21 @@ Generates task specs from the active plan.
 ### Execute
 
 ```text
-/Qatomic-run
-$Qatomic-run
+/Qexecute
+$Qexecute
 ```
 
 - `single-model`: Claude/Haiku atomic swarm path
 - `hybrid` / `multi-model`: configured implementer runner path
 - `tiered-model`: high-tier planning/judgment with cheaper lower-tier execution
 
-Use `/Qrun-task` (`$Qrun-task` on Codex) instead when the work is not meaningfully atomic.
+Use `/Qexecute` (`$Qexecute` on Codex) instead when the work is not meaningfully atomic.
 
 ### Verify
 
 ```text
-/Qcode-run-task
-$Qcode-run-task
+/Qexecute -verify
+$Qexecute -verify
 ```
 
 Runs the review/verification loop.
@@ -217,7 +217,7 @@ result, and unblock instructions instead of losing the request in chat.
 Use this when the user only has Claude or wants the legacy path.
 
 - no role split required
-- the active-client `Qatomic-run` command uses the Haiku swarm path
+- the active-client `Qexecute` command uses the Haiku swarm path
 - simplest setup
 
 ### `hybrid`
@@ -291,7 +291,7 @@ If Codex or Gemini is temporarily blocked by quota or subscription limits:
 
 1. the workflow reports `blocked_quota`
 2. fallback runners are suggested
-3. the active-client `Qatomic-run` or `Qcode-run-task` command should ask the user whether to borrow another runner for this run only
+3. the active-client `Qexecute` or `Qexecute -verify` command should ask the user whether to borrow another runner for this run only
 4. retry happens with `--role-override`
 
 Example:
@@ -349,7 +349,7 @@ When `.qe/state/utopia-state.json` is `enabled: true`:
 
 - Interaction prompts auto-select the **first (recommended)** option.
 - `Qgenerate-spec` skips the "Generate & Execute / Generate Only / Needs Revision" prompt and proceeds to Atomic-Run.
-- `Qrun-task` skips Step 2 approval and moves files straight to `in-progress`.
+- `Qexecute` skips Step 2 approval and moves files straight to `in-progress`.
 - `Qcommit` runs automatically after task completion.
 - `--ralph` loops the PSE Chain until `VERIFY_CHECKLIST` is fully green, without human gate between rounds.
 - Claude: `.claude/settings.json` gains broad tool permissions: `Bash(*)`, `Agent(*)`, `WebFetch`, `WebSearch`, `NotebookEdit`.

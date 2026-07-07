@@ -1,6 +1,6 @@
 # Verify Gate — Protocol
 
-> The **mandatory** Verify-stage adversarial gate. Invoked by `Qcode-run-task`
+> The **mandatory** Verify-stage adversarial gate. Invoked by `Qexecute -verify`
 > Step 4.9 after implementation, for `type:code` and `type:other` tasks. Its
 > cognitive mode is **Critical** (비판적 사고) — see
 > [thinking-modes.md](./thinking-modes.md) Mode 2. On FAIL it does NOT dead-end:
@@ -83,12 +83,12 @@ loop re-enters and re-verifies. The Verify gate's default backward target is
      (regenerate the spec via the spec gate), since spec defects poison
      everything downstream.
    - Otherwise → route back to **Implement** (re-implement; this is the existing
-     `Qcode-run-task` fix loop).
+     `Qexecute -verify` fix loop).
 3. **Unclear cause → nearest-first:** if attribution is ambiguous, go to the
    **nearest** upstream stage first (Implement). Only if re-implementation FAILs
    again does the cause escalate to Spec.
 4. **Loop bound:** the gate does **not** self-loop. It honors the caller's
-   `Qcode-run-task` 3-round cap. After 3 rounds still FAIL → **escalate to the
+   `Qexecute -verify` 3-round cap. After 3 rounds still FAIL → **escalate to the
    user** (do not auto-proceed).
 
 ### Utopia `--work` (autonomous, non-interactive)

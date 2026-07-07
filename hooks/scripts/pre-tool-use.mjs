@@ -183,10 +183,8 @@ if (toolName === 'Skill') {
     const SKILL_STAGE_MAP = {
       'Qgenerate-spec': 'spec', 'qe-framework:Qgenerate-spec': 'spec',
       'Qgs': 'spec', 'qe-framework:Qgs': 'spec',
-      'Qrun-task': 'implement', 'qe-framework:Qrun-task': 'implement',
+      'Qexecute': 'implement', 'qe-framework:Qexecute': 'implement',
       'Qrt': 'implement', 'qe-framework:Qrt': 'implement',
-      'Qatomic-run': 'implement', 'qe-framework:Qatomic-run': 'implement',
-      'Qcode-run-task': 'verify', 'qe-framework:Qcode-run-task': 'verify',
     };
     const sivsStage = SKILL_STAGE_MAP[skillName];
     if (sivsStage) {

@@ -754,7 +754,7 @@ test('pre-tool-use: unrelated skill entry does not arm commit bypass', (t) => {
 
   const skillEntry = runHookPayload(dir, {
     tool_name: 'Skill',
-    tool_input: { skill: 'Qrun-task' },
+    tool_input: { skill: 'Qexecute' },
   });
   assert.strictEqual(skillEntry.status, 0);
   assert.strictEqual(runCommitGuard(null, dir), 2);
@@ -891,7 +891,7 @@ test('pre-tool-use: a non-matching flag on a blocked command is NOT consumed', (
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
   const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
   fs.mkdirSync(path.dirname(flagPath), { recursive: true });
-  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qrun-task', ts: Date.now() }));
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'Qexecute', ts: Date.now() }));
 
   const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m x' } });
   assert.strictEqual(res.status, 2); // blocked — flag skill does not match Qcommit rule
@@ -927,5 +927,5 @@ test('pre-tool-use: a stale flag in the hook process cwd does NOT authorize an u
 });
 
 test('pre-tool-use: an unrelated bypass flag does NOT allow git commit', () => {
-  assert.strictEqual(runCommitGuard('Qrun-task'), 2);
+  assert.strictEqual(runCommitGuard('Qexecute'), 2);
 });

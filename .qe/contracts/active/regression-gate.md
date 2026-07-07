@@ -51,7 +51,7 @@ export function formatRegressionReport(
 
 ## Purpose
 
-Qcode-run-task Step 4.8 Cross-Phase Regression Gate 구현. 현재 단계 완료 시, 이전 단계들의 VERIFY_CHECKLIST를 재검증하여 파일 손실이나 이전 체크리스트 항목 미충족 상태가 없는지 확인. 단계 경계를 넘으며 발생하는 회귀를 조기에 차단.
+Qexecute -verify Step 4.8 Cross-Phase Regression Gate 구현. 현재 단계 완료 시, 이전 단계들의 VERIFY_CHECKLIST를 재검증하여 파일 손실이나 이전 체크리스트 항목 미충족 상태가 없는지 확인. 단계 경계를 넘으며 발생하는 회귀를 조기에 차단.
 
 ## Constraints
 

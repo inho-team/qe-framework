@@ -42,7 +42,7 @@ for (const warning of validation.warnings) warn(warning);
 for (const error of validation.errors) failures.push(`[fixture] ${error}`);
 
 expect(normalizeSkillName('Qgs') === 'Qgenerate-spec', '[alias] Qgs should normalize to Qgenerate-spec');
-expect(normalizeSkillName('Qrt') === 'Qrun-task', '[alias] Qrt should normalize to Qrun-task');
+expect(normalizeSkillName('Qrt') === 'Qexecute', '[alias] Qrt should normalize to Qexecute');
 expect(normalizeSkillName('qe-framework:Qgs') === 'Qgenerate-spec', '[alias] namespaced Qgs should normalize');
 
 const syntheticRoutes = {

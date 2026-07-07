@@ -88,7 +88,7 @@ Trigger conditions:
 | Ecode-reviewer | Security concern found | Esecurity-officer |
 | Ecode-test-engineer | Coverage below 50% | Esupervision-orchestrator |
 
-The orchestrating skill (Qrun-task, Qutopia) checks `.qe/agent-triggers/` after each agent completes and spawns triggered agents automatically.
+The orchestrating skill (Qexecute, Qutopia) checks `.qe/agent-triggers/` after each agent completes and spawns triggered agents automatically.
 
 ---
 

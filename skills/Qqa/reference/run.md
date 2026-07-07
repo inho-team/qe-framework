@@ -5,7 +5,7 @@ Behavior preserved from `Qscenario-test`.
 ## Role
 
 Generate test scenarios from existing implementations, execute them, and verify results. This is the
-verification stage after `Qrun-task` completes: it tests what was built, not builds what was specced.
+verification stage after `Qexecute` completes: it tests what was built, not builds what was specced.
 
 > Mandatory: all user confirmations must use the QE interaction adapter. Claude uses
 > `AskUserQuestion`; Codex uses equivalent concise choices.
@@ -13,7 +13,7 @@ verification stage after `Qrun-task` completes: it tests what was built, not bui
 ## Pipeline Position
 
 ```text
-Qgenerate-spec -> Qrun-task -> Qqa run
+Qgenerate-spec -> Qexecute -> Qqa run
   (what to build)   (build it)   (does it actually work?)
 ```
 
@@ -22,7 +22,7 @@ Qgenerate-spec -> Qrun-task -> Qqa run
 | From | Spirit | Applied As |
 |------|--------|------------|
 | `Qgenerate-spec` | UUID-based document generation | `SCENARIO_SPEC` + `SCENARIO_CHECKLIST` with shared UUID |
-| `Qrun-task` | Spec-driven execution + checklist verification | Execute scenarios step-by-step, check off results |
+| `Qexecute` | Spec-driven execution + checklist verification | Execute scenarios step-by-step, check off results |
 | Unique to this subcommand | Scenario execution + evidence collection | Actually run the scenarios via browser/API/CLI |
 
 ## 3-Document System
@@ -227,12 +227,12 @@ Final verdict:
 - File bug report: generate bug report per `Qqa plan` bug report format.
 - Accept: archive all documents to `.qe/scenarios/archive/`.
 
-## Qrun-task Integration
+## Qexecute Integration
 
-When called from the `Qrun-task` pipeline with a TASK_REQUEST UUID:
+When called from the `Qexecute` pipeline with a TASK_REQUEST UUID:
 - Read TASK_REQUEST to understand what was implemented.
 - Derive scenarios from checklist items and implementation goals.
-- Report results back so `Qrun-task` can use pass/fail in verification.
+- Report results back so `Qexecute` can use pass/fail in verification.
 
 When called independently:
 - User provides code path, URL, or description.
@@ -247,8 +247,8 @@ When `.qe/state/ultra{work,qa}-state.json` is active:
 
 ## Role Constraints
 
-- Does not write implementation code; use `Qrun-task`.
+- Does not write implementation code; use `Qexecute`.
 - Does not generate implementation specs; use `Qgenerate-spec`.
 - Does not generate test documentation only; use `Qqa plan`.
-- Does not run unit test loops; use `Qcode-run-task`.
+- Does not run unit test loops; use `Qexecute -verify`.
 - Only generates scenarios, executes them, and reports results.

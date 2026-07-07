@@ -24,6 +24,12 @@ drawing from a provider `pool`:
 | `codex` | cli | openai | openai |
 | `fugu` | openai-compat | fugu | fugu (experimental) |
 
+> The `openai-compat` type is a **generic second-vendor slot**, not a Fugu-specific
+> integration. Any OpenAI-compatible endpoint (Fugu is only one example) can be
+> configured as an experiment-only engine via env-only keys and reached through the
+> opt-in `qe_run_openai_compat_agent` MCP tool. It exists to widen vendor diversity
+> for the independence gate — never as a default engine.
+
 `checkSivsPoolDisjoint(config)` in
 [`hooks/scripts/lib/sivs-enforcer.mjs`](../hooks/scripts/lib/sivs-enforcer.mjs)
 compares the Implement pool against the Verify vendor and returns

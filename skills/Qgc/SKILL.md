@@ -81,7 +81,7 @@ Log execution to `.qe/gc/gc-history.jsonl`:
 
 ### Step 3: Fix (if /Qgc fix or auto-fix enabled)
 - **Auto-fixable**: lint --fix, unused import removal, stale analysis → /Qrefresh hint
-- **Manual required**: Generate TASK_REQUEST with grouped issues → suggest /Qrun-task
+- **Manual required**: Generate TASK_REQUEST with grouped issues → suggest /Qexecute
 - Use `AskUserQuestion` before applying fixes: "Found N auto-fixable issues. Apply fixes?"
 
 ### Step 4: Summary

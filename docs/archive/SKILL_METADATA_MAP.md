@@ -19,8 +19,8 @@ This map defines the standardized `invocation_trigger` and `recommendedModel` fo
 | Skill | Invocation Trigger | Recommended Model |
 |-------|-------------------|-------------------|
 | `Qgenerate-spec` | "When a new project, task, or bug fix spec needs to be defined." | haiku (draft) / sonnet (logic) |
-| `Qrun-task` | "When a TASK_REQUEST or checklist needs implementation or verification." | sonnet |
-| `Qcode-run-task` | "When code has been modified and needs a quality loop (test-review-fix)." | sonnet |
+| `Qexecute` | "When a TASK_REQUEST or checklist needs implementation or verification." | sonnet |
+| `Qexecute -verify` | "When code has been modified and needs a quality loop (test-review-fix)." | sonnet |
 | `Qcommit` | "When changes are ready to be staged and committed to git." | haiku |
 | `Qcompact` | "When the context window is full or under pressure (Orange/Red zone)." | haiku |
 | `Qrefresh` | "When project analysis files need to be re-synchronized with current code." | haiku |

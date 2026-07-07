@@ -37,8 +37,8 @@
 {{consequences}}
 
 ## How to Run
-- Standard: `/Qrun-task {{UUID}}`
-- **Atomic Wave (High Speed)**: `/Qatomic-run {{UUID}}` (Best if steps are simple and independent)
+- Standard: `/Qexecute {{UUID}}`
+- **Atomic Wave (High Speed)**: `/Qexecute {{UUID}}` (Best if steps are simple and independent)
 
 ## 참고사항
 {{notes}}

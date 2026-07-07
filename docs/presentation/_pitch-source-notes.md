@@ -23,7 +23,7 @@
 ## S4 — QE의 답: PSE + SIVS
 - 출처: `docs/SYSTEM_OVERVIEW.md`, `core/PHILOSOPHY.md`, README.md
 - PSE 체인(사용자 워크플로우): Plan → Spec → Execute → Verify
-  (/Qplan → /Qgs → /Qatomic-run → /Qcode-run-task)
+  (/Qplan → /Qgs → /Qexecute → /Qexecute -verify)
 - SIVS 루프(내부 품질 게이트): Spec → Implement → Verify → Supervise → (FAIL) Remediate
 - Query/Execute 메시지(README): 모든 AI 작업은 Query와 Execute로 환원된다.
 
