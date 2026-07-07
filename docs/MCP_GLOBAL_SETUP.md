@@ -79,10 +79,11 @@ active cross-agent runner tools such as:
 - `qe_recommend_expert`
 - `qe_read_expert`
 - `qe_read_methodology`
-- `qe_expert_prompt`
 - `qe_run_codex_agent`
 - `qe_run_claude_agent`
+- `qe_run_openai_compat_agent` (experiment-only, env-gated)
 - `qe_cross_agent_help`
+- `qe_delegate_agent`
 
 After syncing, restart Claude Code or Codex and verify with:
 
