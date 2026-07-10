@@ -59,6 +59,28 @@ npm run check         # qe-mcp checkout only
 npm run selftest
 ```
 
+#### Enforced-but-silent device guard (`scripts/check-enforced-devices.mjs`)
+
+`check-all.mjs` auto-discovers a **warning-only** guard that flags savings devices
+which are declared "Enforced" but whose activity counters are still zero. It is a
+soft health signal, never a build gate (always exits 0).
+
+- **Source of truth**: the device→counter mapping is a **code constant** inside
+  `scripts/check-enforced-devices.mjs` (the `DEVICES` array). It does NOT parse
+  `QE_CONVENTIONS.md` prose or count declarations.
+- **Reads only** `{cwd}/.qe/state/unified-state.json`. Missing / corrupt /
+  unparseable state, non-numeric `session_stats.tool_calls`, or a fresh session
+  (`tool_calls < 50`) → NOTICE or grace-skip. A warning fires only when
+  `tool_calls ≥ 50` (inclusive) and a device's counters are still zero.
+
+| Device | Counters checked | Warns when |
+|--------|------------------|------------|
+| ContextMemo (Minimal I/O) | `memo.files`, `memo.blocked_reads`, `session_stats.blocked_reads` | all zero at `tool_calls ≥ 50` |
+| Delegation Enforcer | `delegationStats.autoInjections + warnings + overrides` | absent or sum zero at `tool_calls ≥ 50` |
+
+A warning here means: re-check hook wiring (PostToolUse matcher includes `Read`;
+the delegation gate fires on the `Task` tool and reads `subagent_type`).
+
 ### Step 2: Version And Boundary Checks
 Verify:
 - `qe-framework` version is readable from the installed package or checkout.

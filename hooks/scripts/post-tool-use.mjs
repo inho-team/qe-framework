@@ -90,8 +90,16 @@ if (toolName === 'Bash') {
 if (!isError && toolName === 'Read') {
   const toolInput = data.tool_input || data.toolInput || {};
   const filePath = toolInput.file_path || toolInput.filePath || '';
-  if (filePath && data.tool_response) {
-    updateContextMemo(state, filePath, data.tool_response);
+  // Only cache FULL reads. A partial read (offset/limit) returns a slice of the
+  // file; caching it under the plain path key would let a later full read be
+  // MEMO-blocked and served incomplete content. Partial reads are left uncached
+  // (and, symmetrically, un-blocked in pre-tool-use).
+  const isPartialRead =
+    toolInput.offset !== undefined || toolInput.limit !== undefined;
+  if (filePath && data.tool_response != null && !isPartialRead) {
+    const resp = data.tool_response;
+    const contentStr = typeof resp === 'string' ? resp : String(resp);
+    updateContextMemo(state, filePath, contentStr);
   }
 } else if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};
@@ -145,11 +153,25 @@ if (Object.keys(usage).length > 0) {
   stats.usage.cache_read_tokens += usage.cache_read_input_tokens || 0;
   stats.usage.cache_creation_tokens += usage.cache_creation_input_tokens || 0;
 } else {
-  // Fallback: Estimate tokens based on payload size (chars / 4)
-  const estimatedInput = Math.ceil(JSON.stringify(data.tool_input || {}).length / 4);
-  const estimatedOutput = Math.ceil(String(data.tool_response || '').length / 4);
-  stats.usage.input_tokens += estimatedInput;
-  stats.usage.output_tokens += estimatedOutput;
+  // Fallback: estimate tokens by payload size (chars / 4) when no real usage
+  // is attached (the common case — usage rides the assistant message, not the
+  // tool result). Direction matters and was previously inverted:
+  //   - tool_input  = the tool call the MODEL PRODUCED  → counts as output.
+  //   - tool_response = content RETURNED TO THE MODEL as next-turn context
+  //                     → counts as input, NOT output.
+  // The old mapping charged large tool_response bodies (file reads, Bash output)
+  // to output_tokens, which is what produced the output≈5×input inversion. It
+  // also becomes critical once Read is wired into this hook's matcher, since a
+  // Read's whole file body arrives as tool_response.
+  // Coerce structured tool_response via JSON so an object is not flattened to the
+  // 15-char "[object Object]" (undercount).
+  const toolInputStr = JSON.stringify(data.tool_input || {});
+  const resp = data.tool_response;
+  const toolResponseStr = typeof resp === 'string' ? resp : (resp == null ? '' : JSON.stringify(resp));
+  const producedTokens = Math.ceil(toolInputStr.length / 4);   // model-produced call → output
+  const returnedTokens = Math.ceil(toolResponseStr.length / 4); // returned to model → input
+  stats.usage.output_tokens += producedTokens;
+  stats.usage.input_tokens += returnedTokens;
 }
 
 // --- Error tracking ---

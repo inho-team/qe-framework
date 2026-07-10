@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, unlinkSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync } from 'fs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';
@@ -149,7 +149,14 @@ const MEMO_TOTAL_LIMIT = 100 * 1024; // 100KB
  */
 function ensureMemo(state) {
   if (!state.memo) state.memo = { files: {}, meta: {}, total_size: 0, blocked_reads: 0 };
-  if (!state.memo.meta) state.memo.meta = {};
+  // Defend every sub-field independently: a partially-corrupt memo (e.g. `files`
+  // or `total_size` dropped by an interrupted write) must not make updateContextMemo
+  // throw on `memo.files[k]` or poison arithmetic with `undefined + n = NaN`.
+  if (!state.memo.files || typeof state.memo.files !== 'object') state.memo.files = {};
+  if (!state.memo.meta || typeof state.memo.meta !== 'object') state.memo.meta = {};
+  if (typeof state.memo.total_size !== 'number' || !Number.isFinite(state.memo.total_size)) {
+    state.memo.total_size = 0;
+  }
   if (state.memo.blocked_reads === undefined) state.memo.blocked_reads = 0;
   return state.memo;
 }
@@ -160,10 +167,14 @@ function ensureMemo(state) {
 export function updateContextMemo(state, filePath, content) {
   const memo = ensureMemo(state);
 
-  if (content.length > MEMO_FILE_LIMIT) return;
+  // Gate on BYTES (not string .length) so the per-file limit is consistent with
+  // the byte-based total_size accounting below. For multibyte content (e.g. CJK)
+  // char count understates byte size, so a char-based gate could admit an
+  // over-limit file and skew total_size.
+  const contentSize = Buffer.byteLength(content, 'utf8');
+  if (contentSize > MEMO_FILE_LIMIT) return;
 
   // Evict old entries if total size exceeded
-  const contentSize = Buffer.byteLength(content, 'utf8');
   while (memo.total_size + contentSize > MEMO_TOTAL_LIMIT) {
     const firstKey = Object.keys(memo.files)[0];
     if (!firstKey) break;
@@ -172,11 +183,19 @@ export function updateContextMemo(state, filePath, content) {
     delete memo.meta[firstKey];
   }
 
+  // Record the file's mtime at cache time so isMemoValid can detect an external
+  // edit (Bash/git/other editor) that never goes through markMemoModified. If the
+  // stat fails, leave mtimeMs undefined — isMemoValid then re-stats and, on any
+  // doubt, allows the read (fail-open toward correctness, never a false block).
+  let mtimeMs;
+  try { mtimeMs = statSync(filePath).mtimeMs; } catch {}
+
   memo.files[filePath] = content;
   memo.meta[filePath] = {
     readAt: Date.now(),
     modifiedSince: false,
-    contentSize
+    contentSize,
+    mtimeMs
   };
   memo.total_size += contentSize;
 }
@@ -202,7 +221,20 @@ export function getContextMemoMeta(state, filePath) {
 export function isMemoValid(state, filePath) {
   const meta = state?.memo?.meta?.[filePath];
   if (!meta) return false;
-  return !meta.modifiedSince && !!state?.memo?.files?.[filePath];
+  if (meta.modifiedSince || !state?.memo?.files?.[filePath]) return false;
+  // External-edit guard: if we recorded an mtime at cache time, the cache is only
+  // valid while the on-disk mtime is unchanged. A Bash/git/external edit (which
+  // never calls markMemoModified) bumps mtime → cache is stale → allow the read.
+  // A deleted/unstattable file also invalidates. Missing mtimeMs (older entry or
+  // stat failed at cache time) falls back to the modifiedSince flag above.
+  if (meta.mtimeMs !== undefined) {
+    try {
+      if (statSync(filePath).mtimeMs !== meta.mtimeMs) return false;
+    } catch {
+      return false;
+    }
+  }
+  return true;
 }
 
 /**

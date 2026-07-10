@@ -74,10 +74,23 @@ function isShellTool(name) {
 if (toolName === 'Read') {
   const toolInput = data.tool_input || data.toolInput || {};
   const filePath = toolInput.file_path || toolInput.filePath || '';
-  if (filePath && isMemoValid(state, filePath)) {
-    // File was previously read and has NOT been modified since — block the redundant read
+  // A partial read (offset/limit) is an intentional slice request — never block
+  // it, and it is never cached (see post-tool-use). Only full re-reads are hits.
+  const isPartialRead =
+    toolInput.offset !== undefined || toolInput.limit !== undefined;
+  if (filePath && !isPartialRead && isMemoValid(state, filePath)) {
+    // File was previously read and has NOT been modified since — block the redundant read.
     const blockedCount = incrementBlockedReads(state);
-    // Persist state before exiting so the counter is saved
+    // This hard-block exits before the normal tool_calls increment below, so a
+    // blocked read would otherwise vanish from activity accounting (and from the
+    // "tool_calls ≥ 50" enforced-but-silent heuristic). Count it here. Guard the
+    // session_stats init because this branch runs before the block that seeds it.
+    if (!state.session_stats) {
+      state.session_stats = { tool_calls: 0, session_start: Date.now(), context_loaded: [] };
+    }
+    state.session_stats.tool_calls = (state.session_stats.tool_calls || 0) + 1;
+    state.session_stats.blocked_reads = (state.session_stats.blocked_reads || 0) + 1;
+    // Persist state before exiting so the counters are saved
     try { writeUnifiedState(cwd, state); } catch {}
     emitBlock({
       skill: '_memo',
@@ -548,8 +561,11 @@ if (['Write', 'Edit'].includes(toolName)) {
   }
 }
 
-// --- Delegation Enforcer (Agent tool calls) ---
-if (toolName === 'Agent') {
+// --- Delegation Enforcer (subagent delegation tool calls) ---
+// The real Claude Code delegation tool is `Task` (tool_input.subagent_type);
+// some runtimes surface it as `Agent`. Gating on `Agent` alone missed every
+// real delegation, so delegationStats never moved. Accept both.
+if (toolName === 'Task' || toolName === 'Agent') {
   const toolInput = data.tool_input || data.toolInput || {};
   try {
     const { checkDelegation, updateDelegationStats } = await import('./lib/delegation-enforcer.mjs');

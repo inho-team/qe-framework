@@ -17,6 +17,34 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- **Enforced-but-silent device guard** (`scripts/check-enforced-devices.mjs`,
+  auto-discovered by `check-all`). Warning-only health check that flags a savings
+  device declared "Enforced" whose activity counters are still zero after
+  `tool_calls ≥ 50`. Reads only `{cwd}/.qe/state/unified-state.json`; missing/
+  corrupt/fresh state grace-skips; never fails the build. Device→counter mapping
+  is a code constant, documented in `skills/Qdoctor/SKILL.md`.
+
+### Fixed
+
+- **ContextMemo (Minimal I/O) now actually records and blocks.** The `PostToolUse`
+  matcher excluded `Read`, so `updateContextMemo` never ran and no redundant read
+  was ever blocked (`memo.files` stayed empty, `blocked_reads` stayed 0). `Read` is
+  now wired into the matcher (`hooks.json` + `plugin.json`). Added mtime-based cache
+  invalidation (external Bash/git edits no longer serve stale content), a
+  session-start memo reset (a fresh session's first read is never blocked),
+  partial-read (`offset`/`limit`) handling (no false blocks / cache poisoning), and
+  `ensureMemo` hardening against partial-corrupt state (no `NaN`/throw). Blocked
+  reads now count toward session activity.
+- **Delegation Enforcer now recognizes real delegation payloads.** The stats gate
+  fired only on a `Agent` tool name and read `agent`/`name`, so the real `Task` tool
+  with `tool_input.subagent_type` was missed and `delegationStats` never moved. The
+  gate now accepts `Task` (and `Agent`) and reads `subagent_type`/`subagentType`.
+- **Token accounting no longer inverts input/output.** The size-estimate fallback
+  charged `tool_response` (content returned to the model = input) to `output_tokens`
+  and `tool_input` (model-produced) to `input_tokens` — backwards, which inflated
+  output ~5×. Directions corrected; structured `tool_response` is JSON-coerced to
+  avoid `"[object Object]"` undercount.
+
 ### Changed
 
 - **BREAKING — execution skills unified into `Qexecute`.** The three execution skills

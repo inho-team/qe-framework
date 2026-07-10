@@ -627,6 +627,13 @@ try {
     // Session persistent stats - keep usage, but reset session-specific flags if needed
     state.session_stats.session_start = Date.now();
   }
+  // Clear ContextMemo on session start so a fresh session's first read of any file
+  // is never MEMO-blocked by another session's leftover cache. Correctness is
+  // already guarded by mtime validation in isMemoValid; this reset is about
+  // per-session freshness (a new session may run against externally-changed files).
+  // Trade-off: in a shared unified-state.json, this wipes concurrent sessions'
+  // cache — a lost re-read optimization, never a correctness issue (see DIAG C11).
+  state.memo = { files: {}, meta: {}, total_size: 0, blocked_reads: 0 };
   writeUnifiedState(cwd, state);
 } catch {
   // Fault tolerance — ignore reset errors
