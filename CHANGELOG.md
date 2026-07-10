@@ -28,7 +28,8 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   YAML front matter block with non-empty `name`/`description`, a `name` matching
   its directory, and no duplicate skill names across directories. Directory-only
   scan (plain files like `skills/CATALOG.md` are ignored). Manual line parsing,
-  no YAML dependency, read-only. Supports `--warn-only` for soft launches.
+  no YAML dependency (quoted scalars like `name: "Foo"` normalized), read-only.
+  Supports `--warn-only` for soft launches.
 
 ### Fixed
 

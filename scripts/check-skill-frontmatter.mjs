@@ -57,7 +57,11 @@ function parseFrontmatter(file) {
   for (const l of lines.slice(1, end)) {
     const m = l.match(/^([A-Za-z0-9_]+):\s*(.*)$/);
     if (m && !(m[1] in fields)) {
-      fields[m[1]] = m[2].trim();
+      let v = m[2].trim();
+      // Normalize YAML scalars: `name: "Foo"` / `name: 'Foo'` == `name: Foo`.
+      const quoted = v.match(/^(['"])([\s\S]*)\1$/);
+      if (quoted) v = quoted[2];
+      fields[m[1]] = v;
     }
   }
   return {
