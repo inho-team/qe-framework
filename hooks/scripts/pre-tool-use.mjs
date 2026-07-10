@@ -100,6 +100,42 @@ if (toolName === 'Read') {
   }
 }
 
+// --- SIVS Remediation Loop Limit (Phase 3 / R006 — deterministic hard block) ---
+// The one code choke point of the otherwise prose-driven SIVS loop: a new
+// remediation round is a Write/Edit of REMEDIATION_REQUEST_{UUID}_{N}.md. Intercept
+// it, count the round, and hard-block round > 3 so the loop cannot restart Stage 1
+// forever. Scoped to REMEDIATION writes ONLY — never wedges other tool calls.
+if (['Write', 'Edit'].includes(toolName)) {
+  const ti = data.tool_input || data.toolInput || {};
+  const fp = ti.file_path || ti.filePath || '';
+  // {UUID} may be 8-char hex or a hyphenated id; {N} is the round. Anchored at a
+  // path separator (or start) so only the real basename matches, not an embedded
+  // substring; greedy capture backtracks so `_(\d+)\.md$` binds the final _<round>.md.
+  const m = /(?:^|\/)REMEDIATION_REQUEST_(.+)_(\d+)\.md$/.exec(fp);
+  if (m) {
+    try {
+      const remUuid = m[1];
+      const { recordAndCheck } = await import('./lib/loop-guard.mjs');
+      const verdict = recordAndCheck(cwd, remUuid, 'remediation');
+      if (verdict.blocked) {
+        const isCorrupt = verdict.kind === 'corrupt';
+        emitBlock({
+          skill: '_loop_guard',
+          reason: isCorrupt
+            ? `SIVS loop state for ${remUuid} is corrupt — refusing a new remediation round (fail-closed).`
+            : `SIVS remediation limit reached for ${remUuid}: ${verdict.count - 1} of ${verdict.limit} rounds already used.`,
+          action: isCorrupt
+            ? `Run ${skillCommand('Qdoctor')} to repair .qe/state, then retry. Do not restart Stage 1 blindly.`
+            : `${verdict.limit} remediation rounds are exhausted. Stop restarting Stage 1 — escalate to the user with the unresolved findings and a recommendation.`,
+          bypass: 'QE_SIVS_DEPTH_LIMIT / resetLoop after user decision',
+        });
+      }
+    } catch {
+      // fail-open on guard errors for any path OTHER than a confirmed block above.
+    }
+  }
+}
+
 if (!state.session_stats) {
   state.session_stats = {
     tool_calls: 0,

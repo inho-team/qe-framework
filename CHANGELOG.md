@@ -17,6 +17,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- **SIVS loop-safety limits** (`hooks/scripts/lib/loop-guard.mjs` +
+  `scripts/check-loop-guard.mjs`). Caps the previously-unbounded FAIL recursion:
+  the remediation-round limit (3) is now enforced **deterministically** by the
+  PreToolUse hook, which intercepts `REMEDIATION_REQUEST_{UUID}_{N}.md` writes and
+  hard-blocks a 4th round with a user-escalation handoff; the backward-routing
+  depth limit (5, `QE_SIVS_DEPTH_LIMIT` override) is code-computed and enforced by
+  the Verify/Supervise gate protocols. Per-UUID counters live in
+  `unified-state.json`; loop-scoped-corrupt state fails closed (that UUID's
+  remediation only, with a `/Qdoctor` repair path — never wedges the session),
+  a session-start sweep clears abandoned counters keyed on last activity (an active
+  at-limit run is preserved), and Qdoctor surfaces the loop budget before it is
+  exhausted. Enforcement layering recorded in DECISION_LOG D-5033dbc3-1.
 - **Enforced-but-silent device guard** (`scripts/check-enforced-devices.mjs`,
   auto-discovered by `check-all`). Warning-only health check that flags a savings
   device declared "Enforced" whose activity counters are still zero after

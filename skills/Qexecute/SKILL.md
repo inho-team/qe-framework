@@ -193,6 +193,10 @@ sub-agent spawn or the orchestrator's aggregation inference.
 `type: docs` → `Edoc-generator`. 5. Auto-run `{adapter.commandPrefix}Qarchive` in background.
 6. Clean up stale `.qe/agent-results/`. Report UUID, items, verification, changed files, then
 the **Next Task Prompt** (remaining pending tasks).
+7. **Clear the SIVS loop counters** for this UUID — call `resetLoop(cwd, uuid)` from
+`hooks/scripts/lib/loop-guard.mjs` (Phase 3 / R005-R006). A cleanly completed task
+must not leave a stale reentry/remediation counter that could false-block a future
+run of the same UUID (abandoned runs are handled by the session-start staleness sweep).
 
 ---
 

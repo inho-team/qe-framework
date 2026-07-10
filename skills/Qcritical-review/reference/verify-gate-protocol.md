@@ -90,6 +90,15 @@ loop re-enters and re-verifies. The Verify gate's default backward target is
 4. **Loop bound:** the gate does **not** self-loop. It honors the caller's
    `Qexecute -verify` 3-round cap. After 3 rounds still FAIL → **escalate to the
    user** (do not auto-proceed).
+5. **Depth limit (Phase 3 / R005 — code-computed, protocol-enforced):** before
+   re-entering after a FAIL, call `recordAndCheck(cwd, uuid, 'reentry', '<from-stage>')`
+   from `hooks/scripts/lib/loop-guard.mjs`. The limit (default 5,
+   `QE_SIVS_DEPTH_LIMIT` override) is computed in code; if it returns `blocked`,
+   do **not** re-enter — emit a user **escalation handoff** stating: the depth
+   budget is exhausted (`count`/`limit`), the unresolved findings, and a
+   recommended next action. This layer is protocol-enforced (the code computes the
+   limit; the gate obeys it), distinct from the deterministic hook block on the
+   remediation counter.
 
 ### Qexecute `-utopia` (autonomous, non-interactive)
 The gate still runs for `type:code`/`other` in `-utopia` (the work-path skip

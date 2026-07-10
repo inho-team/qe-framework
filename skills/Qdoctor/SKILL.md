@@ -81,6 +81,23 @@ soft health signal, never a build gate (always exits 0).
 A warning here means: re-check hook wiring (PostToolUse matcher includes `Read`;
 the delegation gate fires on the `Task` tool and reads `subagent_type`).
 
+#### SIVS loop budget (Phase 3 / R005-R006)
+
+Qdoctor surfaces the per-UUID SIVS loop-safety counters so a loop budget is
+visible **before** it is exhausted. It reads `sivs_loops` from
+`{cwd}/.qe/state/unified-state.json` (via `hooks/scripts/lib/loop-guard.mjs`
+`checkLimits`) and reports, per active UUID:
+
+- **reentry**: backward-routing hops used / limit (default 5, `QE_SIVS_DEPTH_LIMIT`).
+- **remediation**: remediation rounds used / limit (3).
+
+A UUID at or near a limit is flagged as a NOTICE (budget nearly exhausted); an
+entry reported `corrupt` (present but malformed counters) is flagged for repair —
+its next remediation is fail-closed until reset. Absent/fresh state is normal and
+silent. This is read-only visibility; the actual enforcement lives in the
+PreToolUse hook (remediation) and the gate protocols (depth). The Verify handoff
+likewise shows the remaining loop budget so exhaustion is never a surprise.
+
 ### Step 2: Version And Boundary Checks
 Verify:
 - `qe-framework` version is readable from the installed package or checkout.

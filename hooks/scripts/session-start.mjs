@@ -639,6 +639,20 @@ try {
   // Fault tolerance — ignore reset errors
 }
 
+// --- SIVS loop-guard staleness sweep (Phase 3 / R005-R006) ---
+// Drop loop counters idle beyond the max age so an abandoned run's stale counter
+// never false-blocks a later legitimate run of a re-used UUID. Keyed on
+// last-activity (updated_at), so an active at-limit run is preserved — never
+// swept out from under itself (that would reopen the runaway). Own atomic
+// read-modify-write; best-effort, once per session start.
+try {
+  const { sweepStale } = await import('./lib/loop-guard.mjs');
+  const swept = sweepStale(cwd);
+  if (swept > 0) messages.push(`[loop-guard] swept ${swept} stale SIVS loop counter(s).`);
+} catch {
+  // Fault tolerance — a sweep error must never block session start.
+}
+
 if (messages.length > 0) {
   process.stdout.write(JSON.stringify({
     continue: true,

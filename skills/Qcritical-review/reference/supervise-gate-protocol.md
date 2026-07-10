@@ -100,6 +100,14 @@ A Supervise FAIL walks **backward up the chain** to the nearest causing stage
 4. **Loop bound:** the gate does not self-loop. It honors the orchestrator's
    "escalate after 3 iterations". After 3 rounds still FAIL → **escalate to the
    user**.
+5. **Depth limit (Phase 3 / R005 — code-computed, protocol-enforced):** before
+   routing backward after a FAIL, call `recordAndCheck(cwd, uuid, 'reentry', '<from-stage>')`
+   from `hooks/scripts/lib/loop-guard.mjs`. The limit (default 5,
+   `QE_SIVS_DEPTH_LIMIT` override) is code-computed; on `blocked`, do **not**
+   re-enter — emit a user **escalation handoff** naming the exhausted depth budget
+   (`count`/`limit`), the unresolved findings, and a recommended next action. The
+   remediation-round cap (3) is separately enforced deterministically by the
+   PreToolUse hook on `REMEDIATION_REQUEST_{UUID}_{N}.md` writes.
 
 ## Edge inputs
 
