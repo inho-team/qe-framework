@@ -314,6 +314,24 @@ These skills are optimized for common workflows and consistently outperform gene
 
 ---
 
+## When to use X vs Y
+
+Complements the `Preferred Skill Map` above. That map names the canonical skill per
+action; this matrix disambiguates the cases where two similar skills (or tools) both
+apply and the choice depends on the situation. Only skills confirmed present in
+`skills/` are listed; browser entries are tool routes, not skills.
+
+| 상황 | 1순위 | 대안 | 판단 기준 |
+|------|-------|------|-----------|
+| 작업 실행 방식 | `Qexecute` (무플래그) | `Qexecute -verify` · `Qexecute -utopia` | 단순·저위험이면 무플래그 자기분류(순차/wave); 코드 품질 루프 게이트가 필요하면 `-verify`; 무인 자율 반복이면 `-utopia` |
+| 세션 연속성 | `Qcompact` → `Qresume` | `Qmemory` · `Qcontext` · `Qlearn` | 진행 상태를 통째로 다음 세션에 넘길 땐 compact/resume; 재사용할 규칙·결정은 `Qmemory`; 폴더 국소 컨텍스트는 `Qcontext`; 실패에서 얻은 교훈은 `Qlearn` |
+| 정리 vs 스냅샷 | `Qgc` | `Qshadow` | 드리프트·데드코드·규칙 위반 스캔/정리는 `Qgc`; 작업트리 체크포인트·되돌리기(실제 git 무영향)는 `Qshadow` |
+| 계획 vs 스펙 | `Qplan` | `Qgs` | 로드맵·페이즈 관리는 `Qplan`; 특정 작업의 TASK_REQUEST+VERIFY_CHECKLIST 생성은 `Qgs`(= `Qgenerate-spec`) |
+| 품질 검증 | `Qcritical-review` | `Qqa` | SIVS 스테이지 적대적 검증(spec/impl/merge)은 `Qcritical-review`; 실행 중인 웹앱 대상 탐색·회귀 QA는 `Qqa` |
+| 브라우저 자동화 (도구) | Playwright MCP | claude-in-chrome · 스크린샷 CLI | 접근성 트리 기반 안정 조작은 Playwright MCP(우선); 확장 연동 시나리오는 claude-in-chrome; 단순 캡처만이면 `npx playwright screenshot` CLI |
+
+---
+
 ## Skills (Q-prefix)
 
 ### Framework Core
