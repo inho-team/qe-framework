@@ -23,6 +23,12 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   `tool_calls ≥ 50`. Reads only `{cwd}/.qe/state/unified-state.json`; missing/
   corrupt/fresh state grace-skips; never fails the build. Device→counter mapping
   is a code constant, documented in `skills/Qdoctor/SKILL.md`.
+- **Skill front-matter guard** (`scripts/check-skill-frontmatter.mjs`,
+  auto-discovered by `check-all`). Verifies every `skills/<Name>/SKILL.md` has a
+  YAML front matter block with non-empty `name`/`description`, a `name` matching
+  its directory, and no duplicate skill names across directories. Directory-only
+  scan (plain files like `skills/CATALOG.md` are ignored). Manual line parsing,
+  no YAML dependency, read-only. Supports `--warn-only` for soft launches.
 
 ### Fixed
 
