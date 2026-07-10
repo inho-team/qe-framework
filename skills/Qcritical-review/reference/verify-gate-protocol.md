@@ -118,3 +118,35 @@ not interleave:
 ```
 {ISO-8601} | verify | verdict={PASS|WARN|FAIL} | agents={n} | crossmodel={true|false|degraded} | route={implement|spec|-} | uuid={UUID}
 ```
+
+## Findings pipeline (Verify → Supervise, Phase 2 / R002)
+
+The gate audit above is a per-run **verdict summary** (no finding ids). Separately,
+the Verify gate persists its individual findings to an **append-only event
+stream** so downstream gates can reuse them instead of re-analyzing the same code
+(the real cross-stage duplication — Verify and Supervise both run
+`Ecode-reviewer`/`Ecode-test-engineer` on the same diff; see DECISION_LOG
+D-55a051bd-1).
+
+- **Artifact:** `.qe/agent-results/verify-findings-{UUID}.jsonl`, one JSON event
+  per line. Distinct from `verify-gate.log`. Written via
+  `hooks/scripts/lib/findings-ledger.mjs` → `appendFinding(cwd, uuid, event)`
+  (`O_APPEND`, no whole-file rewrite → parallel agents never lose writes).
+- **Event schema:** `{ id, gate, severity, status, file, ts, rationale?, waived_by? }`
+  where `status ∈ {open, resolved, waived, escalated}`. A `waived` event MUST
+  carry `rationale` + `waived_by` (else it is a silent drop, not a waiver).
+- **Clean marker:** a run with zero findings writes an affirmative
+  `markClean(cwd, uuid, gate)` line (`{clean:true,...}`). **Absence of the
+  artifact is NOT clean** — it means the gate crashed before writing; the reader
+  reports `absent` distinctly from `clean`.
+- **Canonical fold (reader contract):** one id yields multiple events across
+  gates; the single canonical record is a projection, never stored.
+  `foldFindings(events)` computes it: canonical status = the id's highest-
+  precedence **terminal** event, precedence **escalated > waived > resolved**; no
+  terminal → `open`; `owner_gate` = the gate that wrote the winning terminal (ts
+  tiebreak among equal precedence). A lower gate's `escalated` is never masked by
+  a later `waive`.
+- **Invariant (enforced by `scripts/check-findings-pipeline.mjs`):** at pipeline
+  end every finding folds to exactly one terminal (resolved/waived/escalated); an
+  id still `open` = vanished/forgotten = violation. Legitimate closures never
+  false-positive.

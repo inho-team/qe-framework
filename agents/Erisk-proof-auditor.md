@@ -49,6 +49,24 @@ Use only:
 - `deferred-with-owner`
 - `unknown`
 
+### Ingesting Verify findings (Phase 2 / R002)
+
+When Verify-stage findings are injected (folded canonical records from
+`.qe/agent-results/verify-findings-{UUID}.jsonl`, see
+`skills/Qcritical-review/reference/supervise-gate-protocol.md`), map the finding
+`status` to these values **with a fixed direction — never soft-downgrade an
+escalation**:
+
+| Verify finding status | Risk-proof status |
+|---|---|
+| `resolved` | `verified-safe` or `mitigated` (per evidence type) |
+| `waived` | `deferred-with-owner` — requires the finding's `waived_by` (owner) + `rationale`; a waive lacking either is rejected, not accepted |
+| `escalated` | route as blocking → `unknown` (or an explicit escalation channel); never softened to deferred/mitigated |
+| `open` | `unknown` (unreviewed is not safe) |
+
+A finding folded to `open` (no terminal) carried from Verify is treated as an
+`unknown` HIGH/CRITICAL blocker, consistent with the Verdict Rules below.
+
 ## Verdict Rules
 
 | Condition | Verdict |

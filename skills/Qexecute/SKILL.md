@@ -167,6 +167,24 @@ Skip only if ALL: `type: docs`/`analysis` with < 5 items, single-item, MD-only.
 3. **Agent Trigger Check**: glob `.qe/agent-triggers/*.trigger.md`, spawn targets, delete
    processed files; append findings.
 
+**Supervise call budget (Phase 2 / R002).** Adversarial merge-readiness has a
+single owner — `Qcritical-review --stage supervise` (3 agents); the orchestrator
+does domain audit + aggregation, not a second adversarial pass. Unit = one
+sub-agent spawn or the orchestrator's aggregation inference.
+- Baseline: `Ecode-reviewer` + `Ecode-test-engineer` (2) + `Esecurity-officer`
+  (0–1) + Qcritical supervise (3) + aggregation (1) = **6–7**.
+- With the findings pipeline (Verify findings injected, unchanged files skipped —
+  see `skills/Qcritical-review/reference/supervise-gate-protocol.md`), the two
+  domain re-audits are skipped: **4–5** (≤4 when security-audit is not warranted;
+  else floor = 5). The reduction is cross-stage de-duplication, not dropped
+  coverage. If no removable duplication applies to a task, record "no reduction
+  achieved" rather than an implicit pass.
+- **Degraded independence (NF1):** when codex is unreachable, Qcritical's Merge
+  Blocker re-runs on Claude and the gate is marked `degraded` → at least WARN,
+  `crossmodel=false` — independence is preserved via separate-context adversarial
+  roles, never collapsed to a silent same-engine PASS. A config that merely lists
+  cross-model routing is not sufficient; the runtime path must degrade visibly.
+
 **For `type: code`, hand off to `-verify` mode** (test-review-fix quality loop) before final completion.
 
 ## Step 5: Completion

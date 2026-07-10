@@ -30,6 +30,18 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   scan (plain files like `skills/CATALOG.md` are ignored). Manual line parsing,
   no YAML dependency (quoted scalars like `name: "Foo"` normalized), read-only.
   Supports `--warn-only` for soft launches.
+- **Verify→Supervise findings pipeline** (`hooks/scripts/lib/findings-ledger.mjs`
+  + `scripts/check-findings-pipeline.mjs`). Verify-stage findings persist to an
+  append-only `.qe/agent-results/verify-findings-{UUID}.jsonl` stream so the
+  Supervise gate reuses them (skips re-running `Ecode-reviewer`/`Ecode-test-engineer`
+  on files unchanged since Verify) instead of re-analyzing the same diff — the
+  real cross-stage duplication. A canonical fold (terminal precedence
+  escalated > waived > resolved; no terminal → open) yields one record per finding;
+  the auto-discovered guard enforces that no downgraded finding silently vanishes
+  (every finding ends at exactly one terminal with a recorded reason). Supervise
+  call budget documented: 6–7 → 4–5 (≤4 when no security audit). Gate protocols,
+  `Esupervision-orchestrator`, and `Erisk-proof-auditor` updated with the
+  consume/skip/enum-mapping rules; user command surface unchanged.
 
 ### Fixed
 
