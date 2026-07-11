@@ -108,6 +108,54 @@ cap exhaustion with FAIL the task is **not** marked complete — it is left
 `needs-attention` with a blocking marker for the next session (no silent
 auto-proceed past a FAIL). `-utopia -verify` mode is mandatory as before.
 
+## Verification Evidence Requirement (R005)
+
+<!-- Attribution: methodology adapted from obra/superpowers verification-before-completion
+     (MIT License, 2024). Rewritten in QE/SIVS terminology without copying original prose. -->
+
+A completion or PASS verdict for `type:code`/`other` tasks **requires verification
+command execution evidence from the current turn**. Report-only completion without
+evidence is not acceptable when a code diff is present.
+
+### What counts as evidence
+
+**Bash `toolUseResult` (same turn):**
+- Success: `is_error` field is absent AND `interrupted !== true`.
+- Failure: `is_error: true`. An `is_error`-absent result does not imply test passage —
+  the allowed-command trace must appear.
+- The command must appear in the allowlist before it is accepted as evidence.
+
+**Agent `toolUseResult` (same turn):**
+- The result text must contain an allowlist command trace **and** a PASS/FAIL summary.
+- A bare Agent completion report (e.g. "작업 완료") without command trace is **not** evidence.
+- Subagent reports claiming completion must be independently verified via VCS diff and
+  test evidence — a subagent report alone does not satisfy the evidence requirement.
+
+**Allowlist (closed-world):**
+- `npm run qe:validate`
+- `node scripts/check-all.mjs`
+- `node --test <path>`
+- A leading `cd X &&` prefix is stripped before matching. Multi-command chains,
+  `npm --prefix`, subshells, or chained `&&` beyond the single leading `cd X &&` strip
+  do not match.
+
+**Producer rule:** any subagent that executes allowlist verification commands must echo
+the command name(s) and PASS/FAIL summary in its final result text so the evidence
+gate can recognise it.
+
+### Grading (Stop-hook enforcement)
+
+The Stop hook enforces this contract via `hooks/scripts/lib/verification-evidence-gate.mjs`
+and the `verification_evidence_gate` config key (`'warn'` default, `'block'`, `false`).
+See `hooks/scripts/lib/config.mjs` for the `code_risk_stop_gate` precedent and the
+phased-rollout rationale.
+
+### Same-turn boundary
+
+Evidence scope is confined to the current turn: transcript events that appear after the
+last real human user message (same boundary used by `extractLastAssistantText` in
+`hooks/scripts/lib/style-gate.mjs`). Evidence from previous turns does not carry over.
+
 ## Edge inputs
 
 - **Empty diff** → **PASS** `reason=empty-diff` (nothing to attack). Emptiness is
@@ -115,6 +163,8 @@ auto-proceed past a FAIL). `-utopia -verify` mode is mandatory as before.
   `hooks/scripts/lib/changed-files.mjs`, which reconciles working-tree + staged +
   untracked — the gate runs unless **all three** are empty (`isEmpty === true`),
   so it cannot be bypassed by staging/committing the change.
+  **The verification evidence requirement does not apply to empty-diff turns** —
+  this PASS is preserved unconditionally.
 - **Missing VERIFY_CHECKLIST** → **WARN**, proceed using TASK_REQUEST goals.
 
 ## Audit

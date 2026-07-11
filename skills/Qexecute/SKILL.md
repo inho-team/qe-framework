@@ -99,6 +99,69 @@ Before any implementation worker starts, enforce:
 
 ## Step 3: Execute
 
+### TDD Applicability Gate (R004 — scale-aware)
+
+<!-- Attribution: RED-GREEN-REFACTOR methodology adapted from obra/superpowers
+     skills/test-driven-development/ (MIT © Jesse Vincent / Prime Radiant).
+     Rewritten in QE terms; original text not copied. Scale-aware constraint
+     (D017) preserved: blanket-mandating TDD on every task is prohibited. -->
+
+Before delegating implementation for `type: code` items, call
+`hooks/scripts/lib/qexecute-tdd-policy.mjs` → `judgeTddPolicy()` with the
+following deterministic inputs from the TASK_REQUEST context:
+
+| Input | How to derive |
+|---|---|
+| `taskType` | TASK_REQUEST `<!-- type: ... -->` annotation |
+| `hasTestRunner` | at least one allowlist command available in the repo (`npm run qe:validate`, `node scripts/check-all.mjs`, `node --test <path>`) |
+| `hasTestableLogic` | `→ output:` paths include `.mjs`/`.js`/`.ts` logic files with observable function/class outputs |
+| `isConfigOrDocOnly` | every `→ output:` path is `.json`/`.md`/`.yaml`/`.yml` — no logic file |
+| `hasTestInfrastructure` | repo contains `__tests__/` or `*.test.mjs` files and a runnable node:test harness |
+
+**If `apply = true`** — the RED-GREEN-REFACTOR gate is mandatory (see below).
+
+**If `apply = false`** — record the `result.reason` (exclusion or missing-signal
+text from the module) in the task handoff note using `formatExclusionHandoff()`.
+Do not leave a blank exclusion record. The three exclusion classes are:
+1. `docs`/`analysis` task type — not a code-change task.
+2. Config/document-only change — no logic file in scope.
+3. Test infrastructure absent — no test runner or test files in the target repo.
+
+Contradictory inputs: exclusions win over inclusions. If a caller supplies both an
+inclusion signal and a conflicting exclusion signal (e.g. `taskType='code'` alongside
+`isConfigOrDocOnly=true`), `judgeTddPolicy()` resolves to `apply=false`. Never
+assume TDD applies when any exclusion fires, regardless of other signals.
+
+**RED-GREEN-REFACTOR gate (apply = true only):**
+
+> **PSE Iron Law (QE R004): No implementation code before a failing test.**
+
+When the gate is active, enforce this sequence for each checklist item that
+introduces or changes logic. Violation of step order is a hard stop — do not
+proceed to the next step until the current gate passes:
+
+1. **RED — write the failing test first.**
+   Write the minimum test(s) that specify the expected behaviour of the new or
+   changed logic. Run the test suite and confirm the test **fails for the right
+   reason** (not an import error, not a pre-existing pass). If the test passes
+   immediately, the test is not specifying new behaviour — revise it.
+
+2. **GREEN — write the minimum implementation to pass.**
+   Write only enough production code to make the failing test pass. Run the
+   suite again and confirm the test now **passes** with clean output (no
+   warnings, no unrelated failures introduced).
+
+3. **REFACTOR — clean up, then re-verify.**
+   Improve clarity, remove duplication, adjust structure. After any refactor
+   change, re-run the full test suite to confirm the GREEN state is preserved.
+   A refactor that re-introduces a failure is a regression — fix before moving
+   on.
+
+Scale-aware note: apply this gate only when `judgeTddPolicy()` returns
+`apply=true`. Do not apply it to docs, analysis, or config-only items (D017).
+If `judgeTddPolicy` itself throws, treat the result as `apply=false` with reason
+"policy module error — fail-open" and log the error to handoff notes.
+
 ### Delegation & model routing
 Delegate to `Etask-executor`. Pick the worker model dynamically:
 
@@ -145,6 +208,27 @@ Before returning, close all delegated handles and include their terminal status 
 before any build/test command; wait and retry if blocked, do not bypass.
 
 ## Step 4: Final Verification
+
+### TDD Completion Re-Verification (R004)
+
+If the TDD gate was active during Step 3 (i.e. `judgeTddPolicy()` returned
+`apply=true` for any item), confirm the following before accepting the
+implementation as done:
+
+- Every item that required a RED step has a corresponding test file on disk.
+  Glob `__tests__/` or `*.test.mjs` for the affected module and confirm the
+  test file was created or updated in this turn.
+- The full test suite passes GREEN. Run the allowlist verification command
+  (`npm run qe:validate` or `node --test <path>`) and record the output as
+  evidence. A bare "tests passed" claim without a fresh command execution is
+  not sufficient — use `node --test <path>` directly when in doubt.
+- The REFACTOR phase did not reintroduce a failure. If the suite was run after
+  refactoring, include that run's output in the verification evidence. If no
+  refactor was performed, note "REFACTOR: no structural change" explicitly.
+- If a VERIFY_CHECKLIST item covers a TDD-applicable module and its test file
+  is absent, the item FAILS — do not mark `[x]` until the test file exists and
+  passes.
+
 Verify **each** VERIFY_CHECKLIST item with a concrete action ("build passed" alone is NOT enough):
 file existence → Glob; code behavior → Grep/run test; build → project build; regression → test
 suite; security → `Esecurity-officer`; visual → screenshot. Report `✅ PASS` / `❌ FAIL (reason)`;
