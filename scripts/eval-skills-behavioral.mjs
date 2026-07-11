@@ -23,6 +23,10 @@ const MANIFEST = join(ROOT, 'evals', '.manifest.json');
 
 const REQUIRED = ['skill', 'prompt', 'must_include', 'must_not_include', 'rubric'];
 const LIST_FIELDS = new Set(['must_include', 'must_not_include']);
+// Canonical optional fields for pressure-scenario RED/GREEN/REFACTOR + no-guidance control.
+// MUST stay in sync with check-skill-evals.mjs (sibling validator, intentionally duplicate).
+// See: qe-framework/scripts/check-skill-evals.mjs
+const OPTIONAL = ['red_scenario', 'green_expectation', 'refactor_note', 'no_guidance_control'];
 
 /**
  * Parses YAML frontmatter supporting scalars, `- item` lists, and `key: |` block scalars.
@@ -50,6 +54,9 @@ function parseFrontmatter(content) {
       curKey = null;
       if (val === '|' || val === '>') { block = key; blockLines = []; continue; }
       if (val === '') { fm[key] = []; curKey = key; continue; }
+      // Bare YAML null scalars (null / ~) → empty string so emptiness checks fire.
+      // Quoted "null" stays a literal string. MUST stay in sync with check-skill-evals.mjs.
+      if (/^(null|~)$/i.test(val)) { fm[key] = ''; continue; }
       fm[key] = val.replace(/^["']|["']$/g, '');
     }
   }
@@ -59,6 +66,11 @@ function parseFrontmatter(content) {
 
 const skillNames = new Set();
 
+/**
+ * Recursively collect skill directory names under skills/ into the module-level
+ * `skillNames` set (a directory counts when it contains a SKILL.md).
+ * @param {string} [dir=SKILLS_DIR] - Directory to scan.
+ */
 function collectSkillNames(dir = SKILLS_DIR) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = join(dir, entry.name);
@@ -84,19 +96,34 @@ if (existsSync(CASES_DIR)) {
     let ok = true;
     for (const field of REQUIRED) {
       if (!(field in fm)) { errors.push(`${f}: missing '${field}'`); ok = false; continue; }
-      if (LIST_FIELDS.has(field) && !Array.isArray(fm[field])) { errors.push(`${f}: '${field}' must be a list`); ok = false; }
+      // Empty-after-colon parses to [] — treat as present-but-empty (FAIL), same as bare null.
+      // MUST stay in sync with check-skill-evals.mjs.
+      if (LIST_FIELDS.has(field) && (!Array.isArray(fm[field]) || fm[field].length === 0)) { errors.push(`${f}: '${field}' must be a non-empty list`); ok = false; }
       if (!LIST_FIELDS.has(field) && (typeof fm[field] !== 'string' || fm[field] === '')) { errors.push(`${f}: '${field}' must be a non-empty string`); ok = false; }
+    }
+    // Validate optional fields: present-but-empty prohibition (string-like: non-empty; list-like: non-empty array)
+    for (const field of OPTIONAL) {
+      if (field in fm) {
+        const val = fm[field];
+        if (typeof val === 'string' && val.trim() === '') { errors.push(`${f}: optional '${field}' is present but empty`); ok = false; }
+        if (Array.isArray(val) && val.length === 0) { errors.push(`${f}: optional '${field}' is present but empty`); ok = false; }
+      }
     }
     if (typeof fm.skill === 'string' && !skillNames.has(fm.skill)) { errors.push(`${f}: skill '${fm.skill}' not found`); ok = false; }
     if (!ok) continue;
-    cases.push({
+    const caseObj = {
       file: `evals/cases/${f}`,
       skill: fm.skill,
       prompt: fm.prompt,
       must_include: fm.must_include,
       must_not_include: fm.must_not_include,
       rubric: fm.rubric,
-    });
+    };
+    // Attach optional fields if present
+    for (const field of OPTIONAL) {
+      if (field in fm) caseObj[field] = fm[field];
+    }
+    cases.push(caseObj);
   }
 }
 
