@@ -24,6 +24,10 @@ This architecture ensures:
 - No external provider APIs (Gemini, GPT) are directly invoked by the framework
 - User retains full choice of which engine handles each SIVS stage
 
+**Gate subagent engine ownership (Phase 5 / D-f876457e-1):** SIVS `enforceRouting` hard-blocks direct Agent spawns (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise, `Ecode-reviewer` → verify) that violate the configured engine. However, gate subagents spawned *inside* `Qcritical-review` (Devil's Advocate, Security Auditor, Merge Blocker, Merge Advocate, Impartial Judge) are **protocol-owned**: the gate protocol itself controls their engine assignment, including the automatic Codex cross-model upgrade for DA and Merge Blocker. SIVS enforcer does not reach inside protocol-owned spawns. Under `codex-head`: G3 Verify is mixed (DA → Codex via protocol auto-upgrade, Security Auditor + Performance Skeptic → Claude); G4 Risk Proof (`Erisk-proof-auditor`) is Claude-only (not in SIVS STAGE_MAP); G5 Supervise is mixed (Merge Blocker → Codex, Advocate + Judge → Claude, orchestrator aggregation → Codex via SIVS enforceRouting). The Supervise call budget is 4–5 (≤4 when Esecurity-officer is not warranted; floor = 5 when security audit fires); the reduction from baseline 6–7 comes from the findings pipeline (Phase 2 / R002) injecting Verify findings into Supervise so cross-stage `Ecode-reviewer`/`Ecode-test-engineer` re-audits on unchanged files are skipped — not from routing changes. See DECISION_LOG `D-f876457e-1` and `skills/Qcritical-review/reference/{verify-gate-protocol,supervise-gate-protocol}.md`.
+
+**Per-scope config design:** `loadSivsConfig(cwd)` uses exact-path loading (no directory walk-up); hook cwd = session cwd. Each repo has its own `.qe/sivs-config.json` scope independent from a wrapper workspace's config — two configs in separate scopes do not conflict in a single session by design. See `QE_CONVENTIONS.md` Codex Runtime Policy and DECISION_LOG `D-f876457e-1` (config scope authority rules).
+
 ---
 
 ## Position in the PSE Chain

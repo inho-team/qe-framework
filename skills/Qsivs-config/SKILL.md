@@ -55,6 +55,18 @@ a `max_concurrent_runs: 1` bound. **Do not** invoke `codex-companion.mjs` (or an
 `node .../scripts/*.mjs` runner) directly for cross-engine work; direct library
 shell-outs bypass the recursion guard and the audit trail.
 
+## Per-Scope Config Authority (Phase 5 / D-f876457e-1)
+
+`loadSivsConfig(cwd)` uses **exact-path loading** — it reads `<cwd>/.qe/sivs-config.json` with no directory walk-up. The hook cwd equals the session cwd; therefore each repo's `.qe/sivs-config.json` is an independent authority scope. A wrapper workspace config and a sub-repo config are two separate scopes and do not conflict in a single session — the session applies whichever config corresponds to its cwd.
+
+Authority rules:
+- Each repo's `.qe/sivs-config.json` is the authoritative SIVS config for sessions whose cwd is that repo.
+- A wrapper workspace config is the authoritative config for sessions whose cwd is that workspace root.
+- Differences between the two configs reflect intentional per-project SIVS settings, not a conflict to be resolved.
+- Config files are read fresh on every hook invocation; editing a config takes effect immediately for the current session without restart.
+- `qe-framework/.qe/sivs-config.json` may be untracked + gitignored (local developer override). The workspace root may not be a git repo. In both cases config changes are not tracked in git diff — record before/after values explicitly in DIAG when changing config for auditable decisions.
+- Rollback: restore the DIAG-recorded before value manually; git revert does not apply.
+
 ## Storage Location
 `.qe/sivs-config.json`
 

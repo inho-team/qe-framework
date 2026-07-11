@@ -102,6 +102,44 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
   output ~5×. Directions corrected; structured `tool_response` is JSON-coerced to
   avoid `"[object Object]"` undercount.
 
+### Documentation
+
+- **SIVS gate engine ownership and per-scope config authority documented**
+  (Phase 5 / `sivs-gate-consolidation` D-f876457e-1). Resolves the mismatch
+  between codex-head profile declarations and actual gate execution engines.
+  Key findings:
+  - G3 Verify and G5 Supervise are **mixed-engine** under `codex-head`:
+    DA/Merge Blocker auto-upgrade to Codex via `Qcritical-review` protocol;
+    Security Auditor, Performance Skeptic, Advocate, Judge remain Claude
+    (protocol-owned — SIVS `enforceRouting` does not reach inside
+    `Qcritical-review` spawns). G4 Risk Proof is Claude-only (not in SIVS
+    STAGE_MAP).
+  - SIVS `enforceRouting` hard-blocks only direct Agent spawns
+    (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise,
+    `Ecode-reviewer` → verify); gate protocol sub-agents are protocol-owned.
+  - `loadSivsConfig(cwd)` uses exact-path loading (no walk-up); each repo's
+    `.qe/sivs-config.json` is an independent authority scope — per-scope
+    config is documented design, not a conflict.
+  - Updated: `QE_CONVENTIONS.md` (Codex Runtime Policy), `core/PHILOSOPHY.md`
+    (SIVS Engine Routing), `skills/Qsivs-config/SKILL.md` (per-scope authority).
+  - No SIVS routing code changes; all decisions are `document`/`mixed`.
+  - `docs/SIVS_MEASUREMENT.md` added with before/after call counts and caveats.
+
+- **Phase 5 final measurement** (R008/R009, `sivs-gate-consolidation`):
+  - **Full SIVS cycle calls:** measured = 17회 (Phase 4 upper bound, F-findings
+    remediation rounds included). R009 DoD = ≤ 15. **Verdict: unknown — does NOT
+    satisfy.** The ROADMAP Phase 2 target is not yet achieved; `met` was not forced.
+    Caveat: hook code runs from plugin cache 7.3.9; Phase 5 itself made no code
+    changes to the cycle path.
+  - **Supervise budget:** 6–7 → 4–5 (≤4 without security audit; floor = 5 when
+    `Esecurity-officer` fires). Reduction from findings pipeline (Phase 2 / R002),
+    not routing changes.
+  - **Savings counters** (ContextMemo `blocked_reads`, Delegation Enforcer
+    `autoInjections`): unmeasurable — hook code runs from cache 7.3.9; liveness
+    not proven this session. Deferred to post-reinstall per D-c0127487-1.
+  - **R008:** unmeasurable (qualitative DoD — evidence is D-f876457e-1 decision
+    table, not a numeric measurement).
+
 ### Changed
 
 - **BREAKING — execution skills unified into `Qexecute`.** The three execution skills
