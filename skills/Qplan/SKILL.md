@@ -154,9 +154,10 @@ See: docs/CLAUDE_CODE_FEATURES.md
 
 ### Step 4 (Post-Execution): Verification & Transition
 After execution is complete (by `{adapter.commandPrefix}Qexecute` + `{adapter.commandPrefix}Qexecute -verify`), review the results:
+- **Phase Report (MANDATORY)**: Run `node hooks/scripts/lib/ledger.mjs phase-report --slug {slug} --phase {N}` and review the output before transitioning. If the report shows any requirement as `unmeasurable`, `deferred`, or `unknown`, surface those findings to the user before proceeding. Do NOT transition if unmet P0 requirements remain unacknowledged.
 - **Gap Handling (Decimal Phase)**: If critical gaps or bugs remain, generate a **Decimal Phase** (e.g., Phase 1.1).
-- **Retrospective**: Before moving to the next whole phase, generate `.qe/planning/plans/{slug}/phases/{X}/RETROSPECTIVE.md`.
-- **Transition**: Move to the next phase only after all MUST-HAVEs, UAT items, and the Retro are done.
+- **Retrospective**: Before moving to the next whole phase, generate `.qe/planning/plans/{slug}/phases/{X}/RETROSPECTIVE.md` using `core/RETROSPECTIVE_TEMPLATE.md` as the template.
+- **Transition**: Move to the next phase only after all MUST-HAVEs, UAT items, phase report review, and the Retro are done.
 
 ## Documents to Manage
 
@@ -167,7 +168,7 @@ After execution is complete (by `{adapter.commandPrefix}Qexecute` + `{adapter.co
 | `ROADMAP.md` | Phased waves, success criteria, and requirement traceability for this plan. |
 | `STATE.md` | Active phase + `## Phase Progress` (auto-derived from the ledger; do not hand-edit). |
 | `goals.json` | Ordered microgoals (id/objective/status/attempts), derived from ROADMAP Waves. |
-| `ledger.jsonl` | Append-only audit trail of goal events (created/started/checkpoint/blocker/failed). |
+| `ledger.jsonl` | Append-only audit trail of goal events (created/started/checkpoint/blocker/failed/measurement). |
 | `REQUIREMENTS.md` | Functional and non-functional requirements (P0/P1/P2) for this plan. |
 | `phases/{X}/` | Phase artifacts (summaries, retros) for this plan. |
 

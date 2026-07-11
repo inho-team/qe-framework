@@ -17,6 +17,32 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- **Goal Satisfaction Report** (`ledger.mjs phase-report --slug S --phase N` +
+  `scripts/check-phase-report.mjs`). Generates a four-axis reconciliation report
+  at `.qe/planning/plans/{slug}/reports/PHASE_{N}_REPORT.md` that aligns
+  ROADMAP goal/requirements, REQUIREMENTS DoD targets (numeric-comparable vs
+  qualitative classification), goals.json statuses, DECISION_LOG relevant
+  decisions, and `measurement` ledger events in one auditable document.
+  Conservative numeric-target extraction: a DoD is numeric-comparable only when
+  exactly one isolated `<comparator><number>[unit]` token appears — ranges,
+  arrow multi-values, and multi-number baseline noise classify as `unmeasurable`
+  (no first-number grab, no fabrication). Verdicts: `met` (measured satisfies
+  numeric target) | `deferred` (cites DECISION_LOG decision ID) |
+  `unmeasurable` (qualitative/multi-value DoD or absent measurement) | `unknown`.
+  Deferred-check takes precedence over numeric comparison. Status desync
+  (goals.json all-pending + zero ledger lifecycle events) surfaces as
+  `achievement=UNVERIFIED` with a provenance caveat — never asserts "shipped"
+  from unread sources. `EVENT_ENUM` gains `'measurement'` for future measured
+  evidence recording; all existing commands and enum values unchanged.
+  Backfill-safe: all error paths exit 0 (missing/malformed sources degrade only
+  that row; no exit 1 from the phase-report dispatch path). `phaseNum` validated
+  `^\d+$` (rejects path traversal). Wired into Qplan Step 4 (Post-Execution) to
+  require report review before phase transition; `core/RETROSPECTIVE_TEMPLATE.md`
+  added with phase-report attachment and achievement summary sections.
+  Dogfood: Phase 1-3 reports for `sivs-gate-consolidation` generated against
+  the live plan — R003/R004=deferred (D-c0127487-1), R010=unmeasurable
+  (qualitative), achievement=UNVERIFIED (desync exposed, not hidden).
+
 - **SIVS loop-safety limits** (`hooks/scripts/lib/loop-guard.mjs` +
   `scripts/check-loop-guard.mjs`). Caps the previously-unbounded FAIL recursion:
   the remediation-round limit (3) is now enforced **deterministically** by the

@@ -31,7 +31,8 @@ import { resolveActivePlanSlug } from './plan-resolver.mjs';
 
 const PLANS_DIR = '.qe/planning/plans';
 const STATUS_ENUM = ['pending', 'active', 'complete', 'failed', 'blocked'];
-const EVENT_ENUM = ['created', 'started', 'checkpoint', 'blocker', 'failed'];
+// 'measurement' added for phase-report measured-evidence sourcing; all other values unchanged.
+const EVENT_ENUM = ['created', 'started', 'checkpoint', 'blocker', 'failed', 'measurement'];
 const PROGRESS_HEADING = '## Phase Progress';
 const STATUS_TAIL_BYTES = 8192;
 
@@ -51,6 +52,12 @@ function ledgerPath(cwd, slug) { return join(planDir(cwd, slug), 'ledger.jsonl')
 function roadmapPath(cwd, slug) { return join(planDir(cwd, slug), 'ROADMAP.md'); }
 /** Path to the plan's `STATE.md` (derived progress view). */
 function statePath(cwd, slug) { return join(planDir(cwd, slug), 'STATE.md'); }
+/** Path to the plan's `REQUIREMENTS.md`. */
+function requirementsPath(cwd, slug) { return join(planDir(cwd, slug), 'REQUIREMENTS.md'); }
+/** Path to the plan's `DECISION_LOG.md`. */
+function decisionLogPath(cwd, slug) { return join(planDir(cwd, slug), 'DECISION_LOG.md'); }
+/** Path for a phase report file (reports/ subdir under plan). */
+function reportPath(cwd, slug, phaseNum) { return join(planDir(cwd, slug), 'reports', `PHASE_${phaseNum}_REPORT.md`); }
 /** Current time as an ISO-8601 string (ledger event timestamp). */
 function nowIso() { return new Date().toISOString(); }
 
@@ -226,6 +233,621 @@ export function status(cwd, slug) {
     recent: tailLedger(cwd, slug, 3) };
 }
 
+// ── phase-report internals ───────────────────────────────────────────────
+
+/**
+ * Unit normalization table for measured evidence and DoD target comparison.
+ * '회' (times/회) → treated as unitless integer.
+ * 'k' multiplier → ×1000. 'M' multiplier → ×1000000.
+ * Returns { value: number, unit: string } or null if ambiguous/unknown.
+ * @param {string} numStr  raw number string (may include unit suffix)
+ */
+function normalizeUnit(numStr) {
+  // Case-SENSITIVE units: a lowercase 'm' must never be read as the M (mega)
+  // multiplier — "200m"/"200ms" style prose would silently become ×1,000,000
+  // and enable a false `met` against an M-suffixed measurement.
+  const m = String(numStr).trim().match(/^(\d+(?:\.\d+)?)(회|k|M)?$/);
+  if (!m) return null;
+  const base = parseFloat(m[1]);
+  const suffix = m[2] || '';
+  if (suffix === 'k') return { value: base * 1000, unit: 'k' };
+  if (suffix === 'M') return { value: base * 1_000_000, unit: 'M' };
+  // '회' and no suffix are both unitless — treat identically
+  return { value: base, unit: '' };
+}
+
+/**
+ * Extract a single numeric target from a DoD string.
+ * Conservative contract: returns { comparator, value, unit } ONLY when exactly
+ * one isolated <comparator><number>[unit] token exists (comparator ∈ ≤<≥>=).
+ * Ranges (7~8), arrow multi-values (→ or ->), multiple numbers, baseline noise
+ * (e.g. "981k/4.97M") → returns null (unmeasurable).
+ * First-number grab is forbidden: returns null unless the single-token rule holds.
+ * @param {string} text DoD text
+ * @returns {{ comparator: string, value: number, unit: string }|null}
+ */
+function extractNumericTarget(text) {
+  // Reject ranges (N~M) and arrow multi-values (N→M or N->M)
+  if (/\d+\s*[~～]\s*\d+/.test(text)) return null;
+  if (/\d+\s*(?:→|->)\s*\d+/.test(text)) return null;
+  // Reject slash-separated multi-numbers (baseline noise like 981k/4.97M)
+  if (/\d+(?:k|M)?\s*\/\s*\d+(?:k|M)?/i.test(text)) return null;
+
+  // Find all comparator+number[unit] tokens (optional space between comparator
+  // and number). ASCII digraphs <= / >= must match BEFORE < > = or they would
+  // mis-parse as bare '=' (false strict-equality verdicts). The trailing
+  // lookahead mirrors the measured-side boundary: "<= 200ms" must NOT parse
+  // its 'm' as the mega multiplier (nor 200 as unitless) — ASCII alnum after
+  // the token makes it ambiguous prose → unmeasurable. Case-sensitive units.
+  const tokens = [...text.matchAll(/(≤|≥|<=|>=|<|>|=)\s*(\d+(?:\.\d+)?)(회|k|M)?(?![A-Za-z0-9])/g)];
+  if (tokens.length !== 1) return null; // zero → no target, multiple → ambiguous
+
+  // Isolation guard (spec: "복수 숫자 → unmeasurable"): the comparator token's
+  // number must be the ONLY standalone number in the DoD. An extra bare number
+  // ("≤ 4 per cycle over 10 runs") makes the target ambiguous — sample sizes /
+  // baseline noise must not ride along. Digits embedded in identifiers (R001)
+  // or decimals are not counted as separate numbers.
+  const standaloneNumbers = [...text.matchAll(/(?<![A-Za-z0-9.])\d+(?:\.\d+)?/g)];
+  if (standaloneNumbers.length !== 1) return null;
+
+  const [, comp, num, unitRaw] = tokens[0];
+  const n = normalizeUnit(num + (unitRaw || ''));
+  if (!n) return null;
+  return { comparator: comp, value: n.value, unit: n.unit };
+}
+
+/**
+ * Evaluate whether a measured value satisfies a numeric target comparator.
+ * @param {string} comparator  one of ≤ < ≥ > =
+ * @param {number} target
+ * @param {number} measured
+ * @returns {boolean}
+ */
+function comparatorSatisfied(comparator, target, measured) {
+  if (comparator === '≤' || comparator === '<=' ) return measured <= target;
+  if (comparator === '<')  return measured < target;
+  if (comparator === '≥' || comparator === '>=' ) return measured >= target;
+  if (comparator === '>')  return measured > target;
+  if (comparator === '=')  return measured === target;
+  return false;
+}
+
+/**
+ * Parse ROADMAP.md and return the block for the requested phase number.
+ * Phase-N boundary: heading "## Phase N" followed by non-digit or end.
+ * Returns { goal: string, reqIds: string[] } or null if not found.
+ * @param {string} text  full ROADMAP.md content
+ * @param {string} phaseNum  validated digit-only string
+ */
+function parseRoadmapPhase(text, phaseNum) {
+  const lines = text.split('\n');
+  // Match "## Phase N" where N == phaseNum. Boundary must reject BOTH a further
+  // digit ("Phase 10") AND a decimal sub-phase ("Phase 1.1") — '.' is \D, so a
+  // plain non-digit boundary would bleed decimal phases into the whole phase.
+  const phaseRe = new RegExp(`^##\\s+Phase\\s+${phaseNum}(?!\\d|\\.\\d)`, 'i');
+  let inPhase = false;
+  let goal = '';
+  let reqLine = '';
+  let goalBuf = [];
+  let collectingGoal = false;
+
+  for (let i = 0; i < lines.length; i++) {
+    const line = lines[i];
+    if (!inPhase) {
+      if (phaseRe.test(line)) { inPhase = true; collectingGoal = false; }
+      continue;
+    }
+    // Stop at next ## heading (new phase or section)
+    if (/^##\s/.test(line)) break;
+    // Goal: paragraph — starts with "Goal:" and may wrap until blank line
+    if (/^Goal:/i.test(line)) {
+      collectingGoal = true;
+      goalBuf = [line.replace(/^Goal:\s*/i, '').trim()];
+      continue;
+    }
+    if (collectingGoal) {
+      if (line.trim() === '') { collectingGoal = false; goal = goalBuf.join(' ').trim(); }
+      else goalBuf.push(line.trim());
+      continue;
+    }
+    // Requirements: R003, R004, ...
+    if (/^Requirements:/i.test(line)) {
+      reqLine = line.replace(/^Requirements:\s*/i, '').trim();
+    }
+  }
+  if (collectingGoal && goalBuf.length) goal = goalBuf.join(' ').trim();
+  if (!inPhase) return null;
+  const reqIds = reqLine.split(',').map(s => s.trim()).filter(s => /^R\d+$/.test(s));
+  return { goal, reqIds };
+}
+
+/**
+ * Parse REQUIREMENTS.md and return a map of reqId → { title, dod }.
+ * Each requirement bullet: "- **Rxxx** <title>: ..."
+ * DoD text is collected until the next "- **R" bullet or heading.
+ * @param {string} text  full REQUIREMENTS.md content
+ * @returns {Map<string, { title: string, dod: string }>}
+ */
+function parseRequirements(text) {
+  const lines = text.split('\n');
+  const map = new Map();
+  let currentId = null;
+  let buf = [];
+
+  const flush = () => {
+    if (!currentId) return;
+    const full = buf.join(' ').trim();
+    // Extract DoD: text — everything after "DoD:" (may span continuation lines via buf join)
+    const dodIdx = full.indexOf('DoD:');
+    const dod = dodIdx >= 0 ? full.slice(dodIdx + 4).trim() : '';
+    // Extract title: text between "**Rxxx**" and the first colon
+    const titleM = full.match(/\*\*R\d+\*\*\s+([^:]+):/);
+    const title = titleM ? titleM[1].trim() : currentId;
+    map.set(currentId, { title, dod });
+    currentId = null;
+    buf = [];
+  };
+
+  for (const line of lines) {
+    const m = line.match(/^-\s+\*\*(R\d+)\*\*/);
+    if (m) {
+      flush();
+      currentId = m[1];
+      buf = [line.replace(/^\s*-\s+/, '')];
+    } else if (currentId) {
+      // Continuation line (indented or blank terminates): stop at next heading
+      if (/^#/.test(line)) { flush(); }
+      else { buf.push(line.trim()); }
+    }
+  }
+  flush();
+  return map;
+}
+
+/**
+ * Parse DECISION_LOG.md and return decisions relevant to the given phase number.
+ * Relevance is determined ONLY by the structured "- **Phase**: N" line inside
+ * each decision block. Bare-integer substring matching is forbidden to avoid
+ * collision with R-ids and percentages.
+ * Returns array of { id, title, deferredReqs: string[] } objects.
+ * @param {string} text  full DECISION_LOG.md content
+ * @param {string} phaseNum  validated digit-only string
+ */
+function parseDecisionLogForPhase(text, phaseNum) {
+  const lines = text.split('\n');
+  // Decision blocks start: ## D-<uuid8>-<n> — <title>
+  const blockRe = /^##\s+(D-[a-f0-9]+-\d+)\s+[—–-]\s+(.+)/i;
+  // Structured phase line: - **Phase**: N (uuid) · ...
+  // Boundary-safe: rejects further digits AND decimal sub-phases (see phaseRe).
+  const phaseLineRe = new RegExp(`\\*\\*Phase\\*\\*:\\s*${phaseNum}(?!\\d|\\.\\d)`);
+  // Deferral: line contains "defer" (case-insensitive) and names an R-id
+  const deferRe = /defer/i;
+
+  const results = [];
+  let inBlock = false;
+  let blockId = '';
+  let blockTitle = '';
+  let blockLines = [];
+
+  const processBlock = () => {
+    if (!blockId) return;
+    const full = blockLines.join('\n');
+    // Only include if structured Phase line matches phaseNum
+    const phaseMatch = blockLines.some(l => phaseLineRe.test(l));
+    if (phaseMatch) {
+      // Determine if this block defers any requirements.
+      // Strategy: if ANY line in the block contains "defer" (case-insensitive),
+      // collect ALL R-ids mentioned in the entire block (not just the defer line),
+      // since the Phase structured line lists the req IDs and the defer statement
+      // may be on a separate line.
+      const blockHasDefer = blockLines.some(l => deferRe.test(l));
+      const deferredReqs = [];
+      if (blockHasDefer) {
+        // Collect all R-ids from the entire block
+        const allRIds = [...full.matchAll(/R\d+/g)].map(m => m[0]);
+        deferredReqs.push(...allRIds);
+      }
+      results.push({ id: blockId, title: blockTitle, deferredReqs: [...new Set(deferredReqs)], full });
+    }
+    blockId = '';
+    blockTitle = '';
+    blockLines = [];
+  };
+
+  for (const line of lines) {
+    const bm = line.match(blockRe);
+    if (bm) {
+      processBlock();
+      inBlock = true;
+      blockId = bm[1];
+      blockTitle = bm[2].trim();
+      blockLines = [];
+    } else if (inBlock) {
+      blockLines.push(line);
+    }
+  }
+  processBlock();
+  return results;
+}
+
+/**
+ * Read ALL lines from ledger.jsonl (full read — low-frequency command, not bounded).
+ * Returns array of parsed event objects.
+ * @param {string} cwd
+ * @param {string} slug
+ */
+function readFullLedger(cwd, slug) {
+  const p = ledgerPath(cwd, slug);
+  if (!existsSync(p)) return [];
+  try {
+    return readFileSync(p, 'utf8').split('\n')
+      .filter(Boolean)
+      .map(l => { try { return JSON.parse(l); } catch { return null; } })
+      .filter(Boolean);
+  } catch { return []; }
+}
+
+/**
+ * Parse measurement events from the full ledger for specific goal IDs.
+ * Evidence schema (canonical): `measured=<number>[unit]` token.
+ * Returns map goalId → ARRAY of { rawEvidence, value, unit } in event order.
+ * A goal may carry measurements for different requirements over time, so
+ * keeping only the last one per goal would silently drop earlier req-tagged
+ * measurements (each req's lookup wants ITS latest, not the goal's latest).
+ * @param {Array} events  all ledger events
+ * @param {Set<string>} goalIds  goal IDs to filter for
+ */
+function extractMeasurements(events, goalIds) {
+  const map = new Map();
+  for (const ev of events) {
+    if (ev.event !== 'measurement') continue;
+    if (!goalIds.has(ev.goalId)) continue;
+    const evidence = String(ev.evidence || '');
+    // Parse canonical token: measured=<number>[unit]. Both sides bounded —
+    // a malformed token like "measured=42abc" or "measured=1e3" must NOT
+    // partially parse into an authoritative number (NF4 anti-fabrication).
+    // Case-sensitive units, mirroring extractNumericTarget/normalizeUnit.
+    const m = evidence.match(/(?:^|\s)measured=(\d+(?:\.\d+)?)(회|k|M)?(?=\s|$)/);
+    if (m) {
+      const n = normalizeUnit(m[1] + (m[2] || ''));
+      if (n) {
+        if (!map.has(ev.goalId)) map.set(ev.goalId, []);
+        map.get(ev.goalId).push({ rawEvidence: evidence, value: n.value, unit: n.unit });
+      }
+    }
+  }
+  return map;
+}
+
+/**
+ * Find the measurement for a requirement: a measurement event on a phase goal
+ * whose evidence names the reqId. Single source for BOTH the Axis-2 table and
+ * the Summary Findings — the two views must never disagree on a verdict.
+ * Within each goal the NEWEST event naming this reqId wins (per-goal lists are
+ * in event order; goals are scanned in map insertion order).
+ * @param {Map<string, Array<{ rawEvidence: string, value: number, unit: string }>>} measurements
+ * @param {string} rId  requirement id (e.g. "R001")
+ * @returns {{ rawEvidence: string, value: number, unit: string, goalId: string }|null}
+ */
+function measurementForReq(measurements, rId) {
+  // Boundary-safe req-id match: "R1" must not match evidence naming "R12".
+  const rIdRe = new RegExp(`(?<![A-Za-z0-9])${rId}(?!\\d)`);
+  for (const [gId, list] of measurements) {
+    // Latest matching event wins for THIS requirement (scan newest-first).
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (rIdRe.test(String(list[i].rawEvidence))) return { ...list[i], goalId: gId };
+    }
+  }
+  return null;
+}
+
+/**
+ * Escape a value for interpolation into a markdown table cell. Ledger evidence
+ * is writable via the public `append` CLI, so raw `|` / newlines would let a
+ * crafted event break out of the cell and forge report rows (e.g. a fake
+ * "**met**" verdict) — presentation-level fabrication the NF4 rule forbids.
+ * @param {*} v
+ * @returns {string}
+ */
+function mdCell(v) {
+  // \r\n? covers lone CR (old-Mac line ending) — CommonMark treats a bare CR
+  // as a line ending, so `\r?\n` alone would let it split the table row.
+  return String(v ?? '').replace(/\r\n?|\n/g, ' ').replace(/\|/g, '\\|');
+}
+
+/**
+ * Determine verdict for a single requirement given its DoD and available data.
+ * Precedence: deferred > measured met/not-met > unmeasurable > unknown.
+ * NF4: measured fabrication forbidden — absent measurement → unmeasurable.
+ * @param {{ dod: string }} req  requirement entry
+ * @param {object|null} measured  { value, unit } or null
+ * @param {string[]} deferDecisionIds  decision IDs that defer this requirement
+ * @returns {{ verdict: string, detail: string }}
+ */
+function computeVerdict(req, measured, deferDecisionIds) {
+  // Deferred check has highest precedence (beats measured comparison)
+  if (deferDecisionIds.length > 0) {
+    return { verdict: 'deferred', detail: `Deferred by: ${deferDecisionIds.join(', ')}` };
+  }
+  const target = extractNumericTarget(req.dod);
+  if (target === null) {
+    // Qualitative or multi-number DoD → always unmeasurable (no fabrication)
+    return { verdict: 'unmeasurable', detail: 'qualitative or multi-value DoD; no numeric-comparable target' };
+  }
+  // Numeric target — check for measured evidence
+  if (!measured) {
+    return { verdict: 'unmeasurable', detail: 'numeric target exists but no measurement event recorded' };
+  }
+  // Unit must normalize to the same unit class (both unitless, or same multiplier)
+  if (measured.unit !== target.unit) {
+    return { verdict: 'unmeasurable', detail: `unit mismatch: target unit="${target.unit}" measured unit="${measured.unit}"` };
+  }
+  const satisfied = comparatorSatisfied(target.comparator, target.value, measured.value);
+  if (satisfied) {
+    return { verdict: 'met', detail: `measured ${measured.value}${measured.unit} ${target.comparator} target ${target.value}${target.unit}` };
+  }
+  return { verdict: 'unknown', detail: `measured ${measured.value}${measured.unit} does NOT satisfy ${target.comparator}${target.value}${target.unit}` };
+}
+
+/**
+ * Generate a Goal Satisfaction Report for the specified phase of a plan.
+ * Four axes: ROADMAP goal/requirements, REQUIREMENTS DoD targets,
+ * goals.json statuses, DECISION_LOG relevant decisions, + measured.
+ * Fully backfill-safe: all parse errors degrade only that row ("no data");
+ * the report is always generated when slug+phaseNum are valid. Never exits 1.
+ *
+ * @param {string} cwd  working directory (plan lives at join(cwd, PLANS_DIR, slug))
+ * @param {string} slug  normalized plan slug
+ * @param {string|number} phaseNum  phase number (validated to ^\d+$ — rejects traversal)
+ * @returns {{ reportFile: string, findings: object }} or error object on invalid input
+ */
+export function phaseReport(cwd, slug, phaseNum) {
+  // ── Input validation (security: reject traversal + non-numeric) ──────────
+  // Slug is re-validated here (not only at the CLI) so direct API callers
+  // cannot pass a traversal-shaped slug into path construction.
+  const slugNorm = normalizeSlug(slug);
+  if (!slugNorm) {
+    return { error: `invalid slug: "${slug}" — must match ^[a-z0-9][a-z0-9-]{0,63}$` };
+  }
+  slug = slugNorm;
+  const phaseStr = String(phaseNum ?? '').trim();
+  if (!/^\d+$/.test(phaseStr)) {
+    return { error: `invalid phase: "${phaseNum}" — must be a positive integer (digits only)` };
+  }
+  // Phase 0 is format-valid but semantically "no data" — degrade gracefully
+  const phaseInt = parseInt(phaseStr, 10);
+
+  // ── Read sources with per-source error isolation ─────────────────────────
+  let roadmapText = '', requirementsText = '', decisionLogText = '';
+  let roadmapErr = null, requirementsErr = null, decisionLogErr = null;
+
+  try {
+    const rp = roadmapPath(cwd, slug);
+    roadmapText = existsSync(rp) ? readFileSync(rp, 'utf8') : '';
+    if (!roadmapText) roadmapErr = 'ROADMAP.md not found or empty';
+  } catch (e) { roadmapErr = `ROADMAP.md read error: ${e.message}`; }
+
+  try {
+    const rqp = requirementsPath(cwd, slug);
+    requirementsText = existsSync(rqp) ? readFileSync(rqp, 'utf8') : '';
+    if (!requirementsText) requirementsErr = 'REQUIREMENTS.md not found or empty';
+  } catch (e) { requirementsErr = `REQUIREMENTS.md read error: ${e.message}`; }
+
+  try {
+    const dlp = decisionLogPath(cwd, slug);
+    decisionLogText = existsSync(dlp) ? readFileSync(dlp, 'utf8') : '';
+    // Empty DECISION_LOG is valid (no decisions yet)
+  } catch (e) { decisionLogErr = `DECISION_LOG.md read error: ${e.message}`; }
+
+  // ── Parse sources ────────────────────────────────────────────────────────
+  let phaseBlock = null;
+  if (roadmapText && !roadmapErr) {
+    try { phaseBlock = parseRoadmapPhase(roadmapText, phaseStr); } catch { phaseBlock = null; }
+  }
+
+  let reqMap = new Map();
+  if (requirementsText && !requirementsErr) {
+    try { reqMap = parseRequirements(requirementsText); } catch { reqMap = new Map(); }
+  }
+
+  let decisions = [];
+  if (decisionLogText && !decisionLogErr) {
+    try { decisions = parseDecisionLogForPhase(decisionLogText, phaseStr); } catch { decisions = []; }
+  }
+
+  // ── goals.json: find goals for this phase (boundary-safe match) ──────────
+  let phaseGoals = [];
+  let goalsErr = null;
+  const goalsDoc = readGoals(cwd, slug);
+  // Schema-drift guard: goals.json can be valid JSON but not our shape (e.g.
+  // `{}` or `{"goals":"str"}`) — that must degrade this row like any other
+  // malformed source, never abort report generation (backfill-safe contract).
+  if (goalsDoc && Array.isArray(goalsDoc.goals)) {
+    // Match goals whose .phase starts with "Phase <phaseNum>"; boundary rejects
+    // further digits and decimal sub-phases (Phase 1 ≠ Phase 10 ≠ Phase 1.1).
+    const phaseGoalRe = new RegExp(`^Phase\\s+${phaseStr}(?!\\d|\\.\\d)`, 'i');
+    phaseGoals = goalsDoc.goals.filter(g => g && typeof g === 'object' && phaseGoalRe.test(String(g.phase || '')));
+  } else {
+    goalsErr = 'goals.json not found or unparseable';
+  }
+
+  // ── ledger: full read for measurement events ─────────────────────────────
+  const allEvents = readFullLedger(cwd, slug);
+  const phaseGoalIds = new Set(phaseGoals.map(g => g.id));
+  const measurements = extractMeasurements(allEvents, phaseGoalIds);
+
+  // Lifecycle events (checkpoint complete / failed) for this phase's goals
+  const lifecycleEvents = allEvents.filter(ev =>
+    phaseGoalIds.has(ev.goalId) &&
+    (ev.event === 'checkpoint' && ev.status === 'complete' || ev.event === 'failed')
+  );
+
+  // ── Build deferral index: reqId → [decisionId, ...] ─────────────────────
+  const deferralIndex = new Map();
+  for (const dec of decisions) {
+    for (const rId of dec.deferredReqs) {
+      if (!deferralIndex.has(rId)) deferralIndex.set(rId, []);
+      deferralIndex.get(rId).push(dec.id);
+    }
+  }
+
+  // ── Determine achievement / desync status (machine-source only) ──────────
+  const allGoalsPending = phaseGoals.length > 0 && phaseGoals.every(g =>
+    g.status === 'pending' || g.status === 'active'
+  );
+  const lifecycleCount = lifecycleEvents.length;
+  const achievement = (!goalsErr && allGoalsPending && lifecycleCount === 0)
+    ? 'UNVERIFIED'
+    : (phaseGoals.length === 0 ? 'NO_GOALS_FOUND' : 'PARTIAL_OR_COMPLETE');
+
+  // ── Render markdown report ───────────────────────────────────────────────
+  const lines = [];
+  lines.push(`# Phase ${phaseStr} Goal Satisfaction Report`);
+  lines.push(`> Plan: \`${slug}\` | Phase: ${phaseStr} | Generated: ${nowIso()}`);
+  lines.push('');
+
+  // Axis 1: ROADMAP Goal + Requirements
+  lines.push('## 1. Phase Goal (ROADMAP)');
+  if (roadmapErr) {
+    lines.push(`> source error: ${roadmapErr}`);
+  } else if (!phaseBlock) {
+    lines.push(`> Phase ${phaseStr} not found in ROADMAP.md`);
+  } else {
+    lines.push(`**Goal:** ${phaseBlock.goal || '(no goal text found)'}`);
+    lines.push('');
+    lines.push(`**Requirements:** ${phaseBlock.reqIds.length > 0 ? phaseBlock.reqIds.join(', ') : '(none listed)'}`);
+  }
+  lines.push('');
+
+  // Axis 2: REQUIREMENTS DoD Targets + Verdicts
+  lines.push('## 2. Requirement Targets & Verdicts');
+  const reqIds = phaseBlock?.reqIds ?? [];
+  if (requirementsErr) {
+    lines.push(`> source error: ${requirementsErr}`);
+  } else if (reqIds.length === 0) {
+    lines.push('> No requirements linked to this phase.');
+  } else {
+    lines.push('| Req | Title | DoD (target) | Target type | Measured | Verdict |');
+    lines.push('|-----|-------|--------------|-------------|----------|---------|');
+    for (const rId of reqIds) {
+      const req = reqMap.get(rId);
+      if (!req) {
+        lines.push(`| ${rId} | no data | no data | — | — | unknown |`);
+        continue;
+      }
+      const target = extractNumericTarget(req.dod);
+      const targetType = target ? `numeric (${target.comparator}${target.value}${target.unit})` : 'qualitative';
+      // Goals carry no req backlinks, so req-level measured is authoritative only
+      // when the measurement event's evidence itself names the reqId.
+      const measuredForVerdict = measurementForReq(measurements, rId);
+      const measuredDisplay = measuredForVerdict
+        ? `${measuredForVerdict.value}${measuredForVerdict.unit} (goal ${measuredForVerdict.goalId})`
+        : 'absent';
+      const deferIds = deferralIndex.get(rId) || [];
+      const { verdict, detail } = computeVerdict({ dod: req.dod }, measuredForVerdict, deferIds);
+      lines.push(`| ${rId} | ${mdCell(req.title)} | ${mdCell(req.dod.slice(0, 80))} | ${targetType} | ${mdCell(measuredDisplay)} | **${verdict}** |`);
+      if (detail && verdict !== 'met') lines.push(`|  |  | *${mdCell(detail)}* |  |  |  |`);
+    }
+  }
+  lines.push('');
+
+  // Axis 3: goals.json Statuses
+  lines.push('## 3. Goal Status (goals.json)');
+  if (goalsErr) {
+    lines.push(`> source error: ${goalsErr}`);
+  } else if (phaseGoals.length === 0) {
+    lines.push(`> No goals found for Phase ${phaseStr} in goals.json.`);
+  } else {
+    lines.push('| Goal ID | Title (truncated) | Status | Measured evidence |');
+    lines.push('|---------|-------------------|--------|-------------------|');
+    for (const g of phaseGoals) {
+      const list = measurements.get(g.id);
+      const measDisplay = list && list.length
+        ? list.map(m => m.rawEvidence).join('; ')
+        : 'none';
+      // String() coercion: schema drift may put non-strings in title/id.
+      lines.push(`| ${mdCell(g.id)} | ${mdCell(String(g.title ?? '').slice(0, 60))} | ${mdCell(g.status)} | ${mdCell(measDisplay)} |`);
+    }
+    lines.push('');
+    // Desync finding (machine-source only — no TASK_LOG/commit reading)
+    if (achievement === 'UNVERIFIED') {
+      lines.push('> **Finding: achievement=UNVERIFIED**');
+      lines.push(`> status source=goals.json; ledger lifecycle events for phase=${lifecycleCount}`);
+      lines.push('> All phase goals are pending/active and no checkpoint-complete or failed events');
+      lines.push('> exist in ledger.jsonl for these goals. This command does NOT read TASK_LOG or');
+      lines.push('> git history — "shipped" status cannot be asserted from available sources.');
+    }
+  }
+  lines.push('');
+
+  // Axis 4: DECISION_LOG relevant decisions
+  lines.push('## 4. Relevant Decisions (DECISION_LOG)');
+  if (decisionLogErr) {
+    lines.push(`> source error: ${decisionLogErr}`);
+  } else if (decisions.length === 0) {
+    lines.push('> No relevant decisions for this phase.');
+  } else {
+    for (const dec of decisions) {
+      lines.push(`### ${dec.id} — ${dec.title}`);
+      if (dec.deferredReqs.length > 0) {
+        lines.push(`- Defers requirements: ${dec.deferredReqs.join(', ')}`);
+      }
+      // Include first few lines of the decision block for context
+      const excerpt = dec.full.split('\n').slice(0, 6).join('\n').trim();
+      if (excerpt) lines.push('');
+      if (excerpt) lines.push(excerpt);
+      lines.push('');
+    }
+  }
+
+  // Summary findings
+  lines.push('## 5. Summary Findings');
+  const verdicts = [];
+  for (const rId of reqIds) {
+    const req = reqMap.get(rId);
+    if (!req) { verdicts.push(`${rId}: unknown (no req data)`); continue; }
+    const deferIds = deferralIndex.get(rId) || [];
+    // Same lookup as the Axis-2 table — summary and table must agree.
+    const measuredForReq = measurementForReq(measurements, rId);
+    const { verdict } = computeVerdict({ dod: req.dod }, measuredForReq, deferIds);
+    verdicts.push(`${rId}: ${verdict}`);
+  }
+  if (verdicts.length > 0) lines.push(verdicts.map(v => `- ${v}`).join('\n'));
+  lines.push('');
+  lines.push(`**Overall achievement: ${achievement}**`);
+  if (achievement === 'UNVERIFIED') {
+    lines.push(`- status source=goals.json; ledger lifecycle events for phase=${lifecycleCount}`);
+    lines.push('- Provenance caveat: desync between goals.json (all pending) and ledger (no completions).');
+    lines.push('  This is a known staleness pattern when execution proceeded outside ledger.append().');
+    lines.push('  Do NOT interpret as "not shipped" — it means "unverifiable from machine sources".');
+  }
+  lines.push('');
+  lines.push('---');
+  lines.push(`> Generated by: \`ledger.mjs phase-report --slug ${slug} --phase ${phaseStr}\``);
+
+  // ── Write report ─────────────────────────────────────────────────────────
+  const rFile = reportPath(cwd, slug, phaseStr);
+  try {
+    mkdirSync(join(rFile, '..'), { recursive: true });
+    atomicWriteText(rFile, lines.join('\n') + '\n');
+  } catch (e) {
+    // Last-resort no-throw guarantee: direct API callers must get an error
+    // object, never an exception, even on fs failures (backfill-safe).
+    return { error: `phase-report write error: ${e.message}`, slug, phase: phaseStr };
+  }
+
+  return {
+    reportFile: rFile,
+    phase: phaseStr,
+    slug,
+    achievement,
+    reqCount: reqIds.length,
+    goalsCount: phaseGoals.length,
+    decisionsCount: decisions.length,
+    lifecycleEvents: lifecycleCount,
+  };
+}
+
 // ── CLI ──────────────────────────────────────────────────────────────────
 function parseArgs(argv) {
   const out = { _: [], goal: [] };
@@ -245,6 +867,24 @@ function main() {
   const args = parseArgs(argv.slice(1));
   const cwd = args.cwd || process.cwd();
   let slug = normalizeSlug(args.slug) || resolveActivePlanSlug(cwd, args.session || null);
+
+  // phase-report is backfill-safe: dispatched before the shared slug exit-2
+  // and outside the main try/catch, so NO failure path — including a missing
+  // slug/active plan — ever exits non-zero for this subcommand.
+  if (cmd === 'phase-report') {
+    try {
+      if (!slug) {
+        console.log(JSON.stringify({ error: 'no valid --slug and no active plan', phase: args.phase ?? null }));
+      } else {
+        console.log(JSON.stringify(phaseReport(cwd, slug, args.phase)));
+      }
+    } catch (e) {
+      // Unexpected error inside phaseReport — report but never exit 1
+      console.log(JSON.stringify({ error: `phase-report internal error: ${e.message}`, phase: args.phase, slug }));
+    }
+    process.exit(0);
+  }
+
   if (!slug) { console.error('ledger: no valid --slug and no active plan'); process.exit(2); }
 
   try {
