@@ -183,6 +183,37 @@ function decomposeCombinedShortFlags(value) {
  * them are not treated as compound separators. This prevents `$(git diff
  * --name-only)` from being split mid-substitution.
  */
+function extractHeredocDelimiters(segment) {
+  const delimiters = [];
+  const re = /<<-?\s*(?:'([^']+)'|"([^"]+)"|\\?([A-Za-z_][A-Za-z0-9_]*))/g;
+  let match;
+  while ((match = re.exec(segment)) !== null) {
+    delimiters.push(match[1] || match[2] || match[3]);
+  }
+  return delimiters;
+}
+
+function consumeHeredocBodies(cmd, startIndex, delimiters) {
+  let text = '';
+  let i = startIndex;
+  for (const delimiter of delimiters) {
+    while (i < cmd.length) {
+      let line = '';
+      while (i < cmd.length && cmd[i] !== '\n') {
+        line += cmd[i];
+        i++;
+      }
+      if (i < cmd.length && cmd[i] === '\n') {
+        line += '\n';
+        i++;
+      }
+      text += line;
+      if (line.replace(/\n$/, '').replace(/^\t+/, '') === delimiter) break;
+    }
+  }
+  return { text, nextIndex: i };
+}
+
 function splitCompoundCommand(cmd) {
   const segments = [];
   let current = '';
@@ -231,7 +262,21 @@ function splitCompoundCommand(cmd) {
     if (c === '|' && i + 1 < n && cmd[i + 1] === '|') {
       segments.push(current); current = ''; i += 2; continue;
     }
-    if (c === ';' || c === '\n') {
+    if (c === '\n') {
+      const heredocDelimiters = extractHeredocDelimiters(current);
+      if (heredocDelimiters.length > 0) {
+        current += c;
+        i++;
+        const body = consumeHeredocBodies(cmd, i, heredocDelimiters);
+        current += body.text;
+        i = body.nextIndex;
+        segments.push(current);
+        current = '';
+        continue;
+      }
+      segments.push(current); current = ''; i++; continue;
+    }
+    if (c === ';') {
       segments.push(current); current = ''; i++; continue;
     }
     // bare pipe (single |)

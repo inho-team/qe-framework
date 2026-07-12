@@ -350,6 +350,24 @@ test('R006 non-git: echo "git add ." → pass (not an executable git add)', () =
   assert.equal(r.verdict, 'pass', `R006 echo "git add ." must pass (no git add invocation): ${r.reason}`);
 });
 
+test('R006 non-git: heredoc body containing git add . → pass (not executable)', () => {
+  const cmd = "cat <<'EOF'\ngit add .\nEOF";
+  const r = classifyStagingCommand(cmd);
+  assert.equal(r.verdict, 'pass', `R006 heredoc body must not be treated as executable git add: ${r.reason}`);
+});
+
+test('R006 non-git: shell wrapper heredoc body containing git add . → pass', () => {
+  const cmd = "bash -lc 'cat <<EOF\ngit add .\nEOF'";
+  const r = classifyStagingCommand(cmd);
+  assert.equal(r.verdict, 'pass', `R006 shell-wrapper heredoc body must not block: ${r.reason}`);
+});
+
+test('R006 compound: heredoc followed by executable git add . → block', () => {
+  const cmd = "cat <<EOF\ntext\nEOF\ngit add .";
+  const r = classifyStagingCommand(cmd);
+  assert.equal(r.verdict, 'block', `R006 git add after heredoc terminator must still block: ${r.reason}`);
+});
+
 test('R006 non-git: npm test → pass (no git add)', () => {
   const r = classifyStagingCommand('npm test');
   assert.equal(r.verdict, 'pass', `R006 npm test must pass: ${r.reason}`);
