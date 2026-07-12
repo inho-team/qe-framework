@@ -14,9 +14,10 @@
  *   - package.json  "description"  →  "... N skills and M agents"
  *   - plugin.json   "description"  →  "... N skills"
  *   - plugin.json   "agents"       →  rebuilt from agents/*.md (sorted)
+ *   - marketplace.json qe-framework plugin "version" → package.json version
  *
  * Does NOT write package.json "version" (owned by qe-admin-mcp release/bump workflow). Writes plugin.json
- * "version" only to mirror package.json so the two never drift.
+ * and marketplace.json "version" only to mirror package.json so release metadata never drifts.
  */
 
 import { readFileSync, writeFileSync } from 'node:fs';
@@ -98,11 +99,24 @@ function syncPluginJson(meta) {
   return [`plugin.json (${changed.join(', ')})`];
 }
 
+/** Sync marketplace.json nested qe-framework plugin version. @returns {string[]} changed labels. */
+function syncMarketplaceJson(meta) {
+  const abs = join(ROOT, '.claude-plugin/marketplace.json');
+  const raw = readFileSync(abs, 'utf8');
+  const marketplace = JSON.parse(raw);
+  const plugin = (marketplace.plugins || []).find((entry) => entry?.name === 'qe-framework');
+  if (!plugin || plugin.version === meta.version) return [];
+  plugin.version = meta.version;
+  writeFileSync(abs, JSON.stringify(marketplace, null, 2) + '\n');
+  return ['marketplace.json (qe-framework version mirror)'];
+}
+
 const meta = getMetadata();
 const changed = [
   ...syncMarkdown(meta),
   ...syncPackageJson(meta),
   ...syncPluginJson(meta),
+  ...syncMarketplaceJson(meta),
 ];
 
 console.log(`sync-metadata: source = ${meta.skillCount} skills, ${meta.agentCount} agents, v${meta.version}`);
