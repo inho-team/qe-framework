@@ -86,7 +86,7 @@ Parse the user's input after the active-client command (`{adapter.commandPrefix}
 | `show`     | Show current configuration with status |
 | `profile`  | Apply a named Head/Body role profile to all stages at once |
 | `set`      | Set engine/model/effort for a stage |
-| `reset`    | Reset a stage or all stages to defaults (claude) |
+| `reset`    | Reset a stage or all stages to environment-aware defaults |
 | `--help`   | Show usage guide |
 
 **Profiles (Head = spec + supervise, Body = implement + verify):**
@@ -103,18 +103,24 @@ effective profile derived from the stage engines; a per-stage `set` that breaks 
 named pattern surfaces as `custom`. The stage engines remain the source of truth
 for routing — the stored `profile` field is metadata only.
 
-## Pool-disjointness guarantee (engine independence)
+## Engine independence and verification gates
 
 Engines are modeled in `core/engines.json` as a `vendor` drawing from a provider
-`pool` (`claude`→anthropic, `codex`→openai, `fugu`→fugu). SIVS's Implement/Verify
-independence is enforced structurally by **pool-disjointness**: a Verify engine's
-vendor must NOT appear in the Implement engine's pool, so the model that checks
-work never shares a provider with the model that produced it. `checkSivsPoolDisjoint(config)`
-in `hooks/scripts/lib/sivs-enforcer.mjs` returns `{ ok, reason }`; a config that sets
-Implement and Verify to the same vendor (e.g. both `claude`) is **not** independent
-and should be flagged when applying/validating a profile. The `implement-fugu-verify-claude`
-preset is disjoint (fugu vs anthropic); `codex-head`/`claude-head` are disjoint;
-`all-claude`/`all-codex` are intentionally homogeneous (single-engine, no cross-check).
+`pool` (`claude`→anthropic, `codex`→openai, `fugu`→fugu). When a profile splits
+Implement and Verify across different engines, `checkSivsPoolDisjoint(config)` in
+`hooks/scripts/lib/sivs-enforcer.mjs` can prove provider-pool disjointness. The
+`implement-fugu-verify-claude` preset is the explicit pool-disjoint preset.
+
+The default `claude-head` posture is different by design: Claude owns the Head
+stages (Spec + Supervise), while Codex owns the Body stages (Implement + Verify)
+to keep code execution and validation out of the Claude session. Its verification
+independence comes from fresh-context Verify, mandatory SIVS verification gates,
+and protocol-owned cross-model critics inside `Qcritical-review`; do not describe
+`claude-head` as Implement/Verify pool-disjoint.
+
+Homogeneous profiles (`all-claude` / `all-codex`) are intentionally single-engine
+profiles and rely on the same mandatory gate baseline rather than provider-pool
+separation.
 
 **Stages:** `spec`, `implement`, `verify`, `supervise`
 
@@ -223,7 +229,7 @@ treat it as an implicit `set`:
 
 #### Subcommand: `reset`
 1. If `--all` or no stage specified: delete `.qe/sivs-config.json` entirely
-2. If stage specified: remove that stage's entry from config (falls back to default claude)
+2. If stage specified: remove that stage's entry from config (falls back to environment-aware default)
 3. Display the resulting config
 
 **Examples:**
