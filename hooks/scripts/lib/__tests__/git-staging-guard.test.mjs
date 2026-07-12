@@ -591,6 +591,24 @@ test('F4 wrapper: sh -c "git add src/a.js" → pass (explicit path)', () => {
   assert.equal(r.verdict, 'pass', `sh -c explicit path must pass: ${r.reason}`);
 });
 
+test('F4 wrapper: nested shell wrappers depth 4 broad add → block', () => {
+  let cmd = 'git add .';
+  for (let i = 0; i < 4; i++) {
+    cmd = `bash -lc ${JSON.stringify(cmd)}`;
+  }
+  const r = classifyStagingCommand(cmd);
+  assert.equal(r.verdict, 'block', `nested shell wrappers must not fail-open broad staging: ${r.reason}`);
+});
+
+test('F4 wrapper: nested shell wrappers depth 4 explicit add → pass', () => {
+  let cmd = 'git add src/a.js';
+  for (let i = 0; i < 4; i++) {
+    cmd = `bash -lc ${JSON.stringify(cmd)}`;
+  }
+  const r = classifyStagingCommand(cmd);
+  assert.equal(r.verdict, 'pass', `nested shell wrappers with explicit path must pass: ${r.reason}`);
+});
+
 test('F4 wrapper precision: echo "git add ." → pass (quoted text is not executed)', () => {
   const r = classifyStagingCommand('echo "git add ."');
   assert.equal(r.verdict, 'pass', `echo text must not trigger staging guard: ${r.reason}`);

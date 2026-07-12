@@ -46,6 +46,10 @@ import { fileURLToPath } from 'node:url';
 /** Stale index.lock threshold in milliseconds. Fixed; no env override. */
 export const LOCK_STALE_THRESHOLD_MS = 120_000;
 
+/** Static shell-wrapper recursion cap. Prevents pathological recursion while
+ * still covering realistic nested `bash -lc` / `sh -c` wrappers. */
+const MAX_WRAPPER_DEPTH = 16;
+
 // ---------------------------------------------------------------------------
 // Minimal shell tokenizer
 // ---------------------------------------------------------------------------
@@ -634,7 +638,7 @@ export function classifyStagingCommand(command, depth = 0) {
   if (typeof command !== 'string') {
     return { verdict: 'pass', reason: 'not a string command' };
   }
-  if (depth > 3) {
+  if (depth > MAX_WRAPPER_DEPTH) {
     return { verdict: 'pass', reason: 'wrapper nesting too deep; fail-open' };
   }
 
