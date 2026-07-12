@@ -81,6 +81,75 @@ Hook code runs from the installed plugin cache (`${CLAUDE_PLUGIN_ROOT}/.../7.3.9
 
 ---
 
+## 클린런 베이스라인 (파생) — DERIVED clean_floor_range=9-11
+
+> 출처: TASK_REQUEST_6147e8af (2026-07-12) | 방법: 방법 A (기록 분해 파생) | 라벨: **interim hypothesis**
+> 참조: ledger G021 이벤트 (2026-07-12, `DERIVED clean_floor_range=9-11`) · DECISION_LOG D-f876457e-1 "클린런 베이스라인 파생 소결" · DIAG_6147e8af.md
+
+### Phase 5 원 측정값의 의미
+
+Phase 5 최종 측정값은 **17회**(Phase 4 상한, F-findings 치유 3라운드 포함). R009 DoD ≤15회 대비
+verdict `unknown`(미달)이며, 이 기록은 변경되지 않는다. 17은 FAIL로 유발된 재-라운드를 포함한
+**상한값**이다 — clean-path(FAIL 없이 첫 pass PASS) 기준 실측값이 아니다.
+
+### 17이 상한값인 이유 (FAIL-유발 재-라운드)
+
+Phase 4 dogfooding에는 다음 FAIL-유발 재-라운드가 포함됐다:
+
+| 재-라운드 | 유발 원인 | 제외 근거 |
+|---------|---------|---------|
+| verify R2 (2라운드) | verify R1 Overall FAIL → backward-routing | `verify-gate-protocol.md`: R1 PASS면 R2 미발생 |
+| Esecurity R2 | verify R2(FAIL-라운드) 산물 — F13 발견 | R2 전체가 FAIL-라운드 산물 (F13은 실결함, 반대증거로 기록) |
+| supervise Blocker FAIL 치유 라운드 | Blocker FAIL → F18/F19 치유 재판정 | clean-path는 no-Blocker-FAIL 기준 |
+| implement +1 retry | retry 표기 | `+` 표기 = retry, clean-path에 없음 |
+| supervise +1 env 재판정 | 환경 재판정 | `+` 표기 = 재판정, clean-path에 없음 |
+
+**반대증거 (제외의 auditable 근거):** F13(Esecurity R2가 발견한 unit boundary NF4 결함),
+F18(Blocker FAIL 치유 중 발견한 isolation guard 누락, HIGH), F19(같은 라운드 발견, MED)는
+실제 결함이었다. 제외는 "clean-path에 해당 라운드가 없다"는 프로토콜 정의에 따른 것이며,
+이 결함들이 clean-path에서 발견되지 않을 수도 있다는 사실을 숨기지 않는다. 상세: DIAG_6147e8af.md §4.
+
+### 대칭 분해 규칙 요약
+
+FAIL-유발 재-라운드 제외는 **verify·security·supervise에 대칭 적용**한다. 한 phase만
+선택적으로 제외하는 비대칭은 리깅이므로 금지한다. 분해 규칙 4개:
+
+- Rule-A: `+` 표기(retry/env 재판정) 제외
+- Rule-B: FAIL-유발 backward-routing 재-라운드 대칭 제외 (근거: verify-gate-protocol.md)
+- Rule-C: 필수 gate floor 포함 유지
+- Rule-D: security 발동 여부를 명시 파라미터로 두어 두 케이스 산출
+
+### DERIVED clean_floor_range=9-11 (두 케이스)
+
+| Case | 구성 | 합계 |
+|------|------|------|
+| **no-security clean** (Esecurity 미발동) | implement 1 + verify R1 3 + risk-proof 1 + supervise 4 (adversarial 3 + aggregation 1) | **9** |
+| **security-fires clean** (Esecurity 발동) | implement 1 + verify R1 3 + Esecurity R1(clean pass) 1 + risk-proof 1 + supervise 5 (adversarial 3 + security 1 + aggregation 1) | **11** |
+
+`security-fires` 케이스의 +1 Esecurity는 **verify R1 clean-pass의 security 패스**에서 온다 —
+제외한 FAIL-라운드(R2) security의 재수입이 아니다(DIAG_6147e8af.md §3 참조).
+
+### 상호배타 결론
+
+hi=11 ≤ 15 → **"R009 클린런 충족 가능성 높음(파생근거), 단 방법 B로 확정 필요"**
+
+두 케이스 모두 ≤15를 충족한다. 단, 이는 방법 A(기록 분해 파생)의 interim hypothesis이며
+Phase 5 실측 17회(verdict `unknown`)를 대체하지 않는다. 방법 A 결과를 R009 충족의 소급
+근거로 사용하는 것은 NF4 위반이다.
+
+### 방법 A vs 방법 B (필수 후속)
+
+**방법 A(이번 태스크)는 interim hypothesis다.** 기록 분해 기반이므로 Phase 4 breakdown의
+분리 가능성에 의존하며, 재현 가능한 fresh measurement가 아니다. durable baseline으로
+굳으면 안 된다.
+
+**방법 B(전향적 계측)는 필수 후속이다.** 실제 `measured` 클린런 확정은 방법 B 착수 시
+새 TASK_REQUEST로 스펙화한다. 방법 B 계측 방법: 향후 clean SIVS 사이클(F-findings 치유
+없이 첫 pass PASS)에서 implement→verify→risk-proof→supervise 각 게이트의 서브에이전트
+spawn 카운트를 실시간으로 집계해 합산한다.
+
+---
+
 ## Gate Engine Ownership (Phase 5 / D-f876457e-1)
 
 Under `codex-head` profile:
