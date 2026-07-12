@@ -515,6 +515,39 @@ if (toolName === 'Read') {
 }
 }
 
+// --- R006 Staging Guard (Bash tool, separate step outside bypass-consumption loop) ---
+// This check runs AFTER the overrideRules loop (:438-472) and does NOT participate
+// in bypass consumption. It never matches or consumes the Qcommit one-shot bypass.
+// Region-aware matching lives in git-staging-guard.mjs. It also unwraps simple
+// shell wrappers (`bash -lc 'git add .'`) and env prefixes (`env FOO=1 git add .`).
+// hook_profile=minimal downgrades to hint (same as existing gates above).
+if (toolName === 'Bash' && cfg.staging_guard !== false) {
+  try {
+    const cmd = (data.tool_input || data.toolInput || {}).command || '';
+    const { classifyStagingCommand } = await import('./lib/git-staging-guard.mjs');
+    const stagingVerdict = classifyStagingCommand(cmd);
+    if (stagingVerdict.verdict === 'block') {
+      if (cfg.hook_profile === 'minimal') {
+        hints.push(`[guard:staging] ${stagingVerdict.reason} (hook_profile=minimal — not enforced)`);
+      } else if (cfg.staging_guard === 'block') {
+        emitBlock({
+          skill: '_staging_guard',
+          reason: stagingVerdict.reason,
+          action: '명시 경로로 git add path1 path2 를 사용하거나 /Qcommit 을 사용하세요.',
+          bypass: 'staging_guard: "warn" 강등 또는 hook_profile=minimal',
+        });
+      } else {
+        // warn mode (default): non-block hint via additionalContext channel
+        hints.push(`[staging-guard] ${stagingVerdict.reason} 명시 경로로 git add path1 path2 를 사용하거나 /Qcommit 을 사용하세요.`);
+      }
+    } else if (stagingVerdict.verdict === 'warn') {
+      hints.push(`[staging-guard] ${stagingVerdict.reason}`);
+    }
+  } catch {
+    // fail-open: parse/import failure must never block the tool call
+  }
+}
+
 // --- SIVS Option Guard (AskUserQuestion) ---
 // Hard-block any SIVS engine routing question that omits the Codex Hybrid option.
 // Detection: broad keyword match (sivs, 엔진, engine) + semantic check (must have codex/hybrid label).

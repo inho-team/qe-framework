@@ -30,6 +30,8 @@ interface ConfigObject {
   style_gate_window_ms: number;
   code_risk_stop_gate: boolean;
   verification_evidence_gate: 'warn' | 'block' | false;
+  // R006 staging guard (Phase 3 / superpowers-agent-scripts, task 55657b95)
+  staging_guard: 'warn' | 'block' | false;
   hook_profile: 'minimal' | 'safe' | 'full';
   // pre-tool-use.mjs
   context_pressure_high: number;
@@ -85,3 +87,4 @@ never: Error;
 - readFileSync/existsSync는 blocking I/O — 따라서 hooks 초기화 시 (비동기 context 외) 호출 권장
 - DEFAULTS 값들은 상수 정의(주석 포함) 참조 — 변경 시 DEFAULTS와 구현 모두 갱신 필요
 - Signature synced to implementation on 2026-07-11 (task cc64ea5e): removed phantom `profile_collect_interval` (never existed in DEFAULTS); added `auto_refresh_*`, `sweep_auto`, `style_gate`, `style_gate_max_blocks`, `style_gate_window_ms`, `code_risk_stop_gate`, `hook_profile`, and `verification_evidence_gate`
+- Signature synced to implementation on 2026-07-11 (task 55657b95): added `staging_guard: 'warn' | 'block' | false` (R006 staging guard, Phase 3 superpowers-agent-scripts; default `'warn'`)

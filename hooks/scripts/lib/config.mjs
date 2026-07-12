@@ -99,6 +99,16 @@ const DEFAULTS = {
   // Override via .qe/config.json { "hooks": { "verification_evidence_gate": "block" } }
   verification_evidence_gate: 'warn',
 
+  // R006 staging guard (Phase 3 / superpowers-agent-scripts).
+  // Precedent: verification_evidence_gate above uses the same phased-rollout pattern.
+  // [why 'warn' default]: broad `git add .` staging in existing sessions should not
+  // be hard-blocked on first rollout. 'warn' injects a hint via additionalContext
+  // (continue:true, non-blocking) so the agent is informed without being stopped.
+  // Explicit 'block' emits emitBlock (exit 2, hard block) with explicit-path 대안 안내.
+  // false = gate entirely disabled.
+  // Override via .qe/config.json { "hooks": { "staging_guard": "block" } }
+  staging_guard: 'warn',
+
   // pre-tool-use.mjs
   // [why this value]: 200 tool calls is the "red zone" where context pressure is
   // severe enough to risk truncation. Warning at this point prompts the user to
