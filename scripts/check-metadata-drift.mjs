@@ -101,6 +101,17 @@ for (const rel of MARKDOWN_FILES) {
   }
 }
 
+// 3b. marketplace.json nested plugin version mirror
+{
+  const marketplace = JSON.parse(readFileSync(join(ROOT, '.claude-plugin/marketplace.json'), 'utf8'));
+  const plugin = (marketplace.plugins || []).find((entry) => entry?.name === 'qe-framework');
+  if (!plugin) {
+    failures.push('marketplace.json: missing qe-framework plugin entry');
+  } else if (plugin.version !== meta.version) {
+    failures.push(`marketplace.json qe-framework version "${plugin.version}" != package.json version "${meta.version}"`);
+  }
+}
+
 // 4. Codex cleanup manifest covers every skill path installCodexAssets can write.
 {
   const manifest = JSON.parse(readFileSync(join(ROOT, 'scripts/lib/codex-cleanup-manifest.json'), 'utf8'));
