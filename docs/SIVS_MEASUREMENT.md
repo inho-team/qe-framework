@@ -148,6 +148,20 @@ Phase 5 실측 17회(verdict `unknown`)를 대체하지 않는다. 방법 A 결�
 없이 첫 pass PASS)에서 implement→verify→risk-proof→supervise 각 게이트의 서브에이전트
 spawn 카운트를 실시간으로 집계해 합산한다.
 
+### 방법 B 시도 (fdad24a7) — inconclusive
+
+2026-07-12에 `TASK_REQUEST_fdad24a7`로 Method B 전향적 계측을 시도했으나,
+clean SIVS cycle이 end-to-end로 materialize되지 않아 durable R009 evidence로 승격하지 않았다.
+
+- 결과: invalidated / inconclusive
+- 원인: Claude bridge implement attempt가 `cwd is outside allowed root` preflight에서 실패했고,
+  이후 `Etask-executor` implement-stage는 baseline/target-cycle framing만 산출했다.
+- 관측: remediation request, backward-routing 재진입, FAIL 유발 재판정은 task artifacts에서
+  관측되지 않았으나, clean cycle의 positive 조건(implement→verify→risk-proof→supervise
+  first-pass 완료)이 충족되지 않았다.
+- 기록 정책: 이 시도는 Phase 5 원 측정값 17회와 방법 A `DERIVED clean_floor_range=9-11`을
+  대체하지 않는다. 새로운 R009 numeric measurement event는 기록하지 않는다.
+
 ---
 
 ## Gate Engine Ownership (Phase 5 / D-f876457e-1)
