@@ -29,15 +29,15 @@ All skills, agents, and documents in this framework MUST use these standard term
 ### PSE Chain (outer workflow)
 
 ```
-Claude: /Qplan  →  /Qgs  →  /Qatomic-run  →  /Qcode-run-task
-Codex:  $Qplan  →  $Qgs  →  $Qatomic-run  →  $Qcode-run-task
+Claude: /Qplan  →  /Qgs  →  /Qexecute  →  /Qexecute -verify
+Codex:  $Qplan  →  $Qgs  →  $Qexecute  →  $Qexecute -verify
         Plan       Spec      Execute          Verify
 ```
 
 - **Plan**: Define roadmap, phases, requirements (`Qplan`)
 - **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgs`)
-- **Execute**: Implement checklist items via Wave execution (`Qatomic-run`)
-- **Verify**: Test → review → fix quality loop (`Qcode-run-task`)
+- **Execute**: Implement checklist items via Wave execution (`Qexecute`)
+- **Verify**: Test → review → fix quality loop (`Qexecute -verify`)
 
 ### SIVS Loop (inner quality gate)
 
@@ -53,13 +53,13 @@ The SIVS Loop runs **inside** the Execute and Verify steps of the PSE Chain. It 
 PSE Chain (user workflow)
 ├── Plan ─────────── /Qplan
 ├── Spec ─────────── /Qgs (Qgenerate-spec)
-├── Execute ──────── /Qatomic-run or /Qrun-task
+├── Execute ──────── /Qexecute or /Qexecute
 │     └── SIVS Loop (quality gate)
 │           ├── Spec: TASK_REQUEST defines the contract
 │           ├── Implement: Actual coding and file changes
 │           ├── Verify: VERIFY_CHECKLIST confirms completion
 │           └── Supervise: Supervision agents confirm quality
-└── Verify ───────── /Qcode-run-task
+└── Verify ───────── /Qexecute -verify
       └── SIVS Loop (quality gate, final pass)
 ```
 
@@ -71,9 +71,9 @@ PSE Chain (user workflow)
 |----------|-------|------|
 | Plan | `Qplan` | Roadmap, phases, requirements |
 | Spec | `Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
-| Execute | `Qatomic-run` | Wave execution with Haiku Teammates (default) |
-| Execute | `Qrun-task` | Sequential execution (fallback for non-atomic tasks) |
-| Verify | `Qcode-run-task` | Test → review → fix quality loop |
+| Execute | `Qexecute` | Wave execution with Haiku Teammates (default) |
+| Execute | `Qexecute` | Sequential execution (fallback for non-atomic tasks) |
+| Verify | `Qexecute -verify` | Test → review → fix quality loop |
 
 ---
 
@@ -84,8 +84,8 @@ prefix is client-specific.
 
 | Active client | Skill command prefix | Example |
 |---------------|----------------------|---------|
-| Claude | `/` | `/Qatomic-run 24740a27` |
-| Codex | `$` | `$Qatomic-run 24740a27` |
+| Claude | `/` | `/Qexecute 24740a27` |
+| Codex | `$` | `$Qexecute 24740a27` |
 
 All handoffs must render through the active-client prefix. Do not show a
 slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
@@ -111,7 +111,7 @@ Every PSE Chain skill MUST end with a `## Handoff` section. The handoff follows 
 3. **Task description line** — One-line natural language summary of what the next command does, placed directly above the `Next:` line
 4. **`Next command:` block** — Place alone in a code block for easy copying, **must include UUID or Phase argument**
 5. **No explanations** — Do not add alternatives, elaborations, or choices after the command. **Never include a fallback line** (`or: /Qgenerate-spec ...`, `If that doesn't work: ...`). `/Qgs` is the registered alias for `/Qgenerate-spec` — a duplicate line is noise.
-6. **Task type branching** — Guide only `type: code` to `/Qcode-run-task`. For docs/analysis/deletion tasks, guide to the next Phase
+6. **Task type branching** — Guide only `type: code` to `/Qexecute -verify`. For docs/analysis/deletion tasks, guide to the next Phase
 7. **Short alias only** — Use the short phase label (e.g., `Phase 2: Codex Bridge`), not a copy of the full phase description. Max ~6 words.
 8. **Harness status is not completion** — If a handoff includes Execution Harness status, lane status, or status projection, it must still render the SIVS/PSE state separately. A finished lane does not replace VERIFY_CHECKLIST completion or Supervise.
 
@@ -138,7 +138,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 구현 코드의 테스트 및 품질 검증
-Next: {adapter.commandPrefix}Qcode-run-task a1b2c3d4
+Next: {adapter.commandPrefix}Qexecute -verify a1b2c3d4
 ```
 
 ### Non-code Task Complete Example
@@ -221,7 +221,7 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 All skills MUST respond in the same language the user used in their most recent message. If the user writes in Korean, all output — section titles, descriptions, summaries, handoff messages, **and handoff labels (e.g., `Next:` → `다음:`)** — must be in Korean. Only the following are exempt and stay in English:
 - File names and paths (e.g., `TASK_REQUEST_abc123.md`)
 - Code and code blocks
-- Skill/command names (e.g., `/Qgs`, `/Qatomic-run`)
+- Skill/command names (e.g., `/Qgs`, `/Qexecute`)
 - Status markers (`[x]`, `[>]`, `PSE:`)
 
 ---
@@ -254,11 +254,13 @@ When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
 - **Stage defaults** — without Codex, all SIVS stages use Claude. When Codex is available, Spec and Supervise stay Claude-led while Implement and Verify prefer Codex; explicit `.qe/sivs-config.json` entries can override this.
 - **Role profiles** — the Head/Body split is a named preset over the four stages: **Head = Spec + Supervise**, **Body = Implement + Verify**. `/Qsivs-config profile <name>` sets all four at once — `claude-head` (default: Claude Head / Codex Body), `codex-head` (Codex Head / Claude Body), `all-claude`, `all-codex`. The stored `profile` field is metadata; the per-stage engine entries remain the routing source of truth.
 - **Fallback is bidirectional** — engine assignment is a preference. A `codex` stage degrades to Claude when codex-plugin-cc is absent; a `claude` stage degrades to Codex in a Codex-native session where Claude is unreachable. See `resolveEngine()` in `scripts/lib/codex_bridge.mjs`.
-- **Cross-engine calls go through MCP** — when one engine must invoke the other (Head calling Body or vice versa), use the qe-mcp tools `qe_run_codex_agent` / `qe_run_claude_agent` / `qe_delegate_agent` (recursion-guarded, `max_concurrent_runs: 1`). Do **not** shell out to `codex-companion.mjs` or any `node .../scripts/*.mjs` runner directly for cross-engine work — direct library invocation bypasses the recursion guard and audit trail.
+- **Cross-engine execution is bridge-owned** — when Claude must hand a stage to Codex, route through `scripts/lib/codex_bridge.mjs` and the `codex-plugin-cc` bridge. When Codex must hand a stage to Claude, route through `scripts/lib/claude_bridge.mjs` and `Qclaude-rescue`. `qe-mcp` runner tools are compatibility-only and hidden by default unless `QE_MCP_EXPOSE_RUNNERS=1` is set before starting the MCP server; they are not the canonical PSE/SIVS execution path.
 - **Spec/Supervise assistance** — Claude owns requirements and final judgment, but should actively use Codex for bounded repo search, context gathering, test diagnosis, and second-opinion review when that reduces Claude token load.
 - **Runtime mode is selectable** — foreground is preferred for short Codex tasks so stdout lands in the conversation. Background is allowed for long Implement/Verify jobs only when the session retrieves results with `/codex:status` and `/codex:result <job-id>` before final reporting.
 - **Session result hint** — SessionStart may emit `[Session State] ... codex:<status>...:retrieve /codex:result` when a background Codex job is still relevant. Treat it as a retrieval reminder, not as completion evidence.
 - **Concise Codex output** — ask Codex for relevant files, line numbers, summaries, and next actions; do not paste raw bulk search output back into Claude unless necessary.
+- **Per-scope config design** — `loadSivsConfig(cwd)` uses exact-path loading (no walk-up); hook cwd = session cwd. Each repo (e.g. `qe-framework/`) has its own `.qe/sivs-config.json` scope independent from a wrapper workspace's config. The two configs do not conflict in a single session — they apply to different session cwds by design. See the config-scope authority section of `D-f876457e-1` in the plan `DECISION_LOG.md` for the authority rule.
+- **Gate subagent engine ownership** — SIVS `enforceRouting` hard-blocks direct Agent spawns (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise, `Ecode-reviewer` → verify) that violate the configured engine. However, **gate subagents inside `Qcritical-review`** (Devil's Advocate, Security Auditor, Merge Blocker, etc.) are **protocol-owned**: the gate protocol itself controls their engine assignment (including the automatic Codex cross-model upgrade for DA/Merge Blocker). SIVS enforcer does not reach inside protocol-owned spawns. This means gate execution is **mixed** under `codex-head`: DA/Merge Blocker → Codex (protocol auto-upgrade), other agents → Claude (protocol-owned). G4 Risk Proof (`Erisk-proof-auditor`) is Claude-only (not in SIVS STAGE_MAP). See DECISION_LOG `D-f876457e-1`.
 
 ---
 
@@ -278,7 +280,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 - **Token Fallback**: If real-time metrics are missing, use `Characters / 4` for estimation.
 
 ### 3. Persistent Mode Protection
-- **Active pipelines are shielded from premature stopping.** When a multi-step pipeline (SIVS loop, Wave execution, Qatomic-run) is running, persistent mode blocks the Stop hook and injects reinforcement via the Notification hook. Skills enter persistent mode at execution start and exit at their Handoff step. See `hooks/scripts/lib/persistent-mode.mjs` and `core/CONTEXT_BUDGET.md` for details.
+- **Active pipelines are shielded from premature stopping.** When a multi-step pipeline (SIVS loop, Wave execution, Qexecute) is running, persistent mode blocks the Stop hook and injects reinforcement via the Notification hook. Skills enter persistent mode at execution start and exit at their Handoff step. See `hooks/scripts/lib/persistent-mode.mjs` and `core/CONTEXT_BUDGET.md` for details.
 
 ### 4. Optimized Model Tiering
 - **Haiku (LOW)**: Default for pattern matching, structural verification (S1-S5), file I/O, and simple text transforms.
@@ -314,6 +316,24 @@ These skills are optimized for common workflows and consistently outperform gene
 
 ---
 
+## When to use X vs Y
+
+Complements the `Preferred Skill Map` above. That map names the canonical skill per
+action; this matrix disambiguates the cases where two similar skills (or tools) both
+apply and the choice depends on the situation. Only skills confirmed present in
+`skills/` are listed; browser entries are tool routes, not skills.
+
+| 상황 | 1순위 | 대안 | 판단 기준 |
+|------|-------|------|-----------|
+| 작업 실행 방식 | `Qexecute` (무플래그) | `Qexecute -verify` · `Qexecute -utopia` | 단순·저위험이면 무플래그 자기분류(순차/wave); 코드 품질 루프 게이트가 필요하면 `-verify`; 무인 자율 반복이면 `-utopia` |
+| 세션 연속성 | `Qcompact` → `Qresume` | `Qmemory` · `Qcontext` · `Qlearn` | 진행 상태를 통째로 다음 세션에 넘길 땐 compact/resume; 재사용할 규칙·결정은 `Qmemory`; 폴더 국소 컨텍스트는 `Qcontext`; 실패에서 얻은 교훈은 `Qlearn` |
+| 정리 vs 스냅샷 | `Qgc` | `Qshadow` | 드리프트·데드코드·규칙 위반 스캔/정리는 `Qgc`; 작업트리 체크포인트·되돌리기(실제 git 무영향)는 `Qshadow` |
+| 계획 vs 스펙 | `Qplan` | `Qgs` | 로드맵·페이즈 관리는 `Qplan`; 특정 작업의 TASK_REQUEST+VERIFY_CHECKLIST 생성은 `Qgs`(= `Qgenerate-spec`) |
+| 품질 검증 | `Qcritical-review` | `Qqa` | SIVS 스테이지 적대적 검증(spec/impl/merge)은 `Qcritical-review`; 실행 중인 웹앱 대상 탐색·회귀 QA는 `Qqa` |
+| 브라우저 자동화 (도구) | Playwright MCP | claude-in-chrome · 스크린샷 CLI | 접근성 트리 기반 안정 조작은 Playwright MCP(우선); 확장 연동 시나리오는 claude-in-chrome; 단순 캡처만이면 `npx playwright screenshot` CLI |
+
+---
+
 ## Skills (Q-prefix)
 
 ### Framework Core
@@ -338,7 +358,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
 | `Qmcp sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
-| `Qutopia` | Fully autonomous execution mode |
+| `Qexecute -utopia` | Fully autonomous execution mode |
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |
 | `Qgc` | Code garbage collection (drift, violations, dead code) |
 
@@ -346,8 +366,8 @@ These skills are optimized for common workflows and consistently outperform gene
 | Skill | Purpose |
 |-------|---------|
 | `Qgenerate-spec` | Generate CLAUDE.md + TASK_REQUEST + VERIFY_CHECKLIST |
-| `Qrun-task` | Execute spec-based tasks |
-| `Qcode-run-task` | Test > review > fix quality loop |
+| `Qexecute` | Execute spec-based tasks |
+| `Qexecute -verify` | Test > review > fix quality loop |
 | `Qscenario-test` | Generate, execute, and verify E2E user scenarios (browser/API/CLI) |
 | `Qqa-council` | Multi-agent QA loop: explore (black-box) → codify → heal → report; optional PR-trigger scaffold |
 | `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |

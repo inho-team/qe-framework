@@ -74,16 +74,65 @@ function isShellTool(name) {
 if (toolName === 'Read') {
   const toolInput = data.tool_input || data.toolInput || {};
   const filePath = toolInput.file_path || toolInput.filePath || '';
-  if (filePath && isMemoValid(state, filePath)) {
-    // File was previously read and has NOT been modified since — block the redundant read
+  // A partial read (offset/limit) is an intentional slice request — never block
+  // it, and it is never cached (see post-tool-use). Only full re-reads are hits.
+  const isPartialRead =
+    toolInput.offset !== undefined || toolInput.limit !== undefined;
+  if (filePath && !isPartialRead && isMemoValid(state, filePath)) {
+    // File was previously read and has NOT been modified since — block the redundant read.
     const blockedCount = incrementBlockedReads(state);
-    // Persist state before exiting so the counter is saved
+    // This hard-block exits before the normal tool_calls increment below, so a
+    // blocked read would otherwise vanish from activity accounting (and from the
+    // "tool_calls ≥ 50" enforced-but-silent heuristic). Count it here. Guard the
+    // session_stats init because this branch runs before the block that seeds it.
+    if (!state.session_stats) {
+      state.session_stats = { tool_calls: 0, session_start: Date.now(), context_loaded: [] };
+    }
+    state.session_stats.tool_calls = (state.session_stats.tool_calls || 0) + 1;
+    state.session_stats.blocked_reads = (state.session_stats.blocked_reads || 0) + 1;
+    // Persist state before exiting so the counters are saved
     try { writeUnifiedState(cwd, state); } catch {}
     emitBlock({
       skill: '_memo',
       reason: `MEMO HIT: ${filePath} — cached content available`,
       action: `Use the content from your earlier read of this file. (${blockedCount} reads blocked this session)`,
     });
+  }
+}
+
+// --- SIVS Remediation Loop Limit (Phase 3 / R006 — deterministic hard block) ---
+// The one code choke point of the otherwise prose-driven SIVS loop: a new
+// remediation round is a Write/Edit of REMEDIATION_REQUEST_{UUID}_{N}.md. Intercept
+// it, count the round, and hard-block round > 3 so the loop cannot restart Stage 1
+// forever. Scoped to REMEDIATION writes ONLY — never wedges other tool calls.
+if (['Write', 'Edit'].includes(toolName)) {
+  const ti = data.tool_input || data.toolInput || {};
+  const fp = ti.file_path || ti.filePath || '';
+  // {UUID} may be 8-char hex or a hyphenated id; {N} is the round. Anchored at a
+  // path separator (or start) so only the real basename matches, not an embedded
+  // substring; greedy capture backtracks so `_(\d+)\.md$` binds the final _<round>.md.
+  const m = /(?:^|\/)REMEDIATION_REQUEST_(.+)_(\d+)\.md$/.exec(fp);
+  if (m) {
+    try {
+      const remUuid = m[1];
+      const { recordAndCheck } = await import('./lib/loop-guard.mjs');
+      const verdict = recordAndCheck(cwd, remUuid, 'remediation');
+      if (verdict.blocked) {
+        const isCorrupt = verdict.kind === 'corrupt';
+        emitBlock({
+          skill: '_loop_guard',
+          reason: isCorrupt
+            ? `SIVS loop state for ${remUuid} is corrupt — refusing a new remediation round (fail-closed).`
+            : `SIVS remediation limit reached for ${remUuid}: ${verdict.count - 1} of ${verdict.limit} rounds already used.`,
+          action: isCorrupt
+            ? `Run ${skillCommand('Qdoctor')} to repair .qe/state, then retry. Do not restart Stage 1 blindly.`
+            : `${verdict.limit} remediation rounds are exhausted. Stop restarting Stage 1 — escalate to the user with the unresolved findings and a recommendation.`,
+          bypass: 'QE_SIVS_DEPTH_LIMIT / resetLoop after user decision',
+        });
+      }
+    } catch {
+      // fail-open on guard errors for any path OTHER than a confirmed block above.
+    }
   }
 }
 
@@ -183,10 +232,8 @@ if (toolName === 'Skill') {
     const SKILL_STAGE_MAP = {
       'Qgenerate-spec': 'spec', 'qe-framework:Qgenerate-spec': 'spec',
       'Qgs': 'spec', 'qe-framework:Qgs': 'spec',
-      'Qrun-task': 'implement', 'qe-framework:Qrun-task': 'implement',
+      'Qexecute': 'implement', 'qe-framework:Qexecute': 'implement',
       'Qrt': 'implement', 'qe-framework:Qrt': 'implement',
-      'Qatomic-run': 'implement', 'qe-framework:Qatomic-run': 'implement',
-      'Qcode-run-task': 'verify', 'qe-framework:Qcode-run-task': 'verify',
     };
     const sivsStage = SKILL_STAGE_MAP[skillName];
     if (sivsStage) {
@@ -468,6 +515,39 @@ if (toolName === 'Read') {
 }
 }
 
+// --- R006 Staging Guard (Bash tool, separate step outside bypass-consumption loop) ---
+// This check runs AFTER the overrideRules loop (:438-472) and does NOT participate
+// in bypass consumption. It never matches or consumes the Qcommit one-shot bypass.
+// Region-aware matching lives in git-staging-guard.mjs. It also unwraps simple
+// shell wrappers (`bash -lc 'git add .'`) and env prefixes (`env FOO=1 git add .`).
+// hook_profile=minimal downgrades to hint (same as existing gates above).
+if (toolName === 'Bash' && cfg.staging_guard !== false) {
+  try {
+    const cmd = (data.tool_input || data.toolInput || {}).command || '';
+    const { classifyStagingCommand } = await import('./lib/git-staging-guard.mjs');
+    const stagingVerdict = classifyStagingCommand(cmd);
+    if (stagingVerdict.verdict === 'block') {
+      if (cfg.hook_profile === 'minimal') {
+        hints.push(`[guard:staging] ${stagingVerdict.reason} (hook_profile=minimal — not enforced)`);
+      } else if (cfg.staging_guard === 'block') {
+        emitBlock({
+          skill: '_staging_guard',
+          reason: stagingVerdict.reason,
+          action: '명시 경로로 git add path1 path2 를 사용하거나 /Qcommit 을 사용하세요.',
+          bypass: 'staging_guard: "warn" 강등 또는 hook_profile=minimal',
+        });
+      } else {
+        // warn mode (default): non-block hint via additionalContext channel
+        hints.push(`[staging-guard] ${stagingVerdict.reason} 명시 경로로 git add path1 path2 를 사용하거나 /Qcommit 을 사용하세요.`);
+      }
+    } else if (stagingVerdict.verdict === 'warn') {
+      hints.push(`[staging-guard] ${stagingVerdict.reason}`);
+    }
+  } catch {
+    // fail-open: parse/import failure must never block the tool call
+  }
+}
+
 // --- SIVS Option Guard (AskUserQuestion) ---
 // Hard-block any SIVS engine routing question that omits the Codex Hybrid option.
 // Detection: broad keyword match (sivs, 엔진, engine) + semantic check (must have codex/hybrid label).
@@ -550,8 +630,11 @@ if (['Write', 'Edit'].includes(toolName)) {
   }
 }
 
-// --- Delegation Enforcer (Agent tool calls) ---
-if (toolName === 'Agent') {
+// --- Delegation Enforcer (subagent delegation tool calls) ---
+// The real Claude Code delegation tool is `Task` (tool_input.subagent_type);
+// some runtimes surface it as `Agent`. Gating on `Agent` alone missed every
+// real delegation, so delegationStats never moved. Accept both.
+if (toolName === 'Task' || toolName === 'Agent') {
   const toolInput = data.tool_input || data.toolInput || {};
   try {
     const { checkDelegation, updateDelegationStats } = await import('./lib/delegation-enforcer.mjs');
@@ -628,7 +711,7 @@ if (toolName === 'Agent') {
   }
 }
 
-// --- Qutopia QA mode: verify loop reminder ---
+// --- Qexecute -utopia QA mode: verify loop reminder ---
 const currentCalls = stats.tool_calls;
 const utopia = state.utopia_state || readStandaloneUtopiaState(cwd);
 if (utopia && utopia.enabled && utopia.mode === 'qa') {
@@ -647,7 +730,7 @@ if (utopia && utopia.enabled && utopia.mode === 'qa') {
   }
 }
 
-// --- Qutopia safety rails (hard block while autonomous mode is active) ---
+// --- Qexecute -utopia safety rails (hard block while autonomous mode is active) ---
 // Inert in normal sessions: only runs when utopia_state.enabled and not overridden.
 if (utopia && utopia.enabled && !utopia.allowUnsafe && (isShellTool(toolName) || ['Write', 'Edit'].includes(toolName))) {
   try {

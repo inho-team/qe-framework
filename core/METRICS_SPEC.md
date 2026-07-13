@@ -27,7 +27,7 @@
 
 - **Description**: Ratio of verification time to implementation time
 - **Formula**: `total_verify_ms / total_implement_ms`
-- **Collection**: Qcode-run-task (verify duration), Qatomic-run (implement duration)
+- **Collection**: Qexecute -verify (verify duration), Qexecute (implement duration)
 - **Normal Range**: 0.1-0.5 (10-50% of implementation time)
 - **Warning Threshold**: Above 1.0 (verification takes longer than implementation)
 - **Interpretation**: High tax may indicate insufficient spec clarity or overly aggressive test requirements
@@ -54,7 +54,7 @@
 
 - **Description**: Percentage of tasks that pass all verification on first attempt
 - **Formula**: `first_attempt_passes / total_verified_tasks * 100`
-- **Collection**: Qcode-run-task (track iteration count; pass@1 = iteration 1 success)
+- **Collection**: Qexecute -verify (track iteration count; pass@1 = iteration 1 success)
 - **Normal Range**: 60-80%
 - **Warning Threshold**: Below 40%
 - **Interpretation**: Low pass@1 suggests specs need more detail or implementation quality is poor
@@ -87,6 +87,6 @@ All metrics are stored in unified-state under the `harnessMetrics` namespace:
 | TaskCreated | tasksTotal++ |
 | TaskCompleted | tasksCompleted++, tasksPassAt1 (conditional) |
 | PostToolUse (Write/Edit) | totalLinesChanged |
-| Qatomic-run | totalImplementMs |
-| Qcode-run-task | totalVerifyMs, pass@1 tracking |
+| Qexecute | totalImplementMs |
+| Qexecute -verify | totalVerifyMs, pass@1 tracking |
 | SessionEnd | Final aggregation, telemetry flush |

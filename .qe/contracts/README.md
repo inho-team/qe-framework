@@ -72,8 +72,8 @@
   - R011: `/Qverify-contract <name> | --all` 단독 실행
   - R012: 불일치 리포트 포맷 (심각도 분류)
 
-- **Phase 4**: Qcode-run-task 통합 + git pre-commit hook + dogfooding + 사용자 공개
-  - R013: `/Qcode-run-task` verify 단계에서 `/Qverify-contract --all` 호출
+- **Phase 4**: Qexecute -verify 통합 + git pre-commit hook + dogfooding + 사용자 공개
+  - R013: `/Qexecute -verify` verify 단계에서 `/Qverify-contract --all` 호출
   - R014: git pre-commit hook — contract.md 수정 시 lock 무결성 체크 (3층 방어의 3층)
   - R015: qe-framework 핵심 skill 5~10개 계약 적용 (dogfooding)
   - R016: 사용자용 README + 예제 프로젝트 + 마이그레이션 가이드

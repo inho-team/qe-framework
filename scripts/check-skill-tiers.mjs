@@ -14,7 +14,7 @@ import { fileURLToPath } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SKILLS = join(ROOT, 'skills');
-const CORE = ['Qinit', 'Qcontext', 'Qplan', 'Qgs', 'Qatomic-run', 'Qcode-run-task', 'Qsivs-config'];
+const CORE = ['Qinit', 'Qcontext', 'Qplan', 'Qgs', 'Qexecute', 'Qsivs-config'];
 const VALID = new Set(['core', 'extended', 'experimental']);
 
 /** Read the `tier:` value from a SKILL.md YAML frontmatter, or undefined. */

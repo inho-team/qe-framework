@@ -35,16 +35,22 @@ test('Pattern /Qcommit --help matches', () => {
   assert.strictEqual(result.skillName, 'Qcommit');
 });
 
+test('Pattern $Qcommit --help matches for Codex', () => {
+  const result = parseHelpFlag('$Qcommit --help');
+  assert.strictEqual(result.matched, true);
+  assert.strictEqual(result.skillName, 'Qcommit');
+});
+
 test('Pattern /Qversion -h matches', () => {
   const result = parseHelpFlag('/Qversion -h');
   assert.strictEqual(result.matched, true);
   assert.strictEqual(result.skillName, 'Qversion');
 });
 
-test('Hyphenated skill name /Qatomic-run --help matches', () => {
-  const result = parseHelpFlag('/Qatomic-run --help');
+test('Hyphenated skill name /Qexecute --help matches', () => {
+  const result = parseHelpFlag('/Qexecute --help');
   assert.strictEqual(result.matched, true);
-  assert.strictEqual(result.skillName, 'Qatomic-run');
+  assert.strictEqual(result.skillName, 'Qexecute');
 });
 
 // ============================================================================

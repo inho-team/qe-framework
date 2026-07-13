@@ -40,7 +40,7 @@ function mkSkill(root, relParentDir) {
 expect(normalizeSkillName('qe-framework:Qcommit') === 'Qcommit', '[norm] prefix not stripped');
 expect(normalizeSkillName('Qgs') === 'Qgenerate-spec', '[norm] Qgs alias not collapsed');
 expect(normalizeSkillName('qe-framework:Qgs') === 'Qgenerate-spec', '[norm] namespaced alias not collapsed');
-expect(normalizeSkillName('Qrt') === 'Qrun-task', '[norm] Qrt alias not collapsed');
+expect(normalizeSkillName('Qrt') === 'Qexecute', '[norm] Qrt alias not collapsed');
 expect(normalizeSkillName('') === '' && normalizeSkillName('qe-framework:') === '', '[norm] empty not handled');
 expect(normalizeSkillName(42) === '', '[norm] non-string not handled');
 
@@ -61,12 +61,12 @@ expect(normalizeSkillName(42) === '', '[norm] non-string not handled');
 
 // ── 3. computeReport: alias collapse + never-used oracle ───────────────────────
 {
-  const canonical = ['Foo', 'Qgenerate-spec', 'Qrun-task'];
-  // used via aliases + namespaced + bare; Qrt→Qrun-task, Qgs→Qgenerate-spec
+  const canonical = ['Foo', 'Qgenerate-spec', 'Qexecute'];
+  // used via aliases + namespaced + bare; Qrt→Qexecute, Qgs→Qgenerate-spec
   const skillsUsed = ['Qgs', 'qe-framework:Qgs', 'Qrt'];
   const r = computeReport(canonical, skillsUsed, {});
   expect(r.canonicalCount === 3, '[report] canonicalCount wrong');
-  expect(r.usedCount === 2, `[report] used distinct should be 2 (Qgenerate-spec,Qrun-task), got ${r.usedCount}`);
+  expect(r.usedCount === 2, `[report] used distinct should be 2 (Qgenerate-spec,Qexecute), got ${r.usedCount}`);
   expect(JSON.stringify(r.neverUsed) === JSON.stringify(['Foo']),
     `[report] never-used should be [Foo], got ${JSON.stringify(r.neverUsed)}`);
   // central oracle: neverUsedCount == canonicalCount - distinct(used in canonical)

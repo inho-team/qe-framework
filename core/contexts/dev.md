@@ -20,7 +20,7 @@
 ## Agent Delegation
 
 - Delegate planning/spec creation to **Epm-planner** or **Qgenerate-spec**.
-- Delegate implementation tasks to **Etask-executor** via **Qrun-task**.
+- Delegate implementation tasks to **Etask-executor** via **Qexecute**.
 - Delegate test creation to **Ecode-test-engineer**.
 - Delegate code review to **Ecode-reviewer**.
 

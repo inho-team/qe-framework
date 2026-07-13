@@ -2,7 +2,7 @@
 'use strict';
 
 /**
- * Ralph State — Qutopia Ralph integration state management, rate limiting,
+ * Ralph State — Qexecute -utopia Ralph integration state management, rate limiting,
  * progress tracking, and report generation.
  *
  * Ralph state is stored in `.qe/state/unified-state.json`'s `ralph` namespace and provides:

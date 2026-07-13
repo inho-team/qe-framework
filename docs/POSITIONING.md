@@ -2,7 +2,8 @@
 
 Where QE fits, and why it is not the same thing as the tools it is often compared to.
 All counts below are the current, measured footprint (2026-07): **31 skills**,
-**20 agents**, **10 MCP tools** in `@inho-team/qe-mcp`, and an expert library split
+**20 agents**, **11 MCP tools** (10 general + 1 experiment-only opt-in) in
+`@inho-team/qe-mcp`, and an expert library split
 into **25 core** experts (shipped) + **61 extra** experts (optional
 `@inho-team/qe-experts-extra` pack). qe-mcp's install payload is ~1.55 MB (core only).
 
@@ -34,8 +35,11 @@ profile, where Fugu implements and a *different* vendor verifies.
   self-verification trustworthy. Independence still has to come from a second vendor.
 - See [`SIVS_INDEPENDENCE.md`](SIVS_INDEPENDENCE.md) for the enforced guarantee.
 
-Fugu stays experiment-only until the 10-task cross-engine comparison (pass-rate /
-cost / latency) is run and documented; QE does not recommend it as a default engine.
+Fugu — like any OpenAI-compatible endpoint — is reachable only as an experiment-only,
+env-gated engine through the opt-in `qe_run_openai_compat_agent` tool, never as a
+default. QE does **not** gate this on a benchmark: the cross-model independence
+guarantee is already satisfied by two independent vendors (Claude + Codex), so no
+single-model comparison is needed to justify keeping any one model non-default.
 
 ## So what *is* QE, in one line?
 

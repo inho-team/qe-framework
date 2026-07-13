@@ -1,0 +1,56 @@
+{"ts":"2026-07-12T15:40:07.381Z","event":"created","goalId":"G001","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G002","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G003","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G004","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G005","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G006","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G007","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G008","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G009","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G010","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G011","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G012","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G013","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G014","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G015","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G016","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G017","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G018","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G019","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G020","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G021","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G022","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G023","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G024","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G025","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.382Z","event":"created","goalId":"G026","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G027","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G028","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G029","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G030","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G031","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G032","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G033","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G034","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G035","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:40:07.383Z","event":"created","goalId":"G036","status":"pending","evidence":"","attempt":0}
+{"ts":"2026-07-12T15:55:40.117Z","event":"checkpoint","goalId":"G001","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.150Z","event":"checkpoint","goalId":"G002","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.186Z","event":"checkpoint","goalId":"G003","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.219Z","event":"checkpoint","goalId":"G004","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.249Z","event":"checkpoint","goalId":"G005","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.280Z","event":"checkpoint","goalId":"G006","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.310Z","event":"checkpoint","goalId":"G007","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.339Z","event":"checkpoint","goalId":"G008","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.370Z","event":"checkpoint","goalId":"G009","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T15:55:40.398Z","event":"checkpoint","goalId":"G010","status":"complete","evidence":"fa458775 Phase 1 source map artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:20.916Z","event":"checkpoint","goalId":"G011","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:20.944Z","event":"checkpoint","goalId":"G012","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:20.971Z","event":"checkpoint","goalId":"G013","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:20.997Z","event":"checkpoint","goalId":"G014","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:21.025Z","event":"checkpoint","goalId":"G015","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:21.052Z","event":"checkpoint","goalId":"G016","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:21.080Z","event":"checkpoint","goalId":"G017","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:21.108Z","event":"checkpoint","goalId":"G018","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:21.135Z","event":"checkpoint","goalId":"G019","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}
+{"ts":"2026-07-12T16:26:21.162Z","event":"checkpoint","goalId":"G020","status":"complete","evidence":"c61da39c Phase 2 high-risk expert refresh artifacts generated","attempt":0}

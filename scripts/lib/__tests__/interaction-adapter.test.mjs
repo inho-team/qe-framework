@@ -28,7 +28,7 @@ test('command rendering uses client-specific prefixes', () => {
   assert.equal(getCommandPrefix('claude'), '/');
   assert.equal(getCommandPrefix('codex'), '$');
   assert.equal(renderSkillCommand('/Qgs', 'qa-virtual-association: QA 가상 협회', { client: 'codex' }), '$Qgs qa-virtual-association: QA 가상 협회');
-  assert.equal(renderSkillCommand('Qcode-run-task', 'a1b2c3d4', { client: 'claude' }), '/Qcode-run-task a1b2c3d4');
+  assert.equal(renderSkillCommand('Qexecute -verify', 'a1b2c3d4', { client: 'claude' }), '/Qexecute -verify a1b2c3d4');
 });
 
 test('SIVS questions require Codex or Hybrid option', () => {

@@ -100,6 +100,14 @@ A Supervise FAIL walks **backward up the chain** to the nearest causing stage
 4. **Loop bound:** the gate does not self-loop. It honors the orchestrator's
    "escalate after 3 iterations". After 3 rounds still FAIL → **escalate to the
    user**.
+5. **Depth limit (Phase 3 / R005 — code-computed, protocol-enforced):** before
+   routing backward after a FAIL, call `recordAndCheck(cwd, uuid, 'reentry', '<from-stage>')`
+   from `hooks/scripts/lib/loop-guard.mjs`. The limit (default 5,
+   `QE_SIVS_DEPTH_LIMIT` override) is code-computed; on `blocked`, do **not**
+   re-enter — emit a user **escalation handoff** naming the exhausted depth budget
+   (`count`/`limit`), the unresolved findings, and a recommended next action. The
+   remediation-round cap (3) is separately enforced deterministically by the
+   PreToolUse hook on `REMEDIATION_REQUEST_{UUID}_{N}.md` writes.
 
 ## Edge inputs
 
@@ -117,3 +125,30 @@ from `hooks/scripts/lib/gate-audit.mjs` to the shared
 ```
 {ISO-8601} | supervise | verdict={PASS|WARN|FAIL} | agents={n} | crossmodel={true|false|degraded} | route={verify|implement|spec|-} | uuid={UUID}
 ```
+
+## Findings pipeline — consume Verify findings (Phase 2 / R002)
+
+Supervise reads the Verify findings stream
+(`.qe/agent-results/verify-findings-{UUID}.jsonl`, via
+`hooks/scripts/lib/findings-ledger.mjs` `readFindings`/`foldFindings`) and injects
+the folded canonical findings into its input, so it does **not** re-run
+domain-audit analysis on files Verify already reviewed. This removes the real
+cross-stage duplication (`Ecode-reviewer`/`Ecode-test-engineer` running in both
+`-verify` and Supervise) and is where the Supervise call-budget reduction comes
+from (6–7 → 4–5; see DECISION_LOG D-55a051bd-1). It does NOT drop domain
+coverage — the findings are carried forward, not discarded.
+
+- **already-reviewed skip (freshness-gated):** a finding may be treated as
+  already-reviewed (skip re-analysis) only when the target `file` is **unchanged
+  since Verify recorded it** — i.e. the path is NOT in the changed set from
+  `getChangedFiles(cwd)` (git working-tree + staged + untracked). Any file that
+  changed after Verify is in the set and is re-analyzed, so a skip can never hide
+  new/changed code.
+- **status→risk-proof mapping (direction-pinned, no soft-downgrade):** when
+  injecting into G4 (`Erisk-proof-auditor`): `resolved → verified-safe|mitigated`,
+  `waived → deferred-with-owner` (requires the same owner+rationale that
+  `deferred-with-owner` demands — supplied by the finding's `waived_by`/`rationale`),
+  `escalated → block/route` (never softened; surfaces as `unknown`/blocking),
+  `open → unknown` (unreviewed is not safe).
+- Supervise must still fold and honor the invariant: an `open`/unresolved finding
+  carried from Verify blocks a PASS just as `unknown` HIGH/CRITICAL does.

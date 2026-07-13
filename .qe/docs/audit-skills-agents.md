@@ -56,7 +56,7 @@
 
 - **D1 (12건)**: `reference/*.md`·`scripts/*.mjs`·`templates/*`가 실제로는 `skills/Qcritical-review/reference/...`, `hooks/scripts/...`, `core/wiki-templates/...`로 정상 존재. 정규식이 prefix를 놓침.
 - **D3 (32건)**: `/Q2`·`/Q3`·`/Q4`(분기), `/MAJOR`·`/MINOR`·`/Medium`·`/Monthly`·`/Major`·`/Med`·`/Modal`·`/Miro`·`/Messaging`·`/MetricCard`·`/Quickstart`·`/MSYS`·`/QR` 등 — 표 셀·파일명·헤딩 내 슬래시. 스킬 참조 아님.
-- `/Qrt`, `/Qgs` = 문서화된 alias(각각 Qrun-task/Qgenerate-spec), `/Qname`·`/Ename` = Mcreate-skill/agent 템플릿 placeholder. 정상.
+- `/Qrt`, `/Qgs` = 문서화된 alias(각각 Qexecute/Qgenerate-spec), `/Qname`·`/Ename` = Mcreate-skill/agent 템플릿 placeholder. 정상.
 - **D2 placeholder**: `hooks/scripts/lib/foo.mjs`(Qcontract) = 예시. 정상.
 
 ---

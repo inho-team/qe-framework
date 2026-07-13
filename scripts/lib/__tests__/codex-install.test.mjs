@@ -171,13 +171,18 @@ test('(b3) reinstall purges legacy QE skills before copying current assets', (t)
   const homeDir = makeCodexHome();
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
-  const legacyDir = path.join(homeDir, '.codex', 'skills', 'Mrelease');
-  fs.mkdirSync(legacyDir, { recursive: true });
-  fs.writeFileSync(path.join(legacyDir, 'SKILL.md'), 'legacy release skill', 'utf8');
+  const legacyDirs = ['Mrelease', 'Qrun-task', 'Qcode-run-task', 'Qatomic-run']
+    .map((name) => path.join(homeDir, '.codex', 'skills', name));
+  for (const legacyDir of legacyDirs) {
+    fs.mkdirSync(legacyDir, { recursive: true });
+    fs.writeFileSync(path.join(legacyDir, 'SKILL.md'), 'legacy execution skill', 'utf8');
+  }
 
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
 
-  assert.ok(!fs.existsSync(legacyDir), 'legacy Mrelease skill removed during reinstall');
+  for (const legacyDir of legacyDirs) {
+    assert.ok(!fs.existsSync(legacyDir), `legacy ${path.basename(legacyDir)} skill removed during reinstall`);
+  }
   assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qupdate')), 'current Qupdate skill installed');
 });
 
@@ -434,16 +439,16 @@ test('(h) Codex skill install compacts long descriptions without changing source
 
 test('(i) delegating PSE skills document Codex native client-adapter behavior', () => {
   const qcommit = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcommit', 'SKILL.md'), 'utf8');
-  const qcodeRunTask = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcode-run-task', 'SKILL.md'), 'utf8');
+  const qexecute = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qexecute', 'SKILL.md'), 'utf8');
   const qcriticalReview = fs.readFileSync(path.join(REPO_ROOT, 'skills', 'Qcritical-review', 'SKILL.md'), 'utf8');
 
   assert.ok(qcommit.includes('Codex native'), 'Qcommit documents Codex native path');
   assert.ok(qcommit.includes('role-separated inline'), 'Qcommit documents inline fallback');
   assert.ok(qcommit.includes('Ecommit-executor'), 'Qcommit keeps Ecommit-executor delegation');
 
-  assert.ok(qcodeRunTask.includes('Codex native'), 'Qcode-run-task documents Codex native path');
-  assert.ok(qcodeRunTask.includes('role-separated inline'), 'Qcode-run-task documents inline fallback');
-  assert.ok(qcodeRunTask.includes('Eqa-orchestrator'), 'Qcode-run-task keeps Claude orchestrator path');
+  assert.ok(qexecute.includes('Codex native'), 'Qexecute documents Codex native path');
+  assert.ok(qexecute.includes('role-separated inline'), 'Qexecute documents inline fallback');
+  assert.ok(qexecute.includes('Eqa-orchestrator'), 'Qexecute keeps Claude orchestrator path');
 
   assert.ok(qcriticalReview.includes('Codex native'), 'Qcritical-review documents Codex native path');
   assert.ok(qcriticalReview.includes('role-separated inline'), 'Qcritical-review documents inline fallback');

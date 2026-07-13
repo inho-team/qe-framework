@@ -15,7 +15,7 @@ Tested with: midolog blog project (Next.js 15 + Nest.js monorepo)
 | 6 | No auto intent classification | High | Added to prompt-check.mjs | 815cc71 |
 | 7 | No debugging skill suggestion on tool failures | Medium | Added 3+/5+ escalation | 815cc71 |
 | 8 | CRITICAL intent warning repeats every tool call | Medium | Grace period (3 calls) + throttle (every 10th) | 005df72 |
-| 9 | Utopia mode not checked by agents | Medium | Added to PRINCIPLES.md Safety section | 005df72 |
+| 9 | Qexecute -utopia (autonomous mode) not checked by agents | Medium | Added to PRINCIPLES.md Safety section | 005df72 |
 | 10 | Agent tier formatting brittle in pre-compact | Low | Centralized config.mjs | 58b5a7b |
 | 11 | Secret Scanner block mode too aggressive | Medium | Changed to warn mode | 34a25c1 |
 | 12 | No auto-compaction on high context pressure | Medium | 250+ trigger with Utopia awareness | 005df72 |

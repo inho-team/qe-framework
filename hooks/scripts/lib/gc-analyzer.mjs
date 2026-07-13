@@ -415,6 +415,102 @@ export function analyzeDeadCode(cwd) {
 }
 
 // ---------------------------------------------------------------------------
+// analyzeSkillBudget
+// ---------------------------------------------------------------------------
+
+/**
+ * Scan skill catalog for token budget estimation.
+ *
+ * Adapted from steipete/agent-scripts skill-cleaner budget-audit pattern (MIT),
+ * rewritten for QE with chars/4 heuristic and per-skill analysis.
+ *
+ * @param {string} cwd - Project root directory (must contain skills/ subdirectory)
+ * @returns {{
+ *   skills: Array<{name: string, path: string, chars: number, estimatedTokens: number}>,
+ *   total: {chars: number, estimatedTokens: number},
+ *   skipped: number,
+ *   label: string
+ * }}
+ */
+export function analyzeSkillBudget(cwd) {
+  const skillsDir = join(cwd, 'skills');
+  const result = {
+    skills: [],
+    total: { chars: 0, estimatedTokens: 0 },
+    skipped: 0, // SKILL.md files that were unreadable/binary and excluded from totals
+    label: '자체 산정 추정치(chars/4)',
+  };
+
+  if (!existsSync(skillsDir)) {
+    return result;
+  }
+
+  let entries;
+  try {
+    entries = readdirSync(skillsDir).sort(); // deterministic order across platforms
+  } catch {
+    return result;
+  }
+
+  // Collect all skills: direct child directories with SKILL.md
+  const skillDirs = [];
+  for (const entry of entries) {
+    const skillPath = join(skillsDir, entry);
+    let stat;
+    try {
+      stat = statSync(skillPath);
+    } catch {
+      continue;
+    }
+
+    if (!stat.isDirectory()) continue;
+
+    const skillMdPath = join(skillPath, 'SKILL.md');
+    if (!existsSync(skillMdPath)) continue;
+
+    skillDirs.push({ name: entry, fullPath: skillPath, skillMdPath });
+  }
+
+  // Analyze each skill
+  for (const { name, fullPath, skillMdPath } of skillDirs) {
+    try {
+      let content = readFileOrNull(skillMdPath);
+      if (content === null) {
+        result.skipped++; // unreadable or binary SKILL.md — excluded from totals
+        continue;
+      }
+
+      // Strip BOM if present
+      if (content.charCodeAt(0) === 0xfeff) {
+        content = content.slice(1);
+      }
+
+      // Count characters
+      const charCount = content.length;
+      // chars/4 heuristic for token estimation
+      const estimatedTokens = Math.ceil(charCount / 4);
+
+      result.skills.push({
+        name,
+        path: relative(cwd, skillMdPath),
+        chars: charCount,
+        estimatedTokens,
+      });
+
+      result.total.chars += charCount;
+      result.total.estimatedTokens += estimatedTokens;
+    } catch {
+      result.skipped++; // stat/read failure — excluded from totals
+    }
+  }
+
+  // Sort by estimatedTokens descending (largest first), name ascending as tie-breaker
+  result.skills.sort((a, b) => b.estimatedTokens - a.estimatedTokens || a.name.localeCompare(b.name));
+
+  return result;
+}
+
+// ---------------------------------------------------------------------------
 // runFullGC
 // ---------------------------------------------------------------------------
 
@@ -426,6 +522,7 @@ export function analyzeDeadCode(cwd) {
  *   drift: ReturnType<typeof analyzeDocDrift>,
  *   violations: ReturnType<typeof analyzeRuleViolations>,
  *   deadCode: ReturnType<typeof analyzeDeadCode>,
+ *   budget: ReturnType<typeof analyzeSkillBudget>,
  *   reportPath: string
  * }}
  */
@@ -442,6 +539,7 @@ export function runFullGC(cwd) {
   const drift = analyzeDocDrift(cwd);
   const violations = analyzeRuleViolations(cwd);
   const deadCode = analyzeDeadCode(cwd);
+  const budget = analyzeSkillBudget(cwd);
 
   const now = new Date();
   const timestamp = now.toISOString();
@@ -511,6 +609,33 @@ export function runFullGC(cwd) {
     }
 
     lines.push(`---`, ``);
+    lines.push(`## 4. Skill Catalog Budget`, ``);
+    lines.push(`**Label: ${budget.label}**`, ``);
+    lines.push(`**Caveat:** Korean-body skills may be ~2x undercounted by chars/4 due to CJK character width.`, ``);
+
+    if (budget.skills.length > 0) {
+      const topSkills = budget.skills.slice(0, 20); // table says "Top" — cap at 20
+      lines.push(`### Top Skills by Estimated Tokens (top ${topSkills.length} of ${budget.skills.length})`, ``);
+      lines.push(`| Skill | Chars | Estimated Tokens (${budget.label}) |`);
+      lines.push(`|-------|-------|------|`);
+      for (const skill of topSkills) {
+        lines.push(`| \`${skill.name}\` | ${skill.chars} | ${skill.estimatedTokens} |`);
+      }
+      lines.push(``);
+    }
+
+    if (budget.skipped > 0) {
+      lines.push(`**Skipped/unreadable SKILL.md files:** ${budget.skipped} (excluded from totals)`, ``);
+    }
+
+    if (budget.total.chars > 0) {
+      lines.push(`### Catalog Total`, ``);
+      lines.push(`- **Total characters:** ${budget.total.chars}`);
+      lines.push(`- **Estimated tokens (${budget.label}):** ${budget.total.estimatedTokens}`);
+      lines.push(``);
+    }
+
+    lines.push(`---`, ``);
     lines.push(`## Summary`, ``);
     lines.push(`| Category | Count |`);
     lines.push(`|----------|-------|`);
@@ -518,6 +643,8 @@ export function runFullGC(cwd) {
     lines.push(`| Missing comments | ${violations.totalMissing} |`);
     lines.push(`| Stale files | ${deadCode.staleFiles.length} |`);
     lines.push(`| Orphan candidates | ${deadCode.orphanFiles.length} |`);
+    lines.push(`| Skills in catalog | ${budget.skills.length} |`);
+    lines.push(`| Total catalog tokens | ${budget.total.estimatedTokens} (${budget.label}) |`);
     lines.push(``);
 
     writeFileSync(reportPath, lines.join('\n'), 'utf8');
@@ -543,5 +670,5 @@ export function runFullGC(cwd) {
     // History write failure is non-fatal
   }
 
-  return { drift, violations, deadCode, reportPath };
+  return { drift, violations, deadCode, budget, reportPath };
 }

@@ -1,5 +1,5 @@
 /**
- * utopia-guard.mjs — enforceable safety rails for Qutopia (autonomous mode).
+ * utopia-guard.mjs — enforceable safety rails for Qexecute -utopia (autonomous mode).
  *
  * Pure, side-effect-free classifiers + one evaluator. The PreToolUse hook calls
  * `evaluateUtopiaAction` ONLY while `utopia_state.enabled` is true and `allowUnsafe`

@@ -29,7 +29,7 @@ const REPO_ROOT = join(__dirname, '..');
 // Sourced from skills/CATALOG.md and QE_CONVENTIONS.md (Qgs/Qrt pass-throughs).
 export const ALIAS_MAP = {
   Qgs: 'Qgenerate-spec',
-  Qrt: 'Qrun-task',
+  Qrt: 'Qexecute',
 };
 
 /**

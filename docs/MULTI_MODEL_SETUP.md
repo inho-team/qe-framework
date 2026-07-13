@@ -129,26 +129,26 @@ The saved config must include the chosen `model` in every `runners.{name}` entry
 Primary PSE chain with role ownership:
 ```
 /Qplan (planner) -> /Qgenerate-spec (planner artifacts)
-                   -> /Qatomic-run (implementer)
-                   -> /Qcode-run-task (reviewer + supervisor gate)
+                   -> /Qexecute (implementer)
+                   -> /Qexecute -verify (reviewer + supervisor gate)
                     \
-                     -> /Qrun-task (secondary implementer path for non-atomic work)
+                     -> /Qexecute (secondary implementer path for non-atomic work)
 ```
 
 ```mermaid
 flowchart LR
   Qplan["/Qplan\nplanner"] --> Qgs["/Qgenerate-spec\nplanner artifacts"]
-  Qgs --> Qatomic["/Qatomic-run\nimplementer"]
-  Qatomic --> Qcrt["/Qcode-run-task\nreviewer + supervisor"]
-  Qatomic -->|fallback| Qrun["/Qrun-task\nsecondary implementer path"]
+  Qgs --> Qatomic["/Qexecute\nimplementer"]
+  Qatomic --> Qcrt["/Qexecute -verify\nreviewer + supervisor"]
+  Qatomic -->|fallback| Qrun["/Qexecute\nsecondary implementer path"]
 ```
 
 | Role | Skill Touchpoints | Responsibilities |
 |------|-------------------|------------------|
 | planner | `/Qplan`, `/Qgenerate-spec` | Interpret requirements, write roadmap, emit `role-spec.md` + `task-bundle.json`. |
-| implementer | `/Qatomic-run` (primary), `/Qrun-task` (secondary) | Read approved spec, modify code/tests, log output in `implementation-report.md`. |
-| reviewer | `/Qcode-run-task` | Run tests/review loop, produce `review-report.md`, request remediation when findings exist. |
-| supervisor | `/Qcode-run-task` | Final gatekeeper, writes `verification-report.md`, enforces remediation policy. |
+| implementer | `/Qexecute` (primary), `/Qexecute` (secondary) | Read approved spec, modify code/tests, log output in `implementation-report.md`. |
+| reviewer | `/Qexecute -verify` | Run tests/review loop, produce `review-report.md`, request remediation when findings exist. |
+| supervisor | `/Qexecute -verify` | Final gatekeeper, writes `verification-report.md`, enforces remediation policy. |
 
 ## Artifact Contract
 | Artifact | Path | Owner | Purpose |
@@ -165,8 +165,8 @@ flowchart LR
 2. **Configure**: Edit `.qe/ai-team/config/team-config.json` for your runners; re-run `scripts/validate_ai_team_config.mjs`.
 3. **Plan**: Run `/Qplan` on Claude or `$Qplan` on Codex, ensure planner updates `.qe/planning/*`, and write `role-spec.md` + `task-bundle.json`.
 4. **Spec**: Run `/Qgenerate-spec` or `/Qgs` on Claude, `$Qgenerate-spec` or `$Qgs` on Codex; it mirrors new tasks into the planner artifacts after generating TASK_REQUEST/VERIFY_CHECKLIST files.
-5. **Implement**: Use `/Qatomic-run` on Claude or `$Qatomic-run` on Codex (or `Qrun-task` with the same client prefix when necessary). Implementer must append to `implementation-report.md` before handing off.
-6. **Verify**: `/Qcode-run-task` on Claude or `$Qcode-run-task` on Codex enforces reviewer (`review-report.md`) and supervisor (`verification-report.md`) gates before marking tasks complete.
+5. **Implement**: Use `/Qexecute` on Claude or `$Qexecute` on Codex (or `Qexecute` with the same client prefix when necessary). Implementer must append to `implementation-report.md` before handing off.
+6. **Verify**: `/Qexecute -verify` on Claude or `$Qexecute -verify` on Codex enforces reviewer (`review-report.md`) and supervisor (`verification-report.md`) gates before marking tasks complete.
 7. **Iterate**: Planner reopens scope by editing planner artifacts; implementer/reviewer never overwrite planner-owned files without that signal.
 
 Following these steps activates the minimal orchestration layer described in `core/MULTI_MODEL_ORCHESTRATION.md` while keeping legacy workflows intact for single-model projects.
@@ -215,7 +215,7 @@ If a provider is temporarily blocked by quota, rate limits, or subscription limi
 - `fallback_candidates` ordered by suitability
 - `override_examples` with ready-to-run `--role-override` flags
 
-The intended interactive flow in `/Qatomic-run` and `/Qcode-run-task` is:
+The intended interactive flow in `/Qexecute` and `/Qexecute -verify` is:
 1. Detect the blocked role
 2. Ask the user via `AskUserQuestion` whether to borrow another runner for this run only
 3. Retry only the failed role with `--role-override`

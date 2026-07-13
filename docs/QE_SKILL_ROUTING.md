@@ -15,7 +15,7 @@ Apply these layers in order:
 | 3 | PSE state | When work is already inside Plan/Spec/Execute/Verify, prefer the next stage that matches the active state, plan binding, task type, and checklist shape. |
 | 4 | Intent-routes table | If there is no explicit command and no safety override, score against `hooks/scripts/lib/intent-routes.json`. This is the primary keyword router. |
 | 5 | Skill metadata | Use `description`, `invocation_trigger`, alias notes, and branch-point text in `SKILL.md` to break ties or reject a bad keyword match. |
-| 6 | Fallback | If nothing matches cleanly, choose the safest general path: `Qinit` for uninitialized repos, `Qplan` for new work, `Qrun-task` for existing spec execution, `Qcode-run-task` only for already-modified code, and Claude/default-engine execution when SIVS routing is absent. |
+| 6 | Fallback | If nothing matches cleanly, choose the safest general path: `Qinit` for uninitialized repos, `Qplan` for new work, `Qexecute` for existing spec execution, `Qexecute -verify` only for already-modified code, and Claude/default-engine execution when SIVS routing is absent. |
 
 Notes:
 
@@ -23,7 +23,7 @@ Notes:
   guards on raw tool actions.
 - Missing `.qe/sivs-config.json` falls back to the all-Claude/default path.
 - Legacy aliases are routing sugar only: `Qgs` -> `Qgenerate-spec`, `Qrt` ->
-  `Qrun-task`.
+  `Qexecute`.
 
 ## PSE State Routing
 
@@ -34,9 +34,9 @@ Use the active PSE state before generic intent inference:
 | No QE project instruction artifact | `Qinit` |
 | Need roadmap, phases, or a new scoped plan | `Qplan` |
 | Plan exists and spec artifacts are missing or stale | `Qgs` |
-| Spec exists and checklist is highly atomic, independent, and parallelizable | `Qatomic-run` |
-| Spec exists but items are ordered, long-form, or remediation-driven | `Qrun-task` |
-| Code is already on disk and needs test-review-fix verification | `Qcode-run-task` |
+| Spec exists and checklist is highly atomic, independent, and parallelizable | `Qexecute` (auto-selects wave) |
+| Spec exists but items are ordered, long-form, or remediation-driven | `Qexecute` (auto-selects sequential) |
+| Code is already on disk and needs test-review-fix verification | `Qexecute -verify` |
 | All implementation work is done and the user wants a saved commit | `Qcommit` |
 
 Plan resolution for PSE-aware skills follows the same pattern:
@@ -60,9 +60,9 @@ State hint precedence:
 | `.qe/` absent | No hint. |
 | `.qe/` exists but no active plan resolves | Suggest `Qplan`. |
 | Active plan resolves and no current pending spec pair exists | Suggest `Qgs`. |
-| Exactly one pending TASK_REQUEST/VERIFY_CHECKLIST pair belongs to the active plan | Suggest `Qrun-task {uuid}` or `Qatomic-run {uuid}`. |
+| Exactly one pending TASK_REQUEST/VERIFY_CHECKLIST pair belongs to the active plan | Suggest `Qexecute {uuid}`. |
 | Multiple pending pairs belong to the active plan | No automatic target; ask for an explicit UUID. |
-| Uncommitted non-`.qe/` changes exist | Suggest `Qcode-run-task` for verification. |
+| Uncommitted non-`.qe/` changes exist | Suggest `Qexecute -verify` for verification. |
 | Active phase is completed or verified | No execute/verify hint is repeated. |
 
 Guardrails:
@@ -84,10 +84,9 @@ Guardrails:
 | --- | --- | --- | --- |
 | `Qinit` | Repo is not initialized or QE setup/migration is requested. | A project instruction artifact already exists and the task is normal execution work. | `Qplan` or `Qsivs-config` depending on setup state. |
 | `Qplan` | The user needs roadmap, phasing, or task scoping. | Code should be written immediately from an existing spec. | `Qgs` |
-| `Qgs` | A plan or freeform task needs `TASK_REQUEST` and `VERIFY_CHECKLIST`. | Implementation is already underway and spec generation would be redundant. | `Qatomic-run` or `Qrun-task` |
-| `Qatomic-run` | Checklist has many independent atomic items with low overlap and low complexity. | Items are order-dependent, non-atomic, or mostly verification work. | `Qcode-run-task` for `type: code`; otherwise direct completion/supervision path. |
-| `Qrun-task` | A spec exists but execution is sequential, long-form, or remediation-oriented. | The checklist can be safely wave-partitioned, or only verification remains. | `Qcode-run-task` for code tasks. |
-| `Qcode-run-task` | Code changes already exist and need test-review-fix-retest. | No code changed yet, or the task is docs/analysis only. | Complete or route backward per SIVS findings. |
+| `Qgs` | A plan or freeform task needs `TASK_REQUEST` and `VERIFY_CHECKLIST`. | Implementation is already underway and spec generation would be redundant. | `Qexecute` |
+| `Qexecute` | A spec exists and needs execution (auto-selects sequential or wave). | No spec exists yet; code changes already exist and only the quality loop is needed. | `Qexecute -verify` for `type: code`; otherwise direct completion/supervision path. |
+| `Qexecute -verify` | Code changes already exist and need test-review-fix-retest. | No code changed yet, or the task is docs/analysis only. | Complete or route backward per SIVS findings. |
 | `Qcommit` | The user wants to commit or push changes. | No commit intent exists, or the caller is inside a maintainer version-bump flow that already owns commit routing. | End of task, or push if explicitly requested. |
 | `Qversion` | The user asks for current QE version only. | The user intends to change version files. | End of task. |
 | `Mbump` | Maintainer version bump is requested for QE framework internals. | Ordinary project work, or the recommended batched release path should be `Mrelease` instead. | Version-bump commit, then optional release flow. |
@@ -124,7 +123,7 @@ metadata most tightly matches the task:
 - `description` defines the public contract and branch points.
 - Core auto-routed PSE descriptions start with `Use when`.
 - Crowded PSE descriptions include sibling-boundary text, for example
-  `Use Qplan... Use Qgs... Use Qatomic-run...`.
+  `Use Qplan... Use Qgs... Use Qexecute...`.
 - `invocation_trigger` is the short intent summary.
 - Alias notes define canonical names (`Qgs`, `Qrt`).
 - `recommendedModel` and tier guide execution cost, not user-visible naming.
@@ -154,7 +153,7 @@ Common examples:
 - `Qcommit` wraps `Ecommit-executor`.
 - `Qrefresh` wraps `Erefresh-executor`.
 - `Qcompact` wraps `Ecompact-executor` and `Ehandoff-executor`.
-- `Qcode-run-task` wraps `Eqa-orchestrator`.
+- `Qexecute -verify` delegates to `Eqa-orchestrator`.
 
 Direct E-agent exposure is acceptable only when there is no public wrapper yet
 and the capability is intentionally expert-only. New user-facing features should
@@ -232,7 +231,7 @@ Rollback from highest leverage to lowest:
 3. Prefer one-off bypass files or role overrides for recovery, not permanent
    weakening of the default contract.
 4. Preserve explicit invocation stability even when inference changes.
-5. Keep PSE fallback intact: `Qatomic-run` -> `Qrun-task` -> `Qcode-run-task`,
+5. Keep PSE fallback intact: `Qexecute` (wave) -> `Qexecute` (sequential) -> `Qexecute -verify`,
    and Codex-specific routes must retain a documented default-engine fallback.
 
 The routing contract is successful when explicit commands stay stable, guarded

@@ -23,7 +23,7 @@
 ## S4 — QE의 답: PSE + SIVS
 - 출처: `docs/SYSTEM_OVERVIEW.md`, `core/PHILOSOPHY.md`, README.md
 - PSE 체인(사용자 워크플로우): Plan → Spec → Execute → Verify
-  (/Qplan → /Qgs → /Qatomic-run → /Qcode-run-task)
+  (/Qplan → /Qgs → /Qexecute → /Qexecute -verify)
 - SIVS 루프(내부 품질 게이트): Spec → Implement → Verify → Supervise → (FAIL) Remediate
 - Query/Execute 메시지(README): 모든 AI 작업은 Query와 Execute로 환원된다.
 
@@ -51,7 +51,7 @@
 - 장점(인용/문서 기반): 4대 실패점 봉합, 6개 메트릭으로 정량화, 효율=정확성, 병렬 우선(Haiku
   Wave), 모델 티어링 비용 최적화, 폴더 인지 컨텍스트로 토큰 절감.
 - 단점(추론 — 발표자 노트에 "근거: 추론" 표기):
-  - 마이크로 작업 오버헤드 → 문서상 완화책: Qutopia SIMPLE 예외(≤3파일·단일액션·<3항목은 스펙 생략)
+  - 마이크로 작업 오버헤드 → 문서상 완화책: Qexecute -utopia SIMPLE 예외(≤3파일·단일액션·<3항목은 스펙 생략)
   - 학습 곡선(PSE 규율, 183+ 스킬)
   - 검증·감독의 토큰/시간 비용 → 이를 감시하려고 Verification Tax 메트릭 존재
   - 선택적 Codex 브리지의 구성 복잡성

@@ -1,6 +1,6 @@
 ---
 name: Qcritical-review
-description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qcode-run-task, Esupervision."
+description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qexecute -verify, Esupervision."
 invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review, structured debate, or code risk proof.
 recommendedModel: sonnet
 ---
@@ -217,8 +217,8 @@ When a change touches `Qcritical-review` or its `reference/*-gate-protocol.md` f
 | Caller Skill | When | Stage / Mode |
 |-------------|------|--------------|
 | `Qgenerate-spec` / `Qgs` | After spec generation | `spec` |
-| `Qcode-run-task` | After verify loop passes | `verify` |
-| `Qcode-run-task` | After Verify and before Supervise for code risk evidence | `--risk {UUID}` |
+| `Qexecute -verify` | After verify loop passes | `verify` |
+| `Qexecute -verify` | After Verify and before Supervise for code risk evidence | `--risk {UUID}` |
 | `Qrisk-proof` | Compatibility caller for risk proof while shim exists | `--risk {UUID}` |
 | `Qdebate` | Compatibility caller for structured debates while shim exists | `--debate <topic>` |
 | `Esupervision-orchestrator` | Before final verdict | `supervise` |

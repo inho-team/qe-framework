@@ -9,8 +9,8 @@ QE Framework는 Claude Code와 Codex를 함께 지원하는 스펙 기반 작업
 기본 흐름:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 이 문서는 한국어 진입 문서입니다. 전체 설명을 한 파일에 몰아넣기보다, 주제별 문서로 나눠 안내합니다.
@@ -39,7 +39,7 @@ QE Framework v7.0는 다음의 고급 기능과 확장성을 제공합니다:
 
 - `single-model`
   - Claude만 사용하는 기본 경로
-  - `/Qatomic-run`은 Haiku swarm 기반 atomic execution
+  - `/Qexecute`은 Haiku swarm 기반 atomic execution
 - `hybrid`
   - 일부 역할만 외부 runner 사용
 - `multi-model`
@@ -99,8 +99,8 @@ $Qinit
 3. 작업 흐름 시작
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 ## 참고
@@ -108,9 +108,9 @@ Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 - quota 차단 시 임시 대체 runner는 `--role-override`로 재실행합니다.
 - 이 override는 현재 실행에만 적용되고 `team-config.json`은 바꾸지 않습니다.
 
-## ⚠️ 자율 실행 모드 (`/Qutopia` / `$Qutopia`)
+## ⚠️ 자율 실행 모드 (`/Qexecute -utopia` / `$Qexecute -utopia`)
 
-`Qutopia`는 **모든 확인 프롬프트를 건너뛰고** 자동으로 진행하는 세션 스위치입니다. Claude는 `/Qutopia`, Codex는 `$Qutopia`로 실행합니다. 작업은 빨라지지만, 잘못된 파일을 커밋하거나 `main`에 직접 push할 수 있는 위험이 있습니다.
+`Qexecute -utopia`는 **모든 확인 프롬프트를 건너뛰고** 자동으로 진행하는 세션 스위치입니다. Claude는 `/Qexecute -utopia`, Codex는 `$Qexecute -utopia`로 실행합니다. 작업은 빨라지지만, 잘못된 파일을 커밋하거나 `main`에 직접 push할 수 있는 위험이 있습니다.
 
 **켜기 전 필수 체크**:
 1. 요구사항이 명확한가 (원자적 checklist 있음)
@@ -119,4 +119,4 @@ Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 4. 공유 branch(`main`/`master`)가 아닌가
 5. 자동 커밋·자동 iteration을 허용하는가
 
-전체 가이드와 켜고 끄는 권장 패턴은 [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling)에서 확인하세요. **세션 종료 전에는 Claude `/Qutopia off`, Codex `$Qutopia off`를 실행**하세요.
+전체 가이드와 켜고 끄는 권장 패턴은 [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling)에서 확인하세요. **세션 종료 전에는 Claude `/Qexecute -utopia off`, Codex `$Qexecute -utopia off`를 실행**하세요.

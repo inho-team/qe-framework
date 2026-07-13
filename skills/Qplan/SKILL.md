@@ -1,6 +1,6 @@
 ---
 name: Qplan
-description: "Use when the user wants to plan work, create/update a roadmap, choose phases, or move to the next phase. Use Qgs/Qgenerate-spec for TASK_REQUEST specs; use Qrun-task/Qatomic-run for execution."
+description: "Use when the user wants to plan work, create/update a roadmap, choose phases, or move to the next phase. Use Qgs/Qgenerate-spec for TASK_REQUEST specs; use Qexecute/Qexecute for execution."
 invocation_trigger: "When the user wants to plan any work — small fixes, single features, or full projects. Also when moving to the next phase."
 recommendedModel: opus
 tier: core
@@ -15,10 +15,10 @@ You are the planner. Your job is to understand what the user wants to do, create
 The QE framework enforces a strict chain. Each skill handles ONE step and guides the user to the next:
 
 ```
-{adapter.commandPrefix}Qplan (PLAN) → {adapter.commandPrefix}Qgs (SPEC) → {adapter.commandPrefix}Qatomic-run (EXECUTE) → {adapter.commandPrefix}Qcode-run-task (VERIFY)
+{adapter.commandPrefix}Qplan (PLAN) → {adapter.commandPrefix}Qgs (SPEC) → {adapter.commandPrefix}Qexecute (EXECUTE) → {adapter.commandPrefix}Qexecute -verify (VERIFY)
 ```
 
-**Your responsibility is PLAN only. You MUST NOT write code, invoke `{adapter.commandPrefix}Qgs`, or invoke `{adapter.commandPrefix}Qatomic-run`.**
+**Your responsibility is PLAN only. You MUST NOT write code, invoke `{adapter.commandPrefix}Qgs`, or invoke `{adapter.commandPrefix}Qexecute`.**
 
 ## Pre-check: QE Framework Initialization
 
@@ -125,11 +125,11 @@ Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:
 ### Step 3: Activate Phase & Hand Off (MANDATORY)
 - **Activate Phase**: Write `.qe/planning/plans/{slug}/STATE.md` with the active phase line `- **Active Phase**: Phase {N} — {PhaseName}`.
 - **Materialize goal ledger** (Full Planning — needs ROADMAP Waves): once ROADMAP + STATE exist, run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` then `… render-state --slug {slug}`. This derives an append-only `goals.json` + `ledger.jsonl` from the ROADMAP Waves and regenerates STATE.md's `## Phase Progress` from them — never hand-maintain that block.
-- **STOP HERE**: Do NOT invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qatomic-run`. You MUST display the full Handoff section below — including the `Next Command:` block. Without it, the user has no way to proceed.
+- **STOP HERE**: Do NOT invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qexecute`. You MUST display the full Handoff section below — including the `Next Command:` block. Without it, the user has no way to proceed.
 
 ### Step 3.5: Session Binding (MANDATORY — all scales)
 
-Bind this plan to the current terminal session so consumer skills (Qgs/Qrun-task/Qcode-run-task/Qatomic-run) resolve to the right plan automatically.
+Bind this plan to the current terminal session so consumer skills (Qgs/Qexecute/Qexecute -verify) resolve to the right plan automatically.
 
 1. **Project-wide pointer** (always): write `{slug}\n` into `.qe/planning/ACTIVE_PLAN`.
 2. **Session-scoped binding** (best-effort): read `.qe/state/current-session.json` written by the session-start hook. If it parses and has a `session_id`, write `.qe/planning/.sessions/{session_id}.json`:
@@ -153,10 +153,11 @@ See: docs/CLAUDE_CODE_FEATURES.md
 **If the user confirms they want to proceed with PSE**, continue to Step 4 and display the standard Handoff section.
 
 ### Step 4 (Post-Execution): Verification & Transition
-After execution is complete (by `{adapter.commandPrefix}Qatomic-run` + `{adapter.commandPrefix}Qcode-run-task`), review the results:
+After execution is complete (by `{adapter.commandPrefix}Qexecute` + `{adapter.commandPrefix}Qexecute -verify`), review the results:
+- **Phase Report (MANDATORY)**: Run `node hooks/scripts/lib/ledger.mjs phase-report --slug {slug} --phase {N}` and review the output before transitioning. If the report shows any requirement as `unmeasurable`, `deferred`, or `unknown`, surface those findings to the user before proceeding. Do NOT transition if unmet P0 requirements remain unacknowledged.
 - **Gap Handling (Decimal Phase)**: If critical gaps or bugs remain, generate a **Decimal Phase** (e.g., Phase 1.1).
-- **Retrospective**: Before moving to the next whole phase, generate `.qe/planning/plans/{slug}/phases/{X}/RETROSPECTIVE.md`.
-- **Transition**: Move to the next phase only after all MUST-HAVEs, UAT items, and the Retro are done.
+- **Retrospective**: Before moving to the next whole phase, generate `.qe/planning/plans/{slug}/phases/{X}/RETROSPECTIVE.md` using `core/RETROSPECTIVE_TEMPLATE.md` as the template.
+- **Transition**: Move to the next phase only after all MUST-HAVEs, UAT items, phase report review, and the Retro are done.
 
 ## Documents to Manage
 
@@ -167,7 +168,7 @@ After execution is complete (by `{adapter.commandPrefix}Qatomic-run` + `{adapter
 | `ROADMAP.md` | Phased waves, success criteria, and requirement traceability for this plan. |
 | `STATE.md` | Active phase + `## Phase Progress` (auto-derived from the ledger; do not hand-edit). |
 | `goals.json` | Ordered microgoals (id/objective/status/attempts), derived from ROADMAP Waves. |
-| `ledger.jsonl` | Append-only audit trail of goal events (created/started/checkpoint/blocker/failed). |
+| `ledger.jsonl` | Append-only audit trail of goal events (created/started/checkpoint/blocker/failed/measurement). |
 | `REQUIREMENTS.md` | Functional and non-functional requirements (P0/P1/P2) for this plan. |
 | `phases/{X}/` | Phase artifacts (summaries, retros) for this plan. |
 
@@ -194,7 +195,7 @@ Plan:  {slug}
 Roadmap:  👉 Phase 1  →  ○ Phase 2  →  ○ Phase 3
           {Name1}        {Name2}        {Name3}
 
-PSE Chain:  ✅ {adapter.commandPrefix}Qplan  →  👉 {adapter.commandPrefix}Qgs  →  {adapter.commandPrefix}Qatomic-run  →  {adapter.commandPrefix}Qcode-run-task
+PSE Chain:  ✅ {adapter.commandPrefix}Qplan  →  👉 {adapter.commandPrefix}Qgs  →  {adapter.commandPrefix}Qexecute  →  {adapter.commandPrefix}Qexecute -verify
 ```
 
 ### Section 2: Plan Summary
@@ -232,7 +233,7 @@ PSE Chain:  ✅ {adapter.commandPrefix}Qplan  →  👉 {adapter.commandPrefix}Q
 ```
 
 **Rules:**
-- **`{slug}`는 Step 0.6에서 자동 생성한 이 plan의 식별자다.** Phase 번호가 아니라 slug가 1차 ID — Qgs/Qrun-task는 slug로 plan을 resolve한다.
+- **`{slug}`는 Step 0.6에서 자동 생성한 이 plan의 식별자다.** Phase 번호가 아니라 slug가 1차 ID — Qgs/Qexecute는 slug로 plan을 resolve한다.
 - `{짧은 별칭}`: 현재 Phase의 짧은 이름만 쓴다 (예: "인증 모듈", "JPA Audit"). Phase의 전체 설명/요구사항/긴 문장을 복사하지 않는다. 최대 6단어.
 - **라벨 언어는 사용자 입력 언어를 따른다**. 사용자가 한글로 말하면 "다음 명령:", 영어로 말하면 "Next Command:".
 - Fallback 줄(`If that doesn't work: {adapter.commandPrefix}Qgenerate-spec ...`)은 **쓰지 않는다** — `Qgs`는 `Qgenerate-spec`의 공식 alias이므로 중복이다.
@@ -245,6 +246,6 @@ PSE Chain:  ✅ {adapter.commandPrefix}Qplan  →  👉 {adapter.commandPrefix}Q
 
 ## Will Not
 - Write or modify source code.
-- Invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qatomic-run` directly.
+- Invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qexecute` directly.
 - Skip the handoff or bury the next command in prose.
 - End a response without the `Next Command:` block — this is a hard failure.

@@ -18,7 +18,7 @@ that delegation contract; do not inline archive file-moving logic into `Qgc`.
 ## How It Works
 
 ### Automatic Execution (default)
-- When a task is completed in Qrun-task, Earchive-executor is automatically
+- When a task is completed in Qexecute, Earchive-executor is automatically
   called in the background.
 - Archives quietly without notifying the user.
 

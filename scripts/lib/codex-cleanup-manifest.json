@@ -1,15 +1,14 @@
 {
   "_comment": "Codex cleanup manifest. currentFrameworkSkills is the exact set installCodexAssets() writes from qe-framework/skills. legacyCleanupSkills are historical QE-installed skill dirs that cleanupCodexAssets() may remove from ~/.codex/skills when SKILL.md is present, but they are not qe-framework package payload. externalOwnerPointers are intentionally not cleanup targets for current framework install; they are owned by qe-mcp expert-library or another plugin/remote source.",
   "currentFrameworkSkills": [
-    "Qatomic-run",
     "Qautoresearch",
     "Qclaude-rescue",
-    "Qcode-run-task",
     "Qcommit",
     "Qcompact",
     "Qcontext",
     "Qcritical-review",
     "Qdoctor",
+    "Qexecute",
     "Qgc",
     "Qgenerate-spec",
     "Qgs",
@@ -24,12 +23,10 @@
     "Qqa",
     "Qrefresh",
     "Qresume",
-    "Qrun-task",
     "Qsecret",
     "Qshadow",
     "Qsivs-config",
     "Qupdate",
-    "Qutopia",
     "Qverify-contract",
     "Qversion"
   ],
@@ -43,6 +40,8 @@
     "Mrelease",
     "Mtest-skill",
     "QCodexUpdate",
+    "Qatomic-run",
+    "Qcode-run-task",
     "Qdocx",
     "Qfinance-analyst",
     "Qhumanizer",
@@ -51,6 +50,7 @@
     "Qpdf",
     "Qpptx",
     "Qrt",
+    "Qrun-task",
     "Qxlsx"
   ],
   "externalOwnerPointers": [

@@ -3,7 +3,7 @@
 
 /**
  * Persistent Mode — Prevents Claude from stopping prematurely during active
- * multi-step execution (SIVS loops, Wave execution, Qatomic-run, etc.).
+ * multi-step execution (SIVS loops, Wave execution, Qexecute, etc.).
  *
  * ## How it works
  *
@@ -14,10 +14,10 @@
  *
  * ## Integration pattern for skills
  *
- * Skills that run multi-step pipelines (e.g., Qatomic-run, Qrun-task) should:
+ * Skills that run multi-step pipelines (e.g., Qexecute) should:
  *
  *   1. Call `enterPersistentMode(mode, reason)` at the start of execution.
- *      - mode: 'sivs-loop' | 'wave-execution' | 'qatomic-run' | 'qrun-task' | string
+ *      - mode: 'sivs-loop' | 'wave-execution' | 'qexecute' | string
  *      - reason: human-readable string explaining why stopping is blocked
  *
  *   2. Call `exitPersistentMode()` at their Handoff step, after the full
@@ -26,7 +26,7 @@
  * Example (inside a skill's execution logic):
  *
  *   import { enterPersistentMode, exitPersistentMode } from './lib/persistent-mode.mjs';
- *   enterPersistentMode(cwd, 'qatomic-run', 'Wave execution Phase 2 — 3/5 items remaining');
+ *   enterPersistentMode(cwd, 'qexecute', 'Wave execution Phase 2 — 3/5 items remaining');
  *   // ... execute pipeline ...
  *   exitPersistentMode(cwd);
  *
@@ -43,7 +43,7 @@ import { readUnifiedState, writeUnifiedState } from './state.mjs';
  * not be interrupted by premature stopping.
  *
  * @param {string} cwd - Project root directory
- * @param {string} mode - Pipeline identifier (e.g., 'svs-loop', 'wave-execution', 'qatomic-run', 'qrun-task')
+ * @param {string} mode - Pipeline identifier (e.g., 'svs-loop', 'wave-execution', 'qexecute')
  * @param {string} reason - Human-readable explanation of why stopping is blocked
  * @returns {{ active: boolean, mode: string, reason: string, startedAt: string }}
  */

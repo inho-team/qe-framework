@@ -26,6 +26,7 @@ import { isAllComplete, parseChecklist } from './lib/checklist-parser.mjs';
 import { analyze as sweepAnalyze } from './lib/sweep-analyzer.mjs';
 import { execute as sweepExecute, executeVolatileOnly as sweepVolatileOnly } from './lib/sweep-executor.mjs';
 import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
+import { isCompletionClaim, evaluateEvidenceGate, parseSameTurnEvents } from './lib/verification-evidence-gate.mjs';
 import { shortenSid } from './lib/session-resolver.mjs';
 import { cleanupStaleSessions, removeSession } from './lib/session-registry.mjs';
 
@@ -46,6 +47,12 @@ try {
   // Fault tolerance — registry cleanup must never block Stop.
 }
 
+/**
+ * Remove the current session from the registry when a stop is being allowed.
+ * Falls back to a full stale-session sweep when no current session id is known.
+ * Fault-tolerant: any error is silently swallowed so registry cleanup never blocks
+ * an otherwise-clean shutdown.
+ */
 function cleanupRegistryForAllowedStop() {
   try {
     if (currentSid) removeSession(cwd, currentSid);
@@ -134,7 +141,7 @@ if (ralphActive && ralphBlockReason) {
 const modes = [
   { name: 'ultrawork', label: 'Ultra Work — autonomous parallel execution in progress' },
   { name: 'ultraqa', label: 'Ultra QA — autonomous quality verification in progress' },
-  { name: 'qrun-task', label: 'Qrun-task executing' },
+  { name: 'qexecute', label: 'Qexecute executing' },
   { name: 'qrefresh', label: 'Erefresh-executor updating analysis' },
   { name: 'qarchive', label: 'Earchive-executor archiving' },
 ];
@@ -159,7 +166,7 @@ for (const mode of modes) {
 
 // --- Persistent Mode Check (unified-state.json) ---
 // Persistent mode is a separate mechanism from the mode-state files above.
-// It protects multi-step pipelines (SIVS loops, Wave execution, Qatomic-run)
+// It protects multi-step pipelines (SIVS loops, Wave execution, Qexecute)
 // from premature stopping even when no dedicated *-state.json file exists.
 if (!activeMode) {
   try {
@@ -408,6 +415,24 @@ if (!activeMode) {
   }
 }
 
+// --- Shared last-assistant-text extraction (F2: shared text for all three gates) ---
+// extractLastAssistantText is called exactly once here.  All three downstream gates
+// (code-risk, style, evidence) consume `lastText` from this single call.
+// The evidence gate additionally needs the raw same-turn events; those are parsed once
+// from `data.transcript_path` inside the evidence gate block via parseSameTurnEvents.
+// Total transcript reads per stop: 2 — extractLastAssistantText (full pass for text)
+// and parseSameTurnEvents (full pass for event objects).  Unifying to a single pass is
+// a deferred optimization; style-gate.mjs's extractLastAssistantText is path-based and
+// not trivially composable with parseSameTurnEvents without a shared JSONL reader.
+let lastText = null;
+if (!activeMode && (cfg.code_risk_stop_gate !== false || cfg.style_gate !== false || cfg.verification_evidence_gate !== false)) {
+  try {
+    lastText = extractLastAssistantText(data.transcript_path);
+  } catch {
+    // Fail-open — a read failure must never crash the stop handler.
+  }
+}
+
 // --- OUTPUT_STYLE drama gate (ADR-025 R3) ---
 // 2-stage: Stage-1 regex pre-filter (cost 0) → only on a trip, Stage-2 Haiku judge
 // against core/OUTPUT_STYLE.md's anti-patterns. Blocks the stop with a rewrite
@@ -415,7 +440,7 @@ if (!activeMode) {
 // most style_gate_max_blocks distinct blocks per rolling window. Fail-open throughout.
 if (!activeMode && cfg.code_risk_stop_gate !== false) {
   try {
-    const text = extractLastAssistantText(data.transcript_path);
+    const text = lastText;
     const gate = evaluateCodeRiskReportGate(cwd, text);
     if (gate.block) {
       const st = readUnifiedState(cwd);
@@ -442,7 +467,7 @@ if (!activeMode && cfg.code_risk_stop_gate !== false) {
 
 if (!activeMode && cfg.style_gate !== false) {
   try {
-    const text = extractLastAssistantText(data.transcript_path);
+    const text = lastText;
     const scan = scanStyleViolations(text);
     if (scan.tripped && text) {
       const st = readUnifiedState(cwd);
@@ -492,6 +517,86 @@ if (!activeMode && cfg.style_gate !== false) {
   }
 }
 
+// --- Verification-Evidence Gate (R005) ---
+// Placement rationale (F2 — read-count):
+//   - `lastText` is extracted exactly once above, before the code-risk gate, and
+//     shared by all three gates (code-risk, style, evidence).  No gate calls
+//     extractLastAssistantText again.
+//   - The raw same-turn events are parsed exactly once here (parseSameTurnEvents),
+//     and passed into evaluateEvidenceGate via the `parsedEvents` parameter, so the
+//     lib function does not perform an additional readFileSync internally.
+//   - Total transcript reads per stop: 2 — one in extractLastAssistantText above,
+//     one in parseSameTurnEvents below.  Unifying to 1 pass is a deferred optimization;
+//     style-gate.mjs's API is path-based and cannot share a JSONL parse cheaply.
+//   - Runs AFTER code-risk and style gates so all three share the single `lastText`.
+//   - Runs BEFORE sweepAnnouncement early-exit so a sweep-only stop still triggers
+//     WARN when evidence is missing.  In warn mode, sweepAnnouncement is merged into
+//     the same systemMessage so the process.exit does not suppress sweep output (F4).
+//   - The satisfaction_enabled path exits before this gate; those sessions skip checking.
+//
+// Repeat guard: uses a separate state slot keyed by reason id
+// ('verification-evidence-missing'), distinct from styleGate.lastHash.
+// One-pass-after-same-reason: if the same reason fired last stop, allow this stop
+// and clear the marker (loop-prevention mirrors the style-gate pattern).
+// WARN mode: the guard arms ONLY on block decisions (F4). Warn mode emits its
+// systemMessage advisory every eligible stop without being suppressed by the guard.
+if (!activeMode && cfg.verification_evidence_gate !== false) {
+  try {
+    // Parse same-turn events once; pass them to evaluateEvidenceGate to avoid a
+    // second full readFileSync of the transcript inside the lib.
+    const evSameTurnEvents = parseSameTurnEvents(data.transcript_path);
+
+    // F3: compute changedCodeFiles once here, pass as a cached closure so the lib
+    // does not spawn its own duplicate git processes.  The code-risk gate (above)
+    // already calls changedCodeFiles() independently via evaluateCodeRiskReportGate;
+    // this second call is unavoidable until both gates share a single computed value.
+    // The closure ensures the lib never re-spawns beyond this one call.
+    const cachedFiles = changedCodeFiles(cwd);
+    const cachedFilesFn = () => cachedFiles;
+
+    const eg = evaluateEvidenceGate(cwd, lastText, data.transcript_path, cachedFilesFn, evSameTurnEvents);
+    if (eg.fire) {
+      if (cfg.verification_evidence_gate === 'block') {
+        // Block mode: repeat guard prevents infinite loops — if the same reason fired
+        // last stop, let this stop through and clear the marker (guard arms on block only).
+        const st = readUnifiedState(cwd);
+        const evGate = st.verificationEvidenceGate || {};
+        const sameReason = evGate.lastReason === eg.reason;
+
+        if (sameReason) {
+          // Same reason already blocked once — allow stop (loop guard), clear marker.
+          delete st.verificationEvidenceGate;
+          try { writeUnifiedState(cwd, st); } catch {}
+        } else {
+          // Record the reason so the next identical stop is let through.
+          st.verificationEvidenceGate = { lastReason: eg.reason, at: new Date().toISOString() };
+          try { writeUnifiedState(cwd, st); } catch {}
+          console.log(JSON.stringify({
+            continue: false,
+            decision: 'block',
+            reason: '[QE Evidence] 현재 턴에 검증 명령 실행 증거가 없습니다. npm run qe:validate, node scripts/check-all.mjs, 또는 node --test <path>를 실행하고 결과를 확인한 뒤 다시 완료를 보고하세요.',
+          }));
+          process.exit(0);
+        }
+      } else {
+        // Warn mode: the repeat guard is NOT armed — advisory fires every eligible stop.
+        // F4: merge sweepAnnouncement here so the process.exit does not suppress it.
+        // If sweep ran this stop, both messages are emitted in a single systemMessage.
+        const warnMsg = '[QE Evidence] 현재 턴에 검증 명령(npm run qe:validate / node scripts/check-all.mjs / node --test) 실행 증거를 찾지 못했습니다. 코드 변경이 있을 때는 허용 명령을 실행하고 결과를 확인하세요.';
+        const combinedMsg = sweepAnnouncement ? `${sweepAnnouncement} | ${warnMsg}` : warnMsg;
+        cleanupRegistryForAllowedStop();
+        console.log(JSON.stringify({
+          continue: true,
+          systemMessage: combinedMsg,
+        }));
+        process.exit(0);
+      }
+    }
+  } catch {
+    // Fault tolerance — the evidence gate must never crash Stop.
+  }
+}
+
 if (!activeMode && sweepAnnouncement) {
   cleanupRegistryForAllowedStop();
   console.log(JSON.stringify({ continue: true, systemMessage: sweepAnnouncement }));
@@ -527,12 +632,23 @@ function styleHash(str) {
  * Decide whether the final assistant report for changed code needs risk labels.
  * The gate is intentionally narrow: it only trips on completion-like text and a
  * local code diff, so ordinary non-code stops and mid-task pauses remain free.
+ *
+ * completionLike detection is delegated to {@link isCompletionClaim} from
+ * verification-evidence-gate.mjs (shared lib, no parallel matcher).
+ * That function applies word-boundary / Korean clause-boundary matching and strips
+ * code-fence / quote embedding — fixing the former unbounded-substring defect that
+ * would false-match "incomplete" or "not completed".
+ *
+ * @param {string} cwd  - Working directory for git diff.
+ * @param {string} text - Last assistant text (already extracted by caller).
+ * @returns {{ block: boolean, missing: string[] }}
  */
 function evaluateCodeRiskReportGate(cwd, text) {
   if (!text || typeof text !== 'string') return { block: false, missing: [] };
 
-  const completionLike = /(완료|끝났|검증\s*완료|구현\s*완료|작업\s*완료|Quality Verification Complete|Final status|complete|completed|done)/i.test(text);
-  if (!completionLike) return { block: false, missing: [] };
+  // Use shared isCompletionClaim — word-boundary aware, negation-safe, strips fences.
+  // This replaces the former inline unbounded regex that would false-match "incomplete".
+  if (!isCompletionClaim(text)) return { block: false, missing: [] };
 
   const files = changedCodeFiles(cwd);
   if (files.length === 0) return { block: false, missing: [] };
@@ -547,6 +663,15 @@ function evaluateCodeRiskReportGate(cwd, text) {
   return { block: missing.length > 0, missing };
 }
 
+/**
+ * Return the list of code-like files that are currently changed in the working
+ * directory (unstaged, staged, or untracked). Used as a gate precondition: when
+ * the list is empty the completion gates are skipped so doc-only and empty-diff
+ * turns are never incorrectly blocked.
+ *
+ * @param {string} cwd - Working directory passed to git commands.
+ * @returns {string[]} Relative file paths whose extension matches a code pattern.
+ */
 function changedCodeFiles(cwd) {
   const commands = [
     ['git', ['diff', '--name-only']],

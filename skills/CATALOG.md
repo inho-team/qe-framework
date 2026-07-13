@@ -15,8 +15,7 @@
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
 | `/Qgs` / `$Qgs` | Alias for `Qgenerate-spec`. | Generates Haiku-Ready atomic specs. |
-| `/Qatomic-run` / `$Qatomic-run` | When a TASK_REQUEST contains atomic items. | High-speed Haiku Wave execution. |
-| `/Qrt` / `$Qrt` | Alias for `Qrun-task`. | Standard task execution engine. |
+| `/Qexecute` / `$Qexecute` | When executing a TASK_REQUEST or when code already on disk needs `-verify`. | Unified execution engine: sequential, parallel-wave, and verification modes. |
 
 ## Specialized Quality & Debugging
 
@@ -31,7 +30,7 @@
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qutopia` / `$Qutopia` | When you want to enable fully autonomous execution mode. | Switches framework to ultra-mode (auto-approvals, auto-remediation). |
+| `/Qexecute -utopia` / `$Qexecute -utopia` | When you want to enable fully autonomous execution mode. | Switches framework to ultra-mode (auto-approvals, auto-remediation). |
 | `/Qplan` | When a multi-phase project roadmap or high-level strategic planning is needed. | Manages PROJECT.md, ROADMAP.md and phases within .qe/planning/. |
 | `/Qcontext` | When managing folder-aware context memory (create, refresh, status). | Optimizes Claude's context window by loading only relevant folder context. |
 | `/Qinit` | When starting a new project or initializing the QE framework. | Sets up directory structure, conventions, and core configuration. |

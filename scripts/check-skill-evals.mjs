@@ -27,6 +27,10 @@ const CASES_DIR = join(ROOT, 'evals', 'cases');
 
 const REQUIRED_CASE_FIELDS = ['skill', 'prompt', 'must_include', 'must_not_include', 'rubric'];
 const LIST_FIELDS = new Set(['must_include', 'must_not_include']);
+// Canonical optional fields for pressure-scenario RED/GREEN/REFACTOR + no-guidance control.
+// MUST stay in sync with eval-skills-behavioral.mjs (sibling validator, intentionally duplicate).
+// See: qe-framework/scripts/eval-skills-behavioral.mjs
+const OPTIONAL_CASE_FIELDS = ['red_scenario', 'green_expectation', 'refactor_note', 'no_guidance_control'];
 
 // ─── frontmatter parser (supports scalars, `- item` lists, and `key: |` blocks) ──
 
@@ -68,6 +72,9 @@ function parseFrontmatter(content) {
       curKey = null;
       if (val === '|' || val === '>') { block = key; blockLines = []; continue; }
       if (val === '') { fm[key] = []; curKey = key; continue; } // list follows
+      // Bare YAML null scalars (null / ~) → empty string so emptiness checks fire.
+      // Quoted "null" stays a literal string. MUST stay in sync with eval-skills-behavioral.mjs.
+      if (/^(null|~)$/i.test(val)) { fm[key] = ''; continue; }
       fm[key] = val.replace(/^["']|["']$/g, '');
     }
   }
@@ -80,6 +87,11 @@ function parseFrontmatter(content) {
 const skillNames = new Set();
 const skillFiles = [];
 
+/**
+ * Recursively collect skill directory names and SKILL.md paths under skills/.
+ * Populates the module-level `skillNames` set and `skillFiles` array.
+ * @param {string} [dir=SKILLS_DIR] - Directory to scan.
+ */
 function collectSkillFiles(dir = SKILLS_DIR) {
   for (const entry of readdirSync(dir, { withFileTypes: true })) {
     const fullPath = join(dir, entry.name);
@@ -115,11 +127,25 @@ if (existsSync(CASES_DIR)) {
         fails.push(`FAIL [eval-schema] ${f}: missing required field '${field}'`);
         continue;
       }
-      if (LIST_FIELDS.has(field) && !Array.isArray(fm[field])) {
-        fails.push(`FAIL [eval-schema] ${f}: field '${field}' must be a list`);
+      // Empty-after-colon parses to [] — treat as present-but-empty (FAIL), same as bare null.
+      // MUST stay in sync with eval-skills-behavioral.mjs.
+      if (LIST_FIELDS.has(field) && (!Array.isArray(fm[field]) || fm[field].length === 0)) {
+        fails.push(`FAIL [eval-schema] ${f}: field '${field}' must be a non-empty list`);
       }
       if (!LIST_FIELDS.has(field) && (typeof fm[field] !== 'string' || fm[field] === '')) {
         fails.push(`FAIL [eval-schema] ${f}: field '${field}' must be a non-empty string`);
+      }
+    }
+    // Validate optional fields: present-but-empty prohibition (string-like: non-empty; list-like: non-empty array)
+    for (const field of OPTIONAL_CASE_FIELDS) {
+      if (field in fm) {
+        const val = fm[field];
+        if (typeof val === 'string' && val.trim() === '') {
+          fails.push(`FAIL [eval-schema] ${f}: optional field '${field}' is present but empty`);
+        }
+        if (Array.isArray(val) && val.length === 0) {
+          fails.push(`FAIL [eval-schema] ${f}: optional field '${field}' is present but empty`);
+        }
       }
     }
     if (typeof fm.skill === 'string' && !skillNames.has(fm.skill)) {

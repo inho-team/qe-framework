@@ -279,9 +279,7 @@ const coreAutoSkills = [
   'Qplan',
   'Qgenerate-spec',
   'Qgs',
-  'Qrun-task',
-  'Qatomic-run',
-  'Qcode-run-task',
+  'Qexecute',
 ];
 const crowdedPseSkills = new Set(coreAutoSkills);
 const byDir = new Map(skillEntries.map((entry) => [entry.dir, entry]));

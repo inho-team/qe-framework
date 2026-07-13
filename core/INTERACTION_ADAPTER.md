@@ -16,7 +16,7 @@ console UI work, or a human acceptance check.
 | Claude | Use `AskUserQuestion` | `/` |
 | Codex interactive | Render concise plain-text choices and wait for the user's reply | `$` |
 | Codex non-interactive | Use the deterministic default only when safe | `$` |
-| Qutopia | Select the first recommended option, except destructive/irreversible choices | active client |
+| Qexecute -utopia | Select the first recommended option, except destructive/irreversible choices | active client |
 
 ## Question Schema
 
@@ -42,7 +42,7 @@ Rules:
 - One option should be marked recommended in its label when there is a safe
   default.
 - `requiresExplicitAnswer: true` blocks non-interactive auto-selection unless
-  Qutopia rules explicitly allow it.
+  Qexecute -utopia rules explicitly allow it.
 - SIVS engine-routing questions must always include a Codex or Hybrid option.
 
 ## Rendering Contract

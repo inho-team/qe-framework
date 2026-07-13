@@ -36,10 +36,11 @@ compatibility.
 
 | Command | Scope |
 |---------|-------|
-| `/Qgc` or `/Qgc analyze` | Full scan (all 3 categories) |
+| `/Qgc` or `/Qgc analyze` | Full scan (all 3 categories + skill catalog budget) |
 | `/Qgc analyze drift` | Doc-Code Drift only |
 | `/Qgc analyze lint` | Rule Violations only |
 | `/Qgc analyze dead` | Dead Code only |
+| `/Qgc analyze budget` | Skill Catalog Token Budget only |
 | `/Qgc analyze fix` | Auto-fix all fixable issues from last report |
 
 ## Analyze Workflow
@@ -49,6 +50,7 @@ Run gc-analyzer from `hooks/scripts/lib/gc-analyzer.mjs`:
 1. **Doc-Code Drift**: Compare CLAUDE.md/README vs actual deps/structure
 2. **Rule Violations**: Run comment-checker + lint detection on recent files
 3. **Dead Code**: Find 90-day untouched files + orphan files (no imports)
+4. **Skill Catalog Budget**: Scan `skills/*/SKILL.md` files and estimate total tokens using chars/4 heuristic. Reports top N skills by size and catalog total. All token estimates are labeled "자체 산정 추정치(chars/4)". Note: Korean-body skills may be ~2x undercounted due to CJK character width.
 
 ### Step 2: Report
 Generate `.qe/gc/GC_REPORT.md` with findings:
@@ -81,7 +83,7 @@ Log execution to `.qe/gc/gc-history.jsonl`:
 
 ### Step 3: Fix (if /Qgc fix or auto-fix enabled)
 - **Auto-fixable**: lint --fix, unused import removal, stale analysis → /Qrefresh hint
-- **Manual required**: Generate TASK_REQUEST with grouped issues → suggest /Qrun-task
+- **Manual required**: Generate TASK_REQUEST with grouped issues → suggest /Qexecute
 - Use `AskUserQuestion` before applying fixes: "Found N auto-fixable issues. Apply fixes?"
 
 ### Step 4: Summary

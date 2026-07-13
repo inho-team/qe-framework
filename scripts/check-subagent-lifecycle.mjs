@@ -25,9 +25,8 @@ const checks = [
     ]
   },
   {
-    file: 'skills/Qcode-run-task/SKILL.md',
+    file: 'skills/Qexecute/SKILL.md',
     terms: [
-      'Delegated Handle Lifecycle',
       'Eqa-orchestrator',
       'wait_agent',
       'close_agent',
@@ -37,7 +36,7 @@ const checks = [
     ]
   },
   {
-    file: 'skills/Qatomic-run/SKILL.md',
+    file: 'skills/Qexecute/SKILL.md',
     terms: [
       'Lifecycle Cleanup',
       'wait_agent',

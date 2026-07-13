@@ -29,7 +29,7 @@ const checks = [
     ]
   },
   {
-    file: 'skills/Qatomic-run/SKILL.md',
+    file: 'skills/Qexecute/SKILL.md',
     terms: [
       'Code Risk Gate',
       'hard block',
@@ -40,17 +40,12 @@ const checks = [
     ]
   },
   {
-    file: 'skills/Qcode-run-task/SKILL.md',
+    file: 'skills/Qexecute/SKILL.md',
     terms: [
       'Code Risk Gate',
-      'Qrisk-proof {UUID}',
+      'Qcritical-review --risk {UUID}',
       'Risk Proof Gate',
-      '.qe/agent-results/risk-proof-{UUID}.md',
-      'Worst-case failure considered',
-      'High-risk findings',
-      'Residual Risks',
-      'Unverified assumptions',
-      'purely positive completion summary'
+      'Eqa-orchestrator'
     ]
   },
   {

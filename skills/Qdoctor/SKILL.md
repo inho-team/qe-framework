@@ -59,6 +59,45 @@ npm run check         # qe-mcp checkout only
 npm run selftest
 ```
 
+#### Enforced-but-silent device guard (`scripts/check-enforced-devices.mjs`)
+
+`check-all.mjs` auto-discovers a **warning-only** guard that flags savings devices
+which are declared "Enforced" but whose activity counters are still zero. It is a
+soft health signal, never a build gate (always exits 0).
+
+- **Source of truth**: the device→counter mapping is a **code constant** inside
+  `scripts/check-enforced-devices.mjs` (the `DEVICES` array). It does NOT parse
+  `QE_CONVENTIONS.md` prose or count declarations.
+- **Reads only** `{cwd}/.qe/state/unified-state.json`. Missing / corrupt /
+  unparseable state, non-numeric `session_stats.tool_calls`, or a fresh session
+  (`tool_calls < 50`) → NOTICE or grace-skip. A warning fires only when
+  `tool_calls ≥ 50` (inclusive) and a device's counters are still zero.
+
+| Device | Counters checked | Warns when |
+|--------|------------------|------------|
+| ContextMemo (Minimal I/O) | `memo.files`, `memo.blocked_reads`, `session_stats.blocked_reads` | all zero at `tool_calls ≥ 50` |
+| Delegation Enforcer | `delegationStats.autoInjections + warnings + overrides` | absent or sum zero at `tool_calls ≥ 50` |
+
+A warning here means: re-check hook wiring (PostToolUse matcher includes `Read`;
+the delegation gate fires on the `Task` tool and reads `subagent_type`).
+
+#### SIVS loop budget (Phase 3 / R005-R006)
+
+Qdoctor surfaces the per-UUID SIVS loop-safety counters so a loop budget is
+visible **before** it is exhausted. It reads `sivs_loops` from
+`{cwd}/.qe/state/unified-state.json` (via `hooks/scripts/lib/loop-guard.mjs`
+`checkLimits`) and reports, per active UUID:
+
+- **reentry**: backward-routing hops used / limit (default 5, `QE_SIVS_DEPTH_LIMIT`).
+- **remediation**: remediation rounds used / limit (3).
+
+A UUID at or near a limit is flagged as a NOTICE (budget nearly exhausted); an
+entry reported `corrupt` (present but malformed counters) is flagged for repair —
+its next remediation is fail-closed until reset. Absent/fresh state is normal and
+silent. This is read-only visibility; the actual enforcement lives in the
+PreToolUse hook (remediation) and the gate protocols (depth). The Verify handoff
+likewise shows the remaining loop budget so exhaustion is never a surprise.
+
 ### Step 2: Version And Boundary Checks
 Verify:
 - `qe-framework` version is readable from the installed package or checkout.

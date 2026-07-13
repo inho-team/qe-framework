@@ -33,7 +33,7 @@ AI 코딩 도구는 코드를 읽고 수정할 때 **의도를 무의식적으�
 | **Phase 1** | 템플릿 + 파서 + 샘플 계약 2개 | ✅ 완료 |
 | **Phase 2** | `/Qcontract` 스킬 + 승인 메커니즘 | ✅ 완료 |
 | **Phase 3** | `/Qverify-contract` + 판정 캐시 | ✅ 완료 |
-| **Phase 4** | 사용자 문서 + Qcode-run-task 통합 + pre-commit hook | ✅ 현재 |
+| **Phase 4** | 사용자 문서 + Qexecute -verify 통합 + pre-commit hook | ✅ 현재 |
 
 ---
 
@@ -139,7 +139,7 @@ verdict는 `.qe/contracts/.verdicts/user-registration.json`에 캐시됨:
 #### **4단계: 통합**
 
 ```bash
-/Qcode-run-task
+/Qexecute -verify
 ```
 
 Step 4.10에서 자동 호출:
@@ -293,12 +293,12 @@ git commit -m "refactor: simplify payment logic"
 # → 통과 못 하면 거부
 ```
 
-### Step 7: /Qcode-run-task 통합 (자동)
+### Step 7: /Qexecute -verify 통합 (자동)
 
-`/Qcode-run-task` 실행 시 Step 4.10에서 자동으로 `/Qverify-contract --all` 호출됩니다.
+`/Qexecute -verify` 실행 시 Step 4.10에서 자동으로 `/Qverify-contract --all` 호출됩니다.
 
 ```bash
-/Qcode-run-task
+/Qexecute -verify
   ...
   Step 4.10: Verify all contracts
     ✅ PASS  payment-processing

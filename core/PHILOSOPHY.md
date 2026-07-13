@@ -9,7 +9,11 @@
 
 ## SIVS Engine Routing
 
-Each SIVS stage can be configured to use Claude (default) or Codex. Routing is base-agnostic and bidirectional: with `.qe/sivs-config.json`, a Claude base session delegates Codex stages through `codex_bridge`, and a Codex base session delegates Claude stages through `claude_bridge` / `Qclaude-rescue` (DECISION_LOG D028/D029/D030).
+Each SIVS stage can be configured to use Claude or Codex. Routing is base-agnostic and bidirectional: with `.qe/sivs-config.json`, a Claude base session delegates Codex stages through `codex_bridge`, and a Codex base session delegates Claude stages through `claude_bridge` / `Qclaude-rescue` (DECISION_LOG D028/D029/D030).
+
+Recommended default when Codex is available is **Claude Head / Codex Body**
+(`claude-head`): Spec and Supervise stay Claude-led, while Implement and Verify
+prefer Codex.
 
 - **Spec**: Claude generates specs natively, or delegates to Codex via `/codex:rescue`
 - **Implement**: Claude executes via agents, or delegates to Codex via `/codex:rescue --write`
@@ -24,11 +28,15 @@ This architecture ensures:
 - No external provider APIs (Gemini, GPT) are directly invoked by the framework
 - User retains full choice of which engine handles each SIVS stage
 
+**Gate subagent engine ownership (Phase 5 / D-f876457e-1):** SIVS `enforceRouting` hard-blocks direct Agent spawns (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise, `Ecode-reviewer` → verify) that violate the configured engine. However, gate subagents spawned *inside* `Qcritical-review` (Devil's Advocate, Security Auditor, Merge Blocker, Merge Advocate, Impartial Judge) are **protocol-owned**: the gate protocol itself controls their engine assignment, including the automatic Codex cross-model upgrade for DA and Merge Blocker. SIVS enforcer does not reach inside protocol-owned spawns. This mixed ownership is profile-independent: stage routing may choose Claude or Codex for the top-level SIVS stage, while `Qcritical-review` still owns its adversarial role routing. Under `codex-head`, G3 Verify is mixed (DA → Codex via protocol auto-upgrade, Security Auditor + Performance Skeptic → Claude) and G5 Supervise includes a Codex orchestrator aggregation. Under the recommended `claude-head`, top-level Supervise is Claude-led, while DA/Merge Blocker can still auto-upgrade to Codex inside the gate protocol. G4 Risk Proof (`Erisk-proof-auditor`) is Claude-only (not in SIVS STAGE_MAP). The Supervise call budget is 4–5 (≤4 when Esecurity-officer is not warranted; floor = 5 when security audit fires); the reduction from baseline 6–7 comes from the findings pipeline (Phase 2 / R002) injecting Verify findings into Supervise so cross-stage `Ecode-reviewer`/`Ecode-test-engineer` re-audits on unchanged files are skipped — not from routing changes. See DECISION_LOG `D-f876457e-1` and `skills/Qcritical-review/reference/{verify-gate-protocol,supervise-gate-protocol}.md`.
+
+**Per-scope config design:** `loadSivsConfig(cwd)` uses exact-path loading (no directory walk-up); hook cwd = session cwd. Each repo has its own `.qe/sivs-config.json` scope independent from a wrapper workspace's config — two configs in separate scopes do not conflict in a single session by design. See `QE_CONVENTIONS.md` Codex Runtime Policy and DECISION_LOG `D-f876457e-1` (config scope authority rules).
+
 ---
 
 ## Position in the PSE Chain
 
-The SIVS Loop is the **quality gate** that runs inside the Execute and Verify steps of the PSE Chain (`/Qplan → /Qgs → /Qatomic-run → /Qcode-run-task` on Claude; `$Qplan → $Qgs → $Qatomic-run → $Qcode-run-task` on Codex). The PSE Chain is the user-facing workflow; the SIVS Loop is the internal quality mechanism that ensures each task meets its spec.
+The SIVS Loop is the **quality gate** that runs inside the Execute and Verify steps of the PSE Chain (`/Qplan → /Qgs → /Qexecute → /Qexecute -verify` on Claude; `$Qplan → $Qgs → $Qexecute → $Qexecute -verify` on Codex). The PSE Chain is the user-facing workflow; the SIVS Loop is the internal quality mechanism that ensures each task meets its spec.
 
 ---
 
@@ -94,7 +102,7 @@ We treat efficiency not as a cost-saving measure, but as a **reliability require
 
 ### Cross-Phase Regression
 
-Before a Phase is marked complete, prior phases' key verification items are re-checked to prevent regression. This ensures that work in Phase N does not silently break guarantees established by Phases 1 through N-1. The regression gate is implemented in `hooks/scripts/lib/regression-gate.mjs` and integrated into the verification flow at Qcode-run-task Step 4.8.
+Before a Phase is marked complete, prior phases' key verification items are re-checked to prevent regression. This ensures that work in Phase N does not silently break guarantees established by Phases 1 through N-1. The regression gate is implemented in `hooks/scripts/lib/regression-gate.mjs` and integrated into the verification flow at Qexecute -verify Step 4.8.
 
 ### Stage 1 — Spec
 
@@ -112,7 +120,7 @@ Without a spec, the executor has no contract. Without a contract, verification i
 
 ### Stage 2 — Implement
 
-**Executed by:** `Qrun-task` / `Qatomic-run` (via `Etask-executor` or Haiku Teammates)
+**Executed by:** `Qexecute` / `Qexecute` (via `Etask-executor` or Haiku Teammates)
 **Purpose:** Execute the actual coding work defined in the spec.
 
 Implementation is the stage where files are created, modified, or deleted according to the TASK_REQUEST checklist. This stage is strictly separated from verification to ensure clean responsibility boundaries:
@@ -123,7 +131,7 @@ Implementation is the stage where files are created, modified, or deleted accord
 
 **Document:** `VERIFY_CHECKLIST_{UUID}.md`
 **Generated by:** `Qgenerate-spec` (alongside the spec)
-**Executed by:** `Qrun-task` after implementation
+**Executed by:** `Qexecute` after implementation
 
 A verification checklist must:
 - Answer every item with yes or no — no subjective judgment
@@ -181,12 +189,12 @@ These three documents are the backbone of the framework. Every other component e
 | Component | Role in the SIVS Loop |
 |-----------|---------------------|
 | `Qgenerate-spec` | Creates TASK_REQUEST + VERIFY_CHECKLIST (Stage 1) |
-| `Qrun-task` | Executes the spec (Stage 2), runs the verify checklist (Stage 3) |
-| `Qatomic-run` | Parallel implementation via Haiku Waves (Stage 2) |
+| `Qexecute` | Executes the spec (Stage 2), runs the verify checklist (Stage 3) |
+| `Qexecute` | Parallel implementation via Haiku Waves (Stage 2) |
 | `Etask-executor` | Implements checklist items one by one (Stage 2) |
 | `Esupervision-orchestrator` | Coordinates all supervision agents (Stage 4) |
 | `Esecurity-officer` | Security supervision domain |
-| `Qcode-run-task` | Test → review → fix loop within Stage 3 |
+| `Qexecute -verify` | Test → review → fix loop within Stage 3 |
 | All hooks | Support the loop: context management, intent routing, state tracking |
 | `Ttune` | Repairs framework components that deviate from this philosophy |
 | `Qplan` | Phase planning and roadmap design (PSE Step 1) |
@@ -240,7 +248,7 @@ Every skill, agent, and hook in this framework must uphold the following:
 
 ## Adaptive Harness Principle
 
-PSE chain (Qplan → Qgs → Qatomic-run → Qcode-run-task) is the structured default path. However, when Claude Code provides native features that are more suitable, prefer native over PSE:
+PSE chain (Qplan → Qgs → Qexecute → Qexecute -verify) is the structured default path. However, when Claude Code provides native features that are more suitable, prefer native over PSE:
 
 1. **Verification** → `/goal` sets a completion condition evaluated by a **separate model**, breaking self-preferential bias. Use when the pass criteria are mechanically verifiable (tests pass, build succeeds, lint clean).
 2. **Large-scale orchestration** → `/workflows` writes a JS orchestration script for up to 1,000 subagents. Use when the task has 10+ independent items or requires adversarial multi-agent coordination.
@@ -264,9 +272,9 @@ See `docs/CLAUDE_CODE_FEATURES.md` for verified feature reference with minimum v
 
 The following are intentional design trade-offs, not violations of the Mandatory Obligations:
 
-### 1. Qutopia SIMPLE Classification
+### 1. Qexecute -utopia SIMPLE Classification
 
-Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may execute without a formal TASK_REQUEST document. This is an intentional trade-off for micro-task velocity. The canonical SIMPLE criteria are defined in `skills/Qutopia/SKILL.md` (Single Source of Truth).
+Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may execute without a formal TASK_REQUEST document. This is an intentional trade-off for micro-task velocity. The canonical SIMPLE criteria are defined in `skills/Qexecute/SKILL.md` (`-utopia` section, Single Source of Truth).
 
 **Rationale**: Requiring a full spec for a one-line fix would add overhead that exceeds the risk of the change itself.
 
@@ -276,9 +284,9 @@ Experimental optimization loops (Qautoresearch) use metric convergence as verifi
 
 **Rationale**: In the experimental domain, hypothesis-metric feedback is the natural verification mechanism. Forcing VERIFY_CHECKLIST onto iterative experiments would break the tight feedback loop that makes experimentation effective.
 
-### 3. Qutopia Retry Loop
+### 3. Qexecute -utopia Retry Loop
 
-Retry loops in Qutopia `--work`/`--qa` modes may re-execute failed items up to 3 (work) or 5 (qa) times without generating a REMEDIATION_REQUEST. Full remediation spec generation is required only when retry limits are exceeded and the system escalates to the user.
+Retry loops in Qexecute -utopia modes (`-utopia` / `-utopia -verify`) may re-execute failed items up to 3 (work) or 5 (qa) times without generating a REMEDIATION_REQUEST. Full remediation spec generation is required only when retry limits are exceeded and the system escalates to the user.
 
 **Rationale**: For simple failures (test flakiness, minor syntax errors), generating a full remediation spec is disproportionate. The retry limit ensures that persistent failures do escalate properly.
 

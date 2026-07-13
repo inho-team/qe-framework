@@ -20,8 +20,8 @@ const INSTALLED_SKILLS = join(homedir(), '.codex', 'skills');
 const ROUTES_PATH = join(ROOT, 'hooks', 'scripts', 'lib', 'intent-routes.json');
 
 const CORE_AUTO = new Set([
-  'Qinit', 'Qplan', 'Qgenerate-spec', 'Qgs', 'Qrun-task', 'Qatomic-run',
-  'Qcode-run-task', 'Qcommit', 'Qcompact', 'Qresume', 'Qrefresh', 'Qversion',
+  'Qinit', 'Qplan', 'Qgenerate-spec', 'Qgs', 'Qexecute',
+  'Qcommit', 'Qcompact', 'Qresume', 'Qrefresh', 'Qversion',
   'Mbump',
 ]);
 const EXPLICIT_ONLY = new Set([
@@ -265,8 +265,8 @@ QE core behavior depends on the core-auto wrappers, hard safety routes, and
 agent-backed delegation contracts. Personal catalog slimming should therefore
 prefer removing or hiding optional domain skills first, while preserving:
 
-- PSE core-auto commands: Qplan, Qgs/Qgenerate-spec, Qrun-task, Qatomic-run,
-  Qcode-run-task, Qcommit, Qcompact, Qresume, Qrefresh, Qversion.
+- PSE core-auto commands: Qplan, Qgs/Qgenerate-spec, Qexecute,
+  Qcommit, Qcompact, Qresume, Qrefresh, Qversion.
 - Maintainer safety surfaces: Mbump and the commit/version override routes.
 - E-agents only behind documented Q/M wrappers unless the route is explicitly
   marked as an expert-only direct-agent fallback.

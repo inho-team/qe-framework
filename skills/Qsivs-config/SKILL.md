@@ -40,20 +40,37 @@ is unavailable:
 engine used. Homogeneous profiles (`all-claude` / `all-codex`) never trigger
 fallback because both roles target the same engine.
 
-## Cross-engine invocation (MCP only)
+## Cross-engine invocation (bridge-owned)
 When the Head engine must call the Body engine (or vice versa) — e.g. a
 Claude-led Supervise stage asking Codex for a second-opinion review, or a
 Codex-led Spec stage asking Claude to resolve an ambiguity — route the call
-**through the qe-mcp expert-library MCP tools**, never a direct CLI shell-out:
+through the framework bridge layer:
 
-- `mcp__qeExpertLibrary__qe_run_codex_agent` — invoke Codex
-- `mcp__qeExpertLibrary__qe_run_claude_agent` — invoke Claude
-- `mcp__qeExpertLibrary__qe_delegate_agent` — engine-agnostic (`target_engine`)
+- Claude base → Codex target: `scripts/lib/codex_bridge.mjs` /
+  `codex-plugin-cc`.
+- Codex base → Claude target: `scripts/lib/claude_bridge.mjs` /
+  `Qclaude-rescue`.
 
-These carry `call_depth` / `call_chain_id` / `origin_engine` recursion guards and
-a `max_concurrent_runs: 1` bound. **Do not** invoke `codex-companion.mjs` (or any
-`node .../scripts/*.mjs` runner) directly for cross-engine work; direct library
-shell-outs bypass the recursion guard and the audit trail.
+`qe-mcp` runner tools (`qe_run_codex_agent`, `qe_run_claude_agent`,
+`qe_delegate_agent`) are compatibility-only. They are hidden in default passive
+MCP mode and appear only when `QE_MCP_EXPOSE_RUNNERS=1` is set before the MCP
+server starts. Do not describe those tools as the canonical SIVS route.
+
+Do not invoke `codex-companion.mjs` or arbitrary `node .../scripts/*.mjs`
+runners directly for cross-engine work. Use the bridge APIs above so fallback,
+artifact context, and audit wording stay centralized.
+
+## Per-Scope Config Authority (Phase 5 / D-f876457e-1)
+
+`loadSivsConfig(cwd)` uses **exact-path loading** — it reads `<cwd>/.qe/sivs-config.json` with no directory walk-up. The hook cwd equals the session cwd; therefore each repo's `.qe/sivs-config.json` is an independent authority scope. A wrapper workspace config and a sub-repo config are two separate scopes and do not conflict in a single session — the session applies whichever config corresponds to its cwd.
+
+Authority rules:
+- Each repo's `.qe/sivs-config.json` is the authoritative SIVS config for sessions whose cwd is that repo.
+- A wrapper workspace config is the authoritative config for sessions whose cwd is that workspace root.
+- Differences between the two configs reflect intentional per-project SIVS settings, not a conflict to be resolved.
+- Config files are read fresh on every hook invocation; editing a config takes effect immediately for the current session without restart.
+- `qe-framework/.qe/sivs-config.json` may be untracked + gitignored (local developer override). The workspace root may not be a git repo. In both cases config changes are not tracked in git diff — record before/after values explicitly in DIAG when changing config for auditable decisions.
+- Rollback: restore the DIAG-recorded before value manually; git revert does not apply.
 
 ## Storage Location
 `.qe/sivs-config.json`
@@ -74,7 +91,7 @@ Parse the user's input after the active-client command (`{adapter.commandPrefix}
 | `show`     | Show current configuration with status |
 | `profile`  | Apply a named Head/Body role profile to all stages at once |
 | `set`      | Set engine/model/effort for a stage |
-| `reset`    | Reset a stage or all stages to defaults (claude) |
+| `reset`    | Reset a stage or all stages to environment-aware defaults |
 | `--help`   | Show usage guide |
 
 **Profiles (Head = spec + supervise, Body = implement + verify):**
@@ -91,18 +108,24 @@ effective profile derived from the stage engines; a per-stage `set` that breaks 
 named pattern surfaces as `custom`. The stage engines remain the source of truth
 for routing — the stored `profile` field is metadata only.
 
-## Pool-disjointness guarantee (engine independence)
+## Engine independence and verification gates
 
 Engines are modeled in `core/engines.json` as a `vendor` drawing from a provider
-`pool` (`claude`→anthropic, `codex`→openai, `fugu`→fugu). SIVS's Implement/Verify
-independence is enforced structurally by **pool-disjointness**: a Verify engine's
-vendor must NOT appear in the Implement engine's pool, so the model that checks
-work never shares a provider with the model that produced it. `checkSivsPoolDisjoint(config)`
-in `hooks/scripts/lib/sivs-enforcer.mjs` returns `{ ok, reason }`; a config that sets
-Implement and Verify to the same vendor (e.g. both `claude`) is **not** independent
-and should be flagged when applying/validating a profile. The `implement-fugu-verify-claude`
-preset is disjoint (fugu vs anthropic); `codex-head`/`claude-head` are disjoint;
-`all-claude`/`all-codex` are intentionally homogeneous (single-engine, no cross-check).
+`pool` (`claude`→anthropic, `codex`→openai, `fugu`→fugu). When a profile splits
+Implement and Verify across different engines, `checkSivsPoolDisjoint(config)` in
+`hooks/scripts/lib/sivs-enforcer.mjs` can prove provider-pool disjointness. The
+`implement-fugu-verify-claude` preset is the explicit pool-disjoint preset.
+
+The default `claude-head` posture is different by design: Claude owns the Head
+stages (Spec + Supervise), while Codex owns the Body stages (Implement + Verify)
+to keep code execution and validation out of the Claude session. Its verification
+independence comes from fresh-context Verify, mandatory SIVS verification gates,
+and protocol-owned cross-model critics inside `Qcritical-review`; do not describe
+`claude-head` as Implement/Verify pool-disjoint.
+
+Homogeneous profiles (`all-claude` / `all-codex`) are intentionally single-engine
+profiles and rely on the same mandatory gate baseline rather than provider-pool
+separation.
 
 **Stages:** `spec`, `implement`, `verify`, `supervise`
 
@@ -211,7 +234,7 @@ treat it as an implicit `set`:
 
 #### Subcommand: `reset`
 1. If `--all` or no stage specified: delete `.qe/sivs-config.json` entirely
-2. If stage specified: remove that stage's entry from config (falls back to default claude)
+2. If stage specified: remove that stage's entry from config (falls back to environment-aware default)
 3. Display the resulting config
 
 **Examples:**

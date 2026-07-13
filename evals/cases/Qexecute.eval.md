@@ -1,5 +1,5 @@
 ---
-skill: Qatomic-run
+skill: Qexecute
 prompt: "여러 독립 아토믹 항목이 있는 체크리스트를 병렬로 실행해줘"
 must_include:
   - "Wave"
@@ -14,5 +14,5 @@ rubric: |
   teammates without isolation.
 ---
 
-Guards the Qatomic-run parallelism contract, including the Phase-2 --worktree isolation
+Guards the Qexecute parallelism contract, including the Phase-2 --worktree isolation
 option. Regression target — file-ownership partitioning dropped from the wave model.

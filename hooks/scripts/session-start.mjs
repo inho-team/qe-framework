@@ -27,9 +27,13 @@ import { maybeSpawnRefresh, ensurePeriodicRefresh } from './lib/auto-refresh.mjs
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
+// Read fd 0 directly. `/dev/stdin` re-opens the pipe and can read empty on Linux CI
+// (a known gotcha — same pattern as pre-tool-use.mjs); reading the fd is portable
+// across macOS and Linux runners.
+// Based on the re-injection pattern from superpowers/using-superpowers (MIT).
 let input = '';
 try {
-  input = readFileSync('/dev/stdin', 'utf8');
+  input = readFileSync(0, 'utf8');
 } catch {
   process.exit(0);
 }
@@ -42,6 +46,18 @@ try {
   console.log(JSON.stringify({ continue: true }));
   process.exit(0);
 }
+
+// R008: Parse source field from payload.
+// Known values: 'startup' | 'resume' | 'clear' | 'compact'
+// - 'clear' / 'compact' → minimal bootstrap additionalContext only
+// - 'startup' / 'resume' → full startup injection (startup-equivalent)
+// - missing / unknown → fail-open: full startup injection (existing behavior)
+// NOTE [UNVERIFIED]: The presence of the `source` field in real Claude Code
+// SessionStart payloads has not been confirmed via live observation. This
+// implementation follows the spec contract and fails open (full injection)
+// when the field is absent or unknown.
+const sessionSource = (typeof data.source === 'string' ? data.source.toLowerCase() : '');
+const isCompactionSource = (sessionSource === 'clear' || sessionSource === 'compact');
 
 const cwd = data.cwd || data.directory || process.cwd();
 const cfg = loadConfig(cwd);
@@ -390,12 +406,12 @@ try {
   const gitParts = [];
 
   try {
-    const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+    const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     if (branch) gitParts.push(`Branch: ${branch}`);
   } catch {}
 
   try {
-    const diffStat = execSync('git diff --stat', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
+    const diffStat = execSync('git diff --stat', { cwd, encoding: 'utf8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
     if (diffStat) {
       const changedFiles = diffStat.split('\n').length - 1; // last line is summary
       if (changedFiles > 0) gitParts.push(`${changedFiles} uncommitted change${changedFiles > 1 ? 's' : ''}`);
@@ -627,12 +643,91 @@ try {
     // Session persistent stats - keep usage, but reset session-specific flags if needed
     state.session_stats.session_start = Date.now();
   }
+  // Clear ContextMemo on session start so a fresh session's first read of any file
+  // is never MEMO-blocked by another session's leftover cache. Correctness is
+  // already guarded by mtime validation in isMemoValid; this reset is about
+  // per-session freshness (a new session may run against externally-changed files).
+  // Trade-off: in a shared unified-state.json, this wipes concurrent sessions'
+  // cache — a lost re-read optimization, never a correctness issue (see DIAG C11).
+  state.memo = { files: {}, meta: {}, total_size: 0, blocked_reads: 0 };
   writeUnifiedState(cwd, state);
 } catch {
   // Fault tolerance — ignore reset errors
 }
 
-if (messages.length > 0) {
+// --- SIVS loop-guard staleness sweep (Phase 3 / R005-R006) ---
+// Drop loop counters idle beyond the max age so an abandoned run's stale counter
+// never false-blocks a later legitimate run of a re-used UUID. Keyed on
+// last-activity (updated_at), so an active at-limit run is preserved — never
+// swept out from under itself (that would reopen the runaway). Own atomic
+// read-modify-write; best-effort, once per session start.
+try {
+  const { sweepStale } = await import('./lib/loop-guard.mjs');
+  const swept = sweepStale(cwd);
+  if (swept > 0) messages.push(`[loop-guard] swept ${swept} stale SIVS loop counter(s).`);
+} catch {
+  // Fault tolerance — a sweep error must never block session start.
+}
+
+// --- R008: Minimal Bootstrap for clear/compact re-injection ---
+// When source is 'clear' or 'compact', replace the full additionalContext with a
+// compact bootstrap that covers the three essential constants. All state side effects
+// (registry upsert, current-session.json, memo reset, invalidateCachedRatio, codex
+// reaper) have already run above — they are unaffected by this output-only branch.
+//
+// Bootstrap content (3 items, total ≤ 2048 UTF-8 bytes):
+//   1. OVERRIDE MAP summary — routing cues so Claude reaches for the skill first
+//   2. Output style — 1-line reminder
+//   3. MISTAKE notification — only when .qe/MISTAKE.md exists and is non-empty
+//
+// Re-injection pattern adapted from superpowers/using-superpowers (MIT).
+function buildMinimalBootstrap(cwdPath, cmdPrefix) {
+  const skillCmd = (name) => `${cmdPrefix}${name}`;
+  const parts = [];
+
+  // 1. OVERRIDE MAP summary
+  parts.push(
+    '[QE OVERRIDE MAP] Use the QE skill — PreToolUse HARD-BLOCKS direct git commit / version edits. ' +
+    `manual commit → ${skillCmd('Qcommit')} · version/release → qe-admin-mcp · ` +
+    `context save → ${skillCmd('Qcompact')} · restore → ${skillCmd('Qresume')} · ` +
+    `refresh → ${skillCmd('Qrefresh')} · show version → ${skillCmd('Qversion')} · ` +
+    `archive tasks → ${skillCmd('Qgc')} archive. Full map: QE_CONVENTIONS.md.`
+  );
+
+  // 2. Output style (1 line)
+  parts.push(
+    '[QE OUTPUT STYLE] conclusion-first (결론→근거), separate 사실/추정, name the recommended option. ' +
+    'NO 의식의 흐름·추임새·과장 — 정리된 결론만. See core/OUTPUT_STYLE.md.'
+  );
+
+  // 3. MISTAKE notification — only when file exists and is non-empty
+  try {
+    const mistakePath = join(cwdPath, '.qe', 'MISTAKE.md');
+    if (existsSync(mistakePath)) {
+      const mistakeContent = readFileSync(mistakePath, 'utf8').trim();
+      if (mistakeContent.length > 0) {
+        parts.push('[MISTAKES] Active mistakes recorded — read .qe/MISTAKE.md before acting.');
+      }
+    }
+  } catch {
+    // Fault tolerance — MISTAKE check is best-effort
+  }
+
+  return `[QE Framework] ${parts.join(' | ')}`;
+}
+
+if (isCompactionSource) {
+  // clear/compact: emit minimal bootstrap only; all side effects already ran above.
+  const bootstrap = buildMinimalBootstrap(cwd, COMMAND_PREFIX);
+  process.stdout.write(JSON.stringify({
+    continue: true,
+    hookSpecificOutput: {
+      hookEventName: "SessionStart",
+      additionalContext: bootstrap
+    }
+  }) + '\n');
+} else if (messages.length > 0) {
+  // startup / resume / unknown: full injection (existing behavior, fail-open).
   process.stdout.write(JSON.stringify({
     continue: true,
     hookSpecificOutput: {

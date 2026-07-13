@@ -252,16 +252,16 @@ export function collectPseState(cwd, options = {}) {
       : `Active phase "${activePhase}" is complete; end the response with Next Command: ${skillCommand('Qplan', `${activePlanSlug}: review phase transition`)}.`;
   } else if (pendingPairs.length === 1) {
     kind = 'exactly-one-pending-spec';
-    hintTarget = 'Qrun-task';
-    hintMessage = `Pending spec ${basename(pendingPairs[0].taskPath)} belongs to active plan "${activePlanSlug}"; use Qrun-task ${pendingPairs[0].uuid} or Qatomic-run ${pendingPairs[0].uuid}.`;
+    hintTarget = 'Qexecute';
+    hintMessage = `Pending spec ${basename(pendingPairs[0].taskPath)} belongs to active plan "${activePlanSlug}"; use Qexecute ${pendingPairs[0].uuid}.`;
   } else if (pendingPairs.length > 1) {
     kind = 'multiple-pending-specs';
     hintTarget = null;
-    hintMessage = `Multiple pending specs belong to active plan "${activePlanSlug}"; choose an explicit Qrun-task/Qatomic-run UUID.`;
+    hintMessage = `Multiple pending specs belong to active plan "${activePlanSlug}"; choose an explicit Qexecute UUID.`;
   } else if (hasUncommittedCode) {
     kind = 'uncommitted-code';
-    hintTarget = 'Qcode-run-task';
-    hintMessage = 'Uncommitted code changes are present; use Qcode-run-task when implementation is ready for verification.';
+    hintTarget = 'Qexecute -verify';
+    hintMessage = 'Uncommitted code changes are present; use Qexecute -verify when implementation is ready for verification.';
   }
 
   return {

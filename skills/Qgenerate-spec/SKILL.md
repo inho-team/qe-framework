@@ -1,6 +1,6 @@
 ---
 name: Qgenerate-spec
-description: "Use when a plan or task needs spec documents: TASK_REQUEST and VERIFY_CHECKLIST. Use Qplan for roadmap/phases; use Qatomic-run or Qrun-task after the spec exists."
+description: "Use when a plan or task needs spec documents: TASK_REQUEST and VERIFY_CHECKLIST. Use Qplan for roadmap/phases; use Qexecute after the spec exists."
 invocation_trigger: When a new project, task, or bug fix spec needs to be defined.
 user_invocable: true
 recommendedModel: haiku
@@ -25,8 +25,8 @@ Interaction rules:
 
 Command rendering rules:
 - Render handoff commands through `adapter.commandPrefix`.
-- Claude examples use `/Q...`, for example `/Qatomic-run {UUID}`.
-- Codex examples use `$Q...`, for example `$Qatomic-run {UUID}`.
+- Claude examples use `/Q...`, for example `/Qexecute {UUID}`.
+- Codex examples use `$Q...`, for example `$Qexecute {UUID}`.
 
 ## Documents to Generate
 
@@ -198,7 +198,7 @@ auto-revises up to the iteration cap, then proceeds Generate-Only.)
 ### Step 3: Review, Create, and Execute (The High-Performance Path)
 - **GATE-BLOCKED (Step 2.6 FAIL):** If the Spec self-reference gate returned FAIL
   after its iteration cap, this is a **hard gate** — do **NOT** offer
-  "Generate & Execute" or "Generate & Atomic-Run". Present only **"Generate Only"**
+  "Generate & Execute". Present only **"Generate Only"**
   (so the draft is saved) and **"Fix spec & re-run gate"**, and list the
   CRITICAL/HIGH findings as required fixes. Execution options unlock only after the
   gate reaches WARN/PASS, or the user explicitly overrides with full awareness of
@@ -207,15 +207,14 @@ auto-revises up to the iteration cap, then proceeds Generate-Only.)
   - Claude: `AskUserQuestion`.
   - Codex interactive: concise plain-text choices.
   - Codex non-interactive: Generate Only by default and report `selected_default=Generate Only`.
-- **Recommend Atomic-Run**: If the checklist has 4+ independent items, clearly label **"Generate & Atomic-Run (Wave)"** as the **[Recommended]** path. Explain that it uses multiple parallel Haiku agents for maximum speed.
-- **Auto-Chain**: Once the user selects an execution option, immediately invoke the corresponding skill (`{adapter.commandPrefix}Qrun-task` or `{adapter.commandPrefix}Qatomic-run`) with the generated UUIDs.
+- **Recommend Wave**: If the checklist has 4+ independent items, clearly label **"Generate & Execute (Wave)"** as the **[Recommended]** path. Explain that Qexecute auto-selects parallel wave execution for maximum speed.
+- **Auto-Chain**: Once the user selects an execution option, immediately invoke `{adapter.commandPrefix}Qexecute` with the generated UUIDs.
 
-On "Generate & Atomic-Run":
+On "Generate & Execute":
 - Auto-create directories and files
-- Invoke `{adapter.commandPrefix}Qatomic-run {UUID}` immediately. (Sets `<!-- chained-from: Qgenerate-spec -->` flag so Qatomic-run skips approval)
+- Invoke `{adapter.commandPrefix}Qexecute {UUID}` immediately. (Sets `<!-- chained-from: Qgenerate-spec -->` flag so Qexecute skips approval)
 
-
-On "Generate & Execute" or "Generate Only":
+On "Generate Only":
 - Auto-create directories (`mkdir -p`)
 - Create all spec files
 - If existing `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` found in project root, suggest migrating to `.qe/tasks/pending/` and `.qe/checklists/pending/`
@@ -244,18 +243,17 @@ Output status summary after file creation:
 - {expected output files from TASK_REQUEST checklist}
 ```
 
-On "Generate & Execute":
-- **Single task** → invoke `{adapter.commandPrefix}Qrun-task {UUID}` immediately.
-- **Multiple tasks** → invoke `{adapter.commandPrefix}Qrun-task {UUID1} {UUID2} ... {UUIDn}` with all generated UUIDs space-separated in a single call. Qrun-task handles parallel execution.
+On "Generate & Execute" with multiple tasks:
+- **Multiple tasks** → invoke `{adapter.commandPrefix}Qexecute {UUID1} {UUID2} ... {UUIDn}` with all generated UUIDs space-separated in a single call. Qexecute handles parallel execution.
 
 ## Autonomous Mode Support
 
-When called from Qutopia (autonomous mode), Qgenerate-spec:
+When called from Qexecute -utopia (autonomous mode), Qgenerate-spec:
 - Skips all interaction prompts — auto-selects the documented default
 - Auto-proceeds through Steps 1-3 without user confirmation
 - Sets `<!-- chained-from: Qgenerate-spec -->` on generated TASK_REQUEST files
 
-See `Qutopia` for autonomous execution modes (`--work`, `--qa`).
+See `Qexecute -utopia` for autonomous execution modes (`-utopia`, `-utopia -verify`).
 
 ## Document Writing Rules
 
@@ -342,10 +340,10 @@ Phase {X}: {PhaseName} — Spec complete
 PSE: [x] Plan [x] Spec [>] Execute [ ] Verify
 
 {TaskDescription — 다음 작업 내용 한 줄 요약}
-Next: {adapter.commandPrefix}Qatomic-run {UUID}
+Next: {adapter.commandPrefix}Qexecute {UUID}
 ```
 
-Note: "Generate & Execute" and "Generate & Atomic-Run" options auto-chain, so the handoff is only needed for "Generate Only".
+Note: "Generate & Execute" auto-chains, so the handoff is only needed for "Generate Only".
 
 ## Output Format
 - Wrap document content in markdown code blocks when displaying

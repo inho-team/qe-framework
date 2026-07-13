@@ -7,7 +7,7 @@ Phase 9 successfully eliminated redundant I/O logic, consolidated state manageme
 
 ### 1. Unified CLAUDE.md Management
 - Implemented `parseClaudeTaskTable` and `updateClaudeStatus` in `hooks/scripts/lib/state.mjs`.
-- Refactored `Qrun-task` to use these utilities, eliminating multiple redundant `Read CLAUDE.md` calls per session.
+- Refactored `Qexecute` to use these utilities, eliminating multiple redundant `Read CLAUDE.md` calls per session.
 - Standardized task status transitions (🔲, 🔶, ✅) via a single source of truth.
 
 ### 2. Agent Instruction Debloating

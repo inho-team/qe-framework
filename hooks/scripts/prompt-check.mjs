@@ -12,6 +12,7 @@ import { parseHelpFlag } from './lib/help-flag-parser.mjs';
 import { readClaudeOAuthToken } from './lib/claude-token.mjs';
 import { readCurrentSid, readCurrentSessionId, readSessionName } from './lib/session-resolver.mjs';
 import { resolvePseStateHint } from './lib/pse-state-router.mjs';
+import { renderSkillCommand } from '../../scripts/lib/interaction_adapter.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -39,6 +40,8 @@ if (!userMessage || !userMessage.trim()) {
 
 const cwd = data.cwd || data.directory || process.cwd();
 const cfg = loadConfig(cwd);
+const client = data.client || process.env.QE_CLIENT || 'claude';
+const skillCommand = (skillName, args = '') => renderSkillCommand(skillName, args, { client });
 
 const cachePath = join(cwd, '.qe', 'planning', 'cache', 'cjk-translations.json');
 
@@ -51,7 +54,7 @@ const msgLower = userMessage.toLowerCase();
 // --- Help Flag Detection (early, before other classifications) ---
 const helpFlag = parseHelpFlag(userMessage);
 if (helpFlag.matched) {
-  hints.push(`[HELP] SKILL REQUIRED: Invoke /Qhelp with argument '${helpFlag.skillName}' BEFORE generating any response. Do NOT answer without the skill.`);
+  hints.push(`[HELP] SKILL REQUIRED: Invoke ${skillCommand('Qhelp', helpFlag.skillName)} BEFORE generating any response. Do NOT answer without the skill.`);
 }
 
 // --- QE Conventions Memory Check ---
@@ -156,7 +159,7 @@ try {
 if (!isAmbiguous) {
   const planKeywords = /\b(new project|start project|roadmap|milestone|planning|plan phase|architecture|overall|전략|계획|로드맵|마일스톤)\b/i;
   if (planKeywords.test(userMessage)) {
-    hints.push('[PLAN] Strategic roadmap detected. This project uses the PSE Loop (Plan-Spec-Execute). Run `/Qplan` first to establish/update the roadmap before Spec generation.');
+    hints.push(`[PLAN] Strategic roadmap detected. This project uses the PSE Loop (Plan-Spec-Execute). Run \`${skillCommand('Qplan')}\` first to establish/update the roadmap before Spec generation.`);
   }
 }
 
@@ -282,9 +285,9 @@ if (!isAmbiguous && !helpFlag.matched) try {
     writeUnifiedState(cwd, state);
 
     if (confidence_level === 'HIGH') {
-      hints.push(`[INTENT] SKILL REQUIRED: Invoke /${bestMatch.routed_to} BEFORE generating any response. Do NOT answer without the skill. (intent: ${bestMatch.intent})`);
+      hints.push(`[INTENT] SKILL REQUIRED: Invoke ${skillCommand(bestMatch.routed_to)} BEFORE generating any response. Do NOT answer without the skill. (intent: ${bestMatch.intent})`);
     } else {
-      hints.push(`[INTENT] Skill suggested: /${bestMatch.routed_to} may be relevant to this request. (intent: ${bestMatch.intent}, confidence: MEDIUM)`);
+      hints.push(`[INTENT] Skill suggested: ${skillCommand(bestMatch.routed_to)} may be relevant to this request. (intent: ${bestMatch.intent}, confidence: MEDIUM)`);
     }
   }
 } catch {

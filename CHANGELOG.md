@@ -17,7 +17,153 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Added
 
+- **Goal Satisfaction Report** (`ledger.mjs phase-report --slug S --phase N` +
+  `scripts/check-phase-report.mjs`). Generates a four-axis reconciliation report
+  at `.qe/planning/plans/{slug}/reports/PHASE_{N}_REPORT.md` that aligns
+  ROADMAP goal/requirements, REQUIREMENTS DoD targets (numeric-comparable vs
+  qualitative classification), goals.json statuses, DECISION_LOG relevant
+  decisions, and `measurement` ledger events in one auditable document.
+  Conservative numeric-target extraction: a DoD is numeric-comparable only when
+  exactly one isolated `<comparator><number>[unit]` token appears — ranges,
+  arrow multi-values, and multi-number baseline noise classify as `unmeasurable`
+  (no first-number grab, no fabrication). Verdicts: `met` (measured satisfies
+  numeric target) | `deferred` (cites DECISION_LOG decision ID) |
+  `unmeasurable` (qualitative/multi-value DoD or absent measurement) | `unknown`.
+  Deferred-check takes precedence over numeric comparison. Status desync
+  (goals.json all-pending + zero ledger lifecycle events) surfaces as
+  `achievement=UNVERIFIED` with a provenance caveat — never asserts "shipped"
+  from unread sources. `EVENT_ENUM` gains `'measurement'` for future measured
+  evidence recording; all existing commands and enum values unchanged.
+  Backfill-safe: all error paths exit 0 (missing/malformed sources degrade only
+  that row; no exit 1 from the phase-report dispatch path). `phaseNum` validated
+  `^\d+$` (rejects path traversal). Wired into Qplan Step 4 (Post-Execution) to
+  require report review before phase transition; `core/RETROSPECTIVE_TEMPLATE.md`
+  added with phase-report attachment and achievement summary sections.
+  Dogfood: Phase 1-3 reports for `sivs-gate-consolidation` generated against
+  the live plan — R003/R004=deferred (D-c0127487-1), R010=unmeasurable
+  (qualitative), achievement=UNVERIFIED (desync exposed, not hidden).
+
+- **SIVS loop-safety limits** (`hooks/scripts/lib/loop-guard.mjs` +
+  `scripts/check-loop-guard.mjs`). Caps the previously-unbounded FAIL recursion:
+  the remediation-round limit (3) is now enforced **deterministically** by the
+  PreToolUse hook, which intercepts `REMEDIATION_REQUEST_{UUID}_{N}.md` writes and
+  hard-blocks a 4th round with a user-escalation handoff; the backward-routing
+  depth limit (5, `QE_SIVS_DEPTH_LIMIT` override) is code-computed and enforced by
+  the Verify/Supervise gate protocols. Per-UUID counters live in
+  `unified-state.json`; loop-scoped-corrupt state fails closed (that UUID's
+  remediation only, with a `/Qdoctor` repair path — never wedges the session),
+  a session-start sweep clears abandoned counters keyed on last activity (an active
+  at-limit run is preserved), and Qdoctor surfaces the loop budget before it is
+  exhausted. Enforcement layering recorded in DECISION_LOG D-5033dbc3-1.
+- **Enforced-but-silent device guard** (`scripts/check-enforced-devices.mjs`,
+  auto-discovered by `check-all`). Warning-only health check that flags a savings
+  device declared "Enforced" whose activity counters are still zero after
+  `tool_calls ≥ 50`. Reads only `{cwd}/.qe/state/unified-state.json`; missing/
+  corrupt/fresh state grace-skips; never fails the build. Device→counter mapping
+  is a code constant, documented in `skills/Qdoctor/SKILL.md`.
+- **Skill front-matter guard** (`scripts/check-skill-frontmatter.mjs`,
+  auto-discovered by `check-all`). Verifies every `skills/<Name>/SKILL.md` has a
+  YAML front matter block with non-empty `name`/`description`, a `name` matching
+  its directory, and no duplicate skill names across directories. Directory-only
+  scan (plain files like `skills/CATALOG.md` are ignored). Manual line parsing,
+  no YAML dependency (quoted scalars like `name: "Foo"` normalized), read-only.
+  Supports `--warn-only` for soft launches.
+- **Verify→Supervise findings pipeline** (`hooks/scripts/lib/findings-ledger.mjs`
+  + `scripts/check-findings-pipeline.mjs`). Verify-stage findings persist to an
+  append-only `.qe/agent-results/verify-findings-{UUID}.jsonl` stream so the
+  Supervise gate reuses them (skips re-running `Ecode-reviewer`/`Ecode-test-engineer`
+  on files unchanged since Verify) instead of re-analyzing the same diff — the
+  real cross-stage duplication. A canonical fold (terminal precedence
+  escalated > waived > resolved; no terminal → open) yields one record per finding;
+  the auto-discovered guard enforces that no downgraded finding silently vanishes
+  (every finding ends at exactly one terminal with a recorded reason). Supervise
+  call budget documented: 6–7 → 4–5 (≤4 when no security audit). Gate protocols,
+  `Esupervision-orchestrator`, and `Erisk-proof-auditor` updated with the
+  consume/skip/enum-mapping rules; user command surface unchanged.
+
+### Fixed
+
+- **ContextMemo (Minimal I/O) now actually records and blocks.** The `PostToolUse`
+  matcher excluded `Read`, so `updateContextMemo` never ran and no redundant read
+  was ever blocked (`memo.files` stayed empty, `blocked_reads` stayed 0). `Read` is
+  now wired into the matcher (`hooks.json` + `plugin.json`). Added mtime-based cache
+  invalidation (external Bash/git edits no longer serve stale content), a
+  session-start memo reset (a fresh session's first read is never blocked),
+  partial-read (`offset`/`limit`) handling (no false blocks / cache poisoning), and
+  `ensureMemo` hardening against partial-corrupt state (no `NaN`/throw). Blocked
+  reads now count toward session activity.
+- **Delegation Enforcer now recognizes real delegation payloads.** The stats gate
+  fired only on a `Agent` tool name and read `agent`/`name`, so the real `Task` tool
+  with `tool_input.subagent_type` was missed and `delegationStats` never moved. The
+  gate now accepts `Task` (and `Agent`) and reads `subagent_type`/`subagentType`.
+- **Token accounting no longer inverts input/output.** The size-estimate fallback
+  charged `tool_response` (content returned to the model = input) to `output_tokens`
+  and `tool_input` (model-produced) to `input_tokens` — backwards, which inflated
+  output ~5×. Directions corrected; structured `tool_response` is JSON-coerced to
+  avoid `"[object Object]"` undercount.
+
+### Documentation
+
+- **SIVS gate engine ownership and per-scope config authority documented**
+  (Phase 5 / `sivs-gate-consolidation` D-f876457e-1). Resolves the mismatch
+  between codex-head profile declarations and actual gate execution engines.
+  Key findings:
+  - G3 Verify and G5 Supervise are **mixed-engine** under `codex-head`:
+    DA/Merge Blocker auto-upgrade to Codex via `Qcritical-review` protocol;
+    Security Auditor, Performance Skeptic, Advocate, Judge remain Claude
+    (protocol-owned — SIVS `enforceRouting` does not reach inside
+    `Qcritical-review` spawns). G4 Risk Proof is Claude-only (not in SIVS
+    STAGE_MAP).
+  - SIVS `enforceRouting` hard-blocks only direct Agent spawns
+    (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise,
+    `Ecode-reviewer` → verify); gate protocol sub-agents are protocol-owned.
+  - `loadSivsConfig(cwd)` uses exact-path loading (no walk-up); each repo's
+    `.qe/sivs-config.json` is an independent authority scope — per-scope
+    config is documented design, not a conflict.
+  - Updated: `QE_CONVENTIONS.md` (Codex Runtime Policy), `core/PHILOSOPHY.md`
+    (SIVS Engine Routing), `skills/Qsivs-config/SKILL.md` (per-scope authority).
+  - No SIVS routing code changes; all decisions are `document`/`mixed`.
+  - `docs/SIVS_MEASUREMENT.md` added with before/after call counts and caveats.
+
+- **Phase 5 final measurement** (R008/R009, `sivs-gate-consolidation`):
+  - **Full SIVS cycle calls:** measured = 17회 (Phase 4 upper bound, F-findings
+    remediation rounds included). R009 DoD = ≤ 15. **Verdict: unknown — does NOT
+    satisfy.** The ROADMAP Phase 2 target is not yet achieved; `met` was not forced.
+    Caveat: hook code runs from plugin cache 7.3.9; Phase 5 itself made no code
+    changes to the cycle path.
+  - **Supervise budget:** 6–7 → 4–5 (≤4 without security audit; floor = 5 when
+    `Esecurity-officer` fires). Reduction from findings pipeline (Phase 2 / R002),
+    not routing changes.
+  - **Savings counters** (ContextMemo `blocked_reads`, Delegation Enforcer
+    `autoInjections`): unmeasurable — hook code runs from cache 7.3.9; liveness
+    not proven this session. Deferred to post-reinstall per D-c0127487-1.
+  - **R008:** unmeasurable (qualitative DoD — evidence is D-f876457e-1 decision
+    table, not a numeric measurement).
+
 ### Changed
+
+- **BREAKING — execution skills unified into `Qexecute`.** The three execution skills
+  were hard-replaced by a single `Qexecute` engine that reads the spec and auto-selects
+  its mode (no compatibility shim). Migration map:
+
+  | Removed skill | Now |
+  |---|---|
+  | `Qrun-task {UUID}` | `Qexecute {UUID}` (auto sequential) |
+  | `Qatomic-run {UUID}` | `Qexecute {UUID}` (auto parallel wave) |
+  | `Qcode-run-task {UUID}` | `Qexecute -verify {UUID}` |
+  | `Qutopia` | `Qexecute -utopia` (modifier) |
+  | `Qutopia --work` | `Qexecute -utopia` |
+  | `Qutopia --qa` | `Qexecute -utopia -verify` |
+  | `Qutopia --ralph` | `Qexecute -utopia -ralph` |
+
+  Qexecute classifies sequential vs parallel-wave from the TASK_REQUEST itself
+  (≥5 items, wave width ≥2, non-overlapping file ownership) instead of the caller
+  pre-selecting. The former `Qutopia` autonomous-execution skill was absorbed into
+  the `-utopia` modifier — the safety rails (`utopia-guard.mjs`), state contract
+  (`utopia-state.json` / `ralph-state.json`), and Stop-hook ralph loop are unchanged;
+  only the user-facing invocation moved from `/Qutopia` to `/Qexecute -utopia`.
+  Routing, auto-chaining, docs, agents, core, validators, and the eval case were
+  updated accordingly.
 
 ### Deprecated / Merged skills
 

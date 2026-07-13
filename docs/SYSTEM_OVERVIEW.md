@@ -47,8 +47,8 @@ The public documentation parity pass is summarized in
 ## User Workflow
 
 ```
-Claude: /Qinit → /Qcontext init → /Qplan → /Qgs → /Qatomic-run → /Qcode-run-task
-Codex:  $Qinit → $Qcontext init → $Qplan → $Qgs → $Qatomic-run → $Qcode-run-task
+Claude: /Qinit → /Qcontext init → /Qplan → /Qgs → /Qexecute → /Qexecute -verify
+Codex:  $Qinit → $Qcontext init → $Qplan → $Qgs → $Qexecute → $Qexecute -verify
         Setup     Context          Plan     Spec    Execute       Verify
 ```
 
@@ -58,8 +58,8 @@ Codex:  $Qinit → $Qcontext init → $Qplan → $Qgs → $Qatomic-run → $Qcod
 | Context | `/Qcontext init` | `$Qcontext init` | Set up folder-aware context partitioning |
 | Plan | `/Qplan` | `$Qplan` | Create roadmap, phases, requirements |
 | Spec | `/Qgs` | `$Qgs` | Generate TASK_REQUEST + VERIFY_CHECKLIST |
-| Execute | `/Qatomic-run` | `$Qatomic-run` | Implement via parallel Haiku Wave |
-| Verify | `/Qcode-run-task` | `$Qcode-run-task` | Test → review → fix quality loop |
+| Execute | `/Qexecute` | `$Qexecute` | Implement via parallel Haiku Wave |
+| Verify | `/Qexecute -verify` | `$Qexecute -verify` | Test → review → fix quality loop |
 
 ---
 
@@ -107,7 +107,11 @@ prefer Codex by default while Spec and Supervise stay Claude-led:
 }
 ```
 
-Managed via `/Qsivs-config` on Claude or `$Qsivs-config` on Codex. Falls back to Claude if codex-plugin-cc is not installed.
+Managed via `/Qsivs-config` on Claude or `$Qsivs-config` on Codex. Claude-base
+sessions delegate Codex stages through `codex_bridge.mjs` / `codex-plugin-cc`;
+Codex-base sessions delegate Claude stages through `claude_bridge.mjs` /
+`Qclaude-rescue` when available. `qe-mcp` runner tools are compatibility-only
+and not the default execution path.
 
 ---
 
@@ -234,11 +238,11 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->31<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->28<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
-| Core PSE | 6 | Qplan, Qgs, Qatomic-run, Qrun-task, Qcode-run-task, Qinit |
+| Core PSE | 6 | Qplan, Qgs, Qexecute, Qexecute, Qexecute -verify, Qinit |
 | Context & Config | 5 | Qcontext, Qsivs-config, Qrefresh, Qmemory, Qcompact |
 | Research | 3 | Qautoresearch, Qfact-checker, Qsource-verifier |
 | Other | 41 | `Qhelp find` or `Qhelp` to discover |

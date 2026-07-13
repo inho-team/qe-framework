@@ -46,13 +46,13 @@ QE Framework (Query Executor) — Quick Reference
 
 WORKFLOW
   /Qgenerate-spec          Create task spec documents
-  /Qrun-task [UUID]        Execute tasks with verification ($Qrun-task on Codex)
+  /Qexecute [UUID]        Execute tasks with verification ($Qexecute on Codex)
   /Qcommit                 Commit & push (human-style, no AI traces)
   /Qupdate                 Update QE (Claude + Codex) and codex-plugin-cc bridge
-  /Qutopia [on|off]        Toggle fully autonomous mode ($Qutopia on Codex)
+  /Qexecute -utopia [on|off]        Toggle fully autonomous mode ($Qexecute -utopia on Codex)
 
 DEVELOPMENT
-  /Qcode-run-task          Quality loop: test → review → fix ($Qcode-run-task on Codex)
+  /Qexecute -verify          Quality loop: test → review → fix ($Qexecute -verify on Codex)
   /Qmcp setup              MCP server setup + building guide
   /Qmcp ensure             Install/verify QE MCP companion preflight
 

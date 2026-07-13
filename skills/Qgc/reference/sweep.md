@@ -119,7 +119,7 @@ detection.
 
 ## Related skills
 - **Qgc archive** - archives checkbox-complete pending tasks only; kept aligned
-  with `Qarchive` for backward compatibility and auto-trigger from Qrun-task
+  with `Qarchive` for backward compatibility and auto-trigger from Qexecute
 - **Qgc analyze** - code-level garbage collection (doc-code drift, dead code);
   separate concern
 - **Qrefresh** - refreshes `.qe/analysis/`; not a cleanup tool

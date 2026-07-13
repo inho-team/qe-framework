@@ -81,7 +81,12 @@ export function getAgentRecommendedModel(cwd, agentName) {
  * @returns {{ action: 'allow'|'inject'|'warn', model: string|null, message: string }}
  */
 export function checkDelegation(cwd, toolInput) {
-  const agentName = toolInput.agent || toolInput.agentName || toolInput.name || '';
+  // The real Claude Code delegation payload is the Task tool with
+  // `tool_input.subagent_type`. Older/other runtimes may use `agent`/`agentName`/
+  // `name`. Accept all so a schema mismatch never silently no-ops the enforcer.
+  const agentName =
+    toolInput.subagent_type || toolInput.subagentType ||
+    toolInput.agent || toolInput.agentName || toolInput.name || '';
   if (!agentName) {
     return { action: 'allow', model: null, message: '' };
   }

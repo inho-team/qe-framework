@@ -35,6 +35,19 @@ Fallback / degradation:
 
 ## Will
 - **Minimal I/O Rule**: Use **ContextMemo** hints. Do NOT re-read specs if `supervision_context` is provided.
+- **Findings pipeline (Phase 2 / R002)**: read the Verify findings stream
+  (`.qe/agent-results/verify-findings-{UUID}.jsonl` via
+  `hooks/scripts/lib/findings-ledger.mjs`), fold it, and inject the canonical
+  findings into the domain-audit input. Treat a finding as already-reviewed (skip
+  re-running `Ecode-reviewer`/`Ecode-test-engineer` on it) ONLY when its `file` is
+  unchanged since Verify recorded it. This removes the cross-stage re-audit (the
+  real duplication) without dropping coverage — carried-forward findings still
+  count. See `skills/Qcritical-review/reference/supervise-gate-protocol.md`
+  §"Findings pipeline".
+- **Single adversarial owner**: this orchestrator does NOT run an independent
+  adversarial judgment. Adversarial merge-readiness is owned solely by
+  `Qcritical-review --stage supervise`; the orchestrator does domain audit +
+  grade aggregation and maps Qcritical's verdict (DECISION_LOG D-55a051bd-1).
 - Read `core/supervision-domains.yaml` and load the domain profile that matches the task type.
 - Walk every severity category in the selected profile and grade matched findings.
 - For code tasks, delegate deep review work to **Ecode-reviewer** and **Ecode-test-engineer** in parallel before synthesis.
@@ -128,7 +141,7 @@ first = Verify). The remediation re-enters the loop at that stage. Honors the
 "escalate after 3 iterations" cap; after 3 rounds still FAIL → escalate to user.
 
 ### 4. Reporting & Remediation
-- Return structured summary to **Qrun-task**.
+- Return structured summary to **Qexecute**.
 - If FAIL: Draft remediation content according to `core/REMEDIATION_REQUEST_FORMAT.md`.
 
 ## Output Format

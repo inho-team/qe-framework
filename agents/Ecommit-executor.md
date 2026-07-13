@@ -13,7 +13,7 @@ Never leaves AI traces (e.g., Co-Authored-By).
 
 ## Invocation Conditions
 - **Manual**: When delegated by the Qcommit skill
-- **Automatic**: For auto-commit after Qrun-task completion
+- **Automatic**: For auto-commit after Qexecute completion
 
 ## Execution Steps
 1. Identify changes with `git status`, `git diff`
@@ -60,6 +60,111 @@ Never leaves AI traces (e.g., Co-Authored-By).
       command and retry.
     - Present-but-empty / whitespace-only / non-string `command` is also fail-closed,
       so never write a blank binding — either bind the real command or omit the field.
+
+## R006 Staging Procedure (apply before Step 5)
+
+### Explicit-Path-Only Staging Rule
+**Never** use broad staging forms. The following are prohibited:
+
+```bash
+# PROHIBITED — broad staging
+git add .
+git add ./
+git add ..
+git add -A
+git add --all
+git add -u
+git add *.js          # glob
+git add "*.js"        # quoted glob (git uses wildmatch)
+git add :/            # pathspec magic
+git add -A -- src/    # -A present = broad, even with path limiter
+git add -p            # interactive (hook-context hang risk)
+git add -i            # interactive (hook-context hang risk)
+```
+
+Always stage with explicit paths:
+
+```bash
+# CORRECT — explicit path staging
+git add src/file.js hooks/scripts/lib/guard.mjs
+git add -- path/to/file.js another/file.md
+```
+
+The `/Qcommit` skill itself applies this rule: when delegating staging to
+`Ecommit-executor`, `/Qcommit` uses selective explicit-path staging only.
+
+### Staging Verification
+After staging, verify the index contains exactly the intended files:
+
+```bash
+git status --short          # confirm staged (green) vs unstaged (red)
+git diff --cached --name-only  # list only staged files
+```
+
+If unexpected files appear staged, unstage them before committing:
+
+```bash
+git restore --staged <unintended-file>
+```
+
+### Stale `index.lock` Procedure
+If a git operation fails with `fatal: Unable to lock the index`, follow this
+**judgment → confirmation → removal** sequence. Do NOT remove the lock
+automatically without completing all three steps.
+
+**Step 1 — Judgment** (machine check via guard lib CLI):
+```bash
+# Check if the lock is stale and get structured verdict (recoverable|wait|no-lock)
+node hooks/scripts/lib/git-staging-guard.mjs --lock-check [cwd]
+# Prints: exists, ageMs, ownerProcess, stale, reason, verdict — exits 0.
+# Use the verdict field: "recoverable" → safe to proceed to Step 2.
+#                        "wait" → not stale yet, do not remove.
+#                        "no-lock" → lock absent, no action needed.
+```
+
+To assess the lock programmatically, call `gatherLockFacts(cwd)` then
+`judgeStaleLock(facts)` from `hooks/scripts/lib/git-staging-guard.mjs`.
+Recovery requires ALL of:
+- `index.lock` exists
+- `ageMs >= 120000` (120 seconds old)
+- `ownerProcess === 'none'` (no git process found by `ps` heuristic)
+
+Non-recovery cases (do NOT remove):
+- `ownerProcess === 'unknown'` — ps unavailable or failed
+- `ageMs === 0` — future mtime (clock skew)
+- `ageMs === null` — stat failed
+- `ownerProcess === 'git'` — git is actively using the lock
+
+**Step 2 — Confirmation** (human or agent decision):
+Report the judgment result and await explicit confirmation before proceeding.
+Never auto-remove; this is a mediated step.
+
+**Step 3 — Removal** (only after confirmed stale):
+```bash
+rm -f .git/index.lock
+```
+
+Then retry the git operation. If it fails again, re-run the judgment — do not
+remove blindly on a second failure.
+
+### Retry Conditions
+Retry a failed `git add` or `git commit` only when:
+1. The failure reason is non-guard (e.g. "nothing to commit", pre-commit hook)
+2. For lock errors: only after completing the full judgment → confirmation → removal sequence
+
+If `git commit` was blocked by the QE hook guard and you retry, re-create the
+`skill-bypass.json` flag with the Write tool before each retry (the one-shot
+flag is consumed on first use).
+
+### Deployment Note
+This document is deployed in the same commit as the `hooks/scripts/lib/git-staging-guard.mjs`
+gate. The gate and its operational procedure are always in sync — neither
+is deployed without the other.
+
+> Machine verification of staging commands is performed by the guard lib CLI:
+> `node hooks/scripts/lib/git-staging-guard.mjs --check "<command>"`
+> exit 0 = pass/warn, exit 1 = block. The document describes the procedure;
+> the lib performs the judgment.
 
 ## Conventional Commit Validation (Step 4)
 

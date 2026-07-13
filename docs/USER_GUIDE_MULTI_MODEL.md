@@ -9,8 +9,8 @@ Most users only need:
 ```text
 /Qinit
 /Qplan
-/Qatomic-run
-/Qcode-run-task
+/Qexecute
+/Qexecute -verify
 ```
 
 ## Install
@@ -71,7 +71,7 @@ This creates the project planning context and active execution path.
 Run:
 
 ```text
-/Qatomic-run
+/Qexecute
 ```
 
 This performs the implementation step.
@@ -81,7 +81,7 @@ This performs the implementation step.
 Run:
 
 ```text
-/Qcode-run-task
+/Qexecute -verify
 ```
 
 This performs review, fix loops, and the final verification gate.
@@ -120,8 +120,8 @@ Think of QE like this:
 
 - `/Qinit` sets up who does what
 - `/Qplan` prepares the work
-- `/Qatomic-run` executes the work
-- `/Qcode-run-task` checks whether the work is actually done
+- `/Qexecute` executes the work
+- `/Qexecute -verify` checks whether the work is actually done
 
 This can be done through:
 

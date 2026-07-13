@@ -9,8 +9,8 @@ QE Framework 是同时面向 Claude Code 和 Codex 的规范驱动任务执行�
 基础流程:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 本文档是中文入口页。更详细的内容已经按主题拆分到独立文档中。
@@ -28,7 +28,7 @@ Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 
 - `single-model`
   - 只使用 Claude 的默认路径
-  - `/Qatomic-run` 使用 Haiku swarm 方式执行 atomic tasks
+  - `/Qexecute` 使用 Haiku swarm 方式执行 atomic tasks
 - `hybrid`
   - 只有部分角色使用外部 runner
 - `multi-model`
@@ -85,8 +85,8 @@ $Qinit
 3. 启动工作流
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qatomic-run -> /Qcode-run-task
-Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
+Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
+Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
 ```
 
 ## 说明
@@ -94,9 +94,9 @@ Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 - 如果 Codex 或 Gemini 因 quota 限制暂时不可用，可以使用 `--role-override` 做一次性重分配。
 - 这个 override 只影响当前运行，不会修改 `team-config.json`。
 
-## ⚠️ 自主执行模式 (`/Qutopia` / `$Qutopia`)
+## ⚠️ 自主执行模式 (`/Qexecute -utopia` / `$Qexecute -utopia`)
 
-`Qutopia` 是一个会话开关，会**跳过所有确认提示**并自动推进。Claude 使用 `/Qutopia`，Codex 使用 `$Qutopia`。任务会加速完成，但也会带来提交错误文件、直接向 `main` push 等风险。
+`Qexecute -utopia` 是一个会话开关，会**跳过所有确认提示**并自动推进。Claude 使用 `/Qexecute -utopia`，Codex 使用 `$Qexecute -utopia`。任务会加速完成，但也会带来提交错误文件、直接向 `main` push 等风险。
 
 **启用前必须确认**:
 1. 需求是否明确（存在原子化的 checklist）
@@ -105,4 +105,4 @@ Codex:  $Qplan -> $Qgs -> $Qatomic-run -> $Qcode-run-task
 4. 不是共享分支（`main`/`master`）
 5. 是否接受自动提交与自动迭代
 
-完整指南及建议的开关使用模式请参阅 [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling)。**会话结束前 Claude 执行 `/Qutopia off`，Codex 执行 `$Qutopia off`**。
+完整指南及建议的开关使用模式请参阅 [USAGE_GUIDE.md §10](USAGE_GUIDE.md#10-autonomous-mode-qutopia--%EF%B8%8F-read-before-enabling)。**会话结束前 Claude 执行 `/Qexecute -utopia off`，Codex 执行 `$Qexecute -utopia off`**。

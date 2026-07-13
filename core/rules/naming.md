@@ -36,7 +36,7 @@ Complements PRINCIPLES.md "Code Quality Principles" (KISS). This file provides n
 
 ## QE-Specific Naming
 
-- Skills: `Q` prefix + PascalCase action: `Qinit`, `Qcommit`, `Qrun-task`
+- Skills: `Q` prefix + PascalCase action: `Qinit`, `Qcommit`, `Qexecute`
 - Agents: `E` prefix + PascalCase role: `Ecommit-executor`, `Ecode-reviewer`
 - Core files: descriptive UPPER_SNAKE_CASE: `PRINCIPLES.md`, `INTENT_GATE.md`
 - Hook scripts: kebab-case: `pre-tool-use.mjs`, `session-start.mjs`
