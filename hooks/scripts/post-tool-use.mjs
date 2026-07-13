@@ -10,6 +10,7 @@ import { loadConfig } from './lib/config.mjs';
 import { checkComments, isCheckableFile } from './lib/comment-checker.mjs';
 import { runLint, isLintableFile } from './lib/lint-runner.mjs';
 import { deriveBuildLockMetadata, isHeavyBuildCommand, releaseBuildLock } from './lib/build-admission.mjs';
+import { renderSkillCommand } from '../../scripts/lib/interaction_adapter.mjs';
 
 // --- Fail-open safety net ---
 // A PostToolUse error must never wedge the session. PostToolUse only emits soft hints
@@ -57,6 +58,8 @@ try {
 // payload carried an explicit cwd/workdir.
 const cwd = data.cwd || data.directory || getCwd(data);
 const cfg = loadConfig(cwd);
+const client = data.client || process.env.QE_CLIENT || 'claude';
+const skillCommand = (skillName, args = '') => renderSkillCommand(skillName, args, { client });
 const toolName = data.tool_name || data.toolName || '';
 const isError = data.tool_response?.includes?.('error') ||
                 data.tool_response?.includes?.('Error') ||
@@ -198,7 +201,7 @@ if (isError) {
   if (recentCount >= cfg.error_delegate_count) {
     hints.push(`${toolName} tool failed ${recentCount}+ times in error window. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
   } else if (recentCount >= cfg.error_escalate_count) {
-    hints.push(`${toolName} tool failed ${recentCount} times in error window. Consider using /Qsystematic-debugging to find the root cause before retrying.`);
+    hints.push(`${toolName} tool failed ${recentCount} times in error window. Consider using ${skillCommand('Qsystematic-debugging')} to find the root cause before retrying.`);
   }
 } else if (state.tool_errors) {
   // Success - clear error tracking for this tool
@@ -233,7 +236,7 @@ if (['Write', 'Edit'].includes(toolName)) {
       const s = state.session_stats;
 
       if (!s._agentation_hinted) {
-        hints.push('Frontend file modified. Use /Qagentation or /Qvisual-qa for visual verification.');
+        hints.push(`Frontend file modified. Use ${skillCommand('Qagentation')} or ${skillCommand('Qvisual-qa')} for visual verification.`);
         s._agentation_hinted = true;
       }
     }

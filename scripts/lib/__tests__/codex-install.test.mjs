@@ -171,13 +171,18 @@ test('(b3) reinstall purges legacy QE skills before copying current assets', (t)
   const homeDir = makeCodexHome();
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
-  const legacyDir = path.join(homeDir, '.codex', 'skills', 'Mrelease');
-  fs.mkdirSync(legacyDir, { recursive: true });
-  fs.writeFileSync(path.join(legacyDir, 'SKILL.md'), 'legacy release skill', 'utf8');
+  const legacyDirs = ['Mrelease', 'Qrun-task', 'Qcode-run-task', 'Qatomic-run']
+    .map((name) => path.join(homeDir, '.codex', 'skills', name));
+  for (const legacyDir of legacyDirs) {
+    fs.mkdirSync(legacyDir, { recursive: true });
+    fs.writeFileSync(path.join(legacyDir, 'SKILL.md'), 'legacy execution skill', 'utf8');
+  }
 
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
 
-  assert.ok(!fs.existsSync(legacyDir), 'legacy Mrelease skill removed during reinstall');
+  for (const legacyDir of legacyDirs) {
+    assert.ok(!fs.existsSync(legacyDir), `legacy ${path.basename(legacyDir)} skill removed during reinstall`);
+  }
   assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qupdate')), 'current Qupdate skill installed');
 });
 

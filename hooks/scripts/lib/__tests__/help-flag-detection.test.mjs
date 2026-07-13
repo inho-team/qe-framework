@@ -35,6 +35,12 @@ test('Pattern /Qcommit --help matches', () => {
   assert.strictEqual(result.skillName, 'Qcommit');
 });
 
+test('Pattern $Qcommit --help matches for Codex', () => {
+  const result = parseHelpFlag('$Qcommit --help');
+  assert.strictEqual(result.matched, true);
+  assert.strictEqual(result.skillName, 'Qcommit');
+});
+
 test('Pattern /Qversion -h matches', () => {
   const result = parseHelpFlag('/Qversion -h');
   assert.strictEqual(result.matched, true);
