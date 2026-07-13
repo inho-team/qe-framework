@@ -107,7 +107,11 @@ prefer Codex by default while Spec and Supervise stay Claude-led:
 }
 ```
 
-Managed via `/Qsivs-config` on Claude or `$Qsivs-config` on Codex. Falls back to Claude if codex-plugin-cc is not installed.
+Managed via `/Qsivs-config` on Claude or `$Qsivs-config` on Codex. Claude-base
+sessions delegate Codex stages through `codex_bridge.mjs` / `codex-plugin-cc`;
+Codex-base sessions delegate Claude stages through `claude_bridge.mjs` /
+`Qclaude-rescue` when available. `qe-mcp` runner tools are compatibility-only
+and not the default execution path.
 
 ---
 

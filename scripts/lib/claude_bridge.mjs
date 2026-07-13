@@ -6,9 +6,10 @@ import { buildDelegationContext, loadSivsConfig } from './codex_bridge.mjs';
 
 export { buildDelegationContext, loadSivsConfig };
 
-// Reverse-path parity note: the artifact context builder is shared via
-// codex_bridge.mjs buildDelegationContext. Reverse delegation remains soft
-// (skill-invoked) because Codex hooks cannot mutate input.
+// Reverse-path parity note: artifact context is shared via codex_bridge.mjs.
+// Codex->Claude execution is owned here/Qclaude-rescue, not by qe-mcp runner
+// tools. Use argv-style execution for prompts; command strings are display
+// metadata only.
 
 /**
  * Check if Claude CLI is available on PATH
@@ -49,27 +50,23 @@ export function isClaudeCliAuthenticated() {
  * Get claude command for a given SIVS stage
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
  * @param {object} options - { model?: string, background?: boolean }
- * @returns {object} { command: string, description: string }
+ * @returns {object} { command: string, argv: string[], description: string }
  */
 export function getClaudeCommand(stage, options = {}) {
-  let command = '';
+  const argv = ['claude', '-p'];
   let description = '';
 
   switch (stage) {
     case 'spec':
-      command = 'claude -p';
       description = 'Delegate spec generation to Claude';
       break;
     case 'implement':
-      command = 'claude -p';
       description = 'Delegate implementation to Claude';
       break;
     case 'verify':
-      command = 'claude -p';
       description = 'Delegate verification to Claude';
       break;
     case 'supervise':
-      command = 'claude -p';
       description = 'Delegate review to Claude';
       break;
     default:
@@ -78,13 +75,13 @@ export function getClaudeCommand(stage, options = {}) {
 
   // Add optional flags
   if (options.model) {
-    command += ` --model ${options.model}`;
+    argv.push('--model', String(options.model));
   }
   if (options.background) {
-    command += ' --background';
+    argv.push('--background');
   }
 
-  return { command, description };
+  return { command: argv.join(' '), argv, description };
 }
 
 /**

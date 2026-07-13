@@ -326,7 +326,10 @@ Codex:  $Qexecute -utopia status
 Optional expert-library MCP guidance is distributed separately from this
 framework package at `https://github.com/inho-team/qe-mcp`. Install or sync that
 package when you need `qe_search_experts`, `qe_read_expert`, or
-`qe_expert_prompt` without increasing the default QE Framework install size.
+`qe_read_methodology` without increasing the default QE Framework install size.
+Cross-engine execution is owned by the framework bridge layer; `qe-mcp` runner
+tools are compatibility-only and hidden unless `QE_MCP_EXPOSE_RUNNERS=1` is set
+before starting the MCP server.
 
 ## 10. Secret Management
 

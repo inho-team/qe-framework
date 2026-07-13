@@ -40,20 +40,25 @@ is unavailable:
 engine used. Homogeneous profiles (`all-claude` / `all-codex`) never trigger
 fallback because both roles target the same engine.
 
-## Cross-engine invocation (MCP only)
+## Cross-engine invocation (bridge-owned)
 When the Head engine must call the Body engine (or vice versa) — e.g. a
 Claude-led Supervise stage asking Codex for a second-opinion review, or a
 Codex-led Spec stage asking Claude to resolve an ambiguity — route the call
-**through the qe-mcp expert-library MCP tools**, never a direct CLI shell-out:
+through the framework bridge layer:
 
-- `mcp__qeExpertLibrary__qe_run_codex_agent` — invoke Codex
-- `mcp__qeExpertLibrary__qe_run_claude_agent` — invoke Claude
-- `mcp__qeExpertLibrary__qe_delegate_agent` — engine-agnostic (`target_engine`)
+- Claude base → Codex target: `scripts/lib/codex_bridge.mjs` /
+  `codex-plugin-cc`.
+- Codex base → Claude target: `scripts/lib/claude_bridge.mjs` /
+  `Qclaude-rescue`.
 
-These carry `call_depth` / `call_chain_id` / `origin_engine` recursion guards and
-a `max_concurrent_runs: 1` bound. **Do not** invoke `codex-companion.mjs` (or any
-`node .../scripts/*.mjs` runner) directly for cross-engine work; direct library
-shell-outs bypass the recursion guard and the audit trail.
+`qe-mcp` runner tools (`qe_run_codex_agent`, `qe_run_claude_agent`,
+`qe_delegate_agent`) are compatibility-only. They are hidden in default passive
+MCP mode and appear only when `QE_MCP_EXPOSE_RUNNERS=1` is set before the MCP
+server starts. Do not describe those tools as the canonical SIVS route.
+
+Do not invoke `codex-companion.mjs` or arbitrary `node .../scripts/*.mjs`
+runners directly for cross-engine work. Use the bridge APIs above so fallback,
+artifact context, and audit wording stay centralized.
 
 ## Per-Scope Config Authority (Phase 5 / D-f876457e-1)
 

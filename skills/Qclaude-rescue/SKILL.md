@@ -8,7 +8,7 @@ recommendedModel: haiku
 # Qclaude-rescue — Codex-to-Claude SIVS Stage Delegation
 
 ## Role
-Acts as the base=codex counterpart of `/codex:rescue`. Invoke this skill inside a Codex session when a SIVS stage whose configured engine is `claude` must be delegated to the local Claude CLI.
+Acts as the base=codex counterpart of `/codex:rescue`. Invoke this skill inside a Codex session when a SIVS stage whose configured engine is `claude` must be delegated to the framework-owned Claude bridge. The current canonical runtime baseline is `scripts/lib/claude_bridge.mjs` using Claude Code CLI non-interactive mode (`claude -p`).
 
 ## Routing Procedure
 Resolve the configured engine for the current SIVS stage from the Codex base session:
@@ -22,7 +22,7 @@ Replace `verify` with the current SIVS stage (`spec`, `implement`, `verify`, or 
 
 Branch on the resolved result:
 
-- If `r.engine === 'claude'`: run `r.command` as a `claude -p` invocation, passing the task prompt as an argument, for example `claude -p "<prompt>"`.
+- If `r.engine === 'claude'`: run the returned command through argv-style execution. Prefer `r.command.argv` when present; otherwise use `r.command.command` only as display metadata and pass the task prompt as a separate argv value to `claude -p`.
 - If `r.engine === 'codex'`: do NOT delegate. The Codex session handles the stage solo; print `r.warning` if present.
 
 ## Per-Stage Delegation Prompts
@@ -39,7 +39,7 @@ BRIDGE="./scripts/lib/claude_bridge.mjs"; [ -f "$BRIDGE" ] || BRIDGE="$HOME/.cod
 STAGE=verify TASK_PATH=".qe/tasks/pending/TASK_REQUEST.md" CHECKLIST_PATH=".qe/checklists/pending/VERIFY_CHECKLIST.md" node -e 'import(process.argv[1]).then(m => { const stage = process.env.STAGE; if (!stage) throw new Error("STAGE is required"); const r = m.buildReverseDelegationPayload(stage, { taskPath: process.env.TASK_PATH, checklistPath: process.env.CHECKLIST_PATH, cwd: process.cwd() }); console.log(JSON.stringify(r)); })' "$BRIDGE"
 ```
 
-Prepend the returned `context` to the selected stage prompt, then pass the enriched prompt as the single task argument to `claude -p`.
+Prepend the returned `context` to the selected stage prompt, then pass the enriched prompt as the single task argv to `claude -p`. Never build a shell command by interpolating the prompt.
 
 ## Distinction from ask-claude (OMX)
 `Qclaude-rescue` and `ask-claude` are separate skills with different names and roles. `Qclaude-rescue` is a QE skill for SIVS-stage-aware reverse delegation from Codex to Claude. `ask-claude` is an OMX skill for generic ad-hoc questions to Claude. They coexist without conflict. QE does NOT absorb or replace `ask-claude`.
@@ -50,4 +50,4 @@ When a Codex base session reaches a SIVS stage whose configured engine is 'claud
 Physical installation into `~/.codex/skills` is handled by `installCodexAssets` in Phase 3.
 
 ## Security Note
-Never interpolate untrusted task text into a shell string. Always pass it as a single argv to `claude -p`.
+Never interpolate untrusted task text into a shell string. Always pass it as a single argv to `claude -p`. Authentication and budget handling remain owned by local Claude Code CLI behavior and `claude_bridge.mjs` fallback reporting.

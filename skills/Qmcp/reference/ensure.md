@@ -7,7 +7,7 @@ subcommand: Qmcp ensure
 
 ## Role
 Ensure the external `@inho-team/qe-mcp` companion is available before a QE skill
-depends on MCP expert lookup, registry sync, or cross-agent runner tools.
+depends on MCP expert lookup or registry sync.
 
 This subcommand is intentionally small and idempotent. It centralizes the install
 and registry preflight so other QE skills do not duplicate npm/MCP setup logic.
@@ -21,7 +21,14 @@ Run this preflight before QE workflows that need the MCP companion, especially:
 - `Qgs` / `Qgenerate-spec`
 - `Qmcp sync`
 - any Q skill that intends to use `qe_search_experts`, `qe_read_expert`,
-  `qe_run_codex_agent`, `qe_run_claude_agent`, or `qe_cross_agent_help`
+  `qe_read_methodology`, `qe_recommend_expert`, `qe_cross_agent_help`, or
+  `qe_analyze_qe_artifacts`
+
+Runner tools in `qe-mcp` are compatibility-only. They are hidden unless the MCP
+server starts with `QE_MCP_EXPOSE_RUNNERS=1`, and they are not the canonical
+Claude↔Codex execution path. Cross-engine execution belongs to the framework
+bridge layer (`codex_bridge.mjs`, `claude_bridge.mjs`, and the relevant QE
+skills).
 
 Skip only when the current task is explicitly offline/no-install, or when the
 skill only needs local files and will not use the MCP companion.
@@ -102,7 +109,7 @@ Qmcp ensure: PASS
 Qmcp ensure: WARN
 - Package: missing or stale
 - Reason: {npm metadata unavailable | sync preview unavailable | permission issue}
-- Caller may continue only without MCP-backed expert lookup/runner tools.
+- Caller may continue only without MCP-backed expert lookup.
 ```
 
 ```text
