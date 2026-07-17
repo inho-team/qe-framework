@@ -18,6 +18,11 @@ const DEFAULTS = {
   // may reflect a different codebase state after overnight changes.
   analysis_freshness_ms: 24 * 60 * 60 * 1000,  // 24 hours — .qe/analysis/ freshness
 
+  // [why default true]: local collected skill expiry hints are read-only and
+  // perform no network I/O, writes, or background execution. They only tell the
+  // user when generated local skill frontmatter has passed its TTL.
+  skill_expiry_hint_enabled: true,
+
   // [why default true]: when .qe/analysis/ is stale, the session-start hook spawns a
   // detached headless `claude -p /Qrefresh` on the Haiku model so analysis self-heals
   // without the user running /Qrefresh manually. Permissions are NOT bypassed — the

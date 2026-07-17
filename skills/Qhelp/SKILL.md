@@ -58,6 +58,7 @@ DEVELOPMENT
 
 TASK MANAGEMENT
   /Qinit                   Initialize QE in a project
+  /Qcollect-skill          Collect verified local stack skills into .claude/skills/
   /Qrefresh                Refresh project analysis
   /Qresume                 Restore previous session context
   /Qcompact                Save context / session handoff ($Qcompact on Codex)

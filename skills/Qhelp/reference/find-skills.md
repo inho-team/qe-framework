@@ -7,6 +7,7 @@ Searches the skills.sh ecosystem for skills, analyzes the original SKILL.md, and
 - "Find me a skill", "find a skill for X", "Is there a skill for X?"
 - "Search skills.sh for me"
 - When the user wants a skill for a specific domain (design, testing, deployment, etc.)
+- For project-stack guidance that should stay local to the current repo, prefer `/Qcollect-skill`.
 
 ## Workflow
 

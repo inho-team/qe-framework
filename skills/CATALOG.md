@@ -34,6 +34,7 @@
 | `/Qplan` | When a multi-phase project roadmap or high-level strategic planning is needed. | Manages PROJECT.md, ROADMAP.md and phases within .qe/planning/. |
 | `/Qcontext` | When managing folder-aware context memory (create, refresh, status). | Optimizes Claude's context window by loading only relevant folder context. |
 | `/Qinit` | When starting a new project or initializing the QE framework. | Sets up directory structure, conventions, and core configuration. |
+| `/Qcollect-skill` | When project-local stack guidance should be collected or refreshed. | Creates verified `.claude/skills/` guidance with TTL and user-edit protection. |
 | `/Qmcp sync` | When MCP settings should be compared or shared across Claude, Codex, and Gemini. | Previews and guides named MCP server config changes while preserving unrelated servers. |
 | `/Qmcp ensure` / `$Qmcp ensure` | When a workflow needs to check MCP client/server status before using tools. | Checks MCP config readability, server command availability, and stale registrations. |
 | `/Qsecret` | When API keys or tokens must be stored or used safely. | Keeps plaintext secrets out of the repo while supporting secure env injection. |
@@ -55,4 +56,5 @@
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
 | `/Qautoresearch` | When deep domain knowledge or external API research is needed. | Automates technical research and summarizes findings. |
+| `/Qcollect-skill` | When a project needs local coding guidance for its detected stack. | Uses Edeep-researcher evidence and stores generated local skills outside the framework payload. |
 ---

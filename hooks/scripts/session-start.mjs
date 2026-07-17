@@ -25,6 +25,7 @@ import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
 import { maybeSpawnRefresh, ensurePeriodicRefresh } from './lib/auto-refresh.mjs';
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
+import { collectExpiredSkillHints, formatExpiredSkillHint } from './lib/skill-expiry-hint.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 // Read fd 0 directly. `/dev/stdin` re-opens the pipe and can read empty on Linux CI
@@ -238,6 +239,16 @@ if (currentSid) {
       messages.push(`Previous session context saved. Restore with \`${skillCommand('Qresume')}\`.`);
     }
   }
+}
+
+// Check 4: collected local skill expiry hint. Read-only and fail-open: this
+// inspects only .claude/skills/*/SKILL.md scalar frontmatter, never tech-stack.md,
+// and does not spawn, write, or perform network I/O.
+try {
+  const hint = formatExpiredSkillHint(collectExpiredSkillHints(cwd, cfg), COMMAND_PREFIX);
+  if (hint) messages.push(hint);
+} catch {
+  // Fault tolerance — local skill expiry hints must never block SessionStart.
 }
 
 // --- ALWAYS TIER (continued) ---

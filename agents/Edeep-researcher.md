@@ -57,6 +57,27 @@ Indicate confidence level for each conclusion:
 - List of sources
 - Areas requiring further investigation
 
+## Local Skill Collection Prompt
+
+When invoked by `Qcollect-skill`, produce a collection-ready research packet:
+
+1. Prefer official documentation first. Use vendor/framework docs before blogs or community content.
+2. Record every source as `{ url, published_at }`. If a source has no reliable `published_at`, mark it unusable for saved frontmatter evidence and find a dated replacement.
+3. Compare conflicting claims explicitly. Include empty `conflicting_claims: []` only when no conflict was found after checking at least two credible sources.
+4. Run a Devil's Advocate pass that challenges the proposed guidance for outdated APIs, unsafe commands, install/delete side effects, credential handling, and version drift.
+5. Return the proposed skill body separately from metadata. Metadata must include `source`, `ttl_days`, and:
+
+```yaml
+verification:
+  devils_advocate_ran: true
+  sources:
+    - url: https://official.example/docs
+      published_at: 2026-07-01
+  conflicting_claims: []
+```
+
+If dated sources cannot be found, report failure instead of producing a skill. The writer rejects empty `sources` or missing `published_at`.
+
 > Base patterns: see core/AGENT_BASE.md
 
 ## Will

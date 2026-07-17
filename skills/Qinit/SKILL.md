@@ -261,6 +261,7 @@ If `.gitignore` does not exist, create it; if it does, add only missing entries 
 ```gitignore
 # QE Framework / client-local state
 .claude/settings-local.json
+.claude/skills/
 .qe/tasks/
 .qe/checklists/
 .qe/analysis/
