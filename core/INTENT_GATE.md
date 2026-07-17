@@ -54,6 +54,29 @@ When the same domain has both a skill and an agent:
 - "write tests" / "test coverage" / "add unit tests" → Ecode-test-engineer (execution)
 - Quality loop is handled internally by Qexecute -verify → Eqa-orchestrator delegation
 
+## Behavioral Contexts (core/contexts/)
+
+Separate from the routing table above, `core/contexts/*.md` hold behavioral
+guidelines that are injected as a digest when the matching intent is detected.
+This is context injection, not routing: it does not pick a skill, it shapes how
+the turn is carried out. Both can apply to one message.
+
+The wiring lives in `hooks/scripts/prompt-check.mjs` (`CONTEXT_ROUTES`), which
+injects each file's `## Principles` section on a keyword match. Keywords there
+are deliberately narrower than this table — a context firing on an unrelated turn
+costs tokens and dilutes the other hints.
+
+| Context file | Intent |
+|--------------|--------|
+| `contexts/dev.md` | implement, build, create, add feature, refactor |
+| `contexts/debug.md` | bug, error, not working, broken, crash |
+| `contexts/review.md` | review this, code review, audit |
+| `contexts/research.md` | research, compare, evaluate |
+| `contexts/deploy.md` | deploy, release, ship |
+
+A context file that no code loads is a silent no-op — the rules look enforced but
+are not. `scripts/check-core-doc-wiring.mjs` guards against that regression.
+
 ## Using .qe/analysis/
 Before routing, refer to `.qe/analysis/` to understand the project context.
 This provides additional context for disambiguation when multiple intents could match.

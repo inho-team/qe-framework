@@ -163,27 +163,40 @@ if (!isAmbiguous) {
   }
 }
 
-// --- Dev Context (implement/build/create intent) ---
-// core/contexts/dev.md declares that it activates on this intent, but nothing ever
-// loaded it — the file was an orphan. Inject its Principles digest here so the
-// code-writing guidelines actually reach the model on the turn that writes code.
-// Full guidelines stay in the file; only the digest is injected to bound token cost.
-{
-  const devKeywords = /\b(implement|build|create|add feature|refactor|구현|개발|만들어|추가)\b/i;
-  if (devKeywords.test(userMessage)) {
-    try {
-      const devContextPath = join(__dirname, '..', '..', 'core', 'contexts', 'dev.md');
-      if (existsSync(devContextPath)) {
-        const devContext = readFileSync(devContextPath, 'utf8');
-        const principlesMatch = devContext.match(/## Principles\n([\s\S]*?)(?=\n## |\n---|$)/);
-        if (principlesMatch) {
-          const principles = principlesMatch[1].trim().slice(0, 700);
-          hints.push(`[DEV CONTEXT] ${principles} Full guidelines: core/contexts/dev.md`);
-        }
-      }
-    } catch {
-      // fail-open: dev context is advisory, never block the prompt
-    }
+// --- Behavioral Contexts (core/contexts/*.md) ---
+// Each context file declares in its header the intent it activates on, but nothing
+// ever loaded core/contexts/ — every one of them was an orphan (issue #16). Match
+// the intent here and inject that file's Principles digest, so the guidelines reach
+// the model on the turn they apply to. Full guidelines stay in the file; only the
+// digest is injected to bound token cost.
+//
+// Keywords are deliberately narrow. A context that fires on an unrelated turn costs
+// tokens and dilutes the hints that do matter, so prefer missing a turn over firing
+// on every one. ("check" is intentionally absent from the review route for this
+// reason — it is too common in ordinary conversation.)
+const CONTEXT_ROUTES = [
+  { label: 'DEV', file: 'dev.md', keywords: /\b(implement|build|create|add feature|refactor|구현|개발|만들어)\b/i },
+  { label: 'DEBUG', file: 'debug.md', keywords: /\b(bug|error|not working|broken|crash|stack ?trace|버그|에러|오류|안 ?됨)\b/i },
+  { label: 'REVIEW', file: 'review.md', keywords: /\b(review this|code review|audit|리뷰|검토해|감사해)\b/i },
+  { label: 'RESEARCH', file: 'research.md', keywords: /\b(research|compare|evaluate|which is better|조사해|비교해)\b/i },
+  { label: 'DEPLOY', file: 'deploy.md', keywords: /\b(deploy|release|ship it|배포|릴리스|릴리즈)\b/i },
+];
+
+for (const route of CONTEXT_ROUTES) {
+  if (!route.keywords.test(userMessage)) continue;
+
+  try {
+    const contextPath = join(__dirname, '..', '..', 'core', 'contexts', route.file);
+    if (!existsSync(contextPath)) continue;
+
+    const contextDoc = readFileSync(contextPath, 'utf8');
+    const principlesMatch = contextDoc.match(/## Principles\n([\s\S]*?)(?=\n## |\n---|$)/);
+    if (!principlesMatch) continue;
+
+    const principles = principlesMatch[1].trim().slice(0, 700);
+    hints.push(`[${route.label} CONTEXT] ${principles} Full guidelines: core/contexts/${route.file}`);
+  } catch {
+    // fail-open: contexts are advisory, never block the prompt
   }
 }
 
