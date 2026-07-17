@@ -50,7 +50,6 @@ const KNOWN_UNWIRED = new Set([
   'core/METRICS_SPEC.md',
   'core/MODE_TokenEfficiency.md',
   'core/PHILOSOPHY.md',
-  'core/PRINCIPLES.md',
   'core/REMEDIATION_REQUEST_FORMAT.md',
   'core/RETROSPECTIVE_TEMPLATE.md',
   'core/STATE_SPEC.md',

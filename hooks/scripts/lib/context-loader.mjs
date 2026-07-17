@@ -22,9 +22,12 @@
  */
 
 import { readFileSync, existsSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import { formatMemoryForInjection } from './memory.mjs';
 import { readRecentFailures } from './failure-capture.mjs';
+
+const __dirname = dirname(fileURLToPath(import.meta.url));
 
 // --- On-Demand loader keys (must match context_loaded entries) ---
 export const LOADER_KEYS = {
@@ -32,6 +35,7 @@ export const LOADER_KEYS = {
   MEMORY: 'memory',
   FAILURES: 'failures',
   DOCS: 'docs',
+  PRINCIPLES: 'principles',
 };
 
 /**
@@ -155,6 +159,40 @@ export function loadDocs(cwd) {
 }
 
 /**
+ * Load the shared Code Quality Principles — KISS, YAGNI, evidence-based
+ * decisions, and the minimal change rule — from core/PRINCIPLES.md.
+ *
+ * Unlike the intent-scoped contexts in core/contexts/, these apply to every turn,
+ * so they load once per session rather than per prompt. Until this loader existed
+ * nothing read PRINCIPLES.md at all: the rules were written down and reviewed
+ * against, but never actually reached the model (issue #16).
+ *
+ * @returns {string|null} Injection message or null
+ */
+export function loadPrinciples() {
+  try {
+    const principlesPath = join(__dirname, '..', '..', '..', 'core', 'PRINCIPLES.md');
+    if (!existsSync(principlesPath)) return null;
+
+    const content = readFileSync(principlesPath, 'utf8');
+    const sectionMatch = content.match(/## Code Quality Principles\n([\s\S]*?)(?=\n## |\n---|$)/);
+    if (!sectionMatch) return null;
+
+    // This budget is wider than the other loaders' (300-500) for two reasons: the
+    // section loads once per session rather than per prompt, and "Minimal change"
+    // — the rule most often needed — sits last in it, so a tight budget would
+    // silently drop the very rule this loader exists to deliver.
+    const principles = sectionMatch[1].trim().slice(0, 1200);
+    if (!principles) return null;
+
+    return `[Code Quality Principles] ${principles}\nFull principles: core/PRINCIPLES.md`;
+  } catch {
+    // Fault tolerance — ignore principles loading errors
+    return null;
+  }
+}
+
+/**
  * Run all On-Demand loaders that have not yet been injected this session.
  * Returns an array of { key, message } pairs for items that produced content.
  * Skips any key already present in the alreadyLoaded set.
@@ -184,6 +222,11 @@ export function loadPendingContext(cwd, alreadyLoaded) {
   if (!alreadyLoaded.includes(LOADER_KEYS.DOCS)) {
     const msg = loadDocs(cwd);
     if (msg) pending.push({ key: LOADER_KEYS.DOCS, message: msg });
+  }
+
+  if (!alreadyLoaded.includes(LOADER_KEYS.PRINCIPLES)) {
+    const msg = loadPrinciples();
+    if (msg) pending.push({ key: LOADER_KEYS.PRINCIPLES, message: msg });
   }
 
   return pending;

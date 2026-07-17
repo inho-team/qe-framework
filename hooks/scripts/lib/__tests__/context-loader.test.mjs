@@ -12,7 +12,7 @@ import { mkdtempSync, mkdirSync, writeFileSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
 
-import { loadProfile, loadDocs } from '../context-loader.mjs';
+import { loadProfile, loadDocs, loadPrinciples, loadPendingContext, LOADER_KEYS } from '../context-loader.mjs';
 
 function mkproject() {
   const root = mkdtempSync(join(tmpdir(), 'qe-context-loader-'));
@@ -75,6 +75,45 @@ test('loadProfile: corrections followed by another section still stops at that s
   const result = loadProfile(root);
   assert.ok(result.includes('Zod is preferred'), 'own section content must be kept');
   assert.ok(!result.includes('should not appear'), 'the next section must not bleed in');
+});
+
+// ============================================================================
+// loadPrinciples: core/PRINCIPLES.md went unread by any code until this loader
+// existed (issue #16). These assert the rules actually make it into the payload —
+// "Minimal change" in particular, which sits last in the section and so is the
+// first casualty of a too-tight character budget.
+// ============================================================================
+
+test('loadPrinciples: delivers the code quality rules', () => {
+  const result = loadPrinciples();
+
+  assert.ok(result, 'principles should load from the packaged core/PRINCIPLES.md');
+  for (const rule of ['KISS', 'YAGNI', 'Evidence-based decisions', 'Minimal change principle']) {
+    assert.ok(result.includes(rule), `${rule} must survive the character budget`);
+  }
+});
+
+test('loadPrinciples: points back at the full document', () => {
+  const result = loadPrinciples();
+
+  assert.ok(result.includes('core/PRINCIPLES.md'), 'digest must cite the full source');
+});
+
+test('loadPendingContext: offers principles when not already loaded, skips when loaded', (t) => {
+  const root = mkproject();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  const fresh = loadPendingContext(root, []);
+  assert.ok(
+    fresh.some(item => item.key === LOADER_KEYS.PRINCIPLES),
+    'a session with nothing loaded should be offered the principles'
+  );
+
+  const repeat = loadPendingContext(root, [LOADER_KEYS.PRINCIPLES]);
+  assert.ok(
+    !repeat.some(item => item.key === LOADER_KEYS.PRINCIPLES),
+    'principles must not be re-injected once the session has them'
+  );
 });
 
 test('loadDocs: core rules as last section are not truncated at "Z"', (t) => {
