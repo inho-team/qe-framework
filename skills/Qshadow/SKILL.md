@@ -11,7 +11,7 @@ recommendedModel: haiku
 Provides safe, isolated working-tree snapshots via an internal shadow git repository
 stored at `<project-root>/.qe/.snapshots/shadow.git`. The shadow store is completely
 separate from any real `.git` directory — it never contaminates `qe-framework/.git`,
-`qe-mcp/.git`, or any other tracked repo.
+`nested-repo/.git`, or any other tracked repo.
 
 Hooks trigger snapshots automatically on every `Write`/`Edit` tool use. This skill
 exposes the five subcommands for manual inspection and recovery.
@@ -88,7 +88,7 @@ All knobs are optional — the defaults match the original hook behaviour.
 ## Store-Root Resolution
 The shadow store root is resolved at runtime by walking up from `cwd` to the nearest
 ancestor that contains a `.qe/` directory. In the qe-workspace wrapper this resolves
-to the wrapper root, covering both `qe-framework` and `qe-mcp` under one store.
+to the wrapper root, covering `qe-framework` and any nested repository under one store.
 In a single-repo project it resolves to that repo's root.
 
 ## Rules

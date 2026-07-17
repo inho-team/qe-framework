@@ -54,7 +54,7 @@ WORKFLOW
 DEVELOPMENT
   /Qexecute -verify          Quality loop: test → review → fix ($Qexecute -verify on Codex)
   /Qmcp setup              MCP server setup + building guide
-  /Qmcp ensure             Install/verify QE MCP companion preflight
+  /Qmcp ensure             Check MCP config, server availability, stale entries
 
 TASK MANAGEMENT
   /Qinit                   Initialize QE in a project

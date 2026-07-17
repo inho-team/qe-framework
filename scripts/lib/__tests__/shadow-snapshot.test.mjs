@@ -70,7 +70,7 @@ const SHADOW_CLI = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', 
 // Real repo directories for contamination checks.
 const WRAPPER = resolve(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..', '..');
 const FW_DIR = join(WRAPPER, 'qe-framework');
-const MCP_DIR = join(WRAPPER, 'qe-mcp');
+const NESTED_REPO_DIR = join(WRAPPER, 'nested-repo');
 
 let passed = 0;
 let failed = 0;

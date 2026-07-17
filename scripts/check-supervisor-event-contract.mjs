@@ -22,16 +22,16 @@ function event(overrides = {}) {
     schema: 'qe.supervisor.event.v1',
     event_id: 'evt_1',
     severity: 'WARN',
-    source: 'qe-mcp',
+    source: 'qe-framework',
     workspace: '/tmp/workspace',
-    monitor_id: 'qe-mcp-doctor',
+    monitor_id: 'framework-health-check',
     dedupe_key: 'registry-missing',
     first_seen_at: '2026-07-01T00:00:00.000Z',
     last_seen_at: '2026-07-01T00:00:00.000Z',
     ack: { state: 'unacked', acked_at: null, acked_by: null, expires_at: null },
     summary: 'Registry missing',
     details: 'bounded detail',
-    evidence_path: '.qe/state/supervisor/logs/qe-mcp-doctor.log',
+    evidence_path: '.qe/state/supervisor/logs/framework-health-check.log',
     evidence_fingerprint: 'sha256:a',
     remediation_hint: 'Run Qmcp ensure',
     ...overrides,
@@ -133,8 +133,8 @@ try {
   const state = new Map();
   assert(apply(state, event()) === 'created', 'valid event create failed');
   assert(apply(state, event({ event_id: 'evt_2' })) === 'collapsed', 'duplicate collapse failed');
-  assert(apply(state, event({ source: 'qe-framework' })) === 'created', 'source non-collapse failed');
-  assert(apply(state, event({ monitor_id: 'qe-mcp-sync-dry-run' })) === 'created', 'monitor non-collapse failed');
+  assert(apply(state, event({ source: 'external-monitor' })) === 'created', 'source non-collapse failed');
+  assert(apply(state, event({ monitor_id: 'config-dry-run' })) === 'created', 'monitor non-collapse failed');
   const key = identity(event());
   state.get(key).ack.state = 'acked';
   assert(apply(state, event({ event_id: 'evt_3' })) === 'duplicate_hidden', 'duplicate after ack failed');

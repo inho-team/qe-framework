@@ -65,40 +65,6 @@ const messages = [];
 const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
 const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 
-function hasQeMcpClientRegistration() {
-  const home = homedir();
-  const checks = [
-    { path: join(home, '.codex', 'config.toml'), pattern: /\[mcp_servers\.qeExpertLibrary\]/ },
-    // Claude Adapter: global MCP config lives in ~/.claude.json.
-    { path: join(home, '.claude.json'), pattern: /"qeExpertLibrary"\s*:/ },
-    { path: join(home, '.gemini', 'settings.json'), pattern: /"qeExpertLibrary"\s*:/ },
-  ];
-  return checks.some(({ path, pattern }) => {
-    try {
-      return existsSync(path) && pattern.test(readFileSync(path, 'utf8'));
-    } catch {
-      return false;
-    }
-  });
-}
-
-function maybeRepairQeMcpRegistration() {
-  if (hasQeMcpClientRegistration()) return false;
-  try {
-    execSync('command -v qe-mcp >/dev/null 2>&1', { timeout: 1000, shell: true });
-  } catch {
-    return false;
-  }
-
-  try {
-    execSync('qe-mcp init-registry >/dev/null 2>&1 || true', { timeout: 3000, shell: true });
-    execSync('qe-mcp sync >/dev/null 2>&1', { timeout: 5000, shell: true });
-    return hasQeMcpClientRegistration();
-  } catch {
-    return false;
-  }
-}
-
 const startupModelId = data.model?.id || data.model || '';
 const startupCacheScope = {
   client: data.client || process.env.QE_CLIENT || 'claude',
@@ -371,17 +337,6 @@ try {
   }
 } catch {
   // Fault tolerance — never block session start on Codex sync housekeeping.
-}
-
-// QE MCP first-start repair. v7→v8 upgrades can leave @inho-team/qe-mcp
-// installed while client MCP config still lacks qeExpertLibrary. Do not install
-// packages here; only repair registration when the CLI is already available.
-try {
-  if (maybeRepairQeMcpRegistration()) {
-    messages.push('[QE MCP] qeExpertLibrary client registration repaired; restart the client if MCP tools are still absent.');
-  }
-} catch {
-  // Fault tolerance — MCP registration repair must never block SessionStart.
 }
 
 const aiTeamConfigPath = join(cwd, '.qe', 'ai-team', 'config', 'team-config.json');

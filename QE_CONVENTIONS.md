@@ -254,7 +254,7 @@ When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
 - **Stage defaults** — without Codex, all SIVS stages use Claude. When Codex is available, Spec and Supervise stay Claude-led while Implement and Verify prefer Codex; explicit `.qe/sivs-config.json` entries can override this.
 - **Role profiles** — the Head/Body split is a named preset over the four stages: **Head = Spec + Supervise**, **Body = Implement + Verify**. `/Qsivs-config profile <name>` sets all four at once — `claude-head` (default: Claude Head / Codex Body), `codex-head` (Codex Head / Claude Body), `all-claude`, `all-codex`. The stored `profile` field is metadata; the per-stage engine entries remain the routing source of truth.
 - **Fallback is bidirectional** — engine assignment is a preference. A `codex` stage degrades to Claude when codex-plugin-cc is absent; a `claude` stage degrades to Codex in a Codex-native session where Claude is unreachable. See `resolveEngine()` in `scripts/lib/codex_bridge.mjs`.
-- **Cross-engine execution is bridge-owned** — when Claude must hand a stage to Codex, route through `scripts/lib/codex_bridge.mjs` and the `codex-plugin-cc` bridge. When Codex must hand a stage to Claude, route through `scripts/lib/claude_bridge.mjs` and `Qclaude-rescue`. `qe-mcp` runner tools are compatibility-only and hidden by default unless `QE_MCP_EXPOSE_RUNNERS=1` is set before starting the MCP server; they are not the canonical PSE/SIVS execution path.
+- **Cross-engine execution is bridge-owned** — when Claude must hand a stage to Codex, route through `scripts/lib/codex_bridge.mjs` and the `codex-plugin-cc` bridge. When Codex must hand a stage to Claude, route through `scripts/lib/claude_bridge.mjs` and `Qclaude-rescue`. MCP server tools are not the canonical PSE/SIVS execution path.
 - **Spec/Supervise assistance** — Claude owns requirements and final judgment, but should actively use Codex for bounded repo search, context gathering, test diagnosis, and second-opinion review when that reduces Claude token load.
 - **Runtime mode is selectable** — foreground is preferred for short Codex tasks so stdout lands in the conversation. Background is allowed for long Implement/Verify jobs only when the session retrieves results with `/codex:status` and `/codex:result <job-id>` before final reporting.
 - **Session result hint** — SessionStart may emit `[Session State] ... codex:<status>...:retrieve /codex:result` when a background Codex job is still relevant. Treat it as a retrieval reminder, not as completion evidence.
@@ -341,7 +341,7 @@ apply and the choice depends on the situation. Only skills confirmed present in
 |-------|---------|
 | `Qhelp` | Show QE Framework usage overview |
 | `Qversion` | Show current plugin version |
-| `Qupdate` | Update everything QE — framework body, qe-mcp companion, and codex-plugin-cc bridge |
+| `Qupdate` | Update QE framework body, Codex assets, and codex-plugin-cc bridge |
 | `Qdoctor` | Diagnose and repair QE dependency and `.qe/` project-state health |
 | `Qinit` | Initial setup and directory structure |
 | `Qplan` | Strategic roadmap and phase management (.qe/planning/) |
@@ -356,7 +356,7 @@ apply and the choice depends on the situation. Only skills confirmed present in
 | `Qcommand-creator` | Create slash commands |
 | `Qhelp find` | Find/install skills from skills.sh |
 | `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
-| `Qmcp sync` | Sync external QE MCP registry from `inho-team/qe-mcp` |
+| `Qmcp sync` | Preview and guide MCP client config synchronization |
 | `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
 | `Qexecute -utopia` | Fully autonomous execution mode |
 | `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |

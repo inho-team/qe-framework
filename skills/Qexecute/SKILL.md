@@ -197,8 +197,7 @@ Before returning, close all delegated handles and include their terminal status 
 2. `resolveEngine("implement", config)` — Claude/`claude` = standard; Claude/`codex` = delegate
    via `codex_bridge.mjs`/codex-plugin-cc (fallback Claude + warn); Codex/`codex` = native
    subagents or `degraded-inline`; Codex/`claude` = `Qclaude-rescue`/`claude_bridge.mjs` or
-   `crossmodel=false`. `qe-mcp` runner tools are compatibility-only and are not the default
-   PSE/SIVS execution path.
+   `crossmodel=false`. MCP server tools are not the default PSE/SIVS execution path.
 3. `detectLegacyConfig()` → show migration warning if non-null.
 4. **Codex Materialization Check (mandatory after Codex `Done`)**: read
    `.qe/state/unified-state.json` → `codex_materialization` (completed/failed/crashed/running),

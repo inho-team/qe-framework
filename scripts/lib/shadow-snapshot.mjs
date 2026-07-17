@@ -4,7 +4,7 @@
  * Maintains an isolated shadow git repository at <root>/.qe/.snapshots/shadow.git
  * where <root> is the nearest ancestor directory containing a `.qe/` folder.
  * GIT_DIR is fully separated from real repo .git directories, so shadow ops
- * never touch qe-framework/.git, qe-mcp/.git, or any other real repo.
+ * never touch qe-framework/.git, nested-repo/.git, or any other real repo.
  *
  * Exported API:
  *   findShadowRoot(startDir?)    — walk up from startDir to find .qe root
@@ -104,7 +104,7 @@ const DEBOUNCE_MS = envInt('QE_SHADOW_DEBOUNCE_MS', 2000);
  *
  * This generalises to:
  *   - The qe-workspace wrapper: finds the wrapper root, covering both
- *     qe-framework and qe-mcp under one shadow store.
+ *     qe-framework and a nested repo under one shadow store.
  *   - Single-repo projects where .qe/ lives at the repo root.
  *
  * Env override: if `process.env.QE_SHADOW_ROOT` is set and points to an
@@ -231,7 +231,7 @@ function git(args, { gitDir, workTree, check = true, input } = {}) {
  * with work-tree equal to `root`. Idempotent: safe to call on every invocation.
  *
  * Sets up info/exclude to prevent the shadow repo from tracking:
- *   - nested .git directories (qe-framework/.git, qe-mcp/.git, etc.)
+ *   - nested .git directories (qe-framework/.git, nested-repo/.git, etc.)
  *   - node_modules
  *   - the shadow repo itself
  *

@@ -126,26 +126,16 @@ claude plugin list
 # Should show: qe-framework@inho-team-qe-framework ✔ enabled
 ```
 
-### Companion MCP setup
+### Optional MCP setup
 
-QE Framework is distributed separately from its MCP companions. Install the
-plugin first, then connect `qe-mcp` for expert-library and cross-agent runner
-tools:
+QE Framework works standalone. Connect MCP servers only when a workflow needs
+external tools, and use `Qmcp setup`, `Qmcp ensure`, or `Qmcp sync` to inspect
+and manage client configuration. Restart Claude Code or Codex after changing
+MCP config.
 
-```bash
-npm install -g @inho-team/qe-mcp
-qe-mcp init-registry
-qe-mcp sync --client claude
-qe-mcp sync --client codex
-```
-
-Use `qe-mcp sync --dry-run --client claude` or
-`qe-mcp sync --dry-run --client codex` before applying if you want to inspect
-the client config writes. Restart Claude Code or Codex after syncing.
-
-The normal user-facing companion is `qe-mcp`. Maintainers may additionally
-connect `qe-admin-mcp` for release, bump, skill-test, audit, and migration
-workflows. See [`docs/MCP_GLOBAL_SETUP.md`](docs/MCP_GLOBAL_SETUP.md).
+Maintainers may additionally connect `qe-admin-mcp` for release, bump,
+skill-test, audit, and migration workflows. See
+[`docs/MCP_GLOBAL_SETUP.md`](docs/MCP_GLOBAL_SETUP.md).
 
 **Update:**
 ```bash
@@ -343,11 +333,10 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 >
 > *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The shipped catalog is intentionally kept small enough to stay discoverable.)*
 
-Specialist guidance removed from the default catalog now lives outside this
-framework package in `https://github.com/inho-team/qe-mcp`. Install or sync that
-MCP package when you need `qe_search_experts`, `qe_read_expert`, or the
-cross-agent runner tools without making every QE Framework install download the
-optional expert corpus.
+Specialist guidance removed from the default catalog is no longer installed as
+part of the framework. Keep project-specific guidance in local docs, custom
+skills, or explicitly connected MCP servers without making every QE Framework
+install download optional guidance.
 
 ### Core Skills
 

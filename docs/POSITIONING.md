@@ -1,11 +1,10 @@
 # Positioning FAQ
 
 Where QE fits, and why it is not the same thing as the tools it is often compared to.
-All counts below are the current, measured footprint (2026-07): **31 skills**,
-**20 agents**, **11 MCP tools** (10 general + 1 experiment-only opt-in) in
-`@inho-team/qe-mcp`, and an expert library split
-into **25 core** experts (shipped) + **61 extra** experts (optional
-`@inho-team/qe-experts-extra` pack). qe-mcp's install payload is ~1.55 MB (core only).
+All counts below are the current, measured framework footprint (2026-07):
+**31 skills** and **20 agents** in the standalone QE Framework package.
+Optional MCP servers and local skill packs are configured separately per user or
+project.
 
 ## Why not gstack?
 

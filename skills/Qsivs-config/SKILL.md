@@ -51,10 +51,9 @@ through the framework bridge layer:
 - Codex base → Claude target: `scripts/lib/claude_bridge.mjs` /
   `Qclaude-rescue`.
 
-`qe-mcp` runner tools (`qe_run_codex_agent`, `qe_run_claude_agent`,
-`qe_delegate_agent`) are compatibility-only. They are hidden in default passive
-MCP mode and appear only when `QE_MCP_EXPOSE_RUNNERS=1` is set before the MCP
-server starts. Do not describe those tools as the canonical SIVS route.
+External runner tools are not the canonical SIVS route. Do not describe MCP
+server tools as the default handoff path for Spec, Implement, Verify, or
+Supervise stages.
 
 Do not invoke `codex-companion.mjs` or arbitrary `node .../scripts/*.mjs`
 runners directly for cross-engine work. Use the bridge APIs above so fallback,

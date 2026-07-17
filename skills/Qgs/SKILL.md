@@ -23,7 +23,7 @@ Pass arguments through unchanged after the active client has resolved the skill
 invocation.
 
 ## Behavior
-1. Invoke `{adapter.commandPrefix}Qmcp ensure` before spec generation when MCP-backed expert lookup or cross-agent runner help may be used.
+1. Invoke `{adapter.commandPrefix}Qmcp ensure` before spec generation only when the spec depends on a user-requested MCP server (see `Qgenerate-spec` → Optional MCP Preflight).
 2. Pass all arguments directly to `Qgenerate-spec`.
 3. If the first token looks like a **plan slug** (`[a-z0-9][a-z0-9-]{0,63}` followed by `:`), Qgenerate-spec treats everything before the colon as the plan slug and reads `.qe/planning/plans/{slug}/ROADMAP.md` + `STATE.md` for that plan's active Phase.
 4. Otherwise (no slug, no colon) Qgenerate-spec resolves the active plan automatically via `.qe/state/current-session.json` → `.qe/planning/.sessions/{session_id}.json` → `.qe/planning/ACTIVE_PLAN`, falling back to the flat `.qe/planning/ROADMAP.md` for legacy projects.

@@ -19,8 +19,9 @@
  *
  * The store root (.qe/.snapshots/shadow.git) is resolved at runtime by the
  * library via findShadowRoot(), so this CLI works correctly from any cwd
- * that has a .qe/ ancestor — the wrapper covers both qe-framework and qe-mcp,
- * and single-repo projects resolve to their own root automatically.
+ * that has a .qe/ ancestor — a wrapper can cover a framework checkout plus
+ * any nested repository, and single-repo projects resolve to their own root
+ * automatically.
  */
 
 import { snapshot, list, diff, restore, prune } from './lib/shadow-snapshot.mjs';

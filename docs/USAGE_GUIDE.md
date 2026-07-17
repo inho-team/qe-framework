@@ -323,13 +323,10 @@ Claude: /Qexecute -utopia status   # check autonomous mode (read section 11 firs
 Codex:  $Qexecute -utopia status
 ```
 
-Optional expert-library MCP guidance is distributed separately from this
-framework package at `https://github.com/inho-team/qe-mcp`. Install or sync that
-package when you need `qe_search_experts`, `qe_read_expert`, or
-`qe_read_methodology` without increasing the default QE Framework install size.
-Cross-engine execution is owned by the framework bridge layer; `qe-mcp` runner
-tools are compatibility-only and hidden unless `QE_MCP_EXPOSE_RUNNERS=1` is set
-before starting the MCP server.
+Optional MCP servers are configured separately from this framework package. Use
+`Qmcp setup`, `Qmcp ensure`, and `Qmcp sync` when a workflow needs a specific
+external tool server. Cross-engine execution is owned by the framework bridge
+layer, not by MCP runner tools.
 
 ## 10. Secret Management
 

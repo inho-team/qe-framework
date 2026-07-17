@@ -4,10 +4,10 @@ Requirements: R1, R2, R4, NFR1, NFR2, NFR3, NFR4, NFR6
 
 ## Scope
 
-`qe-mcp` is a supervisor control/status API. OS-native schedulers own timed
-execution, process restart semantics, heartbeat production, and monitor command
-invocation — EXCEPT for the single opt-in resident event producer sanctioned in
-"Resident Event Producer (D032)" below. `qe-framework` owns
+The supervisor event contract is a control/status API. OS-native schedulers own
+timed execution, process restart semantics, heartbeat production, and monitor
+command invocation — EXCEPT for the single opt-in resident event producer
+sanctioned in "Resident Event Producer (D032)" below. `qe-framework` owns
 SessionStart/Notification rendering and user-facing guidance.
 
 Phase 1 and later supervisor surfaces must not introduce silent

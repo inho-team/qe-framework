@@ -41,13 +41,16 @@ Before starting planning, verify that the QE framework is set up. Treat the proj
 
 **If both exist**, proceed to Step 0.5.
 
-### Step 0.4: QE MCP Companion Preflight
+### Step 0.4: Optional MCP Preflight
 
-Invoke `{adapter.commandPrefix}Qmcp ensure` before MCP-backed expert lookup, MCP runner tools, or cross-agent help are used during planning.
+If planning depends on a user-requested MCP server, invoke
+`{adapter.commandPrefix}Qmcp ensure` to check local client configuration before
+using that server.
 
-- `PASS` → MCP-backed planning assistance is available.
-- `WARN` → continue with local-only planning and mention that MCP expert lookup is degraded.
-- `FAIL` → continue only if the plan does not depend on MCP-backed expert lookup or runner tools; otherwise stop and report the blocker.
+- `PASS` → the requested MCP server may be used.
+- `WARN` → continue with local-only planning and record the degraded MCP path.
+- `FAIL` → stop only when the plan explicitly depends on that MCP server;
+  otherwise continue without claiming MCP coverage.
 
 ### Step 0.5: Codex Plugin Version Check (Silent)
 

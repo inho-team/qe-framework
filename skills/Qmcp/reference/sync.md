@@ -6,86 +6,98 @@ subcommand: Qmcp sync
 # Qmcp sync
 
 ## Role
-Use the external `@inho-team/qe-mcp` package to manage QE expert-library MCP
-config.
+Guide safe synchronization of MCP server configuration across supported clients.
+This subcommand is now a generic MCP config workflow: it compares desired server
+entries with client config files, previews changes, and tells the user how to
+apply them. It does not depend on an external QE expert-library registry.
 
-The MCP server and large expert corpus are intentionally not shipped inside
-`@inho-team/qe-framework`.
+## When To Use
 
-Before running any command below, invoke `{adapter.commandPrefix}Qmcp ensure`.
-Continue only after it returns `PASS`; `Qmcp sync` is MCP-dependent by
-definition.
+Use `Qmcp sync` when:
 
-## Commands
+- The same MCP server should be available in more than one client.
+- A user wants a dry-run before editing MCP client config.
+- Existing client config needs to be normalized after a server command or path
+  changed.
+- A stale MCP entry should be removed consistently from multiple clients.
 
-### Initialize the global registry
-```bash
-qe-mcp init-registry
-```
+Run `Qmcp ensure` first when the current state is unknown.
 
-### Inspect paths and registry health
-```bash
-qe-mcp doctor
-```
+## Inputs
 
-### Preview sync
-```bash
-qe-mcp sync --dry-run
-```
+Collect or infer:
 
-### Apply sync
-```bash
-qe-mcp sync
-```
+- Server name
+- Server command
+- Server args
+- Required environment variable names
+- Target clients: Claude, Codex, Gemini, or another explicitly named client
+- Dry-run vs apply intent
 
-### Sync one client only
-```bash
-qe-mcp sync --client codex
-qe-mcp sync --client gemini
-qe-mcp sync --client claude
-```
+If any command or secret handling is ambiguous, stop at dry-run guidance.
 
-## Registry Behavior
+## Dry-Run Procedure
 
-The default registry lives at:
+1. Read the target client config files.
+2. Parse JSON configs with a JSON parser; avoid ad hoc string edits.
+3. For TOML configs, preserve unrelated sections and show the intended MCP
+   server block.
+4. Compare by server name and command.
+5. Report additions, updates, removals, and conflicts without changing files.
+
+Suggested report:
 
 ```text
-~/.qe/mcp/registry.json
+Qmcp sync --dry-run
+- Claude: add|update|remove|unchanged|not installed
+- Codex: add|update|remove|unchanged|not installed
+- Gemini: add|update|remove|unchanged|not installed
+- Secrets: env var names only
+- Apply: {client-native command or exact file/section to edit}
 ```
 
-If `qe-mcp` is not on `PATH`, use `{adapter.commandPrefix}Qmcp ensure`; do not
-duplicate install logic here.
+## Apply Procedure
 
-The default external registry entry is `qeExpertLibrary`.
+Only apply changes when the user explicitly asks for it and the target entries
+are unambiguous.
+
+Rules:
+
+- Preserve unrelated MCP servers.
+- Preserve comments and formatting where the client format allows it.
+- Back up the original config or present the exact diff before overwriting.
+- Never write plaintext secrets.
+- Prefer client-native commands when available.
+
+For Claude, `claude mcp add` / `claude mcp remove` may be used when it matches
+the requested change. For Codex and Gemini, use their current config schema and
+modify only the named server entry.
 
 ## Secret Handling
 
 If a server needs credentials:
-- do not store plaintext tokens in the client config
-- store them with `Qsecret`
-- reference them through `envSecrets` in the registry
 
-Secret-backed launch for generic MCP servers is owned by the external MCP
-package when needed.
+- Store token values outside git-tracked files.
+- Put only environment variable names in MCP config.
+- Use `Qsecret` when the user wants QE-managed secret storage guidance.
+- Never echo secret values in the final report.
 
-## Expected Behavior
-- Use this subcommand when the user wants one MCP configuration source for
-  Claude, Codex, and Gemini.
-- Prefer the QE registry over editing three client config files by hand.
-- Explain honestly that client behavior still differs even when the same server
-  is synced to all three.
-- Explain that QE's expert library is distributed by `inho-team/qe-mcp`; it is
-  not restored into the default QE Framework skill catalog.
-- Recommend `sync --dry-run` before applying MCP config changes, especially when
-  a client has existing MCP servers.
+## Deprecated Behavior
+
+Older QE installations used a dedicated expert-library registry and package
+sync command. That coupling has been removed from the core framework. If a user
+still has an old server entry, treat it as a stale generic MCP registration:
+identify the client config file, show the entry name, and instruct the user to
+remove or replace that entry.
 
 ## Will
-- Keep the external MCP registry as the source of truth
-- Sync shared config to supported clients
-- Preserve the expert-library trust boundary: compact search by default, full
-  expert reads only by explicit MCP call
+- Preview and guide MCP config synchronization across clients
+- Keep unrelated MCP servers intact
+- Handle stale entries as explicit config cleanup
+- Explain client-specific differences
 
 ## Will Not
-- Claim all clients interpret prompts or tools identically
-- Store plaintext secrets in the synced config files
+- Depend on a QE-owned external registry
 - Auto-trust third-party or remote MCP servers
+- Store plaintext secrets in config files
+- Claim all clients expose identical tool behavior

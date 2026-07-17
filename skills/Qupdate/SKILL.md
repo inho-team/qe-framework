@@ -1,12 +1,12 @@
 ---
 name: Qupdate
-description: 'Updates everything QE: marketplace metadata/cache, the QE Framework body, the qe-mcp companion package, and the codex-plugin-cc bridge using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", "update qe mcp", or "codex plugin".'
-allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(qe-mcp:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*), Bash(git -C:*)"
+description: 'Updates QE marketplace metadata/cache, the QE Framework body, installed Codex assets, and the codex-plugin-cc bridge using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", or "codex plugin".'
+allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*), Bash(git -C:*)"
 invocation_trigger: When the framework, its Codex assets, or the codex-plugin-cc bridge need updating.
 recommendedModel: haiku
 ---
 
-# Qupdate - One-Command Update (Marketplace + Framework + MCP + Codex bridge)
+# Qupdate - One-Command Update (Marketplace + Framework + Codex bridge)
 
 ## Role
 Single entry point that brings every QE update target to latest:
@@ -16,13 +16,11 @@ Single entry point that brings every QE update target to latest:
 | A | QE marketplace metadata/cache | marketplace checkout, `plugin.json`, `marketplace.json`, Claude plugin cache metadata |
 | B | QE Framework body → Claude (`~/.claude`) | skills, agents, hooks, scripts |
 | C | QE Framework body → Codex (`~/.codex`) | QE Codex asset/hook fences via `install.js` |
-| D | QE MCP companion (`@inho-team/qe-mcp`) | expert-library MCP server, registry, sync tooling |
-| E | codex-plugin-cc bridge plugin | Codex engine routing bridge (separate plugin) |
+| D | codex-plugin-cc bridge plugin | Codex engine routing bridge (separate plugin) |
 
 B+C come from the framework installer. A is the Claude plugin marketplace/download layer
-that decides which plugin metadata and cache version Claude sees. D is the standalone MCP
-companion package. E is the Codex bridge plugin managed through `claude plugin`. This skill
-runs A first, then B/C, then D, then E.
+that decides which plugin metadata and cache version Claude sees. D is the Codex bridge
+plugin managed through `claude plugin`. This skill runs A first, then B/C, then D.
 
 ## Execution Procedure
 
@@ -138,32 +136,12 @@ Choose exactly one path:
 - Otherwise → path 2 (tarball, covers B + C).
 - Do not recommend `npm update -g @inho-team/qe-framework` unless the package is published to npm.
 
-### Step 3: Ensure/update the QE MCP companion (target D)
-Invoke `{adapter.commandPrefix}Qmcp ensure` to centralize the MCP companion preflight.
-That skill owns detection, missing-package install, registry initialization, and health
-verification for `@inho-team/qe-mcp`.
+### Step 3: Check optional MCP config health
+`Qupdate` does not install or update external MCP server packages. If the user
+also asked about MCP availability, invoke `{adapter.commandPrefix}Qmcp ensure`
+and report any config warnings separately from the framework update result.
 
-After `Qmcp ensure` returns `PASS`, update the companion to latest as part of this update
-workflow:
-
-```bash
-npm install -g @inho-team/qe-mcp@latest
-qe-mcp sync
-qe-mcp doctor
-qe-mcp sync --dry-run
-```
-
-Selection rule:
-- If the user is inside a `qe-mcp` checkout and asks for local asset sync only, run its
-  documented local checks instead of global install.
-- If `qe-mcp sync` reports a client-specific warning, continue only with that client's
-  MCP-dependent features marked degraded until the client config is fixed.
-- If `Qmcp ensure` returns `WARN`, continue only with MCP-dependent features marked
-  degraded.
-- If `Qmcp ensure` returns `FAIL`, do not claim MCP tools are usable.
-- Do not copy the expert corpus into `qe-framework`.
-
-### Step 4: Update the codex-plugin-cc bridge (target E)
+### Step 4: Update the codex-plugin-cc bridge (target D)
 The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of the QE body.
 
 1. Read current status with `getCodexPluginInfo()` from `scripts/lib/codex_bridge.mjs` (reads
@@ -195,7 +173,8 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
   ```
 
 - If the Codex bridge changed, re-read `installed_plugins.json` to confirm the new version.
-- If `qe-mcp` changed, run `qe-mcp sync`, `qe-mcp doctor`, and `qe-mcp sync --dry-run`.
+- If MCP config health was requested, re-run `{adapter.commandPrefix}Qmcp ensure`
+  and report the resulting PASS/WARN/FAIL.
 - Optionally validate SIVS config from the plugin root (the `qe:validate` npm script lives
   only in the framework repo, not the target project):
 
@@ -208,14 +187,13 @@ Report per target:
 - A — QE marketplace metadata/cache: updated / unchanged / mismatch (with version evidence)
 - B — Claude framework assets: updated / unchanged (which path)
 - C — Codex framework assets: updated / unchanged
-- D — QE MCP companion: installed / updated / up-to-date / skipped
-- E — codex-plugin-cc bridge: installed / updated / up-to-date / skipped
+- D — codex-plugin-cc bridge: installed / updated / up-to-date / skipped
+- MCP config health: checked / skipped / warning
 - whether Claude/Codex should be restarted
 
 ## Will
 - Refresh and verify QE marketplace metadata/cache before body asset sync
 - Update the QE Framework body for both Claude and Codex via the correct installer path
-- Update the external `@inho-team/qe-mcp` companion package in the same run
 - Check, install, or update the codex-plugin-cc bridge on user confirmation
 - Report per-target results and the next restart step
 
@@ -224,5 +202,5 @@ Report per target:
 - Modify SIVS engine configuration (use `/Qinit` for that)
 - Manually write marketplace/plugin version fields outside the release/admin workflow
 - Force-install the Codex bridge without user confirmation
-- Restore the MCP expert corpus into the framework package
+- Install or update unrelated MCP server packages
 - Run without user invocation

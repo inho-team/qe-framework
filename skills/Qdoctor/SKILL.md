@@ -1,6 +1,6 @@
 ---
 name: Qdoctor
-description: "Diagnoses and repairs QE installation health across qe-framework, qe-mcp, and the project .qe directory. Use for 'doctor', 'check QE health', dependency verification, corrupted .qe state, or repair guidance. Distinct from Qupdate, which updates installed assets."
+description: "Diagnoses and repairs QE installation health across qe-framework, MCP client config, and the project .qe directory. Use for 'doctor', 'check QE health', dependency verification, corrupted .qe state, or repair guidance. Distinct from Qupdate, which updates installed assets."
 invocation_trigger: When QE dependencies or project state need health checks, repair recommendations, or safe automatic fixes.
 recommendedModel: haiku
 ---
@@ -11,7 +11,7 @@ recommendedModel: haiku
 Diagnose QE runtime health and define safe repair actions for:
 
 1. QE Framework installation and version alignment.
-2. QE MCP companion installation and expert-library availability.
+2. MCP client configuration health.
 3. The current project's `.qe/` state, planning, profile, and config structure.
 
 Qdoctor is a diagnostic and repair workflow. It may run safe idempotent fixes, but it must
@@ -35,7 +35,7 @@ Rules:
 - Record destructive or uncertain repairs as recommendations, not actions.
 
 ### Step 1: Dependency Health
-Check both QE dependencies.
+Check QE Framework and local MCP config health.
 
 Framework:
 ```bash
@@ -43,11 +43,11 @@ command -v qe-framework-install || true
 node -e "try{console.log(require('@inho-team/qe-framework/package.json').version)}catch(e){process.exit(1)}" 2>/dev/null || true
 ```
 
-MCP companion:
+MCP client config:
 ```bash
-command -v qe-mcp || true
-qe-mcp doctor 2>/dev/null || true
-qe-mcp sync --dry-run 2>/dev/null || true
+test -f ~/.claude.json && node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.claude.json','utf8')); console.log('claude config: json ok')" || true
+test -f ~/.codex/config.toml && sed -n '/^\\[mcp_servers\\./,/^\\[/p' ~/.codex/config.toml || true
+test -f ~/.gemini/settings.json && node -e "JSON.parse(require('fs').readFileSync(process.env.HOME + '/.gemini/settings.json','utf8')); console.log('gemini config: json ok')" || true
 ```
 
 If local checkouts exist, prefer their native checks:
@@ -55,7 +55,6 @@ If local checkouts exist, prefer their native checks:
 ```bash
 npm run qe:validate   # qe-framework checkout only
 node scripts/check-all.mjs
-npm run check         # qe-mcp checkout only
 npm run selftest
 ```
 
@@ -101,20 +100,37 @@ likewise shows the remaining loop budget so exhaustion is never a surprise.
 ### Step 2: Version And Boundary Checks
 Verify:
 - `qe-framework` version is readable from the installed package or checkout.
-- `qe-mcp` is installed or a clear install command is available.
 - Framework package does not depend on bundled `skills-optional` or framework-side MCP scripts.
-- `Qmcp sync` points to external `@inho-team/qe-mcp`.
+- `Qmcp ensure` and `Qmcp sync` describe generic MCP configuration workflows.
+- Existing client MCP config does not contain stale server entries whose commands no longer exist.
 
 Recommended install repairs:
 
 ```bash
 npm install -g @inho-team/qe-framework
-npm install -g @inho-team/qe-mcp
 ```
 
-Use these only when the user explicitly wants package installation. For the MCP companion,
-prefer `{adapter.commandPrefix}Qmcp ensure` so detection, install, registry initialization,
-and verification stay centralized.
+Use this only when the user explicitly wants package installation. For MCP config
+health, prefer `{adapter.commandPrefix}Qmcp ensure`.
+
+### Step 2.5: Stale MCP Registration Check
+Detect stale entries left by prior installs:
+
+```bash
+test -f ~/.claude.json && node -e "const fs=require('fs');const p=process.env.HOME+'/.claude.json';try{const s=JSON.stringify(JSON.parse(fs.readFileSync(p,'utf8'))); if (s.includes('qeExpertLibrary')) console.log(p + ': stale qeExpertLibrary entry present')}catch(e){console.log(p + ': unreadable or malformed — inspect manually')}" || true
+test -f ~/.codex/config.toml && grep -n 'qeExpertLibrary' ~/.codex/config.toml || true
+```
+
+If found, report `WARN` and instruct the user to remove only that stale server
+entry:
+
+- In `~/.claude.json`, remove the `qeExpertLibrary` object from the MCP servers
+  section and leave unrelated servers intact.
+- In `~/.codex/config.toml`, remove the `[mcp_servers.qeExpertLibrary]` block.
+- Restart the affected client after editing.
+
+Do not remove those entries automatically unless the user explicitly asks for
+that exact edit.
 
 ### Step 3: Project `.qe/` Consistency
 Check expected project state:
@@ -161,31 +177,31 @@ Qdoctor: PASS | WARN | FAIL
 
 Facts:
 - Framework: ...
-- MCP: ...
+- MCP config: ...
 - .qe: ...
 
 Fixes applied:
 - ...
 
 Recommended next action:
-- Qupdate | Qmcp sync | Qinit | Qrefresh | manual package install
+- Qupdate | Qmcp ensure | Qmcp sync | Qinit | Qrefresh | manual package install
 ```
 
 ## Validation
 - PASS: dependencies are readable, required checks pass, and `.qe/` has required structure.
-- WARN: usable but missing optional MCP sync, stale state, or non-blocking drift.
-- FAIL: framework install is missing, MCP server cannot self-test when required, `.qe/` JSON is invalid, or a required check exits non-zero.
+- WARN: usable but missing optional MCP config, stale MCP registration, stale state, or non-blocking drift.
+- FAIL: framework install is missing, required MCP config is invalid, `.qe/` JSON is invalid, or a required check exits non-zero.
 
 ## Test Prompts
 | Prompt | Expected |
 |--------|----------|
-| "Run Qdoctor and fix QE dependency drift" | Diagnose framework/MCP and apply only safe repairs |
+| "Run Qdoctor and fix QE dependency drift" | Diagnose framework/MCP config and apply only safe repairs |
 | "Check whether my .qe folder is corrupted" | Validate `.qe/` structure and JSON, recommend repairs |
 | "Update QE to latest" | Use Qupdate instead |
 | "Sync MCP clients" | Use Qmcp sync instead |
 
 ## Will
-- Diagnose framework, MCP, and project `.qe/` health
+- Diagnose framework, MCP config, and project `.qe/` health
 - Apply safe idempotent repairs to `.qe/` structure
 - Recommend the correct follow-up skill for updates or MCP sync
 
