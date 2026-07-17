@@ -52,7 +52,7 @@ export function loadProfile(cwd) {
     const correctionsPath = join(profileDir, 'corrections.md');
     if (existsSync(correctionsPath)) {
       const content = readFileSync(correctionsPath, 'utf8');
-      const correctionsMatch = content.match(/## Corrections\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+      const correctionsMatch = content.match(/## Corrections\n([\s\S]*?)(?=\n## |\n---|$)/);
       if (correctionsMatch) {
         const corrections = correctionsMatch[1].trim().slice(0, 500);
         if (corrections) profileParts.push(`Corrections: ${corrections}`);
@@ -63,7 +63,7 @@ export function loadProfile(cwd) {
     const patternsPath = join(profileDir, 'command-patterns.md');
     if (existsSync(patternsPath)) {
       const content = readFileSync(patternsPath, 'utf8');
-      const patternsMatch = content.match(/## Top Commands\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+      const patternsMatch = content.match(/## Top Commands\n([\s\S]*?)(?=\n## |\n---|$)/);
       if (patternsMatch) {
         const patterns = patternsMatch[1].trim().slice(0, 300);
         if (patterns) profileParts.push(`Frequent commands: ${patterns}`);
@@ -140,7 +140,7 @@ export function loadDocs(cwd) {
         const domain = domainMatch ? domainMatch[1].trim() : 'unknown';
         const confirmed = confirmedMatch ? confirmedMatch[1].trim() : 'false';
         // Extract Core Rules section content (compact)
-        const rulesMatch = content.match(/## Core Rules\n([\s\S]*?)(?=\n## |\n---|\Z)/);
+        const rulesMatch = content.match(/## Core Rules\n([\s\S]*?)(?=\n## |\n---|$)/);
         const rules = rulesMatch ? rulesMatch[1].trim().slice(0, 300) : '';
         summaries.push(`[${domain}/${topic}] (confirmed:${confirmed})\n${rules}`);
       } catch {}

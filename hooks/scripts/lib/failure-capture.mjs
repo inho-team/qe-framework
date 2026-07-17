@@ -503,7 +503,7 @@ export function readRecentFailures(cwd, limit = 3) {
         const dateMatch = content.match(/^date:\s*(.+)$/m);
         const taskMatch = content.match(/^task_uuid:\s*(.+)$/m);
         const reasonLines = content
-          .match(/## Failure Reasons\n([\s\S]*?)(?=\n## |\n---|\Z)/)?.[1]
+          .match(/## Failure Reasons\n([\s\S]*?)(?=\n## |\n---|$)/)?.[1]
           ?.trim()
           .split('\n')
           .slice(0, 2)

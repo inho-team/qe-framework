@@ -18,6 +18,7 @@ import {
   findAbnormalWorkerExit,
   isAbnormalWorkerExit,
   isCodexMaterializationCrash,
+  readRecentFailures,
 } from '../failure-capture.mjs';
 
 function mkproject() {
@@ -210,4 +211,26 @@ test('failure-capture: non-abnormal exits are ignored', (t) => {
   const result = captureAbnormalWorkerExit(root, { exitCode: 1, workerId: 'worker-ok' });
   assert.equal(result.captured, false);
   assert.equal(existsSync(join(root, '.qe', 'state', 'agent-errors.json')), false);
+});
+
+// ============================================================================
+// Regression: section-terminator lookahead must handle end-of-input AND must
+// not truncate on any character (previous bug: `\Z` is not a JS regex anchor —
+// it matched a literal `Z`, so a trailing "## Failure Reasons" section got cut
+// at the first uppercase Z in its body).
+// ============================================================================
+
+test('readRecentFailures: trailing failure reasons are not truncated at "Z"', (t) => {
+  const root = mkproject();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+
+  const sessionDir = join(root, '.qe', 'learning', 'failures', '2026-07', '2026-07-16-abcd1234');
+  mkdirSync(sessionDir, { recursive: true });
+  writeFileSync(
+    join(sessionDir, 'CONTEXT.md'),
+    'date: 2026-07-16\ntask_uuid: abcd1234\n\n## Failure Reasons\n- Zod validation rejected the payload\n'
+  );
+
+  const result = readRecentFailures(root);
+  assert.ok(result.includes('Zod validation rejected the payload'), 'reason text must survive the uppercase Z');
 });
