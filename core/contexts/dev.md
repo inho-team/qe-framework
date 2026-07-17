@@ -8,6 +8,7 @@
 2. **KISS / YAGNI** -- Implement only what is requested. No speculative design.
 3. **Minimal change** -- Modify only the files necessary for the requested feature. Do not refactor adjacent code.
 4. **Test awareness** -- Consider whether tests should accompany the change.
+5. **Reuse before writing** -- Before writing new code, check in order: (1) Is this actually needed? (2) Does it already exist in the codebase? (3) Can the standard library or an existing dependency do it? If none apply, write it -- but write it to be read. Never compress code to reduce line count.
 
 ## Workflow
 
@@ -30,3 +31,4 @@
 - Introducing new patterns that conflict with existing conventions
 - Making large changes without user approval
 - Skipping validation ("it should work")
+- Sacrificing readability for brevity -- one-line compression, clever tricks, or golfing line count (readable code beats short code)

@@ -163,6 +163,30 @@ if (!isAmbiguous) {
   }
 }
 
+// --- Dev Context (implement/build/create intent) ---
+// core/contexts/dev.md declares that it activates on this intent, but nothing ever
+// loaded it — the file was an orphan. Inject its Principles digest here so the
+// code-writing guidelines actually reach the model on the turn that writes code.
+// Full guidelines stay in the file; only the digest is injected to bound token cost.
+{
+  const devKeywords = /\b(implement|build|create|add feature|refactor|구현|개발|만들어|추가)\b/i;
+  if (devKeywords.test(userMessage)) {
+    try {
+      const devContextPath = join(__dirname, '..', '..', 'core', 'contexts', 'dev.md');
+      if (existsSync(devContextPath)) {
+        const devContext = readFileSync(devContextPath, 'utf8');
+        const principlesMatch = devContext.match(/## Principles\n([\s\S]*?)(?=\n## |\n---|$)/);
+        if (principlesMatch) {
+          const principles = principlesMatch[1].trim().slice(0, 700);
+          hints.push(`[DEV CONTEXT] ${principles} Full guidelines: core/contexts/dev.md`);
+        }
+      }
+    } catch {
+      // fail-open: dev context is advisory, never block the prompt
+    }
+  }
+}
+
 // --- Intent Auto-Classification (skip if ambiguous or help-flag matched) ---
 if (!isAmbiguous && !helpFlag.matched) try {
   const routesConfig = JSON.parse(readFileSync(join(__dirname, 'lib', 'intent-routes.json'), 'utf8'));
