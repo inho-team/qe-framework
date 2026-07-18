@@ -4,7 +4,7 @@
 import { readFileSync, existsSync, writeFileSync, mkdirSync, readdirSync } from 'fs';
 import { join } from 'path';
 import { execSync } from 'child_process';
-import { readStdinJson, getCwd } from './lib/state.mjs';
+import { readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { ensureSessionDirs, shortenSid } from './lib/session-resolver.mjs';
 
 const data = readStdinJson();
@@ -123,10 +123,25 @@ const compactionHint = compactionStrategy === 'server'
   ? ' | [QE] Server-side compaction enabled'
   : '';
 
+// Clear ContextMemo before compaction. A compaction drops the file contents the
+// model was holding, but the memo cache still claims "you already read this" and
+// MEMO-blocks the post-compaction re-read — sending the model to use content it
+// no longer has. session-start.mjs resets memo for the same reason on a new
+// session; a compaction is a context reset too. Correctness is already guarded by
+// mtime validation in isMemoValid; this reset is about post-window freshness.
+try {
+  const state = readUnifiedState(cwd);
+  state.memo = { files: {}, meta: {}, total_size: 0, blocked_reads: 0 };
+  writeUnifiedState(cwd, state);
+} catch {}
+
+// PreCompact does NOT support hookSpecificOutput/additionalContext — the harness
+// schema only lists hookSpecificOutput for PreToolUse/UserPromptSubmit/PostToolUse/
+// PostToolBatch/Stop·SubagentStop, so emitting it here fails JSON validation and the
+// whole message is dropped (the guidance to call Ecompact-executor never lands).
+// systemMessage IS a valid top-level field, so route the notice through it.
+// Durable state is already persisted to compact-trigger.json above.
 console.log(JSON.stringify({
   continue: true,
-  hookSpecificOutput: {
-    hookEventName: "PreCompact",
-    additionalContext: `[QE] Compaction detected. Call Ecompact-executor to save current context under .qe/context/sessions/{sid}/. ${stateSummary} | ${postCompactRules}${compactionHint}`
-  }
+  systemMessage: `[QE] Compaction detected. Call Ecompact-executor to save current context under .qe/context/sessions/{sid}/. ${stateSummary} | ${postCompactRules}${compactionHint}`
 }));
