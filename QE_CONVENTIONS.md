@@ -346,14 +346,17 @@ apply and the choice depends on the situation. Only skills confirmed present in
 | `Qinit` | Initial setup and directory structure |
 | `Qplan` | Strategic roadmap and phase management (.qe/planning/) |
 | `Qrefresh` | Refresh project analysis data; use `Qrefresh --sync` to sync source files with a reference/standard project |
-| `Qmap-codebase` | Automated brownfield codebase analysis (4 parallel agents) |
 | `Qcompact` | Save context / session handoff |
 | `Qresume` | Restore saved context |
 | `Qgc archive` | Archive completed tasks |
 | `Qcommit` | Human-style git commit (no AI traces) |
-| `Qalias` | Define path/command shortcuts |
-| `Qcc-setup` | Shell alias setup for Claude & Codex (cc, ccc, ccd, cx, cxd) |
-| `Qcommand-creator` | Create slash commands |
+| `Qcontext` | Folder-aware context memory manager (.qe/context/) |
+| `Qlearn` | Cross-session learning memory (.qe/learnings.md) |
+| `Qshadow` | Shadow-git snapshot store (checkpoint/diff/restore, no real git impact) |
+| `Qsecret` | OS-backed secret storage with secure env injection |
+| `Qsivs-config` | View/change SIVS engine routing (.qe/sivs-config.json) |
+| `Qcollect-skill` | Collect project-local stack guidance into `.claude/skills/` |
+| `Qissue` | File GitHub issues against the qe-framework repo |
 | `Qhelp find` | Find/install skills from skills.sh |
 | `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
 | `Qmcp sync` | Preview and guide MCP client config synchronization |
@@ -368,163 +371,20 @@ apply and the choice depends on the situation. Only skills confirmed present in
 | `Qgenerate-spec` | Generate CLAUDE.md + TASK_REQUEST + VERIFY_CHECKLIST |
 | `Qexecute` | Execute spec-based tasks |
 | `Qexecute -verify` | Test > review > fix quality loop |
-| `Qscenario-test` | Generate, execute, and verify E2E user scenarios (browser/API/CLI) |
-| `Qqa-council` | Multi-agent QA loop: explore (black-box) → codify → heal → report; optional PR-trigger scaffold |
+| `Qqa` | Unified QA: `plan` (test docs) · `run` (single-pass scenarios) · `council` (multi-agent QA loop) |
 | `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |
-| `Qtest-driven-development` | TDD: failing test first, then implement |
-| `Qsystematic-debugging` | Hypothesis-driven root cause analysis |
-| `Qrequirements-clarity` | Clarify ambiguous requirements before coding |
+| `Qcritical-review` | SIVS stage-aware adversarial verification; hosts `--debate` and `--risk` modes |
+| `Qverify-contract` | Verify implementation/tests against business-logic contracts (.qe/contracts/) |
+| `Qclaude-rescue` | Hand SIVS claude-stages from a Codex session to the local Claude CLI |
 
-### Writing & Documentation
-| Skill | Purpose |
-|-------|---------|
-| `Qdoc-comment` | Add inline code documentation |
-| `Qdoc-converter` | Convert between MD/DOCX/PDF/PPTX/HTML |
-| `Qcontent-research-writer` | Research-driven article writing |
-| `Qprofessional-communication` | Business email/message writing |
-| `Qmermaid-diagrams` | Generate Mermaid diagrams |
-| `Qc4-architecture` | C4 architecture diagrams |
+### Expert & Domain Skills (external)
 
-### Data & Analysis
-| Skill | Purpose |
-|-------|---------|
-| `Qdata-analysis` | Statistical analysis and visualization |
-| `Qfinance-analyst` | Financial analysis and valuation |
-| `Qxlsx` | Spreadsheet operations |
-| `Qpdf` | PDF processing |
-| `Qpptx` | Presentation creation/editing |
-| `Qdocx` | Word document creation/editing |
-| `Qimage-analyzer` | Analyze screenshots/diagrams/charts |
-| `Qaudio-transcriber` | Audio to text conversion |
-| `Qyoutube-transcript-api` | YouTube subtitle extraction |
-
-### Product & Project Management
-| Skill | Purpose |
-|-------|---------|
-| `Qpm-prd` | Write PRDs (P0/P1/P2 prioritization) |
-| `Qpm-user-story` | User stories with INVEST + Gherkin criteria |
-| `Qpm-roadmap` | Outcome-focused strategic roadmap planning |
-| `Qpm-discovery` | Product discovery: OST, experiments, assumptions, interviews |
-| `Qpm-strategy` | Strategic analysis: Lean Canvas, SWOT, PESTLE, Porter's |
-| `Qpm-gtm` | Go-to-market: ICP, growth loops, battlecards, positioning |
-| `Qpm-okr` | OKR brainstorming with SMART validation |
-| `Qpm-retro` | Retrospectives, pre-mortem, release notes |
-| `Qqa-test-planner` | Test plans and regression suites |
-| `Qfeature-forge` | Requirements workshop > feature specs |
-| `Qjira-cli` | Jira CLI for issue management |
-| `Qstitch-cli` | Google Stitch MCP setup |
-| `Qstitch-apply` | Convert Stitch HTML designs to React TSX components |
-| `Qagentation` | Visual UI feedback tool setup |
-
-### Academic
-| Skill | Purpose |
-|-------|---------|
-| `Qgrad-paper-write` | Draft academic papers |
-| `Qgrad-paper-review` | Respond to reviewer comments |
-| `Qgrad-research-plan` | Literature review and experiment design |
-| `Qgrad-seminar-prep` | Prepare presentations |
-| `Qgrad-thesis-manage` | Thesis progress management |
-
-### Code Quality & Security
-| Skill | Purpose |
-|-------|---------|
-| `Qcode-reviewer` | Code diff review |
-| `Qcode-documenter` | Generate API docs and guides |
-| `Qdebugging-wizard` | Parse errors and trace execution |
-| `Qsecurity-reviewer` | Security vulnerability scanning |
-| `Qsecure-code-guardian` | Auth/OWASP implementation |
-| `Qspringboot-security` | Spring Security best practices |
-| `Qplaywright-expert` | E2E tests with Playwright |
-| `Qtest-master` | Test file generation |
-| `Qvitest` | Vitest unit testing |
-| `Qspec-miner` | Reverse-engineer specs from legacy code |
-| `Qthe-fool` | Critical reasoning / devil's advocate |
-| `Qcritical-review` | SIVS stage-aware adversarial verification (PASS/WARN/FAIL) |
-| `Qdebate` | Structured multi-round debate (agent-vs-agent, codex-vs-claude) |
-| `Qperspective` | Multi-perspective analysis (dev/user/pm/security/ops) |
-| `Qfact-checker` | Verify factual claims |
-| `Qsource-verifier` | Source credibility verification (SIFT) |
-| `Qlesson-learned` | Extract engineering lessons from git history |
-| `Qi18n-audit` | Scan for hardcoded strings, generate translation keys, report i18n coverage |
-
-### Design & Frontend
-| Skill | Purpose |
-|-------|---------|
-| `Qdesign` | Create DESIGN.md — the design system spec that all frontend skills reference |
-| `Qfrontend-design` | Create new UI from scratch (reads DESIGN.md as source of truth) |
-| `Qdesign-audit` | Audit design consistency within the project's own design system |
-| `Qweb-design-guidelines` | Audit existing UI code |
-| `Qweb-design-guidelines-vercel` | Vercel Web Interface Guidelines review |
-| `Qdatabase-schema-designer` | Database schema design |
-| `Qapi-designer` | REST/GraphQL API design |
-| `Qarchitecture-designer` | System architecture design |
-| `Qmicroservices-architect` | Distributed system architecture |
-| `Qlegacy-modernizer` | Legacy system migration strategy |
-| `Qagent-browser` | Browser automation CLI |
-| `Qvisual-qa` | Chrome browser visual QA — screenshot compare against reference images |
-| `Qvisual-redesign` | Visual audit + auto-fix — captures rendered pages, diagnoses DESIGN.md violations, fixes code |
-
-### Language & Framework Experts
-| Skill | Purpose |
-|-------|---------|
-| `Qpython-pro` | Python 3.11+ |
-| `Qtypescript-pro` | TypeScript advanced |
-| `Qjavascript-pro` | JavaScript ES2023+ |
-| `Qgolang-pro` / `Qgolang` | Go |
-| `Qrust-engineer` | Rust |
-| `Qjava-architect` | Java / Spring Boot |
-| `Qcsharp-developer` | C# / .NET 8 |
-| `Qcpp-pro` | C++20/23 |
-| `Qkotlin-specialist` | Kotlin |
-| `Qphp-pro` | PHP 8.3+ |
-| `Qswift-expert` | Swift / SwiftUI |
-| `Qsql-pro` | SQL optimization |
-| `Qreact-expert` | React 18+ |
-| `Qvue-expert` / `Qvue-expert-js` | Vue 3 |
-| `Qangular-architect` | Angular 17+ |
-| `Qnextjs-developer` | Next.js 14+ |
-| `Qreact-native-expert` | React Native / Expo |
-| `Qflutter-expert` | Flutter 3+ |
-| `Qfastapi-expert` | FastAPI |
-| `Qdjango-expert` | Django |
-| `Qnestjs-expert` | NestJS |
-| `Qlaravel-specialist` | Laravel 10+ |
-| `Qrails-expert` | Rails 7+ |
-| `Qspring-boot-engineer` | Spring Boot 3.x |
-| `Qdotnet-core-expert` | .NET 8 |
-| `Qvite` | Vite |
-| `Qreact-best-practices` | React/Next.js optimization |
-| `Qvue-best-practices` | Vue.js best practices |
-
-### Infrastructure & DevOps
-| Skill | Purpose |
-|-------|---------|
-| `Qdevops-engineer` | Docker, CI/CD, K8s |
-| `Qkubernetes-specialist` | Kubernetes workloads |
-| `Qterraform-engineer` | Terraform IaC |
-| `Qcloud-architect` | AWS/Azure/GCP |
-| `Qpostgres-pro` | PostgreSQL optimization |
-| `Qdatabase-optimizer` | DB query optimization |
-| `Qmonitoring-expert` | Prometheus/Grafana |
-| `Qsre-engineer` | SLOs, error budgets, incident response |
-| `Qchaos-engineer` | Chaos experiments |
-| `Qcli-developer` | CLI tool development |
-| `Qwebsocket-engineer` | WebSocket systems |
-| `Qsalesforce-developer` | Salesforce/Apex |
-| `Qshopify-expert` | Shopify |
-| `Qwordpress-pro` | WordPress |
-| `Qatlassian-mcp` | Atlassian integration |
-| `Qspark-engineer` | Spark jobs |
-| `Qgraphql-architect` | GraphQL / Apollo |
-| `Qprompt-engineer` | LLM prompt writing |
-| `Qrag-architect` | RAG systems |
-| `Qfine-tuning-expert` | LLM fine-tuning |
-| `Qml-pipeline` | ML pipeline infrastructure |
-| `Qpandas-pro` | Pandas DataFrame operations |
-| `Qgame-developer` | Unity/Unreal game systems |
-| `Qembedded-systems` | Firmware / RTOS |
-| `Qmcp-developer` | Build/debug MCP servers |
-| `Qfullstack-guardian` | Security-focused full-stack apps |
+Domain expert skills (language/framework experts, PM & product docs, design/frontend,
+infrastructure & DevOps, data analysis, academic writing, etc.) are no longer part of
+the framework payload. They live in the external `@inho-team/qe-mcp` companion package
+so framework installs stay small and client-neutral. Use `Qmcp setup` to connect the
+companion, `Qcollect-skill` for project-local stack guidance, or `Qhelp find` to
+discover installable skills.
 
 ---
 
@@ -538,14 +398,17 @@ apply and the choice depends on the situation. Only skills confirmed present in
 | `Ecode-test-engineer` | Test writing and coverage |
 | `Ecommit-executor` | Git commit operations (used by Qcommit) |
 | `Ecompact-executor` | Context save/restore |
+| `Econtract-judge` | Business-logic contract PASS/FAIL verdict (used by Qverify-contract) |
 | `Edeep-researcher` | Multi-source research |
 | `Edoc-writer` | Technical documentation writing and batch document generation |
 | `Egrad-writer` | Academic paper chapter writing |
 | `Ehandoff-executor` | Session handoff documents |
+| `Eperformance-profiler` | Build/bundle/runtime performance profiling |
 | `Epm-planner` | PRD/roadmap/story planning |
 | `Eqa-orchestrator` | Test > review > fix loop |
 | `Eqa-explorer` | Black-box exploratory UI tester (browser-only, no source access) |
 | `Erefresh-executor` | Project change detection |
+| `Erisk-proof-auditor` | Adversarial risk-proof audit (used by Qcritical-review --risk) |
 | `Esecurity-officer` | Security vulnerability scanning |
 | `Esupervision-orchestrator` | Expert-level quality assessment |
 | `Etask-executor` | Complex task implementation (5+ items) |

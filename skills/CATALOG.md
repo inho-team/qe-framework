@@ -21,9 +21,9 @@
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qdebate` | When the user wants to debate tradeoffs with opposing agents or Codex. | Multi-round structured debate (agent-vs-agent, codex-vs-claude, self-debate). |
-| `/Qsource-verifier` | When you need to verify if source code matches the provided specs. | Deep integrity check between implementation and TASK_REQUEST. |
-| `/Qqa-council` | When you want a role-separated multi-agent QA loop over a live app, or a PR-triggered QA bot. | Explore (black-box) → codify → heal → report, with bounded agents and optional GitHub Actions scaffold. |
+| `/Qcritical-review` | When a spec, implementation, or merge needs adversarial verification. | SIVS stage-aware stress-testing; `--debate` (multi-round debate) and `--risk` (evidence-backed risk proof) modes. |
+| `/Qverify-contract` | When an implementation must be checked against a business-logic contract. | Cached PASS/FAIL verdict via the Econtract-judge agent. |
+| `/Qqa` | When QA planning, scenario/E2E runs, or the multi-agent QA council is needed. | `plan` · `run` · `council` modes: explore (black-box) → codify → heal → report. |
 | `/Qgc` | When codebase needs quality audit or cleanup. | Scans for doc-code drift, rule violations, dead code. Auto-fixes simple issues. |
 
 ## Management & Automation
@@ -39,17 +39,26 @@
 | `/Qmcp ensure` / `$Qmcp ensure` | When a workflow needs to check MCP client/server status before using tools. | Checks MCP config readability, server command availability, and stale registrations. |
 | `/Qsecret` | When API keys or tokens must be stored or used safely. | Keeps plaintext secrets out of the repo while supporting secure env injection. |
 | `/Qissue` | When the user wants to file a bug report, feature request, or question against the qe-framework repo. | Single-command issue filing via `gh` CLI with one-time PAT onboarding. |
-| `/Quser-action` / `$Quser-action` | When Claude or Codex needs the user to perform an external action. | Creates durable `.qe/user-actions/` requests for hook trust, login, 2FA, secrets entry, console work, or acceptance checks. |
 | `/Qupdate` | When the QE framework, its Codex assets, or the codex-plugin-cc bridge need updating. | One command: updates the framework body (Claude + Codex) and checks/updates the codex-plugin-cc bridge. |
 | `/Qmistake` | When user points out a mistake or corrects behavior. | Records to .qe/MISTAKE.md, loaded every session start. |
 | `/Qversion` | When you need to check the current framework version. | Displays version info and recent changelog. |
 | `/Qsivs-config` | When you need to view or change SIVS engine routing (claude/codex per stage). | CLI-style config manager for `.qe/sivs-config.json`. |
 | `/Qgc archive` | When a task is completed and needs to be archived. | Moves files to archive and cleans up temporary state. |
+| `/Qhelp` | When you need the QE catalog overview or a skill summary. | Full catalog or per-skill summary in the user's language. |
+| `/Qdoctor` | When QE installation or `.qe/` state looks broken. | Diagnoses and repairs framework, companion, and project-state health. |
+| `/Qcommit` | When changes must be committed. | Human-style commit messages with no AI traces. |
+| `/Qclaude-rescue` | When a Codex session must hand spec/verify/supervise work to Claude. | Reverse of `/codex:rescue` via the local Claude CLI. |
 
-## Design & Frontend
+## Session & Memory
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
+| `/Qcompact` | When context must be saved or handed off before a session ends. | Structured snapshot recoverable in future sessions. |
+| `/Qresume` | When resuming work after compaction or a session break. | Restores working state from the saved snapshot. |
+| `/Qmemory` | When conventions, gotchas, or decisions should persist across sessions. | Project memory with TTL management. |
+| `/Qlearn` | When lessons from failures should be recalled in later sessions. | Time-decay-ranked learnings injected at session start. |
+| `/Qshadow` | When the working tree needs checkpoints without touching real git. | Isolated shadow-git snapshots: create, diff, restore, prune. |
+| `/Qrefresh` | When `.qe/analysis` data is stale. | Re-analyzes project state in one pass. |
 
 ## Documentation & Research
 

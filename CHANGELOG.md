@@ -104,6 +104,16 @@ All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
 
 ### Documentation
 
+- **Skill/agent catalogs synced to the post-diet payload** (29 skills, 20 agents).
+  `QE_CONVENTIONS.md` and `skills/CATALOG.md` no longer list removed skills
+  (`Qcc-setup`, `Qalias`, `Qmap-codebase`, `Qdebate`, `Qqa-council`,
+  `Qscenario-test`, `Quser-action`, expert/domain catalog, …); merged modes are
+  documented on their successors (`Qcritical-review --debate/--risk`,
+  `Qqa plan/run/council`), expert skills point to the external `@inho-team/qe-mcp`
+  companion, and missing agents (`Econtract-judge`, `Eperformance-profiler`,
+  `Erisk-proof-auditor`) were added. Stale references in `README.md`,
+  `docs/SYSTEM_OVERVIEW.md`, `docs/USAGE_GUIDE.md`, `core/INTERACTION_ADAPTER.md`,
+  and `core/PRINCIPLES.md` fixed to match.
 - **SIVS gate engine ownership and per-scope config authority documented**
   (Phase 5 / `sivs-gate-consolidation` D-f876457e-1). Resolves the mismatch
   between codex-head profile declarations and actual gate execution engines.

@@ -5,7 +5,7 @@ client adapter. Do not bind a skill directly to a Claude-only interaction
 primitive unless the section explicitly says "Claude adapter".
 
 Use the interaction adapter for decisions and clarifying questions. Use a User
-Action Request (`core/USER_ACTION_REQUEST.md`, `Quser-action`) when the user must
+Action Request (`core/USER_ACTION_REQUEST.md`) when the user must
 perform an external action such as login, 2FA, hook trust approval, secret entry,
 console UI work, or a human acceptance check.
 

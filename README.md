@@ -342,12 +342,12 @@ install download optional guidance.
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qexecute` `Qexecute` `Qexecute -verify` `Qinit` | 6 |
+| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qexecute` `Qexecute -verify` `Qinit` | 5 |
 | **Autonomy** ⚠️ | `Qexecute -utopia` *(auto-approves everything — read warning below before using)* | 1 |
 | **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` `Qdoctor` | 6 |
 | **Project** | `Qcommit` `Qrefresh --sync` | 2 |
-| **Quality** | `Qgc` `Qsource-verifier` | 2 |
-| **Research** | `Qautoresearch` `Qfact-checker` `Qsource-verifier` | 3 |
+| **Quality** | `Qgc` `Qcritical-review` `Qverify-contract` `Qqa` | 4 |
+| **Research** | `Qautoresearch` | 1 |
 | **More** | `/Qhelp find` on Claude; `$Qhelp find` on Codex | Extended catalog |
 
 #### ⚠️ Autonomous Mode (`/Qexecute -utopia` / `$Qexecute -utopia`) — Use With Caution

@@ -242,10 +242,10 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
-| Core PSE | 6 | Qplan, Qgs, Qexecute, Qexecute, Qexecute -verify, Qinit |
+| Core PSE | 5 | Qplan, Qgs, Qexecute, Qexecute -verify, Qinit |
 | Context & Config | 5 | Qcontext, Qsivs-config, Qrefresh, Qmemory, Qcompact |
-| Research | 3 | Qautoresearch, Qfact-checker, Qsource-verifier |
-| Other | 41 | `Qhelp find` or `Qhelp` to discover |
+| Research | 1 | Qautoresearch |
+| Other | 18 | `Qhelp find` or `Qhelp` to discover |
 
 ---
 

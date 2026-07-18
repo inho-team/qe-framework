@@ -205,8 +205,8 @@ Reference docs:
 - `core/LIFECYCLE_ADAPTER.md`
 - `.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md`
 
-When a workflow needs something the model cannot do directly, use
-`/Quser-action` (`$Quser-action` on Codex). It writes a durable
+When a workflow needs something the model cannot do directly, create a User
+Action Request following `core/USER_ACTION_REQUEST.md`. It writes a durable
 `.qe/user-actions/pending/*.md` request with the exact user action, expected
 result, and unblock instructions instead of losing the request in chat.
 
