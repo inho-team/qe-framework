@@ -45,6 +45,7 @@ function writeFixture(cwd, relativePath, content) {
 test('getClaudeCommand renders stage commands and rejects unknown stages', () => {
   assert.deepEqual(getClaudeCommand('verify'), {
     command: 'claude -p',
+    argv: ['claude', '-p'],
     description: 'Delegate verification to Claude',
   });
   assert.equal(
