@@ -16,22 +16,30 @@ Agent Teams spawns **separate Claude Code instances** as teammates, each with it
 | **Token cost** | Lower (summary returned) | Higher (each teammate is full instance) |
 | **Hooks** | Standard PreToolUse/PostToolUse | TeammateIdle, TaskCompleted |
 
-## When to Use Agent Teams vs Subagents
+## Three parallelism axes: Subagents vs Agent Teams vs Dynamic Workflows
 
-| Criteria | Subagent | Agent Team |
-|----------|----------|------------|
-| Independent contexts beneficial | No | Yes |
-| 3+ parallel workers needed | Optional | Recommended |
-| Workers need to share findings | No | Yes |
-| Same-file editing | OK (sequential) | Forbidden (partition required) |
-| Cost sensitivity | Lower cost | Higher cost |
-| Single focused task | Use Subagent | Overkill |
+There are **three** distinct mechanisms, not two. Dynamic Workflows (`/workflows`) is a separate
+native Claude Code feature — see `docs/CLAUDE_CODE_FEATURES.md`.
+
+| Criteria | Subagent (Agent tool) | Agent Team | Dynamic Workflow (`/workflows`) |
+|----------|----------|------------|-------------------------------|
+| How it starts | `Agent()` call in-session | Natural-language request; separate Claude instances | JS orchestration script Claude writes; runs in background |
+| Independent contexts | No (inherits caller) | Yes (each teammate full instance) | Yes (each agent isolated) |
+| 3+ parallel workers | Optional | Recommended | Built for scale (up to 1,000 total agents; `min(16, max(2, cpu cores - 2))` concurrent) |
+| Workers share findings | No | Yes (peer messaging) | Via the script's data flow, not peer messaging |
+| Same-file editing | OK (sequential) | Forbidden (partition required) | Isolated per agent (worktree) |
+| Cost | Lower | Higher | Highest at scale |
+| Best for | Single focused task | 3–5 collaborating workers | Large fan-out (10+ items/files), migrations, audits |
+| Trigger | `Agent()` tool | "Create a team …" | "Create a workflow …" or the `ultracode` prompt keyword |
+
+Single `parallel()`/`pipeline()` call in a workflow takes at most **4096 items**. `16` concurrent is a
+ceiling, not a fixed value — a 12-core machine runs ~10 at a time.
 
 ### Decision Rule
-1. Is the work parallelizable with 3+ independent streams? → Consider Teams
-2. Do workers need to challenge each other (debate, review)? → Use Teams
-3. Is it a single focused task with one result? → Use Subagent
-4. Are you editing the same files? → Use Subagent (sequential)
+1. Is it a single focused task with one result? → Use **Subagent**
+2. Are you editing the same files sequentially? → Use **Subagent**
+3. Is the work 3–5 streams that must challenge each other (debate, review)? → Use **Agent Team**
+4. Is it a large fan-out (≥10 independent items/files, migration, broad audit)? → Use a **Dynamic Workflow**
 
 ## Activation
 
@@ -211,7 +219,7 @@ The `--agents` flag accepts a JSON array of agent definitions. Each agent suppor
 | `skills` | string[] | No | Available skills for the agent |
 | `initialPrompt` | string | No | First message sent to the agent on start |
 | `memory` | string | No | Memory/context configuration |
-| `effort` | string | No | Reasoning effort: "low", "medium", "high", "max" |
+| `effort` | string | No | Reasoning effort: "low", "medium", "high", "xhigh", "max" |
 | `background` | boolean | No | Run agent in background (default: false) |
 | `isolation` | string | No | "worktree" for git worktree isolation |
 | `color` | string | No | Terminal color identifier for the agent |

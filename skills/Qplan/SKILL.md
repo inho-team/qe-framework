@@ -90,7 +90,7 @@ Determine the task scale:
 | Massive refactor, 10+ files, adversarial verification needed | **Workflow** | Suggest `/workflows` |
 
 **Workflow** (dynamic workflow escalation):
-1. Suggest the user create a dynamic workflow instead of PSE chain: "This task is large enough to benefit from a dynamic workflow. Try: 'Create a workflow for this task' or use the active client's high-effort workflow mode."
+1. Suggest the user create a dynamic workflow instead of PSE chain: "This task is large enough to benefit from a dynamic workflow. Try: 'Create a workflow for this task', or put the `ultracode` keyword in your prompt (it sets `xhigh` reasoning + dynamic workflow orchestration for the session)."
 2. If the user prefers PSE, proceed with Full Planning as normal.
 3. Dynamic workflows handle their own orchestration (up to 1,000 subagents) — QE planning is not needed.
 
@@ -149,7 +149,9 @@ Bind this plan to the current terminal session so consumer skills (Qgs/Qexecute/
 ```
 This task may benefit from a dynamic workflow.
 Try: "Create a workflow for {task description}"
-Or use ultracode effort level for automatic workflow creation.
+Or put the `ultracode` keyword in your prompt — it enables xhigh + dynamic workflow orchestration
+for the session (`ultracode` is a session mode, not a plain --effort value).
+Note: `--effort xhigh` alone does not enable workflow orchestration — only `ultracode` does.
 See: docs/CLAUDE_CODE_FEATURES.md
 ```
 

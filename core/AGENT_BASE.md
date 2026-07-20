@@ -103,16 +103,18 @@ The `effort` parameter controls reasoning depth independently of model selection
 | `low` | Minimal reasoning, fast responses | Simple lookups, file copies, format conversions |
 | `medium` | Standard reasoning (default) | Most implementation and review tasks |
 | `high` | Deep reasoning, thorough analysis | Architecture decisions, complex debugging |
-| `max` | Maximum reasoning depth (Claude only) | Critical quality judgments, deep research |
+| `xhigh` | Deeper than `high` | Codex's top level; also a valid Claude `--effort` value |
+| `max` | Maximum reasoning depth (Claude) | Critical quality judgments, deep research |
 
-Note: Codex uses `xhigh` instead of `max`. The framework auto-maps between them via `effort-compat.mjs`.
+Note: Claude accepts both `xhigh` and `max`; Codex has `xhigh` but **no `max`**. The framework auto-maps
+`max` ↔ `xhigh` across engines via `effort-compat.mjs` (`max`→`xhigh` for Codex, `xhigh`→`max` for Claude).
 
 ### Tier vs Effort (Orthogonal Concepts)
 
 | Concept | Controls | Values |
 |---------|----------|--------|
 | **Tier** | Which model to use | LOW (haiku), MEDIUM (sonnet), HIGH (opus) |
-| **Effort** | How deeply the model thinks | low, medium, high, max |
+| **Effort** | How deeply the model thinks | low, medium, high, xhigh, max |
 
 These are independent — any combination is valid:
 

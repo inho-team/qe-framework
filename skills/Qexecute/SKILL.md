@@ -380,8 +380,15 @@ guard. On `tool_calls > 200`/iteration → auto `{adapter.commandPrefix}Qcompact
 
 ## Dynamic workflow escalation
 When a task has ≥10 checklist items or touches ≥10 files, PSE may not be the best shape: suggest a
-dynamic workflow ("Create a workflow for this task" / ultracode effort), optionally paired with a
-session goal (`/goal all tests pass, or stop after N turns`) for unattended runs. Fallback: proceed
+dynamic workflow ("Create a workflow for this task", or the `ultracode` prompt keyword — which sets
+`xhigh` reasoning **+** dynamic workflow orchestration for the session; it is not a plain `--effort`
+value). `ultracode` is accepted three ways: the `/effort ultracode` slash command, as a prompt keyword,
+and as an undocumented `--effort ultracode` alias (→ `xhigh`, no warning; undocumented, may change).
+Optionally pair with a session goal for unattended runs — but scope the goal to a
+**transcript-verifiable procedural condition** (e.g. `/goal all VERIFY checklist items are checked, or
+stop after N turns`), **not** `/goal all tests pass`: the `/goal` evaluator has no tools and cannot
+verify test execution, so "all tests pass" is not a valid goal condition (see
+`docs/CLAUDE_CODE_FEATURES.md` → `/goal` and `.qe/analysis/prompt-hook-spike.md`). Fallback: proceed
 with `-utopia` / `-utopia -verify` as normal.
 
 ## Common rules
