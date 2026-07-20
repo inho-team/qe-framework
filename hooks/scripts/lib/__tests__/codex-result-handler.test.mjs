@@ -51,6 +51,24 @@ test('codex-result-handler: process-dead running job maps to crashed with metada
   });
 });
 
+test('codex-result-handler: auto-reap marker keeps later cancelled state crashed', () => {
+  const cwd = `/tmp/qe-result-auto-reaped-${process.pid}`;
+  withPluginState(cwd, [
+    { id: 'job-auto-reaped', status: 'running', pid: DEAD_PID, logFile: null, updatedAt: '2026-06-27T01:00:00Z' },
+  ], () => {
+    const first = checkCodexResult(cwd);
+    assert.equal(first.status, 'crashed');
+  });
+
+  withPluginState(cwd, [
+    { id: 'job-auto-reaped', status: 'cancelled', errorMessage: 'Cancelled by user', updatedAt: '2026-06-27T01:00:01Z' },
+  ], () => {
+    const second = checkCodexResult(cwd);
+    assert.equal(second.status, 'crashed');
+    assert.match(second.error, /auto-reaped/);
+  });
+});
+
 test('codex-result-handler: alive running job remains running', () => {
   const cwd = `/tmp/qe-result-alive-${process.pid}`;
   withPluginState(cwd, [
@@ -60,6 +78,35 @@ test('codex-result-handler: alive running job remains running', () => {
     assert.equal(result.status, 'running');
     assert.equal(result.pid, process.pid);
     assert.equal(result.stale, false);
+  });
+});
+
+test('codex-result-handler: normal cancelled job remains failed, not crashed', () => {
+  const cwd = `/tmp/qe-result-cancelled-${process.pid}`;
+  withPluginState(cwd, [
+    { id: 'job-cancelled', status: 'cancelled', errorMessage: 'Cancelled by user', updatedAt: '2026-06-27T01:00:00Z' },
+  ], () => {
+    const result = checkCodexResult(cwd);
+    assert.equal(result.status, 'failed');
+    assert.equal(result.error, 'Cancelled by user');
+  });
+});
+
+test('codex-result-handler: thread-lost cancelled job maps to crashed', () => {
+  const cwd = `/tmp/qe-result-thread-lost-${process.pid}`;
+  withPluginState(cwd, [
+    {
+      id: 'job-thread-lost',
+      status: 'cancelled',
+      errorMessage: 'Codex turn interrupt failed: thread not found; Cancelled by user',
+      updatedAt: '2026-06-27T01:00:00Z',
+    },
+  ], () => {
+    const result = checkCodexResult(cwd);
+    assert.equal(result.status, 'crashed');
+    assert.equal(result.source, 'companion');
+    assert.match(result.error, /runtime session was lost/i);
+    assert.match(formatResultInstruction(result), /CRASHED/);
   });
 });
 
@@ -88,4 +135,3 @@ test('codex-result-handler: crash signal parses as crashed', (t) => {
   assert.match(formatResultInstruction(result), /CRASHED/);
   assert.doesNotMatch(formatResultInstruction(result), /1h passed|TIMEOUT/);
 });
-

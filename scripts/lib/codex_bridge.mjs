@@ -535,6 +535,117 @@ function staleLogSilenceThresholdMs() {
 }
 
 /**
+ * Detect Codex runtime/session loss messages that can be surfaced through
+ * companion cancel failures or persisted job errors. These are not user intent.
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+export function isCodexRuntimeLossMessage(value) {
+  for (const candidate of codexRuntimeLossCandidates(value)) {
+    if (/thread[\s_-]+not[\s_-]+found|runtime[\s_-]+lost|codex[\s_-]+turn[\s_-]+interrupt[\s_-]+failed|codex\b[^\n\r]{0,120}\binterrupt\s+failed|turn\s+interrupt\s+failed/i.test(candidate)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+/**
+ * Extract bounded diagnostic candidates from strings and structured errors.
+ * This accepts future companion schemas without trusting arbitrary deep objects.
+ * @param {unknown} value
+ * @returns {string[]}
+ */
+function codexRuntimeLossCandidates(value) {
+  const out = [];
+  const seen = new WeakSet();
+  const stack = [{ value, depth: 0 }];
+  while (stack.length > 0 && out.length < 50) {
+    const item = stack.pop();
+    const current = item?.value;
+    const depth = item?.depth ?? 0;
+    if (typeof current === 'string') {
+      out.push(current);
+      continue;
+    }
+    if (!current || typeof current !== 'object' || depth > 3 || seen.has(current)) continue;
+    seen.add(current);
+    if (Array.isArray(current)) {
+      for (const entry of current) {
+        stack.push({ value: entry, depth: depth + 1 });
+      }
+      continue;
+    }
+    if (current.runtimeLost === true || current.runtime_lost === true) out.push('runtime_lost');
+    for (const key of [
+      'code',
+      'errorCode',
+      'error_code',
+      'reasonCode',
+      'reason_code',
+      'kind',
+      'type',
+      'name',
+      'status',
+      'reason',
+      'error',
+      'errors',
+      'errorMessage',
+      'message',
+      'cause',
+      'details',
+      'metadata',
+    ]) {
+      if (Object.prototype.hasOwnProperty.call(current, key)) {
+        stack.push({ value: current[key], depth: depth + 1 });
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Redact sensitive or environment-specific details before surfacing companion
+ * diagnostics through QE status/reporting paths.
+ * @param {unknown} value
+ * @returns {string}
+ */
+export function sanitizeCodexDiagnosticMessage(value) {
+  if (typeof value !== 'string') return '';
+  return value
+    .replace(/\b(Bearer\s+)[A-Za-z0-9._~+/=-]+/gi, '$1<redacted>')
+    .replace(/\b(sk-[A-Za-z0-9_-]{8,}|gh[pousr]_[A-Za-z0-9_]{8,}|github_pat_[A-Za-z0-9_]{8,})\b/g, '<redacted-token>')
+    .replace(/(?:\/Users|\/home|\/var\/folders|\/tmp)\/[^\s'"`<>)]*/g, '<path>')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .slice(0, 2000);
+}
+
+/**
+ * Build a useful, bounded failure message from execFileSync errors.
+ * @param {unknown} err
+ * @returns {string}
+ */
+function execFailureMessage(err) {
+  const parts = execFailureParts(err);
+  const message = parts.join('\n').trim();
+  return message.length > 2000 ? `${message.slice(0, 2000)}…` : message;
+}
+
+/**
+ * Extract raw child-process failure streams. Classification uses these raw parts
+ * before display truncation so late runtime-loss markers are not dropped.
+ * @param {unknown} err
+ * @returns {string[]}
+ */
+function execFailureParts(err) {
+  const parts = [];
+  if (err?.message) parts.push(String(err.message));
+  if (err?.stderr) parts.push(Buffer.isBuffer(err.stderr) ? err.stderr.toString('utf8') : String(err.stderr));
+  if (err?.stdout) parts.push(Buffer.isBuffer(err.stdout) ? err.stdout.toString('utf8') : String(err.stdout));
+  return parts;
+}
+
+/**
  * Liveness probe for a recorded worker pid. Uses signal 0, which performs the
  * existence/permission check without delivering a signal.
  * @param {number} pid
@@ -638,6 +749,7 @@ export function getLatestCodexJobStatus(cwd) {
       updatedAt: latest.updatedAt || null,
       completedAt: latest.completedAt || null,
       error: latest.errorMessage || null,
+      runtimeLost: isCodexRuntimeLossMessage(latest),
       stale,
       staleReason,
       staleKind,
@@ -684,7 +796,7 @@ export function resolveCodexCompanionScript() {
  * @param {string} cwd - workspace root
  * @param {object} [options] - { timeoutMs?: number, companionScript?: string }
  *   companionScript overrides the auto-resolved codex-companion path (tests).
- * @returns {{ reaped: Array<{id:string,reason:string}>, skipped: Array<{id:string,reason:string}>, errors: Array<{id:string,reason:string}> }}
+ * @returns {{ reaped: Array<{id:string,reason:string}>, skipped: Array<{id:string,reason:string}>, errors: Array<{id:string,reason:string,runtimeLost?:boolean,kind?:string}> }}
  */
 export function reapStaleCodexJobs(cwd, options = {}) {
   const result = { reaped: [], skipped: [], errors: [] };
@@ -728,12 +840,24 @@ export function reapStaleCodexJobs(cwd, options = {}) {
   for (const { job, staleReason } of confirmed) {
     try {
       execFileSync('node', [companion, 'cancel', job.id, '--cwd', cwd], {
-        stdio: ['ignore', 'ignore', 'ignore'],
+        encoding: 'utf8',
+        input: '',
+        stdio: ['pipe', 'pipe', 'pipe'],
         timeout: options.timeoutMs ?? 10000,
       });
       result.reaped.push({ id: job.id, reason: staleReason });
     } catch (err) {
-      result.errors.push({ id: job.id, reason: err?.message || 'codex cancel failed' });
+      const rawParts = execFailureParts(err);
+      const detail = execFailureMessage(err) || 'codex cancel failed';
+      const runtimeLost = rawParts.some(isCodexRuntimeLossMessage);
+      const safeDetail = sanitizeCodexDiagnosticMessage(detail) || 'codex cancel failed';
+      result.errors.push({
+        id: job.id,
+        reason: runtimeLost
+          ? `codex runtime lost while cancelling stale job (${staleReason}): ${safeDetail}`
+          : safeDetail,
+        ...(runtimeLost ? { runtimeLost: true, kind: 'runtime-lost' } : {}),
+      });
     }
   }
 

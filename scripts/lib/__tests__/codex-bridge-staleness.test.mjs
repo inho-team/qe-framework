@@ -8,8 +8,10 @@ import test from 'node:test';
 import {
   detectJobStaleness,
   getLatestCodexJobStatus,
+  isCodexRuntimeLossMessage,
   isProcessAlive,
   reapStaleCodexJobs,
+  sanitizeCodexDiagnosticMessage,
 } from '../codex_bridge.mjs';
 
 // A pid that is essentially guaranteed not to exist (above macOS/Linux pid_max).
@@ -42,6 +44,28 @@ test('detectJobStaleness: non-running statuses are never stale (invariant)', () 
     const r = detectJobStaleness({ status, pid: DEAD_PID, logFile: null });
     assert.equal(r.stale, false, `status=${status} must not be stale`);
   }
+});
+
+test('isCodexRuntimeLossMessage: detects known thread-loss messages', () => {
+  assert.equal(isCodexRuntimeLossMessage('Codex turn interrupt failed: thread not found'), true);
+  assert.equal(isCodexRuntimeLossMessage('Codex interrupt failed while cancelling job'), true);
+  assert.equal(isCodexRuntimeLossMessage({ errorCode: 'CODEX_TURN_INTERRUPT_FAILED' }), true);
+  assert.equal(isCodexRuntimeLossMessage({ runtimeLost: true }), true);
+  assert.equal(isCodexRuntimeLossMessage({ error: { cause: { code: 'THREAD_NOT_FOUND' } } }), true);
+  assert.equal(isCodexRuntimeLossMessage({ details: [{ type: 'RUNTIME_LOST' }] }), true);
+  assert.equal(isCodexRuntimeLossMessage('network interrupt failed while cancelling job'), false);
+  assert.equal(isCodexRuntimeLossMessage({ errorCode: 'NETWORK_INTERRUPT_FAILED' }), false);
+  assert.equal(isCodexRuntimeLossMessage('cancelled by user'), false);
+  assert.equal(isCodexRuntimeLossMessage(null), false);
+});
+
+test('sanitizeCodexDiagnosticMessage: redacts paths and token-shaped secrets', () => {
+  const raw = 'Codex turn interrupt failed: thread not found at /Users/example/project token sk-abc123456789 Bearer abc.def';
+  const safe = sanitizeCodexDiagnosticMessage(raw);
+  assert.match(safe, /thread not found/);
+  assert.doesNotMatch(safe, /\/Users\/example/);
+  assert.doesNotMatch(safe, /sk-abc123456789/);
+  assert.doesNotMatch(safe, /Bearer abc\.def/);
 });
 
 test('detectJobStaleness: pid-less running job with a silent log is stale', () => {
@@ -161,10 +185,17 @@ function withStateDir(cwd, jobs, fn) {
 }
 
 // A throwaway companion script — exit 0 = cancel "succeeds", exit 1 = "fails".
-function fakeCompanion(exitCode = 0) {
+function fakeCompanion(exitCode = 0, stderr = '', stdout = '') {
   const dir = mkdtempSync(join(tmpdir(), 'qe-companion-'));
   const f = join(dir, 'companion.mjs');
-  writeFileSync(f, `process.exit(${exitCode});`);
+  writeFileSync(
+    f,
+    [
+      `process.stdout.write(${JSON.stringify(stdout)});`,
+      `process.stderr.write(${JSON.stringify(stderr)});`,
+      `process.exit(${exitCode});`,
+    ].join('\n'),
+  );
   return f;
 }
 
@@ -207,6 +238,49 @@ test('reapStaleCodexJobs: a failed cancel is captured in errors', () => {
     assert.equal(r.reaped.length, 0);
     assert.equal(r.errors.length, 1);
     assert.equal(r.errors[0].id, 'job-dead2');
+  });
+});
+
+test('reapStaleCodexJobs: thread-lost cancel failure preserves stderr classification', () => {
+  const cwd = `/tmp/qe-reap-thread-lost-${process.pid}`;
+  withStateDir(cwd, [{ id: 'job-lost', status: 'running', pid: DEAD_PID, logFile: null, updatedAt: '2026-06-27T01:00:00Z' }], () => {
+    const r = reapStaleCodexJobs(cwd, {
+      companionScript: fakeCompanion(1, 'Codex turn interrupt failed: thread not found\nCancelled by user\n'),
+    });
+    assert.equal(r.reaped.length, 0);
+    assert.equal(r.errors.length, 1);
+    assert.equal(r.errors[0].id, 'job-lost');
+    assert.equal(r.errors[0].runtimeLost, true);
+    assert.equal(r.errors[0].kind, 'runtime-lost');
+    assert.match(r.errors[0].reason, /thread not found/);
+  });
+});
+
+test('reapStaleCodexJobs: thread-lost cancel failure preserves stdout classification', () => {
+  const cwd = `/tmp/qe-reap-thread-lost-stdout-${process.pid}`;
+  withStateDir(cwd, [{ id: 'job-lost-stdout', status: 'running', pid: DEAD_PID, logFile: null, updatedAt: '2026-06-27T01:00:00Z' }], () => {
+    const r = reapStaleCodexJobs(cwd, {
+      companionScript: fakeCompanion(1, '', 'Codex turn interrupt failed: thread not found\n'),
+    });
+    assert.equal(r.reaped.length, 0);
+    assert.equal(r.errors.length, 1);
+    assert.equal(r.errors[0].runtimeLost, true);
+    assert.equal(r.errors[0].kind, 'runtime-lost');
+    assert.match(r.errors[0].reason, /thread not found/);
+  });
+});
+
+test('reapStaleCodexJobs: detects thread-loss marker after display truncation boundary', () => {
+  const cwd = `/tmp/qe-reap-thread-lost-late-${process.pid}`;
+  const lateMarker = `${'x'.repeat(2500)}\nCodex turn interrupt failed: thread not found\n`;
+  withStateDir(cwd, [{ id: 'job-lost-late', status: 'running', pid: DEAD_PID, logFile: null, updatedAt: '2026-06-27T01:00:00Z' }], () => {
+    const r = reapStaleCodexJobs(cwd, {
+      companionScript: fakeCompanion(1, '', lateMarker),
+    });
+    assert.equal(r.reaped.length, 0);
+    assert.equal(r.errors.length, 1);
+    assert.equal(r.errors[0].runtimeLost, true);
+    assert.equal(r.errors[0].kind, 'runtime-lost');
   });
 });
 

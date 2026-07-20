@@ -15,11 +15,18 @@
 
 import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
 import { join } from 'path';
-import { resolveCodexStateDir, getLatestCodexJobStatus, reapStaleCodexJobs } from '../../../scripts/lib/codex_bridge.mjs';
+import {
+  resolveCodexStateDir,
+  getLatestCodexJobStatus,
+  reapStaleCodexJobs,
+  isCodexRuntimeLossMessage,
+  sanitizeCodexDiagnosticMessage,
+} from '../../../scripts/lib/codex_bridge.mjs';
 
 const SIGNAL_DIR_NAME = join('.qe', 'agent-results');
 const SIGNAL_FILE_NAME = 'codex-ready.signal';
 const RESULT_LOG_NAME = 'codex-materialization.md';
+const AUTO_REAP_MARKER_NAME = 'codex-auto-reaped.json';
 
 /**
  * @typedef {Object} CodexResult
@@ -88,6 +95,15 @@ function checkCompanionJobState(cwd) {
   };
 
   let mapped = statusMap[job.status] || 'unknown';
+  const safeJobError = sanitizeCodexDiagnosticMessage(job.error);
+  const autoReapMarker = readAutoReapMarker(cwd, job.jobId);
+  let runtimeLossError = (job.runtimeLost || isCodexRuntimeLossMessage(job.error))
+    ? `Codex runtime session was lost: ${safeJobError || 'thread lost'}`
+    : null;
+  let autoReapError = null;
+  if (job.status === 'cancelled' && autoReapMarker) {
+    autoReapError = `Codex job was auto-reaped after a confirmed stale process: ${autoReapMarker.reason}`;
+  }
 
   // Auto-reap confirmed zombies (worker process gone). Weak `log-silent` signals
   // are left alone — only `process-dead` is certain enough to cancel. A confirmed
@@ -102,8 +118,15 @@ function checkCompanionJobState(cwd) {
       reason: r.reaped.find((x) => x.id === job.jobId)?.reason || null,
       errors: r.errors.filter((x) => x.id === job.jobId),
     };
+    const runtimeLossReapError = reaped.errors.find((x) => x.runtimeLost || isCodexRuntimeLossMessage(x.reason));
+    if (runtimeLossReapError) {
+      runtimeLossError = `Codex runtime session was lost during stale-job cleanup: ${runtimeLossReapError.reason}`;
+    }
     mapped = 'crashed';
   }
+
+  if (runtimeLossError) mapped = 'crashed';
+  if (autoReapError) mapped = 'crashed';
 
   return {
     status: mapped,
@@ -112,7 +135,7 @@ function checkCompanionJobState(cwd) {
     elapsedSec: null,
     // A stale "running" job is a zombie (worker gone) — surface its reason as the
     // error so callers do not wait forever on a job that will never finish.
-    error: job.error || (job.stale ? `Job appears stale: ${job.staleReason}` : null),
+    error: runtimeLossError || autoReapError || safeJobError || (job.stale ? `Job appears stale: ${job.staleReason}` : null),
     timestamp: new Date().toISOString(),
     jobId: job.jobId,
     pid: job.pid ?? null,
@@ -123,6 +146,25 @@ function checkCompanionJobState(cwd) {
     staleKind: job.staleKind || null,
     reaped,
   };
+}
+
+/**
+ * Read QE-owned auto-reap metadata. This never edits Codex companion state; it
+ * only lets later checks distinguish QE auto-reap cancellation from user cancel.
+ * @param {string} cwd
+ * @param {string|undefined} jobId
+ * @returns {object|null}
+ */
+function readAutoReapMarker(cwd, jobId) {
+  if (!jobId) return null;
+  const markerPath = join(cwd, SIGNAL_DIR_NAME, AUTO_REAP_MARKER_NAME);
+  if (!existsSync(markerPath)) return null;
+  try {
+    const marker = JSON.parse(readFileSync(markerPath, 'utf-8'));
+    return marker?.jobId === jobId ? marker : null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -265,6 +307,18 @@ ${result.error ? `- **Error**: ${result.error}` : ''}
 `;
 
     writeFileSync(logPath, entry, { flag: 'a' });
+    if (result.status === 'crashed' && result.reaped?.reaped && result.jobId) {
+      writeFileSync(
+        join(dir, AUTO_REAP_MARKER_NAME),
+        JSON.stringify({
+          jobId: result.jobId,
+          status: 'crashed',
+          reason: result.reaped.reason || result.staleReason || 'process-dead auto-reap',
+          staleKind: result.staleKind || null,
+          recordedAt: result.timestamp,
+        }, null, 2)
+      );
+    }
   } catch {
     // Non-critical — don't fail the check
   }
