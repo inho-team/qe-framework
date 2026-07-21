@@ -1,7 +1,7 @@
 ---
 name: Egrad-writer
 description: Academic writing specialist for drafting or revising a specific paper section with academic style and citations.
-tools: Read, Write, Edit, Grep, Glob, Bash
+tools: Read, Write, Edit, Grep, Glob
 recommendedModel: sonnet
 ---
 
