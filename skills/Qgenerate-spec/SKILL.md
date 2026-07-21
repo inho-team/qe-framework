@@ -87,13 +87,23 @@ Before collecting user info, identify the strategic context:
 3. **Identify Phase**: If an active Phase exists in the resolved STATE.md, use its **Success Criteria** and **Requirement IDs** as the primary source of truth for the spec.
 4. **Missing Roadmap**: If no plan is resolvable and no flat roadmap exists either, **STOP** and suggest running `{adapter.commandPrefix}Qplan` first to maintain the PSE Chain integrity.
 
+### Step 1.4: Context Dump Intake (Meta-Prompting Support)
+
+Freeform input does not have to be structured. If the argument string is **long (~300+ chars) or unstructured** — pasted meeting notes, a requirements email, chat fragments, a stream-of-consciousness brain dump — treat it as a **context dump**:
+
+- Accept it as-is. Do **not** ask the user to reformat it into Step 2's structured fields.
+- Encourage this pattern: the user's raw context is higher-signal than a premature summary. More dump = better spec.
+- A context dump **always routes through the Step 1.5 gate in question-elicitation mode** (the Micro-scale skip still applies). The dump replaces none of the gate — it feeds it.
+
+Short structured requests (a slug, a one-line task) skip this step entirely and proceed as before.
+
 ### Step 1.5: Brainstorming Gate (conditional, scale-aware)
 
 Before gathering spec details, run a lightweight ambiguity check. If the incoming requirement is **ambiguous AND the task scale is Small or larger**, perform a concise Socratic clarification pass before drafting. (Source: adapted from Superpowers' brainstorming stage — but **scale-aware, not mandatory**; see `D019` in `.qe/planning/DECISION_LOG.md`.)
 
 **This is our deliberate differentiator from Superpowers' blanket-mandatory brainstorming**: a one-line bug fix must never be forced through a clarification round.
 
-**Gate condition** = `ambiguous(requirement) AND scale ≥ Small`.
+**Gate condition** = `(ambiguous(requirement) AND scale ≥ Small) OR came-from-context-dump (Step 1.4)`.
 
 - **Scale** is judged with the same heuristic as `Qplan` Step 0.7 (Micro / Small / Full / Workflow). **Micro tasks always skip this gate.**
 - **Ambiguity** is true when **any 2 of these 3 objective signals** hold:
@@ -101,7 +111,18 @@ Before gathering spec details, run a lightweight ambiguity check. If the incomin
   2. **No acceptance criteria** — nothing in the request or the resolved Phase Success Criteria states how "done" is verified.
   3. **Alternatives unconsidered** — the request fixes a solution without stating the problem, so no design choice was weighed.
 
-**On gate trigger:** produce one of:
+**On gate trigger — question elicitation:** Invert the direction of information flow: instead of drafting from what the user gave, **ask the user what the spec still lacks** ("지금까지의 컨텍스트로 좋은 스펙을 만들기에 부족한 것을 내가 질문한다"). Generate targeted questions from these fixed dimensions, skipping any already answered by the dump/Phase context:
+
+1. **Target user / actor** — who uses or consumes this?
+2. **Core features & priorities** — which items are must-have vs nice-to-have?
+3. **Data / domain model** — key entities, sources, lifecycle.
+4. **Completeness level** — MVP vs production-complete; how far does "done" go this round?
+5. **Design / UX reference** — existing style, reference product, or explicit non-goal.
+6. **Constraints** — stack, performance, security, deadline.
+
+Keep it to the highest-impact questions (≤ 6). The user may answer partially and delegate the rest ("나머지는 알아서 정해줘") — delegation is allowed, but every AI-chosen default MUST be recorded in the TASK_REQUEST's `## 가정 (AI 결정)` section tagged `[ASSUMED]`, so the user can review and override before execution. Never silently absorb a delegated decision.
+
+Then produce one of:
 - `PASS` → ambiguity resolved (or never present); continue to Step 2 with the sharpened requirement.
 - `CLARIFY` → unresolved gaps remain; surface its questions to the user before drafting. Do **not** draft specs from an unclarified `CLARIFY` requirement.
 
@@ -272,6 +293,7 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 - **Dependency Mapping**: If an item depends on another, mark it: `- [ ] {desc} <!-- depends_on: [UUID/Item#] -->`.
 - **Haiku-Ready**: Ensure items are small enough to be implemented without Sonnet-level reasoning.
 - **Output files**: Always append `→ output: {file-path}` for direct accountability.
+- **Assumed defaults**: Any decision the user delegated ("나머지는 알아서") and the AI resolved goes in an optional `## 가정 (AI 결정)` section, one `[ASSUMED]` line per decision with a one-phrase rationale. This keeps delegated choices reviewable instead of buried in the draft.
 - **Role ownership**: In role-separated or tiered orchestration, identify the expected implementer-owned files or modules so the reviewer can later judge boundary violations.
 - **Code Risk Register (mandatory for `type: code`)**: Add this section before the checklist and fill every field:
   ```markdown
@@ -344,6 +366,8 @@ Next: {adapter.commandPrefix}Qexecute {UUID}
 ```
 
 Note: "Generate & Execute" auto-chains, so the handoff is only needed for "Generate Only".
+
+**Fresh-context hint**: If the spec conversation was long (context dump + multi-round clarification), append one line recommending execution from a fresh session: "이 세션의 컨텍스트가 무겁습니다 — 새 세션에서 `{adapter.commandPrefix}Qexecute {UUID}` 실행을 권장합니다." The spec file already carries everything Qexecute needs; LLMs perform best with a lean context, so don't drag the spec-drafting conversation into execution.
 
 ## Output Format
 - Wrap document content in markdown code blocks when displaying

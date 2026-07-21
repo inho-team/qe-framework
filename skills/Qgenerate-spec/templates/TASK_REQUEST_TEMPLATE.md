@@ -24,6 +24,12 @@
 > ```
 > 태그가 없으면 Etask-executor가 파일 경로를 자동 분석하여 의존성을 추론합니다.
 
+## 가정 (AI 결정) (선택 사항)
+<!-- 사용자가 "나머지는 알아서"로 위임한 결정만 기록. 실행 전 검토·수정 대상 -->
+{{#each assumed_defaults}}
+- [ASSUMED] {{this.decision}} — {{this.rationale}}
+{{/each}}
+
 ## 의사결정 근거 (선택 사항)
 ### 선택한 방식
 {{chosen_approach}} — {{why_chosen}}

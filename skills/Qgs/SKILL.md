@@ -35,6 +35,7 @@ Claude:
 /Qgs auth-refactor: 인증 모듈     # Slug-based — reads plans/auth-refactor/
 /Qgs dashboard-v2: Polish         # Another plan in parallel — no collision
 /Qgs fix login bug                # Freeform — generates spec from description
+/Qgs <회의록/요구사항 원문 붙여넣기>   # Context dump — 비정형 덤프 수용, AI가 부족한 컨텍스트를 역질문
 ```
 
 Codex:
