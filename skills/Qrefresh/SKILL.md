@@ -1,7 +1,7 @@
 ---
 name: Qrefresh
 description: Manually refreshes project analysis data. Use when refreshing, updating, or syncing .qe/analysis/ files. Also supports --sync mode for synchronizing project source files with a reference/standard project via reference/project-sync.md.
-invocation_trigger: When framework initialization, maintenance, or audit is required.
+invocation_trigger: When project analysis data under .qe/analysis/ is stale and needs refreshing, or when syncing source files with a reference project.
 recommendedModel: haiku
 ---
 

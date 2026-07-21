@@ -319,11 +319,48 @@ if (fails.length === descriptionGuardStart) {
   for (const f of fails.slice(descriptionGuardStart)) console.log(' ', f);
 }
 
+// (e) Runtime routing table: every intent-routes.json target must resolve.
+// INTENT_GATE.md is the documented map; intent-routes.json is what prompt-check.mjs
+// actually injects at runtime. They rot independently, so guard the runtime table too:
+// a route to a skill that was relocated or deleted tells the model to use a skill that
+// no longer exists here.
+console.log('\n=== CHECK (e): Dangling routes in runtime intent-routes.json ===');
+const INTENT_ROUTES = join(ROOT, 'hooks', 'scripts', 'lib', 'intent-routes.json');
+const runtimeRouteStart = fails.length;
+let runtimeRouteCount = 0;
+
+if (!existsSync(INTENT_ROUTES)) {
+  fails.push(`FAIL [runtime-route] intent-routes.json not found at ${INTENT_ROUTES}`);
+} else {
+  let routesConfig;
+  try {
+    routesConfig = JSON.parse(readFileSync(INTENT_ROUTES, 'utf8'));
+  } catch (err) {
+    fails.push(`FAIL [runtime-route] intent-routes.json is not valid JSON: ${err.message}`);
+  }
+  const routes = routesConfig && routesConfig.routes ? routesConfig.routes : {};
+  runtimeRouteCount = Object.keys(routes).length;
+  for (const [keywords, target] of Object.entries(routes)) {
+    // A route value may carry a flag suffix (e.g. "Qexecute -verify"); resolve the base skill.
+    const baseTarget = String(target).split(/\s+/)[0];
+    if (!resolveTarget(baseTarget)) {
+      fails.push(`FAIL [runtime-route] intent-routes.json '${keywords}' → '${baseTarget}' resolves to no existing skill or agent`);
+    }
+  }
+}
+
+if (fails.length === runtimeRouteStart) {
+  console.log(`  OK: all ${runtimeRouteCount} runtime routes resolve to real skills/agents`);
+} else {
+  for (const f of fails.slice(runtimeRouteStart)) console.log(' ', f);
+}
+
 // ─── Summary ────────────────────────────────────────────────────────────────
 
 console.log('\n=== SUMMARY ===');
 console.log(`Skills scanned:   ${skillEntries.length}`);
 console.log(`Routing targets:  ${routingTargets.size}`);
+console.log(`Runtime routes:   ${runtimeRouteCount}`);
 console.log(`FAILs:            ${fails.length}`);
 console.log(`WARNs:            ${warns.length}`);
 
