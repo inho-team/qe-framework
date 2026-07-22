@@ -22,6 +22,12 @@ public-doc parity evidence is recorded in
 | TeammateIdle | — | `teammate-idle.mjs` | 10s | no |
 | TaskCompleted | — | `task-completed.mjs` | 10s | no |
 
+## Environment variables
+
+| Variable | Effect |
+|----------|--------|
+| `QE_NO_TRANSLATE=1` | Disables the non-English prompt translation call in `prompt-check.mjs`. By default, a non-English (CJK) prompt is sent to the Anthropic Messages API (Haiku) to extract English routing keywords, using the same OAuth token and endpoint the conversation already uses. Set this to opt out of that extra network call; intent routing then falls back to literal English-keyword matching only. |
+
 ## Codex Adapter: Compatibility Contract
 
 `hooks/hooks.json` defines the Claude-side lifecycle contract. Codex receives the

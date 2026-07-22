@@ -424,8 +424,16 @@ if (hints.length > 0) {
 /**
  * Translate non-English user message to English keywords via claude CLI (Haiku).
  * Returns space-separated English keywords for intent matching.
+ *
+ * Privacy note: this sends the raw prompt to the Anthropic Messages API (the same
+ * endpoint the conversation already uses) so that non-English prompts can be routed
+ * to intents. Set QE_NO_TRANSLATE=1 to disable this network call entirely; intent
+ * routing then falls back to literal English-keyword matching only.
  */
 async function translateToKeywords(message, routeKeys, cachePath) {
+  // Opt-out kill switch: when disabled, do not read the token or make any network call.
+  if (process.env.QE_NO_TRANSLATE === '1') return '';
+
   // --- Cache Check ---
   const hash = createHash('md5').update(message).digest('hex');
   let cache = {};
