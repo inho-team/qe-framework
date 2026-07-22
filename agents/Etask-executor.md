@@ -1,6 +1,6 @@
 ---
 name: Etask-executor
-description: PROACTIVELY use this agent for implementing complex checklists (5+ items). Supports sequential or wave-parallel execution.
+description: Sub-agent that implements complex checklists (5+ items) with sequential or wave-parallel execution. Invoke when Qexecute needs a checklist executed as delegated work.
 tools: Read, Write, Edit, Grep, Glob, Bash
 color: cyan
 memory: project
