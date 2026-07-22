@@ -89,7 +89,7 @@ Before collecting user info, identify the strategic context:
 
 ### Step 1.4: Context Dump Intake (Meta-Prompting Support)
 
-Freeform input does not have to be structured. If the argument string is **long (~300+ chars) or unstructured** — pasted meeting notes, a requirements email, chat fragments, a stream-of-consciousness brain dump — treat it as a **context dump**:
+Freeform input does not have to be structured. If the argument string is **long (300+ characters — count Unicode characters, not bytes, after stripping any `{slug}:` prefix) or unstructured** — pasted meeting notes, a requirements email, chat fragments, a stream-of-consciousness brain dump — treat it as a **context dump**:
 
 - Accept it as-is. Do **not** ask the user to reformat it into Step 2's structured fields.
 - Encourage this pattern: the user's raw context is higher-signal than a premature summary. More dump = better spec.
@@ -103,7 +103,9 @@ Before gathering spec details, run a lightweight ambiguity check. If the incomin
 
 **This is our deliberate differentiator from Superpowers' blanket-mandatory brainstorming**: a one-line bug fix must never be forced through a clarification round.
 
-**Gate condition** = `(ambiguous(requirement) AND scale ≥ Small) OR came-from-context-dump (Step 1.4)`.
+**Gate condition** = `(ambiguous(requirement) OR came-from-context-dump (Step 1.4)) AND scale ≥ Small`.
+
+The `scale ≥ Small` term applies to both branches: a context dump about a Micro task still skips the gate, consistent with "Micro tasks always skip this gate" below.
 
 - **Scale** is judged with the same heuristic as `Qplan` Step 0.7 (Micro / Small / Full / Workflow). **Micro tasks always skip this gate.**
 - **Ambiguity** is true when **any 2 of these 3 objective signals** hold:
@@ -120,7 +122,7 @@ Before gathering spec details, run a lightweight ambiguity check. If the incomin
 5. **Design / UX reference** — existing style, reference product, or explicit non-goal.
 6. **Constraints** — stack, performance, security, deadline.
 
-Keep it to the highest-impact questions (≤ 6). The user may answer partially and delegate the rest ("나머지는 알아서 정해줘") — delegation is allowed, but every AI-chosen default MUST be recorded in the TASK_REQUEST's `## 가정 (AI 결정)` section tagged `[ASSUMED]`, so the user can review and override before execution. Never silently absorb a delegated decision.
+Keep it to the highest-impact questions (≤ 6). On the Claude adapter, `AskUserQuestion` carries at most 4 questions per call — if more than 4 survive, trim to the top 4 or split into two sequential calls; never fall back to plain-text questions. The user may answer partially and delegate the rest ("나머지는 알아서 정해줘") — delegation is allowed, but every AI-chosen default MUST be recorded in the TASK_REQUEST's `## 가정 (AI 결정)` section tagged `[ASSUMED]`, so the user can review and override before execution. Never silently absorb a delegated decision.
 
 Then produce one of:
 - `PASS` → ambiguity resolved (or never present); continue to Step 2 with the sharpened requirement.
