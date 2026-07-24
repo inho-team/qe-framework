@@ -41,6 +41,13 @@ Never leaves AI traces (e.g., Co-Authored-By).
    ```json
    {"active":true,"skill":"Qcommit","command":"git commit -F .qe/state/COMMIT_MSG"}
    ```
+   > ⚠️ **Delete `.qe/state/COMMIT_MSG` before writing it** — put `rm -f .qe/state/COMMIT_MSG`
+   > in the same prior Bash call as `git add` (see step 9). If an earlier commit was
+   > interrupted before cleanup, the file survives holding **that** commit's message; a
+   > run which then reaches `git commit -F` without having written its own message would
+   > commit the previous message under a new commit. Deleting first makes the file
+   > impossible to read unless this run wrote it. Never `git commit -F` a message file
+   > you did not write in the current run.
    > ✅ **Why the Write tool, not Bash:** a Write tool call can never be combined with `git commit` into a single command, so the flag is guaranteed to be on disk before the gated commit runs. (A flag written by Bash in the same `&&` chain is not yet on disk when the PreToolUse hook checks the command, so the commit is blocked. This is the failure mode the Write tool eliminates structurally.)
    > **120-second TTL:** the hook uses the file's mtime when no `ts` is present, so create the flag right before committing — not at the start of your status/diff analysis — or it expires.
 9. **Execute the commit as its OWN Bash tool call**, byte-for-byte identical to the
@@ -48,10 +55,13 @@ Never leaves AI traces (e.g., Co-Authored-By).
    string won't match and the commit is blocked). Stage in a **prior** Bash call and
    clean up in a **later** one (only `git commit` is gated, so `git add`/`rm` run freely):
    ```bash
-   # prior call:  git add <relevant files>   (message already written to .qe/state/COMMIT_MSG)
+   # prior call:  rm -f .qe/state/COMMIT_MSG && git add <relevant files>
+   #              then Write the message to .qe/state/COMMIT_MSG (Write tool, step 8)
    git commit -F .qe/state/COMMIT_MSG
    # later call:  rm -f .qe/state/skill-bypass.json .qe/state/COMMIT_MSG
    ```
+   The leading `rm -f` is the stale-message guard from step 8: it runs before the Write,
+   so the file the commit reads is always the one this run produced.
 10. Confirm any fallback flag is gone (the trailing `rm` handles it; the 120s TTL is a backstop if cleanup is ever skipped).
 11. **The standalone flag is one-shot.** Current hooks consume (delete) it the moment it grants the commit — so the trailing `rm` is usually a no-op. **If `git commit` fails for a non-guard reason (e.g. "nothing to commit", a failing pre-commit hook) and you retry, re-create the flag with the Write tool before each retry** — a consumed flag will not authorize a second commit.
 12. **Command binding rules** (the `command` field from step 8):
