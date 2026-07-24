@@ -1,15 +1,14 @@
 # Skill Eval Harness
 
-Behavior-regression harness for QE skills. Extends `Mtest-skill` from **routing-only**
-verification to a two-layer model. (Source: adapted from Superpowers' `evals/`; design
-recorded as `D020` in `.qe/planning/DECISION_LOG.md`.)
+Behavior-regression harness for QE skills. It keeps the structural validator
+deterministic and emits a manifest for manual behavioral review when needed.
 
 ## Two layers
 
 | Layer | Mechanism | Scope | Determinism | Runs in CI |
 |-------|-----------|-------|-------------|-----------|
 | **Structural** | `scripts/check-skill-evals.mjs` (zero-dep ESM) | **All** skills + all eval cases | Fully deterministic | Yes — auto-discovered by `check-all.mjs` |
-| **Behavioral** | `scripts/eval-skills-behavioral.mjs` → manifest → LLM-judge (via `Mtest-skill`) | **opt-in** (skills with an eval case) | Non-deterministic (model-judged) | No (token cost) — run on demand |
+| **Behavioral** | `scripts/eval-skills-behavioral.mjs` → manifest → manual `/Qcritical-review` pass | **opt-in** (skills with an eval case) | Deterministic manifest; behavioral review is explicit/manual | No |
 
 Routing verification is **not** duplicated here — it stays in `scripts/check-skill-routing.mjs`.
 
@@ -51,19 +50,18 @@ rubric: |
 | `prompt` | string | ✅ | The virtual user prompt fed to the skill |
 | `must_include` | string[] | ✅ (may be empty list) | Substrings the response MUST contain |
 | `must_not_include` | string[] | ✅ (may be empty list) | Substrings the response MUST NOT contain |
-| `rubric` | string | ✅ | Natural-language pass criteria for the LLM judge |
+| `rubric` | string | ✅ | Natural-language pass criteria for manual behavioral review |
 
 ## How behavioral evals run (opt-in)
 
 1. `node scripts/eval-skills-behavioral.mjs` — discovers cases, validates schema, and
    emits a **run manifest** (`evals/.manifest.json`). It performs **no model calls**
-   (zero-dep, deterministic).
-2. `Mtest-skill` (the LLM) reads the manifest, executes each case's `prompt`, and judges
-   the output against `must_include` / `must_not_include` (deterministic substring gate)
-   plus `rubric` (LLM judgment). It writes a verdict report.
+   and is safe to run repeatedly.
+2. When you want behavioral review, hand the skill text or manifest to
+   `/Qcritical-review` and inspect the response against the case rubric.
 
-This split keeps the deterministic plumbing in scripts (CI-safe) and confines model
-cost / non-determinism to the explicitly on-demand `Mtest-skill` step.
+This split keeps the deterministic plumbing in scripts (CI-safe) and makes the
+behavioral check an explicit review step instead of an implicit admin workflow.
 
 ## Skill-TDD procedure for skill-change PRs
 
@@ -92,8 +90,8 @@ structure validity:
 node scripts/eval-skills-behavioral.mjs
 ```
 
-Then submit the case to the external `qe-admin-mcp` skill-test workflow to confirm the LLM actually
-passes the test with the new skill text present.
+Then hand the case to `/Qcritical-review` to confirm the skill text produces the
+desired behavior with the new skill text present.
 
 ### REFACTOR: Close loopholes
 
@@ -108,15 +106,13 @@ the pressure (what broke), and `green_expectation` documents the desired behavio
 - Emit a run manifest to `evals/.manifest.json`
 - **Make no model calls** (deterministic, zero-dependency)
 
-**External execution** (`qe-admin-mcp` skill-test workflow) does:
-- Read the manifest
-- Execute each case's `prompt` in the target skill context
-- Gate on `must_include` / `must_not_include` (deterministic substring checks)
-- Judge `rubric` criteria with the LLM
-- Write a verdict report
+**Behavioral review** (`/Qcritical-review`) does:
+- Inspect the manifest and skill text
+- Check the case prompt against the desired behavior
+- Use the rubric as the review guide
+- Return an explicit review outcome
 
-Do not assume local tooling can execute the LLM side — it cannot. The skill-test workflow is the
-source of truth for whether the skill text causes the behavior change.
+Do not assume local tooling can execute behavioral review by itself — it cannot.
 
 ### Optional eval-case fields for pressure scenarios
 
@@ -142,7 +138,7 @@ See [`evals/cases/Qcommit.eval.md`](cases/Qcommit.eval.md) for a worked example 
 # 1. Generate manifest (always deterministic, safe to run in CI)
 node scripts/eval-skills-behavioral.mjs
 
-# 2. Submit manifest to qe-admin-mcp skill-test workflow for LLM execution + judging
+# 2. Hand the manifest to /Qcritical-review for manual behavioral review
 #    (this is the gate for actual behavior validation)
 ```
 
@@ -151,5 +147,5 @@ node scripts/eval-skills-behavioral.mjs
 ```bash
 node scripts/check-skill-evals.mjs        # structural layer (also via check-all)
 node scripts/check-all.mjs                # all guards incl. structural eval
-npm run eval:skills                       # behavioral manifest build (then run Mtest-skill)
+npm run eval:skills                       # behavioral manifest build (then review manually)
 ```

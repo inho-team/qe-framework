@@ -11,11 +11,19 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 - **MAJOR** — breaking changes. Rare.
 - **Hotfix patch release** (between batches) — only for security / data loss / framework-unusable regressions.
 
-All entries should land in `[Unreleased]` until `/Mrelease` cuts a version.
+All entries should land in `[Unreleased]` until `/Qrelease` cuts a version.
 
 ## [Unreleased]
 
 ### Added
+
+- **Local release ownership replaces `qe-admin-mcp`.** The external admin MCP is
+  deprecated and removed from current workflow guidance; the new `Qrelease` skill
+  owns version bump, changelog update, release commit, tag, optional push, and
+  GitHub Release publication, while `Qversion` remains read-only. The hook now
+  authorizes protected release mutations through the command-bound
+  `qe-release-version` capability, and orphaned `mtest` runner/cache code was
+  deleted.
 
 - **Goal Satisfaction Report** (`ledger.mjs phase-report --slug S --phase N` +
   `scripts/check-phase-report.mjs`). Generates a four-axis reconciliation report

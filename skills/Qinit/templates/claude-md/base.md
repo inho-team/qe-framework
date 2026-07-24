@@ -161,7 +161,8 @@
 - **구현/수정** → `/Qgenerate-spec` + `/Qexecute` — 스펙 먼저 확정하면 back-and-forth 없이 한 번에 깔끔하게
 - **커밋** → `/Qcommit` — AI 흔적 없는 자연스러운 커밋 메시지
 - **디버깅** → 가설 기반으로 원인을 좁히고, 수정 전 재현 조건과 검증 방법을 먼저 정리
-- **버전/릴리스 관리** → `qe-admin-mcp` — 관리자 전용 release/bump workflow
+- **버전/릴리스 변경** → `/Qrelease` — bump, commit, tag, optional push/GitHub Release
+- **버전 조회** → `/Qversion` — read-only version lookup
 - **SIVS 엔진 라우팅** → `/Qsivs-config`로 조회·변경 (설정 단일 소스: `.qe/sivs-config.json`)
 
 > `QE_CONVENTIONS.md`에 카테고리별 스킬 목록과 워크플로우 규칙이 정리되어 있다.

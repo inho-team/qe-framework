@@ -1,17 +1,9 @@
 # QE MCP Setup
 
 QE Framework operates standalone. MCP servers are optional integrations that
-users connect per client when a workflow needs external tools.
-
-Maintainer-only admin MCP:
-
-```text
-https://github.com/inho-team/qe-admin-mcp
-```
-
-This keeps `@inho-team/qe-framework` focused on skills, agents, hooks, scripts,
-and local workflow orchestration while allowing maintainers to connect admin
-MCP tooling separately.
+users connect per client when a workflow needs external tools. Framework release
+administration is local: `Qrelease` performs mutations and `Qversion` performs
+read-only version lookup.
 
 ## Install
 
@@ -27,13 +19,15 @@ General MCP servers are configured per client. Use `Qmcp setup` for service
 setup guidance and `Qmcp ensure` to check whether the active client can see a
 configured MCP server.
 
-Admin workflow development:
+## Release and version paths
 
-```bash
-git clone https://github.com/inho-team/qe-admin-mcp.git
-cd qe-admin-mcp
-npm run selftest
-```
+- Use `Qrelease` for version bump, changelog update, release commit, tag, optional
+  push, and optional GitHub Release. Remote publication requires the confirmations
+  defined by the skill.
+- Use `Qversion` only to inspect the current version; it never mutates release state.
+- Run `npm run eval:skills` when a deterministic skill manifest is needed. If a
+  behavioral judgment is required, delegate it manually to `Qcritical-review` and
+  record the result; there is no automatic external skill-test service.
 
 ## Sync
 
@@ -71,13 +65,25 @@ To detect stale entries before editing:
 grep -n "qeExpertLibrary" ~/.claude.json ~/.codex/config.toml 2>/dev/null || true
 ```
 
+## Manual audit and migration procedure
+
+Audit and migration work is intentionally handled as a documented manual procedure:
+
+1. State the scope, preconditions, and expected outcome in the task spec.
+2. List the exact files or records in scope and establish a backup or rollback point.
+3. Write and review the ordered mutation steps before executing them.
+4. Inspect the resulting diff or configuration delta and run the repository's
+   existing targeted validators.
+5. Record validation evidence, residual risks, and exact rollback instructions.
+
+Do not assume a replacement admin service or invent a command that the repository
+does not provide.
+
 ## Trust Boundary
 
 - QE Framework does not require a default MCP server to load core skills.
 - MCP servers are optional client integrations and should be trusted explicitly.
 - Keep secrets out of client config; use environment variables or a secret
   manager.
-- QE admin workflows are not default user skills. Maintainers install and
-  connect `qe-admin-mcp` separately, then use `qe_admin_search_skills`,
-  `qe_admin_read_skill`, and `qe_admin_prompt` to load release, bump,
-  skill-test, audit, and migration guidance.
+- Release mutation stays inside the reviewed `Qrelease` skill; `Qversion` is
+  read-only. Audit and migration use the documented manual procedure above.

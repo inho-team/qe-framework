@@ -710,16 +710,22 @@ function runHookPayload(dir, payload) {
 
 function runCommitGuard(bypassSkill, dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-guard-'))) {
   const cleanup = arguments.length < 2;
+  const command = 'git commit -m "chore: release v9.9.9"';
   if (bypassSkill) {
     fs.mkdirSync(path.join(dir, '.qe', 'state'), { recursive: true });
     fs.writeFileSync(
       path.join(dir, '.qe', 'state', 'skill-bypass.json'),
-      JSON.stringify({ active: true, skill: bypassSkill, ts: Date.now() }),
+      JSON.stringify({
+        active: true,
+        skill: bypassSkill,
+        ts: Date.now(),
+        ...(bypassSkill === 'qe-release-version' ? { command } : {}),
+      }),
     );
   }
   const res = runHookPayload(dir, {
     tool_name: 'Bash',
-    tool_input: { command: 'git commit -m "chore: release v9.9.9"' },
+    tool_input: { command },
   });
   if (cleanup) fs.rmSync(dir, { recursive: true, force: true });
   return res.status;
@@ -760,12 +766,90 @@ test('pre-tool-use: unrelated skill entry does not arm commit bypass', (t) => {
   assert.strictEqual(runCommitGuard(null, dir), 2);
 });
 
-test('pre-tool-use: admin-version bypass flag allows the release-train commit (regression)', () => {
-  // qe-admin-mcp release/bump workflows update version files under an internal
-  // admin-version capability, then commit. The commit must pass without
+test('pre-tool-use: release-version bypass flag allows the release-train commit (regression)', () => {
+  // Qrelease updates version files under an internal release-version
+  // capability, then commits. The commit must pass without
   // swapping the flag to Qcommit.
-  assert.notStrictEqual(runCommitGuard('qe-admin-version'), 2);
+  assert.notStrictEqual(runCommitGuard('qe-release-version'), 2);
 });
+
+test('pre-tool-use: release-version flag survives four command-bound release stages within its original TTL', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-release-session-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  const issuedAt = Date.now();
+  const stages = [
+    'echo \'{"version":"9.9.9"}\' > .claude-plugin/plugin.json',
+    'printf "release notes" > CHANGELOG.md',
+    'git commit -m "chore: release v9.9.9"',
+    'git tag v9.9.9',
+  ];
+
+  for (const command of stages) {
+    fs.writeFileSync(flagPath, JSON.stringify({
+      active: true,
+      skill: 'qe-release-version',
+      ts: issuedAt,
+      command,
+    }));
+    const result = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+    assert.notStrictEqual(result.status, 2, `release stage was blocked: ${command}`);
+    assert.ok(fs.existsSync(flagPath), `release flag was consumed after: ${command}`);
+  }
+});
+
+test('pre-tool-use: release-version flag fails closed after its original 120s TTL', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-release-expired-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  const command = 'git commit -m "chore: release v9.9.9"';
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now() - 120001,
+    command,
+  }));
+
+  const result = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.strictEqual(result.status, 2);
+});
+
+test('pre-tool-use: release-version flag rejects an unrelated gated command', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-release-unrelated-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  const command = 'sed -i s/a/b/ unrelated.txt';
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now(),
+    command,
+  }));
+
+  const result = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.strictEqual(result.status, 2);
+});
+
+for (const [label, command] of [['missing', undefined], ['empty', ''], ['non-string', 42]]) {
+  test(`pre-tool-use: release-version flag with ${label} command binding fails closed`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), `qe-release-${label}-`));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+    fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+    const flag = { active: true, skill: 'qe-release-version', ts: Date.now() };
+    if (command !== undefined) flag.command = command;
+    fs.writeFileSync(flagPath, JSON.stringify(flag));
+
+    const result = runHookPayload(dir, {
+      tool_name: 'Bash',
+      tool_input: { command: 'git commit -m "chore: release v9.9.9"' },
+    });
+    assert.strictEqual(result.status, 2);
+  });
+}
 
 test('pre-tool-use: bypass flag at the tool workdir (cross-repo commit) is honored', (t) => {
   // Ecommit-executor committing a sibling repo: data.cwd is the session dir but
@@ -928,4 +1012,102 @@ test('pre-tool-use: a stale flag in the hook process cwd does NOT authorize an u
 
 test('pre-tool-use: an unrelated bypass flag does NOT allow git commit', () => {
   assert.strictEqual(runCommitGuard('Qexecute'), 2);
+});
+
+test('pre-tool-use: Edit-tool plugin.json version edit is hard-blocked', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-edit-version-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const res = runHookPayload(dir, {
+    tool_name: 'Edit',
+    tool_input: {
+      file_path: path.join(dir, '.claude-plugin', 'plugin.json'),
+      old_string: '"version": "1.0.0"',
+      new_string: '"version": "9.9.9"',
+    },
+  });
+  assert.strictEqual(res.status, 2);
+});
+
+test('pre-tool-use: an active release-version flag does NOT unlock the Edit-tool version gate', (t) => {
+  // Command binding is mandatory for qe-release-version and an Edit payload has no
+  // `command` field, so the Edit path can never match the binding — the release
+  // train must write version files via the bound Bash stages, never via Edit.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-edit-release-flag-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now(),
+    command: 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null # qe-release-version plugin version write',
+  }));
+  const res = runHookPayload(dir, {
+    tool_name: 'Edit',
+    tool_input: {
+      file_path: path.join(dir, '.claude-plugin', 'plugin.json'),
+      old_string: '"version": "1.0.0"',
+      new_string: '"version": "9.9.9"',
+    },
+  });
+  assert.strictEqual(res.status, 2); // fail-closed: binding cannot match a non-Bash tool
+  assert.ok(fs.existsSync(flagPath)); // never-used flag is not consumed
+});
+
+test('pre-tool-use: release-version flag still authorizes its bound command just before the 120s TTL', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-release-near-ttl-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  const command = 'git commit -m "chore: release v9.9.9"';
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now() - 110000, // 10s of TTL left — enough margin for the hook spawn
+    command,
+  }));
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.notStrictEqual(res.status, 2);
+});
+
+test('pre-tool-use: release-version flag bound to another commit does NOT authorize a fresh commit (rebind omission)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-release-rebind-miss-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now(),
+    command: 'git commit -m "chore: release v9.9.9"', // stage-3 binding left behind
+  }));
+  const res = runHookPayload(dir, {
+    tool_name: 'Bash',
+    tool_input: { command: 'git commit -m "unrelated follow-up"' },
+  });
+  assert.strictEqual(res.status, 2); // fail-closed
+  assert.ok(fs.existsSync(flagPath)); // mismatched command never consumes the flag
+});
+
+test('pre-tool-use: Qrelease stage-1 tee write trips the version guard and passes only via the bound flag', (t) => {
+  // Contract with skills/Qrelease/SKILL.md stage 1: the trailing comment keeps
+  // `version` in the raw command so the plugin-write guard engages.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-release-stage1-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const command = 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null # qe-release-version plugin version write';
+
+  const unflagged = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.strictEqual(unflagged.status, 2); // guard fires without a flag
+
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now(),
+    command,
+  }));
+  const flagged = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.notStrictEqual(flagged.status, 2); // exact bound command → authorized
+  assert.ok(fs.existsSync(flagPath)); // retained for the next rebound stage
 });

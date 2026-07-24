@@ -5,8 +5,8 @@
  *
  * Deterministic, zero-dependency. Performs NO model calls — it only discovers and
  * validates opt-in eval cases under evals/cases/*.eval.md and emits a run manifest
- * (evals/.manifest.json). The actual prompt execution + LLM judging is done by the
- * qe-admin-mcp skill-test admin workflow, which reads this manifest.
+ * (evals/.manifest.json). The manifest is deterministic; behavioral review happens
+ * outside this script, typically via manual /Qcritical-review handoff.
  *
  * Exit 0 = manifest written (even with 0 cases). Exit 1 = a case failed schema.
  */
@@ -135,11 +135,11 @@ if (errors.length > 0) {
 
 const manifest = {
   generatedAt: new Date().toISOString(),
-  note: 'Run via qe-admin-mcp skill-test workflow: execute each prompt, gate on must_include/must_not_include, then LLM-judge against rubric. This script makes no model calls.',
+  note: 'Deterministic manifest only: discover cases, validate schema, and emit evals/.manifest.json. No model calls are made here; use /Qcritical-review manually for behavioral review when needed.',
   caseCount: cases.length,
   cases,
 };
 writeFileSync(MANIFEST, JSON.stringify(manifest, null, 2) + '\n', 'utf8');
 console.log(`eval-skills-behavioral: wrote ${cases.length} case(s) → evals/.manifest.json`);
-console.log('Next: use qe-admin-mcp skill-test workflow to execute the manifest with LLM judging.');
+console.log('Next: hand the skill text or manifest to /Qcritical-review if you need behavioral review.');
 process.exit(0);

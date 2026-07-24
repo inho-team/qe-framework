@@ -306,8 +306,8 @@ These skills are optimized for common workflows and consistently outperform gene
 | Action | Preferred Skill | Why it's better |
 |--------|----------------|-----------------|
 | git commit | `Qcommit` | Human-style messages, no Co-Authored-By traces, reads staged diff intelligently |
-| version/release admin | `qe-admin-mcp` | Maintainer-only release/bump workflows with explicit admin MCP routing |
-| show version | `Qversion` | Single source of truth across plugin.json / package.json |
+| version/release mutation | `Qrelease` | Bumps versions, rewrites changelog, commits, tags, and optionally publishes the push and GitHub Release |
+| read-only version lookup | `Qversion` | Reports the single source of truth across plugin.json / package.json without mutation |
 | health check / repair | `Qdoctor` | Verifies framework, MCP companion, and `.qe/` consistency before repair |
 | context save / handoff | `Qcompact` | Structured snapshot, recoverable in future sessions |
 | context restore | `Qresume` | Reconstructs working state from snapshot |
@@ -432,14 +432,22 @@ The framework uses a **release train** pattern. Every commit that changes user-v
 
 1. **Every commit** that ships user-visible behavior → add entry to `CHANGELOG.md [Unreleased]` under `Added` / `Changed` / `Fixed` / `Removed` / `Security`.
 2. **Do NOT bump version** on the fix/feature commit. `plugin.json` / `package.json` stay at the last released version.
-3. **When a batch is ready** → use `qe-admin-mcp` to load the release admin workflow with an optional `major|minor|patch` override. The admin workflow reads `[Unreleased]`, bumps, rewrites changelog, commits, tags, optionally pushes + creates GitHub Release.
+3. **When a batch is ready** → run `/Qrelease` with an optional `major|minor|patch` override. `Qrelease` reads `[Unreleased]`, bumps, rewrites changelog, commits, tags, and—after explicit confirmation—optionally pushes and creates the GitHub Release. Use `/Qversion` only to look up the current version.
 4. **Between releases**, `main` may be "ahead" of the latest tag — that's expected. Users who want bleeding edge can track the tip; most pin a tag.
+
+### Manual audit and migration procedure
+
+Audit and migration work has no replacement admin service. Document the scope and
+preconditions in the task spec, identify the exact files and backup or rollback point,
+write the ordered manual steps, review the resulting diff, run the repository's existing
+targeted validators, and record evidence plus rollback instructions before completion.
+Do not infer an automated tool or modify unrelated files.
 
 ### Anti-patterns
 
-- Bumping version in the same commit as a fix → **use the `qe-admin-mcp` release workflow later instead**
-- Invoking a local `M*` skill directly → admin workflows live in `inho-team/qe-admin-mcp`, not the default user skill tree
-- Releasing with empty `[Unreleased]` → the release admin workflow aborts
+- Bumping version in the same commit as a fix → **use `/Qrelease` later instead**
+- Using `Qversion` to mutate release state → `Qversion` is read-only; use `/Qrelease`
+- Releasing with empty `[Unreleased]` → `Qrelease` aborts
 - Per-edge-case patch release → batch it; only security / data loss / framework-unusable bugs get immediate hotfix
 
 ### Rationale

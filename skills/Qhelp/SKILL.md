@@ -71,14 +71,11 @@ PLANNING
   /Qqa-test-planner        QA test plans & bug reports
 
 META
-  /Qversion                Show current version
+  /Qrelease [bump]         Mutate release state: bump, commit, tag, optional publish
+  /Qversion                Show current version (read-only)
   /Qhelp find              Search skills.sh marketplace
   /Qalias                  Path & command aliases
   /Qhelp                   This help screen
-
-ADMIN
-  qe-admin-mcp             Maintainer-only workflows
-                           (qe_admin_search_skills / qe_admin_read_skill)
 
 AGENTS (auto-selected by complexity)
   HIGH   Edeep-researcher, Eqa-orchestrator

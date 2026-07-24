@@ -48,8 +48,8 @@ const hints = [];
 let mutatedInput = null;
 const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
 const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
-const ADMIN_VERSION_CAPABILITY = 'qe-admin-version';
-const ADMIN_VERSION_ACTION = 'Use qe-admin-mcp release/bump admin workflow instead.';
+const RELEASE_VERSION_CAPABILITY = 'qe-release-version';
+const RELEASE_VERSION_ACTION = `Use ${skillCommand('Qrelease')} instead.`;
 
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
@@ -351,11 +351,12 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     //    fail-closed, so a malformed or stale bound flag can never widen back to
     //    "any command". Presence is detected by the key, not by truthiness.
     const hasCommandField = bypass.command !== undefined && bypass.command !== null;
-    if (!hasCommandField) {
+    const requiresCommandBinding = bypass.skill === RELEASE_VERSION_CAPABILITY;
+    if (!hasCommandField && !requiresCommandBinding) {
       bypassSkill = bypass.skill || null;
     } else {
       const boundCommand = typeof bypass.command === 'string' ? bypass.command.trim() : '';
-      const currentCommand = (toolInput.command || '').trim();
+      const currentCommand = typeof toolInput.command === 'string' ? toolInput.command.trim() : '';
       if (boundCommand.length > 0 && boundCommand === currentCommand) {
         bypassSkill = bypass.skill || null;
       }
@@ -386,11 +387,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
       overrideRules.push({
         skill: 'Qcommit',
-        // qe-admin-mcp release/bump workflows cut the version-bump commit under
-        // an active internal admin-version bypass. Honor that capability for
+        // Qrelease cuts the version-bump commit under an active internal
+        // release-version bypass. Honor that capability for
         // the commit too, so the release train does not have to swap the flag
         // to Qcommit mid-run. TTL on the flag (120s) keeps this bounded.
-        also: [ADMIN_VERSION_CAPABILITY],
+        also: [RELEASE_VERSION_CAPABILITY],
         msg: `Raw git commit is blocked. Use ${skillCommand('Qcommit')} instead.`
       });
     }
@@ -404,8 +405,8 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
     if (writesPluginJson && /version/.test(cmd)) {
       overrideRules.push({
-        skill: ADMIN_VERSION_CAPABILITY,
-        msg: `Direct version editing is blocked. ${ADMIN_VERSION_ACTION}`
+        skill: RELEASE_VERSION_CAPABILITY,
+        msg: `Direct version editing is blocked. ${RELEASE_VERSION_ACTION}`
       });
     }
 
@@ -422,11 +423,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const filePath = toolInput.file_path || toolInput.filePath || '';
     const newStr = toolInput.new_string || '';
 
-    // Editing plugin.json version field → qe-admin-mcp admin version workflow
+    // Editing plugin.json version field → Qrelease version workflow
     if (/plugin\.json$/.test(filePath) && /"version"/.test(newStr)) {
       overrideRules.push({
-        skill: ADMIN_VERSION_CAPABILITY,
-        msg: `Direct version editing is blocked. ${ADMIN_VERSION_ACTION}`
+        skill: RELEASE_VERSION_CAPABILITY,
+        msg: `Direct version editing is blocked. ${RELEASE_VERSION_ACTION}`
       });
     }
   }
@@ -452,7 +453,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       emitBlock({
         skill: rule.skill,
         reason: rule.msg,
-        action: rule.skill === ADMIN_VERSION_CAPABILITY || rule.skill.startsWith('_')
+        action: rule.skill === RELEASE_VERSION_CAPABILITY || rule.skill.startsWith('_')
           ? rule.msg
           : `Use ${skillCommand(rule.skill)} instead`,
         bypass: `skill-bypass.json with skill:"${rule.skill}"`,
@@ -464,11 +465,13 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     delete state.skill_bypass;
   }
 
-  // One-shot: a standalone flag file that actually granted a bypass this call is
-  // deleted, so a stale flag cannot authorize a SECOND unrelated gated command
-  // within its 120s TTL. Only consumed when the flag was truly used (a rule was
-  // bypassed) — a blocked command exits earlier and never reaches here.
-  if (bypassUsed && acceptedBypassFile) {
+  // One-shot by default: a standalone flag file that actually granted a bypass
+  // is deleted after use. Qrelease is the narrow exception: its executor rebinds
+  // the exact `command` before each of the four release stages, while the original
+  // timestamp keeps the whole sequence inside one 120s window. A missing, malformed,
+  // mismatched, or expired command binding remains fail-closed.
+  const keepReleaseSessionFlag = bypassSkill === RELEASE_VERSION_CAPABILITY;
+  if (bypassUsed && acceptedBypassFile && !keepReleaseSessionFlag) {
     try { unlinkSync(acceptedBypassFile); } catch { /* best-effort; TTL still bounds reuse */ }
   }
 

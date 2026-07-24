@@ -393,7 +393,8 @@ with `-utopia` / `-utopia -verify` as normal.
 
 ## Common rules
 Skill priority holds (autonomous still routes git commit through `{adapter.commandPrefix}Qcommit`;
-release/admin via `qe-admin-mcp`; QE_CONVENTIONS override map always applies). No intermediate user
+release mutation via `{adapter.commandPrefix}Qrelease` and read-only lookup via
+`{adapter.commandPrefix}Qversion`; QE_CONVENTIONS override map always applies). No intermediate user
 prompts after activation. After a run: print `git diff --stat <pre-run-sha>..HEAD` and the rollback
 command `git reset --hard <pre-run-sha>` (+ `git branch -D utopia/<ts>`). `-utopia off` restores
 confirmations and removes only Qexecute-added permissions.

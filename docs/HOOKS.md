@@ -53,8 +53,8 @@ workflow; the supported path is explicit trust review.
 | TaskCompleted | native hook + Codex wrapper | Runs completion-state maintenance where available. |
 
 Codex hook block messages render Codex-native skill commands with the `$`
-prefix, for example `$Qcommit`. Version/release admin blocks point maintainers
-to `qe-admin-mcp` instead of a default installed user skill. Claude hook block
+prefix, for example `$Qcommit`. Version/release mutation blocks route to
+`$Qrelease`; read-only version lookup routes to `$Qversion`. Claude hook block
 messages keep the Claude slash-command prefix for core skills.
 
 The Codex lifecycle wrapper forwards the original hook payload to the shared QE
@@ -72,7 +72,7 @@ hook messages, so Claude and Codex share the same visible guidance path.
 The following behavior must stay equivalent across Claude and Codex:
 
 1. Raw commit and raw PR creation are routed to QE skills.
-2. Direct version edits are routed to `qe-admin-mcp` maintainer workflows.
+2. Direct version edits are routed to the client-native `Qrelease` command.
 3. Dangerous autonomous-mode actions are blocked before execution.
 4. Hook failures fail open unless an intentional policy block is emitted.
 5. User-facing QE command hints render with the active client prefix.
@@ -114,12 +114,19 @@ thrown error and therefore bypasses the safety net by design.
 | Trigger | Routed to | Notes |
 |---------|-----------|-------|
 | `git commit ...` (Bash) | Claude `/Qcommit`, Codex `$Qcommit` | raw commit blocked |
-| **write sink** into `plugin.json` + `version` (Bash) | `qe-admin-mcp` release/bump workflow | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
+| **write sink** into `plugin.json` + `version` (Bash) | Claude `/Qrelease`, Codex `$Qrelease` | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
 | `sed`/`perl`/`ruby -i` / `--in-place` (Bash) | Edit tool | use the Edit tool |
-| Edit of `plugin.json` whose new text has `"version"` | `qe-admin-mcp` release/bump workflow | version field is admin-owned |
+| Edit of `plugin.json` whose new text has `"version"` | Claude `/Qrelease`, Codex `$Qrelease` | version mutation is release-owned; use `Qversion` only for read-only lookup |
 
-Per-call bypass: write `.qe/state/skill-bypass.json` `{ "active": true, "skill": "qe-admin-version", "ts": <now> }`
-(valid 120s). The maintainer-only admin workflow sets this automatically when it legitimately needs the action.
+Before each protected release stage, `Qrelease` rewrites `.qe/state/skill-bypass.json` with
+the exact next Bash input bound in `command`:
+
+```json
+{"active":true,"skill":"qe-release-version","ts":ISSUED_AT_NUMBER,"command":"EXACT_NEXT_BASH_TOOL_INPUT"}
+```
+
+The original numeric `ts` is retained across stages and remains valid for 120 seconds;
+a missing, empty, or mismatched `command` grants no bypass.
 
 ## hook_profile — dialing down enforcement
 

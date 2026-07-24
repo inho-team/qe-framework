@@ -39,7 +39,7 @@ only lifecycle surface.
 2. Hook commands execute scripts under `hooks/scripts/`.
 3. `PreToolUse` can hard-block by exiting with code 2.
 4. Status guidance is projected through SessionStart context and hook output.
-5. Claude user-facing QE commands render as `/Q...`; maintainer-only admin workflows are exposed through `qe-admin-mcp`.
+5. Claude user-facing QE commands render as `/Q...`; release mutation uses `/Qrelease`, while read-only version lookup uses `/Qversion`.
 
 ## Codex Adapter
 
@@ -47,7 +47,7 @@ only lifecycle surface.
 2. Codex hook entries point at `hooks/scripts/codex/lifecycle-codex.mjs`, which forwards payloads to the shared QE hook scripts with `QE_CLIENT=codex` and `QE_COMMAND_PREFIX=$`.
 3. Codex `PreToolUse` is the safety-critical parity surface for raw commit, PR creation, version edit, and related hard blocks.
 4. Status guidance is projected through SessionStart context and hook output.
-5. Codex user-facing QE commands render as `$Q...`; maintainer-only admin workflows are exposed through `qe-admin-mcp`.
+5. Codex user-facing QE commands render as `$Q...`; release mutation uses `$Qrelease`, while read-only version lookup uses `$Qversion`.
 
 ## Fallback Labels
 

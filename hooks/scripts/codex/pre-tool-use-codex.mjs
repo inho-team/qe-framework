@@ -6,8 +6,8 @@ import { join } from 'path';
 import { emitBlock } from '../lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from '../lib/shell-scanner.mjs';
 
-const ADMIN_VERSION_CAPABILITY = 'qe-admin-version';
-const ADMIN_VERSION_ACTION = 'Use qe-admin-mcp release/bump admin workflow instead.';
+const RELEASE_VERSION_CAPABILITY = 'qe-release-version';
+const RELEASE_VERSION_ACTION = 'Use $Qrelease instead.';
 
 function failOpen() {
   try { process.stdout.write(JSON.stringify({ continue: true })); } catch {}
@@ -65,7 +65,7 @@ try {
 }
 
 function isBypassed(skill) {
-  return bypassSkill === skill || (skill === 'Qcommit' && bypassSkill === ADMIN_VERSION_CAPABILITY);
+  return bypassSkill === skill || (skill === 'Qcommit' && bypassSkill === RELEASE_VERSION_CAPABILITY);
 }
 
 const view = executableView(cmd);
@@ -87,15 +87,15 @@ if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
 const writesPluginJson =
   /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
 if (writesPluginJson && /version/.test(cmd)) {
-  if (isBypassed(ADMIN_VERSION_CAPABILITY)) {
+  if (isBypassed(RELEASE_VERSION_CAPABILITY)) {
     console.log(JSON.stringify({ continue: true }));
     process.exit(0);
   }
   emitBlock({
-    skill: ADMIN_VERSION_CAPABILITY,
-    reason: `Direct version editing is blocked. ${ADMIN_VERSION_ACTION}`,
-    action: ADMIN_VERSION_ACTION,
-    bypass: `skill-bypass.json with skill:"${ADMIN_VERSION_CAPABILITY}"`,
+    skill: RELEASE_VERSION_CAPABILITY,
+    reason: `Direct version editing is blocked. ${RELEASE_VERSION_ACTION}`,
+    action: RELEASE_VERSION_ACTION,
+    bypass: `skill-bypass.json with skill:"${RELEASE_VERSION_CAPABILITY}"`,
   });
 }
 

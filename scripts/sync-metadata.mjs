@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * sync-metadata.mjs  (writer — run by qe-admin-mcp release/bump workflow, or manually)
+ * sync-metadata.mjs  (writer — run by Qrelease release flow, or manually)
  *
  * Propagates the single source of truth (scripts/lib/metadata-source.mjs)
  * into all human-facing metadata locations. Idempotent: a second run makes
@@ -16,7 +16,7 @@
  *   - plugin.json   "agents"       →  rebuilt from agents/*.md (sorted)
  *   - marketplace.json qe-framework plugin "version" → package.json version
  *
- * Does NOT write package.json "version" (owned by qe-admin-mcp release/bump workflow). Writes plugin.json
+ * Does NOT write package.json "version" (owned by Qrelease release flow). Writes plugin.json
  * and marketplace.json "version" only to mirror package.json so release metadata never drifts.
  */
 

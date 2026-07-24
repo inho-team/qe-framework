@@ -26,7 +26,7 @@ plugin managed through `claude plugin`. This skill runs A first, then B/C, then 
 
 ### Step 0: Pre-flight — is the latest release reachable on `origin`?
 The tarball path runs `git pull`, which only helps if the newest release was pushed to
-`origin`. The `qe-admin-mcp` release workflow makes the push step **optional**, so a freshly cut release can live
+`origin`. The `Qrelease` workflow makes the push step **optional**, so a freshly cut release can live
 only in the local checkout (commit + tag present, `origin` behind).
 
 ```bash
@@ -200,7 +200,7 @@ Report per target:
 ## Will Not
 - Modify any project files
 - Modify SIVS engine configuration (use `/Qinit` for that)
-- Manually write marketplace/plugin version fields outside the release/admin workflow
+- Manually write marketplace/plugin version fields outside `Qrelease`
 - Force-install the Codex bridge without user confirmation
 - Install or update unrelated MCP server packages
 - Run without user invocation

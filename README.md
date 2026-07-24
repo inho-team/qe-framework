@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->29<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->30<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 **A transparent, auditable, cross-model quality gate for coding agents.** Three things set QE apart:
 
@@ -133,9 +133,15 @@ external tools, and use `Qmcp setup`, `Qmcp ensure`, or `Qmcp sync` to inspect
 and manage client configuration. Restart Claude Code or Codex after changing
 MCP config.
 
-Maintainers may additionally connect `qe-admin-mcp` for release, bump,
-skill-test, audit, and migration workflows. See
-[`docs/MCP_GLOBAL_SETUP.md`](docs/MCP_GLOBAL_SETUP.md).
+Maintainers use `/Qrelease` for version bump, changelog update, release commit,
+tag, optional push, and optional GitHub Release. `/Qversion` is the read-only
+version lookup path. Skill manifests remain deterministic via `npm run eval:skills`;
+behavioral review can be delegated manually to `/Qcritical-review` when needed.
+
+Audit and migration work follows a documented manual procedure: define scope and
+preconditions, identify exact files and a rollback point, record ordered steps,
+review the diff, run existing targeted validators, and preserve the evidence and
+rollback instructions. See [`docs/MCP_GLOBAL_SETUP.md`](docs/MCP_GLOBAL_SETUP.md).
 
 **Update:**
 ```bash
@@ -321,7 +327,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->29<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->30<!--/qe:skills--> skills)
 
 > **Start here.** You only need **7 core skills** to use the framework end-to-end. The
 > the rest is intentionally smaller after hard-pruning broad PM/document/academic

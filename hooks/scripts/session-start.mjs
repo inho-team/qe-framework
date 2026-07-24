@@ -266,7 +266,7 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
   const fullMapPointer = existsSync(conventionsPath) ? ' Full map: QE_CONVENTIONS.md.' : '';
   messages.push(
     '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
-    `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · version/release admin → qe-admin-mcp · ` +
+    `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · version/release → /Qrelease · ` +
     `show version → ${skillCommand('Qversion')} · context save → ${skillCommand('Qcompact')} · restore → ${skillCommand('Qresume')} · ` +
     `archive tasks → ${skillCommand('Qgc')} archive · refresh analysis → ${skillCommand('Qrefresh')}.` + fullMapPointer
   );
@@ -654,7 +654,7 @@ function buildMinimalBootstrap(cwdPath, cmdPrefix) {
   // 1. OVERRIDE MAP summary
   parts.push(
     '[QE OVERRIDE MAP] Use the QE skill — PreToolUse HARD-BLOCKS direct git commit / version edits. ' +
-    `manual commit → ${skillCmd('Qcommit')} · version/release → qe-admin-mcp · ` +
+    `manual commit → ${skillCmd('Qcommit')} · version/release → /Qrelease · ` +
     `context save → ${skillCmd('Qcompact')} · restore → ${skillCmd('Qresume')} · ` +
     `refresh → ${skillCmd('Qrefresh')} · show version → ${skillCmd('Qversion')} · ` +
     `archive tasks → ${skillCmd('Qgc')} archive. Full map: QE_CONVENTIONS.md.`

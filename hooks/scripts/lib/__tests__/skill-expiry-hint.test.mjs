@@ -69,15 +69,15 @@ test('hint path contains no spawn, write, network, or tech-stack access', () => 
   assert.doesNotMatch(moduleSource, /\bspawn\b|\bexec\b|writeFile|rename|fetch|https?:|tech-stack\.md/);
 });
 
-test('session-start keeps override-map qe-admin lines separate from the inserted hint block', () => {
+test('session-start keeps override-map lines separate from the inserted hint block', () => {
   const repoRoot = resolve(fileURLToPath(new URL('../../../..', import.meta.url)));
   const source = readFileSync(join(repoRoot, 'hooks', 'scripts', 'session-start.mjs'), 'utf8');
   const lines = source.split('\n');
-  const qeAdminLines = lines
+  const overrideMapLines = lines
     .map((line, index) => ({ line, index }))
-    .filter((entry) => entry.line.includes('qe-admin-mcp'));
-  assert.ok(qeAdminLines.length >= 2);
-  for (const entry of qeAdminLines) {
+    .filter((entry) => entry.line.includes('[QE OVERRIDE MAP]'));
+  assert.ok(overrideMapLines.length >= 2);
+  for (const entry of overrideMapLines) {
     assert.doesNotMatch(entry.line, /Qcollect-skill|collectExpiredSkillHints|Local collected skills/);
   }
   assert.ok(source.indexOf('collectExpiredSkillHints') < source.indexOf('[QE OVERRIDE MAP]'));
