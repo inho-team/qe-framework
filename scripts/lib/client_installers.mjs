@@ -116,19 +116,35 @@ function getPluginInstallPath(homeDir, log = () => {}) {
 function resolveTargets(repoRoot, homeDir, log = () => {}) {
   const pluginPath = getPluginInstallPath(homeDir, log);
   if (pluginPath) {
-    return {
-      mode: 'plugin',
-      pluginPath,
-      targets: [
-        { src: 'skills', dest: join(pluginPath, 'skills'), label: 'skill' },
-        { src: 'agents', dest: join(pluginPath, 'agents'), label: 'agent' },
-        { src: 'core', dest: join(pluginPath, 'core'), label: 'core' },
-        { src: 'hooks', dest: join(pluginPath, 'hooks'), label: 'hook' },
-        { src: 'scripts', dest: join(pluginPath, 'scripts'), label: 'script' },
-        // Absolute-path fallback: SKILL.md bash refers to $HOME/.claude/scripts/.
-        { src: 'scripts', dest: join(homeDir, '.claude', 'scripts'), label: 'script(abs)' },
-      ],
-    };
+    const targets = [
+      { src: 'skills', dest: join(pluginPath, 'skills'), label: 'skill' },
+      { src: 'agents', dest: join(pluginPath, 'agents'), label: 'agent' },
+      { src: 'core', dest: join(pluginPath, 'core'), label: 'core' },
+      { src: 'hooks', dest: join(pluginPath, 'hooks'), label: 'hook' },
+      { src: 'scripts', dest: join(pluginPath, 'scripts'), label: 'script' },
+      // Absolute-path fallback: SKILL.md bash refers to $HOME/.claude/scripts/.
+      { src: 'scripts', dest: join(homeDir, '.claude', 'scripts'), label: 'script(abs)' },
+    ];
+
+    // A machine that was once a standalone install still has ~/.claude/agents, and that
+    // directory — not the plugin cache — is what registers the UNSCOPED agent names
+    // (`Ecommit-executor` as opposed to `qe-framework:Ecommit-executor`). The two are
+    // separate registrations: removing a file here removes the unscoped type outright,
+    // and the plugin copy does not stand in for it. So a leftover copy keeps answering
+    // unscoped calls with whatever version it was frozen at, silently ignoring every
+    // later fix to the real agent.
+    //
+    // Refresh it whenever it exists so the unscoped names track the framework. It is not
+    // created when absent: a clean plugin install has no unscoped registrations, and
+    // adding them here would change which agent names exist on that machine.
+    // Not pruned either — installClaudeAssets only prunes inside the plugin root, so
+    // agents other plugins put here (gsd-*, etc.) are left alone.
+    const legacyAgentsDir = join(homeDir, '.claude', 'agents');
+    if (existsSync(legacyAgentsDir)) {
+      targets.push({ src: 'agents', dest: legacyAgentsDir, label: 'agent(legacy)' });
+    }
+
+    return { mode: 'plugin', pluginPath, targets };
   }
   return {
     mode: 'standalone',
