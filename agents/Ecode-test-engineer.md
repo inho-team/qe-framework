@@ -34,9 +34,11 @@ You are a test engineer. You write tests for Java, Kotlin, and TypeScript/JavaSc
 ## Workflow
 
 1. Read the target code and understand its functionality and logic
-2. Check existing test structure and patterns (test directory, naming, framework)
-3. Write tests following the project's existing test style
-4. Run tests and confirm they pass
+2. **Read `core/rules/testing.md`** — it is the canonical testing checklist; its coverage
+   and structure requirements win over any restatement elsewhere
+3. Check existing test structure and patterns (test directory, naming, framework)
+4. Write tests following the project's existing test style
+5. Run tests and confirm they pass
 
 ## Identify Existing Patterns First
 

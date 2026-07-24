@@ -13,6 +13,8 @@ Complements PRINCIPLES.md "Code Quality Principles". This file provides review-s
 
 ## Error Handling
 
+> Full rules: `core/rules/error-handling.md`. The items below are the review-time subset.
+
 - [ ] All error paths are handled (no empty catch blocks)
 - [ ] Errors include context: what operation failed, with what input
 - [ ] External call failures have retry or graceful fallback logic

@@ -1,6 +1,7 @@
 # Dev Context -- Behavioral Guidelines
 
-> Activated when IntentGate classifies intent as: implement, build, create, add feature
+> Auto-loaded by the `DEV` route in `hooks/scripts/prompt-check.mjs` (CONTEXT_ROUTES) when the
+> prompt matches: implement, build, create, add feature, 구현, 개발, 만들어
 
 ## Principles
 

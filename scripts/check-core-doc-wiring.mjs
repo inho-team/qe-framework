@@ -61,8 +61,6 @@ const SELF_REL = relative(ROOT, SELF).split(sep).join('/');
  */
 const KNOWN_UNREACHABLE = new Set([
   'core/MEMORY_SPEC.md',
-  'core/rules/error-handling.md',
-  'core/rules/testing.md',
 ]);
 
 /** @returns {string[]} repo-relative POSIX paths of every core/ markdown file */

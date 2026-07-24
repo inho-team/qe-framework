@@ -1,6 +1,7 @@
 # Review Context -- Behavioral Guidelines
 
-> Activated when IntentGate classifies intent as: review, check, audit
+> Auto-loaded by the `REVIEW` route in `hooks/scripts/prompt-check.mjs` (CONTEXT_ROUTES) when the
+> prompt matches: review this, code review, audit, 리뷰, 검토해, 감사해
 
 ## Principles
 

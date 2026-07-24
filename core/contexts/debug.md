@@ -1,6 +1,7 @@
 # Debug Context -- Behavioral Guidelines
 
-> Activated when IntentGate classifies intent as: bug, error, not-working
+> Auto-loaded by the `DEBUG` route in `hooks/scripts/prompt-check.mjs` (CONTEXT_ROUTES) when the
+> prompt matches: bug, error, not working, broken, crash, stack trace, 버그, 에러, 오류, 안 됨
 
 ## Principles
 

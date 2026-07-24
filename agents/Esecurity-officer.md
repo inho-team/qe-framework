@@ -66,14 +66,16 @@ Invoke this agent when:
 Use this scope for changed-code requests, security diff requests, merge safety requests, or unclear requests. This is the existing default behavior: scan `git diff HEAD` for OWASP/security patterns and report to `.qe/security-reports/SECURITY_REPORT_{YYYYMMDD_HHMMSS}.md`.
 
 ### Phase 1 — Scope
-1. If `supervision_context` is provided: extract changed files list from it, then run `git diff HEAD` only for those specific files (not full diff). Otherwise, run `git diff HEAD` to collect all changed files and hunks
-2. Identify changed files by category:
+1. **Read `core/rules/security.md`** — it is the canonical security checklist; its items win
+   over any restatement here
+2. If `supervision_context` is provided: extract changed files list from it, then run `git diff HEAD` only for those specific files (not full diff). Otherwise, run `git diff HEAD` to collect all changed files and hunks
+3. Identify changed files by category:
    - **Auth / AuthZ**: login, token, session, permission logic
    - **Input handling**: form parsing, query params, file uploads, deserialization
    - **Crypto**: hashing, encryption, key management
    - **Secrets / Config**: env vars, config files, hardcoded strings
    - **Dependencies**: package-lock.json, pom.xml, build.gradle, go.sum changes
-3. If no security-relevant changes are detected, return PASS immediately with a brief note
+4. If no security-relevant changes are detected, return PASS immediately with a brief note
 
 ### Phase 2 — Scan
 Run the following checks against each changed hunk:

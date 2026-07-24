@@ -4,6 +4,11 @@
 > Every skill, agent, and hook in this framework exists to serve this philosophy.
 > When in doubt about a design decision, return to this document.
 > All changes to this file are supervised via Esupervision-orchestrator.
+>
+> **Not runtime-injected, by design.** No hook loads this file into context. It guides
+> design decisions for maintainers, not per-turn model behavior — the enforceable rules
+> live in `core/PRINCIPLES.md` (injected via `loadPrinciples()`) and `core/contexts/*.md`
+> (injected via CONTEXT_ROUTES). Read this on demand; do not wire it into a hook.
 
 ---
 

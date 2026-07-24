@@ -1,6 +1,7 @@
 # Deploy Context -- Behavioral Guidelines
 
-> Activated when IntentGate classifies intent as: deploy, release, ship
+> Auto-loaded by the `DEPLOY` route in `hooks/scripts/prompt-check.mjs` (CONTEXT_ROUTES) when the
+> prompt matches: deploy, release, ship it, 배포, 릴리스, 릴리즈
 
 ## Principles
 

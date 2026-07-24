@@ -1,6 +1,7 @@
 # Research Context -- Behavioral Guidelines
 
-> Activated when IntentGate classifies intent as: research, compare, evaluate, analyze options
+> Auto-loaded by the `RESEARCH` route in `hooks/scripts/prompt-check.mjs` (CONTEXT_ROUTES) when the
+> prompt matches: research, compare, evaluate, which is better, 조사해, 비교해
 
 ## Principles
 
