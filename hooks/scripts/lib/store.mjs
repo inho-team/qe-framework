@@ -30,6 +30,7 @@ import { createSqliteBackend, isSqliteAvailable } from './store-sqlite.mjs';
 const METHODS = [
   'getState', 'setState', 'getNamespace',
   'bumpCounter', 'getCounter',
+  'memoPut', 'memoGet', 'memoValid', 'memoMarkModified', 'memoClear', 'memoStats',
   'appendEvent', 'queryEvents',
   'upsertSession', 'listSessions', 'endSession',
   'indexFile', 'queryFiles', 'pruneIndex',
@@ -127,6 +128,22 @@ export function openStore(cwd, opts = {}) {
   }
 
   return store;
+}
+
+/**
+ * Derive the memo scope for a hook payload.
+ *
+ * Every hook that touches ContextMemo must agree on this string. `pre-tool-use`
+ * reads the cache, `post-tool-use` writes it, and `session-start`/`pre-compact`
+ * clear it — if any of them computed the scope differently the cache would
+ * simply never hit, and the dedup feature would die silently rather than
+ * loudly. One shared function is the cheapest way to prevent that.
+ *
+ * @param {object} payload - Raw hook stdin payload
+ * @returns {string} Session scope, or '' when the payload carries no id
+ */
+export function memoScope(payload) {
+  return String(payload?.session_id || payload?.sessionId || '');
 }
 
 export { METHODS };

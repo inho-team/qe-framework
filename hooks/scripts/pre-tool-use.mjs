@@ -5,7 +5,8 @@ import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from 'fs'
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
 import { loadConfig } from './lib/config.mjs';
-import { atomicWriteJson, readUnifiedState, writeUnifiedState, getContextMemo, isMemoValid, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
+import { atomicWriteJson, readUnifiedState, writeUnifiedState, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
+import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from './lib/shell-scanner.mjs';
 import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
@@ -78,7 +79,27 @@ if (toolName === 'Read') {
   // it, and it is never cached (see post-tool-use). Only full re-reads are hits.
   const isPartialRead =
     toolInput.offset !== undefined || toolInput.limit !== undefined;
-  if (filePath && !isPartialRead && isMemoValid(state, filePath)) {
+  // Resolve the cache hit through the store (ADR-027 P2). When sqlite is the
+  // active backend the memo lives in rows scoped to this session, which fixes
+  // the shared-blob behaviour where one session's start wipes every other
+  // session's cache. Fail-open is absolute here: this decision HARD-BLOCKS a
+  // user's Read, so any error or doubt must resolve to "not cached". A missed
+  // block costs one redundant read; a wrong block hands the model content it
+  // never received.
+  let memoHit = false;
+  if (filePath && !isPartialRead) {
+    let memoStore = null;
+    try {
+      memoStore = openMemo(cwd, { sessionId: memoScope(data) });
+      memoHit = memoStore.valid(filePath);
+    } catch {
+      memoHit = false;
+    } finally {
+      try { memoStore?.close(); } catch { /* nothing recoverable */ }
+    }
+  }
+
+  if (memoHit) {
     // File was previously read and has NOT been modified since — block the redundant read.
     const blockedCount = incrementBlockedReads(state);
     // This hard-block exits before the normal tool_calls increment below, so a

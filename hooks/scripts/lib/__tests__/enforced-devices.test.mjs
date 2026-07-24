@@ -61,6 +61,36 @@ function runHook(script, cwd, payload) {
   });
   return { code: r.status, stderr: r.stderr || '', stdout: r.stdout || '' };
 }
+/**
+ * Read the sandbox's store-backed memo rows, or null when there is no store.
+ *
+ * Returns null (rather than []) so the caller can tell "no sqlite store, look
+ * in the blob" apart from "store exists and is empty".
+ *
+ * @param {string} cwd - Sandbox project root
+ * @returns {Array<{path: string, content: string|null}>|null}
+ */
+function readMemoRows(cwd) {
+  const db = join(cwd, '.qe', 'qe.db');
+  if (!existsSync(db)) return null;
+  let sqlite;
+  try {
+    sqlite = process.getBuiltinModule?.('node:sqlite');
+  } catch {
+    return null;
+  }
+  if (!sqlite?.DatabaseSync) return null;
+  let handle;
+  try {
+    handle = new sqlite.DatabaseSync(db, { readOnly: true });
+    return handle.prepare('SELECT path, content FROM memo').all();
+  } catch {
+    return null;
+  } finally {
+    try { handle?.close(); } catch { /* nothing recoverable */ }
+  }
+}
+
 /** Read the sandbox unified-state.json (or {} if absent). */
 function readState(cwd) {
   const p = join(cwd, '.qe', 'state', 'unified-state.json');
@@ -103,8 +133,17 @@ function recordThenReread(toolResponse, { filename = 'f.txt', onDiskContent = 'x
   expect(post.code === 0, `[V07] post-hook should exit 0 (got ${post.code})`);
 
   const afterPost = readState(cwd);
-  const files = afterPost.memo?.files ? Object.keys(afterPost.memo.files).length : 0;
-  const cached = !!(afterPost.memo?.files && file in afterPost.memo.files);
+  // ContextMemo moved out of unified-state.json into .qe/qe.db (ADR-027 P2),
+  // so counting the blob alone would report 0 on any runtime with node:sqlite.
+  // Count whichever store actually holds it; the behavioural assertions below
+  // (blocked / blockedReads) are unchanged and remain the real contract.
+  const fromStore = readMemoRows(cwd);
+  const files = fromStore
+    ? fromStore.length
+    : (afterPost.memo?.files ? Object.keys(afterPost.memo.files).length : 0);
+  const cached = fromStore
+    ? fromStore.some(r => r.path === file && r.content)
+    : !!(afterPost.memo?.files && file in afterPost.memo.files);
 
   const pre = runHook(PRE, cwd, {
     tool_name: 'Read',

@@ -6,6 +6,7 @@ import { join } from 'path';
 import { execSync } from 'child_process';
 import { readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { ensureSessionDirs, shortenSid } from './lib/session-resolver.mjs';
+import { openMemo, memoScope } from './lib/store-memo.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -133,6 +134,16 @@ try {
   const state = readUnifiedState(cwd);
   state.memo = { files: {}, meta: {}, total_size: 0, blocked_reads: 0 };
   writeUnifiedState(cwd, state);
+} catch {}
+
+// Clear the store-backed memo for the same reason (ADR-027 P2). This reset is
+// the correctness-critical half of the migration: if the store cache survives a
+// compaction, the next read is MEMO-blocked against content the model no longer
+// holds. Scoped to this session, and separate from the blob reset above so one
+// failing cannot skip the other.
+try {
+  const store = openMemo(cwd, { sessionId: memoScope(data) });
+  try { store.clear(); } finally { store.close(); }
 } catch {}
 
 // PreCompact does NOT support hookSpecificOutput/additionalContext — the harness

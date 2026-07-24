@@ -136,6 +136,170 @@ for (const backend of BACKENDS) {
 }
 
 // ---------------------------------------------------------------------------
+// ContextMemo
+//
+// Every assertion here backs a decision that can HARD-BLOCK a user's Read, so
+// the bias under test is: when anything is uncertain, report not-cached.
+// ---------------------------------------------------------------------------
+
+for (const backend of BACKENDS) {
+  test(`[${backend}] memo caches a file and reports it valid`, () => {
+    const root = makeProject();
+    const file = path.join(root, 'a.txt');
+    fs.writeFileSync(file, 'hello');
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      assert.equal(store.memoValid(file), false, 'nothing cached yet');
+      store.memoPut(file, 'hello');
+      assert.equal(store.memoValid(file), true);
+      assert.equal(store.memoGet(file), 'hello');
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] an external edit invalidates the cache`, () => {
+    const root = makeProject();
+    const file = path.join(root, 'b.txt');
+    fs.writeFileSync(file, 'v1');
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      store.memoPut(file, 'v1');
+      assert.equal(store.memoValid(file), true);
+
+      // A Bash/git/editor change never calls memoMarkModified; mtime is the
+      // only signal, and blocking here would serve the model stale content.
+      const future = new Date(Date.now() + 5000);
+      fs.writeFileSync(file, 'v2');
+      fs.utimesSync(file, future, future);
+      assert.equal(store.memoValid(file), false, 'mtime change must invalidate');
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] a deleted file is never a cache hit`, () => {
+    const root = makeProject();
+    const file = path.join(root, 'c.txt');
+    fs.writeFileSync(file, 'x');
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      store.memoPut(file, 'x');
+      fs.unlinkSync(file);
+      assert.equal(store.memoValid(file), false);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] memoMarkModified invalidates`, () => {
+    const root = makeProject();
+    const file = path.join(root, 'd.txt');
+    fs.writeFileSync(file, 'x');
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      store.memoPut(file, 'x');
+      store.memoMarkModified(file);
+      assert.equal(store.memoValid(file), false);
+      assert.equal(store.memoGet(file), null);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] memoClear empties the cache`, () => {
+    const root = makeProject();
+    const file = path.join(root, 'e.txt');
+    fs.writeFileSync(file, 'x');
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      store.memoPut(file, 'x');
+      store.memoClear();
+      // This is the post-compaction guarantee: a surviving entry would block
+      // the re-read of content the model no longer holds.
+      assert.equal(store.memoValid(file), false);
+      assert.equal(store.memoStats().files, 0);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] oversized files are not cached`, () => {
+    const root = makeProject();
+    const file = path.join(root, 'big.txt');
+    const big = 'x'.repeat(11 * 1024); // over the 10 KB per-file limit
+    fs.writeFileSync(file, big);
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      store.memoPut(file, big);
+      assert.equal(store.memoValid(file), false);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] an empty body is never a cache hit`, () => {
+    // Regression: state.mjs treats a falsy cached body as "not cached", so a
+    // Read that returned nothing must not block the next one. The sqlite
+    // backend originally stored '' as a real value and blocked on it, telling
+    // the model to reuse content it never received.
+    const root = makeProject();
+    const file = path.join(root, 'empty.txt');
+    fs.writeFileSync(file, '');
+
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      store.memoPut(file, '');
+      assert.equal(store.memoValid(file), false);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] memoValid rejects empty and unknown paths`, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend, sessionId: 's1' });
+    try {
+      assert.equal(store.memoValid(''), false);
+      assert.equal(store.memoValid('/definitely/not/here.txt'), false);
+    } finally { store.close(); }
+  });
+}
+
+test('sqlite memo is per session; the file blob is shared', { skip: !SQLITE }, () => {
+  const root = makeProject();
+  const file = path.join(root, 'shared.txt');
+  fs.writeFileSync(file, 'x');
+
+  const a = openStore(root, { backend: 'sqlite', sessionId: 'sessA' });
+  const b = openStore(root, { backend: 'sqlite', sessionId: 'sessB' });
+  try {
+    a.memoPut(file, 'x');
+    assert.equal(a.memoValid(file), true);
+    assert.equal(b.memoValid(file), false, 'another session must not inherit the cache');
+
+    // And clearing one session leaves the other intact — the property the
+    // shared blob cannot offer, where session-start wipes everyone.
+    b.memoPut(file, 'x');
+    b.memoClear();
+    assert.equal(a.memoValid(file), true);
+  } finally { a.close(); b.close(); }
+});
+
+test('sqlite memo evicts least-recently-read entries past the size budget',
+  { skip: !SQLITE }, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend: 'sqlite', sessionId: 's1' });
+    try {
+      // 20 x 8 KB = 160 KB against a 100 KB budget.
+      const body = 'x'.repeat(8 * 1024);
+      for (let i = 0; i < 20; i += 1) {
+        const file = path.join(root, `f${i}.txt`);
+        fs.writeFileSync(file, body);
+        store.memoPut(file, body);
+      }
+      const stats = store.memoStats();
+      assert.ok(stats.bytes <= 100 * 1024, `budget exceeded: ${stats.bytes}`);
+      assert.ok(stats.files > 0 && stats.files < 20, `expected eviction, got ${stats.files}`);
+      // The most recent write must survive; the oldest must not.
+      assert.equal(store.memoValid(path.join(root, 'f19.txt')), true);
+      assert.equal(store.memoValid(path.join(root, 'f0.txt')), false);
+    } finally { store.close(); }
+  });
+
+// ---------------------------------------------------------------------------
 // Sessions (ADR-027 P2 first slice)
 // ---------------------------------------------------------------------------
 

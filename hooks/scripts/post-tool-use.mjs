@@ -5,7 +5,8 @@ import { readFileSync, existsSync } from 'fs';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';
-import { readUnifiedState, writeUnifiedState, updateContextMemo, markMemoModified, getCwd } from './lib/state.mjs';
+import { readUnifiedState, writeUnifiedState, getCwd } from './lib/state.mjs';
+import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { checkComments, isCheckableFile } from './lib/comment-checker.mjs';
 import { runLint, isLintableFile } from './lib/lint-runner.mjs';
@@ -89,6 +90,31 @@ if (toolName === 'Bash') {
   }
 }
 
+/**
+ * Run one ContextMemo mutation against the store.
+ *
+ * Opens the store only for the call, so a hook that touches no cached file
+ * pays nothing. Returns false when the store did not handle the write — either
+ * sqlite is not active or something failed — which tells the caller to use the
+ * in-blob memo instead. Never throws: a caching failure must not surface as a
+ * hook error.
+ *
+ * @param {(store: object) => any} fn - Mutation to run against the open store
+ * @returns {boolean} True when the store handled it
+ */
+function memoWrite(fn) {
+  let store = null;
+  try {
+    store = openMemo(cwd, { sessionId: memoScope(data) });
+    fn(store);
+    return true;
+  } catch {
+    return false;
+  } finally {
+    try { store?.close(); } catch { /* nothing recoverable */ }
+  }
+}
+
 // --- ContextMemo Maintenance ---
 if (!isError && toolName === 'Read') {
   const toolInput = data.tool_input || data.toolInput || {};
@@ -102,14 +128,21 @@ if (!isError && toolName === 'Read') {
   if (filePath && data.tool_response != null && !isPartialRead) {
     const resp = data.tool_response;
     const contentStr = typeof resp === 'string' ? resp : String(resp);
-    updateContextMemo(state, filePath, contentStr);
+    // Write through the store (ADR-027 P2) so a counter update no longer
+    // rewrites the whole cache blob. Falls back to the in-blob memo whenever
+    // sqlite is not the active backend, and never throws: failing to cache
+    // only costs a future re-read.
+    memoWrite((store) => store.put(filePath, contentStr));
   }
 } else if (['Write', 'Edit'].includes(toolName)) {
   const toolInput = data.tool_input || data.toolInput || {};
   const filePath = toolInput.file_path || toolInput.filePath || '';
   if (filePath) {
-    // Mark as modified so pre-tool-use allows re-read of the updated file
-    markMemoModified(state, filePath);
+    // Mark as modified so pre-tool-use allows re-read of the updated file.
+    // Invalidation is the safety-critical direction: if this is missed the
+    // next read is blocked against stale content, so it runs on BOTH the
+    // store and the blob rather than one or the other.
+    memoWrite((store) => store.markModified(filePath));
 
     // --- Shadow snapshot trigger (fail-safe, detached) ---
     // Spawns qe-shadow.mjs as a detached child (detached: true + child.unref()).

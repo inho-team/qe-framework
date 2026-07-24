@@ -22,6 +22,7 @@ import {
 } from './lib/session-resolver.mjs';
 import { cleanupStaleSessions, upsertSession, filterActiveSessions, SESSION_STALE_MS } from './lib/session-registry.mjs';
 import { openStore } from './lib/store.mjs';
+import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
 import { maybeSpawnRefresh, ensurePeriodicRefresh } from './lib/auto-refresh.mjs';
@@ -655,6 +656,21 @@ try {
   writeUnifiedState(cwd, state);
 } catch {
   // Fault tolerance — ignore reset errors
+}
+
+// Clear this session's store-backed memo too (ADR-027 P2). Unlike the shared
+// blob above, the store scopes memo per session, so this drops only our own
+// rows and leaves concurrent sessions' caches intact — removing the "wipes
+// other sessions' cache" trade-off noted for the blob reset.
+// memoScope(data) rather than currentSessionId: sessionIdFromPayload can derive
+// an id from transcript_path that pre/post-tool-use never see, and a scope that
+// differs by one character clears rows nobody is reading while the rows that
+// matter survive.
+try {
+  const memoStore = openMemo(cwd, { sessionId: memoScope(data) });
+  try { memoStore.clear(); } finally { memoStore.close(); }
+} catch {
+  // Fault tolerance — a failed cache reset is never worth blocking start.
 }
 
 // --- SIVS loop-guard staleness sweep (Phase 3 / R005-R006) ---

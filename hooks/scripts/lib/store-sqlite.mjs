@@ -21,7 +21,12 @@ import { dirname, join } from 'path';
 
 import { parseTaskLog } from './store-indexer.mjs';
 
-export const SCHEMA_VERSION = 1;
+export const SCHEMA_VERSION = 3;
+
+// Mirrors the limits state.mjs applies to the in-blob memo, so switching
+// backends does not change how much is cached.
+const MEMO_FILE_LIMIT = 10 * 1024;
+const MEMO_TOTAL_LIMIT = 100 * 1024;
 
 /**
  * Load `node:sqlite` without leaking Node's ExperimentalWarning to stderr.
@@ -295,13 +300,25 @@ export function openSqlite(cwd, opts = {}) {
       db.exec(`PRAGMA busy_timeout = ${Number(timeoutMs) || 5000}`);
 
       if (!readOnly) {
-        // WAL lets readers proceed during a write, which matters because hooks
-        // read far more often than they write. synchronous=NORMAL is the
-        // standard WAL pairing: durable against process crash, which is the
-        // only failure mode that matters for cache and telemetry data.
-        db.exec('PRAGMA journal_mode = WAL');
+        // synchronous is per-connection, so it is set every time. It is free
+        // (measured at noise level) and NORMAL is the standard WAL pairing:
+        // durable against process crash, which is the only failure mode that
+        // matters for cache and telemetry data.
         db.exec('PRAGMA synchronous = NORMAL');
-        migrate(db);
+
+        // journal_mode is persisted in the database header, so re-declaring it
+        // on an already-initialised file is pure cost — 0.41 ms of the ~1.8 ms
+        // an open used to take, paid on every Read through the memo hot path.
+        // `user_version` is the cheaper probe: it is 0 only for a database we
+        // have not initialised, which also covers a file left behind by a
+        // half-finished creation.
+        const version = db.prepare('PRAGMA user_version').get()?.user_version ?? 0;
+        if (version === 0 || version < MIGRATIONS.length) {
+          // WAL lets readers proceed during a write, which matters because
+          // hooks read far more often than they write.
+          db.exec('PRAGMA journal_mode = WAL');
+          migrate(db);
+        }
       }
       return db;
     } catch (err) {
@@ -411,6 +428,112 @@ export function createSqliteBackend(cwd, opts = {}) {
         'SELECT n FROM counters WHERE ns = ? AND k = ? AND session_id = ?',
       ).get(ns, key, sid(o.sessionId));
       return Number(row?.n) || 0;
+    },
+
+    // ---- ContextMemo -----------------------------------------------------
+    //
+    // Row-per-file instead of one blob inside unified-state.json. Two wins:
+    // a counter update no longer rewrites up to 100 KB of cached content, and
+    // the cache is scoped per session — today's shared blob means one session's
+    // start wipes every other session's cache (acknowledged in session-start.mjs
+    // as "a lost re-read optimization").
+    //
+    // Every read here feeds a decision that can HARD-BLOCK a user's Read tool
+    // call, so the contract is: when in any doubt, report not-cached. A missed
+    // block costs one redundant read; a wrong block hands the model content it
+    // does not have.
+
+    memoPut(path, content, o = {}) {
+      if (!path || typeof content !== 'string') return false;
+      const size = Buffer.byteLength(content, 'utf8');
+      if (size > (o.fileLimit ?? MEMO_FILE_LIMIT)) return false;
+
+      let mtimeMs = null;
+      try { mtimeMs = statSync(path).mtimeMs; } catch { /* unstattable → left null */ }
+
+      const s = sid(o.sessionId);
+      stmt(
+        `INSERT INTO memo(session_id, path, content, size, mtime_ms, read_at, modified)
+         VALUES(?, ?, ?, ?, ?, ?, 0)
+         ON CONFLICT(session_id, path) DO UPDATE SET
+           content = excluded.content, size = excluded.size,
+           mtime_ms = excluded.mtime_ms, read_at = excluded.read_at, modified = 0`,
+      ).run(s, path, content, size, mtimeMs, Date.now());
+
+      // Evict least-recently-read rows until the session is back under budget.
+      const total = () => Number(
+        stmt('SELECT COALESCE(SUM(size), 0) AS n FROM memo WHERE session_id = ?').get(s)?.n,
+      ) || 0;
+      const oldest = stmt(
+        'SELECT path FROM memo WHERE session_id = ? ORDER BY read_at ASC LIMIT 1',
+      );
+      const drop = stmt('DELETE FROM memo WHERE session_id = ? AND path = ?');
+      const limit = o.totalLimit ?? MEMO_TOTAL_LIMIT;
+      // Bounded: each pass deletes one row, and the row just inserted is under
+      // the per-file limit, so this cannot spin.
+      while (total() > limit) {
+        const victim = oldest.get(s)?.path;
+        if (!victim) break;
+        drop.run(s, victim);
+      }
+      return true;
+    },
+
+    memoGet(path, o = {}) {
+      const row = stmt(
+        'SELECT content FROM memo WHERE session_id = ? AND path = ?',
+      ).get(sid(o.sessionId), path);
+      return row?.content ?? null;
+    },
+
+    memoValid(path, o = {}) {
+      if (!path) return false;
+      const row = stmt(
+        'SELECT content, mtime_ms, modified FROM memo WHERE session_id = ? AND path = ?',
+      ).get(sid(o.sessionId), path);
+      // `!row.content` rather than a null check, so an empty body is not a hit.
+      // state.mjs's isMemoValid tests the cached string for truthiness, making
+      // "read returned nothing" a documented non-cache; blocking on it would
+      // tell the model to reuse content that was never there.
+      if (!row || row.modified || !row.content) return false;
+
+      // An edit made outside the tool layer (Bash, git, another editor) never
+      // calls memoMarkModified, so the on-disk mtime is the only signal. If it
+      // moved, or the file cannot be stat'd at all, treat the entry as stale.
+      if (row.mtime_ms !== null && row.mtime_ms !== undefined) {
+        try {
+          if (statSync(path).mtimeMs !== row.mtime_ms) return false;
+        } catch {
+          return false;
+        }
+      }
+      return true;
+    },
+
+    memoMarkModified(path, o = {}) {
+      if (!path) return false;
+      // Drop the content outright rather than only flagging it: nothing reads a
+      // stale body, and holding it keeps the session at its size budget.
+      stmt(
+        'UPDATE memo SET modified = 1, content = NULL, size = 0 WHERE session_id = ? AND path = ?',
+      ).run(sid(o.sessionId), path);
+      return true;
+    },
+
+    memoClear(o = {}) {
+      // No sessionId means "this session"; `allSessions` is for the global
+      // reset that pre-compact and session-start used to perform on the blob.
+      if (o.allSessions) stmt('DELETE FROM memo').run();
+      else stmt('DELETE FROM memo WHERE session_id = ?').run(sid(o.sessionId));
+      return true;
+    },
+
+    memoStats(o = {}) {
+      const s = sid(o.sessionId);
+      const row = stmt(
+        'SELECT COUNT(*) AS files, COALESCE(SUM(size), 0) AS bytes FROM memo WHERE session_id = ?',
+      ).get(s);
+      return { files: Number(row?.files) || 0, bytes: Number(row?.bytes) || 0 };
     },
 
     // ---- events ----------------------------------------------------------

@@ -18,7 +18,14 @@
 import { existsSync, readFileSync, readdirSync } from 'fs';
 import { join, relative } from 'path';
 
-import { readUnifiedState, writeUnifiedState } from './state.mjs';
+import {
+  getContextMemo,
+  isMemoValid,
+  markMemoModified,
+  readUnifiedState,
+  updateContextMemo,
+  writeUnifiedState,
+} from './state.mjs';
 import { appendTelemetry, getTelemetryPath, readTelemetry } from './metrics.mjs';
 import { parseFailureContext, parseTaskLog } from './store-indexer.mjs';
 import {
@@ -95,6 +102,52 @@ export function createFileBackend(cwd, opts = {}) {
       const bucket = state?.[COUNTER_ROOT];
       if (!bucket || typeof bucket !== 'object') return 0;
       return Number(bucket[`${ns}::${scopeKey(key, o.sessionId)}`]) || 0;
+    },
+
+    // ---- ContextMemo -----------------------------------------------------
+    //
+    // Delegates to state.mjs so the on-disk shape of unified-state.json is
+    // untouched. Note the semantic difference from the sqlite backend: the
+    // blob has no session scoping, so `sessionId` is ignored here and every
+    // session shares one cache. That is current QE behaviour, and preserving
+    // it is the point of this backend.
+
+    memoPut(path, content) {
+      if (!path || typeof content !== 'string') return false;
+      const state = readUnifiedState(cwd);
+      updateContextMemo(state, path, content);
+      writeUnifiedState(cwd, state);
+      return true;
+    },
+
+    memoGet(path) {
+      return getContextMemo(readUnifiedState(cwd), path);
+    },
+
+    memoValid(path) {
+      if (!path) return false;
+      return isMemoValid(readUnifiedState(cwd), path);
+    },
+
+    memoMarkModified(path) {
+      if (!path) return false;
+      const state = readUnifiedState(cwd);
+      markMemoModified(state, path);
+      writeUnifiedState(cwd, state);
+      return true;
+    },
+
+    memoClear() {
+      const state = readUnifiedState(cwd);
+      state.memo = { files: {}, meta: {}, total_size: 0, blocked_reads: 0 };
+      writeUnifiedState(cwd, state);
+      return true;
+    },
+
+    memoStats() {
+      const memo = readUnifiedState(cwd)?.memo || {};
+      const files = memo.files && typeof memo.files === 'object' ? Object.keys(memo.files).length : 0;
+      return { files, bytes: Number(memo.total_size) || 0 };
     },
 
     // ---- events ----------------------------------------------------------
