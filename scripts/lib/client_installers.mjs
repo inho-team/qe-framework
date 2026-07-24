@@ -1391,7 +1391,7 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
   for (const { dest, label } of targets) {
     const here = existsSync(dest);
     if (here) present++;
-    log(`    ${label.padEnd(11)} ${here ? 'present' : 'absent '}  ${dest}`);
+    log(`    ${label.padEnd(13)} ${here ? 'present' : 'absent '}  ${dest}`);
   }
   const backupRoot = join(homeDir, '.claude', '.qe-backup');
   const backups = existsSync(backupRoot)
