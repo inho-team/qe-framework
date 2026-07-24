@@ -36,6 +36,7 @@ const METHODS = [
   'indexFile', 'queryFiles', 'pruneIndex',
   'upsertTaskRow', 'queryTasks',
   'upsertFailure', 'queryFailures',
+  'queryWiki', 'queryWikiLinks',
 ];
 
 /** One warning per process, not per call — hooks run thousands of calls. */

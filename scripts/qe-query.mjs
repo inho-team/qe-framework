@@ -87,6 +87,21 @@ const CATALOG = {
     flags: ['--limit=N'],
     run: (store, args) => store.queryFiles({ kind: 'analysis', limit: args.limit ?? 50 }),
   },
+  wiki: {
+    summary: 'LLM wiki pages with their frontmatter (type, topic, tier, provenance)',
+    flags: ['--type=concept|source|index', '--topic=<name>', '--tier=<tier>', '--provenance=extracted|inferred|ambiguous', '--slug=<slug>', '--limit=N'],
+    run: (store, args) => store.queryWiki({
+      type: args.type, topic: args.topic, tier: args.tier,
+      provenance: args.provenance, slug: args.slug, limit: args.limit ?? 50,
+    }),
+  },
+  'wiki-links': {
+    summary: 'Wiki link graph — inbound counts by default; --broken finds dangling [[links]]',
+    flags: ['--broken', '--to=<slug>', '--from=<path substring>'],
+    run: (store, args) => store.queryWikiLinks({
+      broken: args.broken, to: args.to, from: args.from,
+    }),
+  },
   failures: {
     summary: 'Verification failure history (when, which task, why, how much was unchecked)',
     flags: ['--uuid=<task>', '--since=<7d|YYYY-MM-DD>', '--limit=N'],
@@ -115,6 +130,7 @@ const CATALOG = {
  */
 const VALUE_FLAGS = new Set([
   'sql', 'cwd', 'status', 'kind', 'plan', 'since', 'limit', 'uuid', 'session',
+  'type', 'topic', 'tier', 'provenance', 'slug', 'to', 'from',
 ]);
 
 /**
@@ -316,8 +332,14 @@ async function main() {
       const primer = openStore(cwd);
       try {
         if (primer.backend === 'sqlite') {
+          // One call per derived index. Each has its own freshness check, so
+          // omitting one leaves that table empty for raw SQL — which is how
+          // `file_index` was silently empty here after the first version of
+          // this priming shipped covering only tasks and failures.
           primer.queryTasks({ limit: 1 });
           primer.queryFailures({ limit: 1 });
+          primer.queryFiles({ limit: 1 });
+          primer.queryWiki({ limit: 1 });
         }
       } finally {
         primer.close();

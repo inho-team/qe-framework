@@ -27,7 +27,7 @@ import {
   writeUnifiedState,
 } from './state.mjs';
 import { appendTelemetry, getTelemetryPath, readTelemetry } from './metrics.mjs';
-import { parseFailureContext, parseTaskLog } from './store-indexer.mjs';
+import { collectWikiPages, parseFailureContext, parseTaskLog } from './store-indexer.mjs';
 import {
   filterActiveSessions,
   readSessionRegistry,
@@ -248,6 +248,68 @@ export function createFileBackend(cwd, opts = {}) {
       // expressed this, and stop-handler already relies on that semantics.
       registryRemove(cwd, sid);
       return true;
+    },
+
+    // ---- wiki (Tier B) ---------------------------------------------------
+    //
+    // Reads the pages directly, like queryTasks and queryFailures, so the
+    // query CLI answers the same on runtimes without sqlite. Column shape must
+    // match the sqlite backend exactly or the CLI renders different headers.
+
+    queryWiki(filter = {}) {
+      let rows = collectWikiPages(cwd).map(({ page }) => page);
+      rows = rows.filter(p => (
+        (!filter.type || p.type === filter.type)
+        && (!filter.topic || p.topic === filter.topic)
+        && (!filter.tier || p.tier === filter.tier)
+        && (!filter.provenance || p.provenance === filter.provenance)
+        && (!filter.slug || p.slug === filter.slug)
+      ));
+      rows.sort((a, b) => (a.topic || '').localeCompare(b.topic || '')
+        || (a.type || '').localeCompare(b.type || '')
+        || (a.slug || '').localeCompare(b.slug || ''));
+      if (filter.limit > 0) rows = rows.slice(0, Math.floor(filter.limit));
+      return rows.map(p => ({
+        slug: p.slug, type: p.type, topic: p.topic, tier: p.tier,
+        provenance: p.provenance, status: p.status, title: p.title,
+        summary: p.summary, words: p.words, updated_at: p.updatedAt, path: p.path,
+      }));
+    },
+
+    queryWikiLinks(filter = {}) {
+      const collected = collectWikiPages(cwd);
+      const bySlug = new Map();
+      for (const { page } of collected) if (page.slug) bySlug.set(page.slug, page.path);
+
+      const edges = [];
+      for (const { page, links } of collected) {
+        for (const target of links) {
+          edges.push({ src: page.path, target, target_path: bySlug.get(target) ?? null });
+        }
+      }
+
+      if (filter.broken) {
+        return edges.filter(e => e.target_path === null)
+          .map(({ src, target }) => ({ src, target }))
+          .sort((a, b) => a.src.localeCompare(b.src) || a.target.localeCompare(b.target));
+      }
+      if (filter.from) {
+        return edges.filter(e => e.src.includes(filter.from))
+          .sort((a, b) => a.target.localeCompare(b.target));
+      }
+      if (filter.to) {
+        return edges.filter(e => e.target === filter.to)
+          .sort((a, b) => a.src.localeCompare(b.src));
+      }
+      const inbound = new Map();
+      for (const { page } of collected) inbound.set(page.path, 0);
+      for (const e of edges) {
+        if (e.target_path !== null) inbound.set(e.target_path, (inbound.get(e.target_path) || 0) + 1);
+      }
+      return collected.map(({ page }) => ({
+        slug: page.slug, type: page.type, tier: page.tier,
+        inbound: inbound.get(page.path) || 0,
+      })).sort((a, b) => b.inbound - a.inbound || (a.slug || '').localeCompare(b.slug || ''));
     },
 
     // ---- file index (Tier B) ---------------------------------------------

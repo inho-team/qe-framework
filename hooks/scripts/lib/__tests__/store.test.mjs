@@ -9,7 +9,7 @@ import path from 'node:path';
 import { openStore } from '../store.mjs';
 import { isSqliteAvailable } from '../store-sqlite.mjs';
 import {
-  normalizeStatus, parseFailureContext, parseTaskLog, reindex,
+  normalizeStatus, parseFailureContext, parseTaskLog, parseWikiPage, reindex,
 } from '../store-indexer.mjs';
 
 /** A realistic failure record as written by failure-capture.mjs. */
@@ -620,6 +620,163 @@ test('parseTaskLog tolerates empty and malformed input', () => {
   assert.deepEqual(parseTaskLog(''), []);
   assert.deepEqual(parseTaskLog('no table here'), []);
   assert.deepEqual(parseTaskLog('| a | b |\n| c | d |'), []); // no recognisable header
+});
+
+// ---------------------------------------------------------------------------
+// LLM wiki
+// ---------------------------------------------------------------------------
+
+/** A concept page in the shape `.qe/wiki/conventions.md` specifies. */
+const WIKI_CONCEPT = [
+  '---',
+  'type: concept',
+  'canonical: store-tiering',
+  'aka: ["티어링", "storage tiering"]',
+  'topic: demo',
+  'summary: "Tier A/B/C 저장 분류."',
+  'tags: [storage, adr-027, tiering]',   // bare flow scalars — the parse trap
+  'provenance: extracted',
+  'tier: draft',
+  'status: active',
+  'updated: 2026-07-25',
+  '---',
+  '**정의:** ADR-027의 3계층 저장 분류.',
+  '## Key points',
+  '- rebuildable [[sources/adr-027]]',
+  '- dangling [[concepts/missing-page]]',
+  '',
+].join('\n');
+
+const WIKI_SOURCE = [
+  '---',
+  'type: source',
+  'title: "ADR-027"',
+  'topic: demo',
+  'summary: "store and query layer."',
+  'tags: [decision]',
+  'provenance: inferred',
+  'tier: reviewed',
+  '---',
+  'TL;DR',
+  '',
+].join('\n');
+
+/**
+ * Write a two-page wiki into a project.
+ * @param {string} root - Project root
+ */
+function seedWiki(root) {
+  const base = path.join(root, '.qe', 'wiki', 'pages', 'demo');
+  fs.mkdirSync(path.join(base, 'concepts'), { recursive: true });
+  fs.mkdirSync(path.join(base, 'sources'), { recursive: true });
+  fs.writeFileSync(path.join(base, 'concepts', 'store-tiering.md'), WIKI_CONCEPT);
+  fs.writeFileSync(path.join(base, 'sources', 'adr-027.md'), WIKI_SOURCE);
+}
+
+test('parseWikiPage reads frontmatter, slug and links', () => {
+  const parsed = parseWikiPage(WIKI_CONCEPT, '.qe/wiki/pages/demo/concepts/store-tiering.md');
+  assert.equal(parsed.page.type, 'concept');
+  assert.equal(parsed.page.topic, 'demo');
+  assert.equal(parsed.page.slug, 'concepts/store-tiering');
+  assert.equal(parsed.page.title, 'store-tiering');
+  assert.equal(parsed.page.tier, 'draft');
+  assert.equal(parsed.page.provenance, 'extracted');
+  assert.deepEqual(JSON.parse(parsed.page.aka), ['티어링', 'storage tiering']);
+  assert.deepEqual(parsed.links, ['sources/adr-027', 'concepts/missing-page']);
+});
+
+test('unquoted flow sequences do not defeat the parser', () => {
+  // Regression: `tags: [storage, adr-027, tiering]` is parsed as inline JSON by
+  // the shared frontmatter reader and was rejected, silently degrading 11 of 15
+  // real pages to type "unknown" and hiding every other field with them.
+  const parsed = parseWikiPage(WIKI_CONCEPT, '.qe/wiki/pages/demo/concepts/x.md');
+  assert.equal(parsed.page.type, 'concept', 'must not fall back to unknown');
+
+  // Already-quoted items must survive untouched.
+  const quoted = WIKI_CONCEPT.replace(
+    'tags: [storage, adr-027, tiering]',
+    'sources: ["[[sources/adr-027]]", "[[sources/other]]"]',
+  );
+  assert.equal(parseWikiPage(quoted, 'x.md').page.type, 'concept');
+});
+
+test('a page with no frontmatter is still indexed, as unknown', () => {
+  // "Which pages still need frontmatter" has to remain answerable.
+  const parsed = parseWikiPage('# Just a heading\n', '.qe/wiki/pages/demo/aliases.md');
+  assert.equal(parsed.page.type, 'unknown');
+  assert.equal(parsed.page.topic, 'demo');
+});
+
+for (const backend of BACKENDS) {
+  test(`[${backend}] queryWiki filters on frontmatter fields`, () => {
+    const root = makeProject();
+    seedWiki(root);
+    const store = openStore(root, { backend });
+    try {
+      assert.equal(store.queryWiki({}).length, 2);
+      assert.equal(store.queryWiki({ type: 'concept' }).length, 1);
+      assert.equal(store.queryWiki({ tier: 'reviewed' }).length, 1);
+      assert.equal(store.queryWiki({ provenance: 'extracted' }).length, 1);
+      assert.equal(store.queryWiki({ topic: 'demo' }).length, 2);
+      assert.equal(store.queryWiki({ slug: 'concepts/store-tiering' }).length, 1);
+      assert.equal(store.queryWiki({ type: 'nope' }).length, 0);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] queryWikiLinks resolves the graph and finds dangling links`, () => {
+    const root = makeProject();
+    seedWiki(root);
+    const store = openStore(root, { backend });
+    try {
+      const broken = store.queryWikiLinks({ broken: true });
+      assert.equal(broken.length, 1);
+      assert.equal(broken[0].target, 'concepts/missing-page');
+
+      const inbound = store.queryWikiLinks({});
+      const adr = inbound.find(r => r.slug === 'sources/adr-027');
+      assert.equal(adr.inbound, 1, 'the concept page links to it');
+
+      assert.equal(store.queryWikiLinks({ to: 'sources/adr-027' }).length, 1);
+      assert.equal(store.queryWikiLinks({ from: 'store-tiering' }).length, 2);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] wiki queries answer without an explicit reindex`, () => {
+    const root = makeProject();
+    seedWiki(root);
+    const store = openStore(root, { backend });
+    try {
+      // No reindex() anywhere: writing the page must be enough.
+      assert.equal(store.queryWiki({ type: 'concept' }).length, 1);
+    } finally { store.close(); }
+  });
+}
+
+test('a page added after the first query is picked up', { skip: !SQLITE }, () => {
+  const root = makeProject();
+  seedWiki(root);
+  const store = openStore(root, { backend: 'sqlite' });
+  try {
+    assert.equal(store.queryWiki({}).length, 2);
+    fs.writeFileSync(
+      path.join(root, '.qe', 'wiki', 'pages', 'demo', 'concepts', 'later.md'),
+      WIKI_CONCEPT.replace('canonical: store-tiering', 'canonical: later'),
+    );
+    assert.equal(store.queryWiki({}).length, 3, 'the index must notice the new page');
+  } finally { store.close(); }
+});
+
+test('removing a page drops it and its links', { skip: !SQLITE }, () => {
+  const root = makeProject();
+  seedWiki(root);
+  const store = openStore(root, { backend: 'sqlite' });
+  try {
+    assert.equal(store.queryWiki({}).length, 2);
+    fs.unlinkSync(path.join(root, '.qe', 'wiki', 'pages', 'demo', 'concepts', 'store-tiering.md'));
+    assert.equal(store.queryWiki({}).length, 1);
+    // Its outgoing links must go with it, not linger as phantom edges.
+    assert.equal(store.queryWikiLinks({ broken: true }).length, 0);
+  } finally { store.close(); }
 });
 
 // ---------------------------------------------------------------------------

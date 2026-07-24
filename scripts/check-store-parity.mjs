@@ -255,6 +255,70 @@ same('failure history queries', bothBackends((s, root) => {
   };
 }));
 
+// --- LLM wiki --------------------------------------------------------------
+
+const WIKI_CONCEPT = [
+  '---',
+  'type: concept',
+  'canonical: store-tiering',
+  'aka: ["티어링", "storage tiering"]',
+  'topic: demo',
+  'summary: "Tier A/B/C."',
+  'tags: [storage, adr-027]',    // bare flow scalars — the historic parse trap
+  'provenance: extracted',
+  'tier: draft',
+  'status: active',
+  'updated: 2026-07-25',
+  '---',
+  '- links [[sources/adr-027]] and [[concepts/missing-page]]',
+  '',
+].join('\n');
+
+const WIKI_SOURCE = [
+  '---',
+  'type: source',
+  'title: "ADR-027"',
+  'topic: demo',
+  'tags: [decision]',
+  'provenance: inferred',
+  'tier: reviewed',
+  '---',
+  'TL;DR',
+  '',
+].join('\n');
+
+/**
+ * Write a two-page wiki into a sandbox.
+ * @param {string} root - Project root
+ */
+function seedWiki(root) {
+  const base = join(root, '.qe', 'wiki', 'pages', 'demo');
+  mkdirSync(join(base, 'concepts'), { recursive: true });
+  mkdirSync(join(base, 'sources'), { recursive: true });
+  writeFileSync(join(base, 'concepts', 'store-tiering.md'), WIKI_CONCEPT);
+  writeFileSync(join(base, 'sources', 'adr-027.md'), WIKI_SOURCE);
+}
+
+same('wiki page fields', bothBackends((s, root) => {
+  seedWiki(root);
+  const rows = s.queryWiki({});
+  return {
+    count: rows.length,
+    columns: Object.keys(rows[0] || {}).sort(),
+    concepts: s.queryWiki({ type: 'concept' }).map(r => `${r.slug}|${r.tier}|${r.provenance}`),
+    reviewed: s.queryWiki({ tier: 'reviewed' }).map(r => r.slug),
+  };
+}));
+
+same('wiki link graph', bothBackends((s, root) => {
+  seedWiki(root);
+  return {
+    broken: s.queryWikiLinks({ broken: true }).map(r => r.target),
+    inbound: s.queryWikiLinks({}).map(r => `${r.slug}:${r.inbound}`),
+    to: s.queryWikiLinks({ to: 'sources/adr-027' }).length,
+  };
+}));
+
 // --- intentional divergences ----------------------------------------------
 // Asserted explicitly so that changing either decision trips this guard rather
 // than silently altering behaviour.
@@ -304,4 +368,4 @@ if (failures.length > 0) {
   process.exit(1);
 }
 
-console.log('check-store-parity: PASS (state, counters, events, memo, sessions, task log, failures, and 3 by-design divergences)');
+console.log('check-store-parity: PASS (state, counters, events, memo, sessions, task log, failures, wiki pages + link graph, and 3 by-design divergences)');

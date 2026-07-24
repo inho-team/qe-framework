@@ -21,6 +21,11 @@ import { createHash } from 'crypto';
 import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
 import { join, relative } from 'path';
 
+import {
+  FRONTMATTER_BOUNDARY_RE,
+  parseSkillFrontmatter,
+} from '../../../scripts/lib/skill-frontmatter.mjs';
+
 /** Directories mirrored into `file_index`, with the kind each one carries. */
 const INDEXED_DIRS = [
   { dir: ['tasks'], kind: 'task' },
@@ -273,6 +278,127 @@ function statusFromPath(relPath) {
 function titleOf(content, fallback) {
   const heading = content.match(/^#\s+(.+)$/m);
   return heading ? heading[1].trim() : fallback;
+}
+
+/**
+ * Quote bare scalars inside YAML flow sequences, only within a frontmatter
+ * block.
+ *
+ * `parseYamlSubset` (shared with skill frontmatter) parses `key: [...]` as
+ * inline JSON, so the wiki's `tags: [verification, sivs, gate]` is rejected —
+ * 11 of 15 real pages failed on exactly this one construct and silently
+ * degraded to `type: unknown`, hiding the frontmatter the wiki exists to
+ * carry. Normalising here rather than loosening the shared parser keeps skill
+ * frontmatter validation as strict as it was.
+ *
+ * Already-quoted items are left alone, so `sources: ["[[a]]", "[[b]]"]`
+ * survives untouched.
+ *
+ * @param {string} content - Full markdown, frontmatter included
+ * @returns {string} Content with flow-sequence scalars quoted
+ */
+function quoteBareFlowSequences(content) {
+  const match = String(content).match(FRONTMATTER_BOUNDARY_RE);
+  if (!match) return content;
+
+  const normalized = match[1].split('\n').map((line) => {
+    const m = line.match(/^(\s*[\w-]+:\s*)\[(.*)\]\s*$/);
+    if (!m) return line;
+
+    const items = m[2].split(',').map(s => s.trim()).filter(Boolean);
+    const quoted = items.map((item) => {
+      // Leave anything already quoted exactly as it is.
+      if (/^".*"$/.test(item) || /^'.*'$/.test(item)) return item;
+      return `"${item.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`;
+    });
+    return `${m[1]}[${quoted.join(', ')}]`;
+  }).join('\n');
+
+  return content.replace(match[1], normalized);
+}
+
+/**
+ * Parse one `.qe/wiki/pages/**` document into a row plus its outgoing links.
+ *
+ * The wiki already carries structured frontmatter (`type`, `canonical`/`title`,
+ * `topic`, `summary`, `provenance`, `tier`, `status`) and a `[[wikilink]]`
+ * graph, per `.qe/wiki/conventions.md`. None of it was queryable, so questions
+ * the frontmatter exists to answer — which concepts are still unreviewed, what
+ * links to a source, which links are broken — meant reading every page.
+ *
+ * @param {string} content - Full markdown of the page
+ * @param {string} relPath - Path relative to the project root
+ * @returns {{page: object, links: string[]}|null} Null when not a wiki page
+ */
+export function parseWikiPage(content, relPath) {
+  if (!content) return null;
+
+  const parsed = parseSkillFrontmatter(quoteBareFlowSequences(content));
+  const body = parsed.body || '';
+  // A page without (or with malformed) frontmatter is still indexed; the
+  // conventions treat those as work in progress rather than as non-pages, and
+  // hiding them would make "what still needs frontmatter" unanswerable.
+  const meta = parsed.ok && parsed.metadata && typeof parsed.metadata === 'object'
+    ? parsed.metadata
+    : {};
+
+  // `pages/qe-meta/concepts/completion-gate.md` -> topic `qe-meta`,
+  // slug `concepts/completion-gate` (the form `[[...]]` targets use).
+  const afterPages = relPath.split('/pages/')[1] || '';
+  const segments = afterPages.replace(/\.md$/, '').split('/');
+  const topicFromPath = segments.length > 1 ? segments[0] : null;
+  const slug = segments.length > 1 ? segments.slice(1).join('/') : segments[0] || null;
+
+  const aka = Array.isArray(meta.aka) ? meta.aka : [];
+
+  const links = [];
+  const seen = new Set();
+  for (const match of content.matchAll(/\[\[([^\]]+)\]\]/g)) {
+    const target = match[1].trim();
+    if (target && !seen.has(target)) { seen.add(target); links.push(target); }
+  }
+
+  return {
+    page: {
+      path: relPath,
+      type: String(meta.type || 'unknown'),
+      topic: String(meta.topic || topicFromPath || ''),
+      slug,
+      title: String(meta.canonical || meta.title || slug || relPath),
+      summary: meta.summary ? String(meta.summary) : null,
+      provenance: meta.provenance ? String(meta.provenance) : null,
+      tier: meta.tier ? String(meta.tier) : null,
+      status: meta.status ? String(meta.status) : null,
+      aka: aka.length ? JSON.stringify(aka) : null,
+      updatedAt: meta.updated ? Date.parse(String(meta.updated)) || null : null,
+      size: Buffer.byteLength(content, 'utf8'),
+      words: body ? body.split(/\s+/).filter(Boolean).length : 0,
+    },
+    links,
+  };
+}
+
+/**
+ * Collect every wiki page under `.qe/wiki/pages/`.
+ *
+ * @param {string} cwd - Project root
+ * @returns {Array<{page: object, links: string[]}>}
+ */
+export function collectWikiPages(cwd) {
+  const root = join(cwd, '.qe', 'wiki', 'pages');
+  if (!existsSync(root)) return [];
+
+  const out = [];
+  for (const abs of walk(root)) {
+    if (!abs.endsWith('.md')) continue;
+    try {
+      const parsed = parseWikiPage(readFileSync(abs, 'utf8'), relative(cwd, abs));
+      if (parsed) out.push(parsed);
+    } catch {
+      // One unreadable page must not drop the rest of the wiki.
+    }
+  }
+  return out;
 }
 
 /**

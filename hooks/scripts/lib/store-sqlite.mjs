@@ -19,9 +19,14 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
 import { dirname, join, relative } from 'path';
 
-import { collectIndexableFiles, parseFailureContext, parseTaskLog } from './store-indexer.mjs';
+import {
+  collectIndexableFiles,
+  collectWikiPages,
+  parseFailureContext,
+  parseTaskLog,
+} from './store-indexer.mjs';
 
-export const SCHEMA_VERSION = 3;
+export const SCHEMA_VERSION = 4;
 
 // Mirrors the limits state.mjs applies to the in-blob memo, so switching
 // backends does not change how much is cached.
@@ -208,6 +213,41 @@ const MIGRATIONS = [
   );
   CREATE INDEX IF NOT EXISTS fa_time ON failures(occurred_at DESC);
   CREATE INDEX IF NOT EXISTS fa_task ON failures(task_uuid, occurred_at DESC);
+  `,
+
+  // v4 — the LLM wiki under `.qe/wiki/pages/` (Tier B). The pages already
+  // carry structured frontmatter and a [[wikilink]] graph per
+  // `.qe/wiki/conventions.md`; none of it was queryable, so the questions the
+  // frontmatter exists to answer (which concepts are unreviewed, what links to
+  // a source, which links are broken) required reading every page.
+  `
+  CREATE TABLE IF NOT EXISTS wiki_pages(
+    path       TEXT PRIMARY KEY,
+    type       TEXT,
+    topic      TEXT,
+    slug       TEXT,
+    title      TEXT,
+    summary    TEXT,
+    provenance TEXT,
+    tier       TEXT,
+    status     TEXT,
+    aka        TEXT,
+    updated_at INTEGER,
+    size       INTEGER,
+    words      INTEGER,
+    indexed_at INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS wp_type  ON wiki_pages(type, topic);
+  CREATE INDEX IF NOT EXISTS wp_tier  ON wiki_pages(tier, provenance);
+  CREATE INDEX IF NOT EXISTS wp_slug  ON wiki_pages(slug);
+
+  CREATE TABLE IF NOT EXISTS wiki_links(
+    src         TEXT NOT NULL,
+    target      TEXT NOT NULL,
+    target_path TEXT,
+    PRIMARY KEY(src, target)
+  ) WITHOUT ROWID;
+  CREATE INDEX IF NOT EXISTS wl_target ON wiki_links(target);
   `,
 ];
 
@@ -827,6 +867,106 @@ export function createSqliteBackend(cwd, opts = {}) {
         `SELECT occurred_at, task_uuid, reason, unchecked_count, changed_files, src_path
          FROM failures${clause} ORDER BY occurred_at DESC${limit}`,
       ).all(...args);
+    },
+
+    // ---- wiki (Tier B) ---------------------------------------------------
+
+    // Rebuild wiki rows and the link graph when the page count disagrees with
+    // the table. Links are resolved against the pages collected in the same
+    // pass, so `target_path IS NULL` means a genuinely broken `[[link]]`
+    // rather than an ordering artefact.
+    ensureWikiFresh() {
+      const collected = collectWikiPages(cwd);
+      const indexed = Number(stmt('SELECT COUNT(*) AS n FROM wiki_pages').get()?.n) || 0;
+      if (indexed === collected.length && collected.length > 0) return false;
+
+      const bySlug = new Map();
+      for (const { page } of collected) if (page.slug) bySlug.set(page.slug, page.path);
+
+      const upPage = stmt(
+        `INSERT INTO wiki_pages(path, type, topic, slug, title, summary, provenance, tier, status, aka, updated_at, size, words, indexed_at)
+         VALUES(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(path) DO UPDATE SET
+           type = excluded.type, topic = excluded.topic, slug = excluded.slug,
+           title = excluded.title, summary = excluded.summary,
+           provenance = excluded.provenance, tier = excluded.tier,
+           status = excluded.status, aka = excluded.aka,
+           updated_at = excluded.updated_at, size = excluded.size,
+           words = excluded.words, indexed_at = excluded.indexed_at`,
+      );
+      const upLink = stmt(
+        `INSERT INTO wiki_links(src, target, target_path) VALUES(?, ?, ?)
+         ON CONFLICT(src, target) DO UPDATE SET target_path = excluded.target_path`,
+      );
+
+      const live = new Set();
+      const now = Date.now();
+      for (const { page, links } of collected) {
+        upPage.run(
+          page.path, page.type, page.topic, page.slug, page.title, page.summary,
+          page.provenance, page.tier, page.status, page.aka, page.updatedAt,
+          page.size, page.words, now,
+        );
+        live.add(page.path);
+        // Replace this page's links wholesale; an edit that removes a link must
+        // remove the row, not leave a phantom edge in the graph.
+        stmt('DELETE FROM wiki_links WHERE src = ?').run(page.path);
+        for (const target of links) {
+          upLink.run(page.path, target, bySlug.get(target) ?? null);
+        }
+      }
+
+      const dropPage = stmt('DELETE FROM wiki_pages WHERE path = ?');
+      const dropLinks = stmt('DELETE FROM wiki_links WHERE src = ?');
+      for (const row of stmt('SELECT path FROM wiki_pages').all()) {
+        if (!live.has(row.path)) { dropPage.run(row.path); dropLinks.run(row.path); }
+      }
+      return true;
+    },
+
+    queryWiki(filter = {}) {
+      this.ensureWikiFresh();
+      const where = [];
+      const args = [];
+      if (filter.type) { where.push('type = ?'); args.push(filter.type); }
+      if (filter.topic) { where.push('topic = ?'); args.push(filter.topic); }
+      if (filter.tier) { where.push('tier = ?'); args.push(filter.tier); }
+      if (filter.provenance) { where.push('provenance = ?'); args.push(filter.provenance); }
+      if (filter.slug) { where.push('slug = ?'); args.push(filter.slug); }
+      const clause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+      const limit = filter.limit > 0 ? ' LIMIT ?' : '';
+      if (limit) args.push(Math.floor(filter.limit));
+      return stmt(
+        `SELECT slug, type, topic, tier, provenance, status, title, summary, words, updated_at, path
+         FROM wiki_pages${clause} ORDER BY topic, type, slug${limit}`,
+      ).all(...args);
+    },
+
+    // Backlinks by default (who points at this page); `--from` walks forward.
+    queryWikiLinks(filter = {}) {
+      this.ensureWikiFresh();
+      if (filter.broken) {
+        return stmt(
+          `SELECT src, target FROM wiki_links WHERE target_path IS NULL ORDER BY src, target`,
+        ).all();
+      }
+      if (filter.from) {
+        return stmt(
+          `SELECT src, target, target_path FROM wiki_links WHERE src LIKE ? ORDER BY target`,
+        ).all(`%${filter.from}%`);
+      }
+      if (filter.to) {
+        return stmt(
+          `SELECT src, target, target_path FROM wiki_links WHERE target = ? ORDER BY src`,
+        ).all(filter.to);
+      }
+      // No filter: the inbound-link count per page, which is what "what is
+      // central and what is orphaned" reduces to.
+      return stmt(
+        `SELECT p.slug, p.type, p.tier, COUNT(l.src) AS inbound
+         FROM wiki_pages p LEFT JOIN wiki_links l ON l.target_path = p.path
+         GROUP BY p.path ORDER BY inbound DESC, p.slug`,
+      ).all();
     },
 
     // Keep `file_index` in step with the `.qe` tree before answering.

@@ -280,9 +280,12 @@ To maintain high reasoning quality and low latency, all agents and skills must a
   npm run qe:query -- specs --status pending     # TASK_REQUEST files awaiting work
   npm run qe:query -- verification --status in-progress
   npm run qe:query -- failures --uuid <task>     # why verification failed before
+  npm run qe:query -- wiki --type concept        # LLM wiki pages by frontmatter
+  npm run qe:query -- wiki --tier draft          # what still needs review
+  npm run qe:query -- wiki-links --broken        # dangling [[links]]
   npm run qe:query -- --sql "SELECT status, COUNT(*) c FROM task_log GROUP BY status"
   ```
-  Read-only by construction: `--sql` accepts a single `SELECT` on a read-only connection. Markdown stays the source of truth; the index is derived and rebuilds itself.
+  Read-only by construction: `--sql` accepts a single `SELECT` on a read-only connection. Markdown stays the source of truth; the index is derived and refreshes itself at read time, so writing a spec, a task-log row or a wiki page is all it takes to make it queryable — no manual reindex.
 - **Unified State**: Use `unified-state.json` via `hooks/scripts/lib/state.mjs` for all persistent session data. High-frequency and contended state (ContextMemo, session registry, SIVS loop counters) lives in `.qe/qe.db` behind `hooks/scripts/lib/store.mjs` — see `.qe/planning/ADR-027-local-store-and-query-layer.md`.
 
 ### 2. Token-Aware Context Management
