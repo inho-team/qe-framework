@@ -31,7 +31,7 @@ const METHODS = [
   'getState', 'setState', 'getNamespace',
   'bumpCounter', 'getCounter',
   'appendEvent', 'queryEvents',
-  'upsertSession', 'listSessions',
+  'upsertSession', 'listSessions', 'endSession',
   'indexFile', 'queryFiles', 'pruneIndex',
   'upsertTaskRow', 'queryTasks',
   'upsertFailure', 'queryFailures',

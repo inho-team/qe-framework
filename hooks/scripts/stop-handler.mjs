@@ -29,6 +29,7 @@ import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRub
 import { isCompletionClaim, evaluateEvidenceGate, parseSameTurnEvents } from './lib/verification-evidence-gate.mjs';
 import { shortenSid } from './lib/session-resolver.mjs';
 import { cleanupStaleSessions, removeSession } from './lib/session-registry.mjs';
+import { openStore } from './lib/store.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -59,6 +60,19 @@ function cleanupRegistryForAllowedStop() {
     else cleanupStaleSessions(cwd);
   } catch {
     // Fault tolerance — registry cleanup must never block shutdown.
+  }
+
+  // Mirror the removal into the store (ADR-027 P2). Kept in its own try so a
+  // store failure cannot undo the file cleanup above, and so a session that
+  // stopped cleanly disappears from `qe-query sessions --active` at once
+  // rather than lingering until it ages past the stale cutoff.
+  try {
+    if (currentSid) {
+      const store = openStore(cwd, { sessionId: currentSid });
+      try { store.endSession(currentSid); } finally { store.close(); }
+    }
+  } catch {
+    // Fault tolerance — the store is advisory at shutdown.
   }
 }
 

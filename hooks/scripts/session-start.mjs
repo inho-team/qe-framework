@@ -20,7 +20,8 @@ import {
   summarizeSessionState,
   formatSessionStateSummary,
 } from './lib/session-resolver.mjs';
-import { cleanupStaleSessions, upsertSession, filterActiveSessions } from './lib/session-registry.mjs';
+import { cleanupStaleSessions, upsertSession, filterActiveSessions, SESSION_STALE_MS } from './lib/session-registry.mjs';
+import { openStore } from './lib/store.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
 import { maybeSpawnRefresh, ensurePeriodicRefresh } from './lib/auto-refresh.mjs';
@@ -155,8 +156,43 @@ try {
     });
   }
 
-  const others = filterActiveSessions(activeSessions)
+  // Mirror the entry into the store (ADR-027 P2). The JSON registry above is
+  // still written because skills read that path directly, but its upsert is a
+  // read-modify-write with no lock, so two terminals starting at once can drop
+  // one another's entry. The store's UPSERT cannot, so when SQLite is the
+  // active backend its list is the more trustworthy one and becomes the source
+  // for what we display. Any failure here leaves the file-derived list in place.
+  let others = filterActiveSessions(activeSessions)
     .filter((entry) => entry.sid !== currentSid);
+
+  try {
+    const store = openStore(cwd, { sessionId: currentSid });
+    try {
+      if (currentSid) {
+        store.upsertSession({
+          sid: currentSid,
+          name: readSessionName(cwd, currentSessionId || currentSid),
+          plan: readSessionPlan(cwd, currentSessionId || currentSid),
+          pid: process.pid,
+          cwd,
+        });
+      }
+      if (store.backend === 'sqlite') {
+        others = store.listSessions({ activeOnly: true, staleMs: SESSION_STALE_MS })
+          .filter((row) => row.sid !== currentSid)
+          .map((row) => ({
+            sid: row.sid,
+            name: row.name || '',
+            plan: row.plan || '',
+            lastSeen: row.last_seen ? new Date(row.last_seen).toISOString() : '',
+          }));
+      }
+    } finally {
+      store.close();
+    }
+  } catch {
+    // Store is advisory here — the file-derived `others` above still stands.
+  }
   if (others.length > 0) {
     const line = others
       .map((entry) => {

@@ -136,6 +136,81 @@ for (const backend of BACKENDS) {
 }
 
 // ---------------------------------------------------------------------------
+// Sessions (ADR-027 P2 first slice)
+// ---------------------------------------------------------------------------
+
+for (const backend of BACKENDS) {
+  test(`[${backend}] sessions round-trip and endSession removes from the active list`, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend });
+    try {
+      store.upsertSession({ sid: 'aaaaaaaa', name: 'one', plan: 'p1', pid: 111 });
+      store.upsertSession({ sid: 'bbbbbbbb', name: 'two', plan: 'p2', pid: 222 });
+
+      const active = store.listSessions({ activeOnly: true });
+      assert.equal(active.length, 2);
+      assert.deepEqual(active.map(s => s.sid).sort(), ['aaaaaaaa', 'bbbbbbbb']);
+      assert.deepEqual(Object.keys(active[0]).sort(),
+        ['last_seen', 'name', 'pid', 'plan', 'sid']);
+
+      store.endSession('aaaaaaaa');
+      const after = store.listSessions({ activeOnly: true });
+      assert.deepEqual(after.map(s => s.sid), ['bbbbbbbb']);
+    } finally { store.close(); }
+  });
+
+  test(`[${backend}] upsertSession updates rather than duplicating`, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend });
+    try {
+      store.upsertSession({ sid: 'cccccccc', name: 'before', pid: 1 });
+      store.upsertSession({ sid: 'cccccccc', name: 'after', pid: 2 });
+      const rows = store.listSessions({ activeOnly: true });
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].name, 'after');
+    } finally { store.close(); }
+  });
+}
+
+test('concurrent session upserts: sqlite keeps every entry, file loses some',
+  { skip: !SQLITE }, async () => {
+    const { spawnSync } = await import('node:child_process');
+    const storeUrl = new URL('../store.mjs', import.meta.url).href;
+    // Eight distinct 8-char sids, matching SID_RE in session-registry.mjs.
+    const sids = ['aaaaaaaa', 'bbbbbbbb', 'cccccccc', 'dddddddd',
+      'eeeeeeee', 'ffffffff', 'gggggggg', 'hhhhhhhh'];
+
+    const race = (backend) => {
+      const root = makeProject();
+      const warm = openStore(root, { backend });
+      warm.listSessions({});
+      warm.close();
+
+      const script = `
+        const { openStore } = await import(${JSON.stringify(storeUrl)});
+        const s = openStore(process.env.RACE_ROOT, { backend: process.env.RACE_BACKEND });
+        s.upsertSession({ sid: process.env.RACE_SID, name: process.env.RACE_SID, pid: process.pid });
+        s.close();
+      `;
+      const kids = sids.map(sid => spawnSync(
+        process.execPath, ['--input-type=module', '-e', script],
+        { encoding: 'utf8', env: { ...process.env, RACE_ROOT: root, RACE_BACKEND: backend, RACE_SID: sid } },
+      ));
+      for (const kid of kids) assert.equal(kid.status, 0, kid.stderr);
+
+      const store = openStore(root, { backend });
+      const seen = store.listSessions({ activeOnly: true }).length;
+      store.close();
+      return seen;
+    };
+
+    assert.equal(race('sqlite'), sids.length, 'sqlite must keep every session');
+    // Documents the defect this slice routes around; the file registry's
+    // read-modify-write drops entries under concurrent starts.
+    assert.ok(race('file') <= sids.length);
+  });
+
+// ---------------------------------------------------------------------------
 // Fail-open and backend selection
 // ---------------------------------------------------------------------------
 

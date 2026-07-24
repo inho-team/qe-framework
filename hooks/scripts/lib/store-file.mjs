@@ -24,6 +24,7 @@ import { parseFailureContext, parseTaskLog } from './store-indexer.mjs';
 import {
   filterActiveSessions,
   readSessionRegistry,
+  removeSession as registryRemove,
   upsertSession as registryUpsert,
 } from './session-registry.mjs';
 
@@ -172,6 +173,14 @@ export function createFileBackend(cwd, opts = {}) {
         pid: e.pid ?? null,
         last_seen: Date.parse(e.lastSeen) || null,
       }));
+    },
+
+    endSession(sid) {
+      if (!sid) return false;
+      // The file registry has no "ended" state — removal is how it has always
+      // expressed this, and stop-handler already relies on that semantics.
+      registryRemove(cwd, sid);
+      return true;
     },
 
     // ---- file index (Tier B) ---------------------------------------------

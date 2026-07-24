@@ -224,6 +224,33 @@ function migrate(db) {
 }
 
 /**
+ * Block the current thread briefly without spawning anything.
+ *
+ * Hooks are synchronous top to bottom, so there is no event loop to await on.
+ * `Atomics.wait` is the portable synchronous sleep already used elsewhere in
+ * this repository; it needs no PATH lookup and no child process.
+ *
+ * @param {number} ms - Milliseconds to sleep
+ */
+function sleepSync(ms) {
+  try {
+    Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, ms);
+  } catch {
+    // SharedArrayBuffer unavailable — proceed without the backoff.
+  }
+}
+
+/**
+ * Whether an error is SQLite's "someone else holds the lock" signal.
+ * @param {Error} err - Error thrown by DatabaseSync
+ * @returns {boolean}
+ */
+function isBusyError(err) {
+  const text = `${err?.code || ''} ${err?.message || ''}`;
+  return /SQLITE_BUSY|SQLITE_LOCKED|database is locked|database table is locked/i.test(text);
+}
+
+/**
  * Open (and if needed create + migrate) the project store database.
  *
  * @param {string} cwd - Project root
@@ -246,31 +273,44 @@ export function openSqlite(cwd, opts = {}) {
   // empty result set that looked like a legitimate "nothing found".
   if (!cwd || !existsSync(cwd)) return null;
 
-  try {
-    if (!readOnly) mkdirSync(dirname(dbPath), { recursive: true });
-
-    const db = readOnly
-      ? new sqlite.DatabaseSync(dbPath, { readOnly: true })
-      : new sqlite.DatabaseSync(dbPath);
-
-    // busy_timeout is what turns concurrent-writer contention from an error
-    // into a wait. Without it, 8 parallel hook processes lose writes to
-    // SQLITE_BUSY — the exact failure the file backend already has.
-    db.exec(`PRAGMA busy_timeout = ${Number(timeoutMs) || 5000}`);
-
-    if (!readOnly) {
-      // WAL lets readers proceed during a write, which matters because hooks
-      // read far more often than they write. synchronous=NORMAL is the
-      // standard WAL pairing: durable against process crash, which is the
-      // only failure mode that matters for cache and telemetry data.
-      db.exec('PRAGMA journal_mode = WAL');
-      db.exec('PRAGMA synchronous = NORMAL');
-      migrate(db);
-    }
-    return db;
-  } catch {
-    return null;
+  if (!readOnly) {
+    try { mkdirSync(dirname(dbPath), { recursive: true }); } catch { return null; }
   }
+
+  // Retry the whole open: `PRAGMA journal_mode = WAL` and the first migration
+  // both take an exclusive lock, and busy_timeout does not cover every path
+  // into that lock. Without retries, several sessions starting at once race to
+  // create the database and the losers silently degrade to the file backend —
+  // which is precisely the lost-update behaviour this backend exists to avoid.
+  const ATTEMPTS = 4;
+  for (let attempt = 0; attempt < ATTEMPTS; attempt += 1) {
+    let db = null;
+    try {
+      db = readOnly
+        ? new sqlite.DatabaseSync(dbPath, { readOnly: true })
+        : new sqlite.DatabaseSync(dbPath);
+
+      // busy_timeout turns ordinary writer contention from an error into a
+      // wait. It is the first line of defence; the retry loop is the second.
+      db.exec(`PRAGMA busy_timeout = ${Number(timeoutMs) || 5000}`);
+
+      if (!readOnly) {
+        // WAL lets readers proceed during a write, which matters because hooks
+        // read far more often than they write. synchronous=NORMAL is the
+        // standard WAL pairing: durable against process crash, which is the
+        // only failure mode that matters for cache and telemetry data.
+        db.exec('PRAGMA journal_mode = WAL');
+        db.exec('PRAGMA synchronous = NORMAL');
+        migrate(db);
+      }
+      return db;
+    } catch (err) {
+      closeSqlite(db);
+      if (!isBusyError(err) || attempt === ATTEMPTS - 1) return null;
+      sleepSync(25 * (attempt + 1)); // 25ms, 50ms, 75ms
+    }
+  }
+  return null;
 }
 
 /**
@@ -437,13 +477,24 @@ export function createSqliteBackend(cwd, opts = {}) {
     listSessions(o = {}) {
       if (o.activeOnly) {
         const cutoff = Date.now() - (o.staleMs || 2 * 60 * 60 * 1000);
+        // `ended_at IS NULL` keeps a cleanly stopped session out of the list
+        // immediately, instead of waiting for it to age past the stale cutoff.
         return stmt(
-          'SELECT sid, name, plan, pid, last_seen FROM sessions WHERE last_seen >= ? ORDER BY last_seen DESC',
+          `SELECT sid, name, plan, pid, last_seen FROM sessions
+           WHERE last_seen >= ? AND ended_at IS NULL ORDER BY last_seen DESC`,
         ).all(cutoff);
       }
       return stmt(
         'SELECT sid, name, plan, pid, last_seen FROM sessions ORDER BY last_seen DESC',
       ).all();
+    },
+
+    // Mark a session finished rather than deleting the row: the history is
+    // small, and keeping it lets "how many sessions ran today" stay answerable.
+    endSession(sid) {
+      if (!sid) return false;
+      stmt('UPDATE sessions SET ended_at = ? WHERE sid = ?').run(Date.now(), sid);
+      return true;
     },
 
     // ---- file index (Tier B) ---------------------------------------------
