@@ -29,7 +29,7 @@ import { createSqliteBackend, isSqliteAvailable } from './store-sqlite.mjs';
 /** Methods that carry the store's public contract. */
 const METHODS = [
   'getState', 'setState', 'getNamespace',
-  'bumpCounter', 'getCounter',
+  'bumpCounter', 'getCounter', 'resetCounter', 'seedCounter',
   'memoPut', 'memoGet', 'memoValid', 'memoMarkModified', 'memoClear', 'memoStats',
   'appendEvent', 'queryEvents',
   'upsertSession', 'listSessions', 'endSession',

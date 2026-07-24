@@ -97,6 +97,20 @@ export function createFileBackend(cwd, opts = {}) {
       return next;
     },
 
+    // The file backend reads its counts straight from unified-state, so there
+    // is nothing to seed from — the value is already where it will be read.
+    seedCounter() { return false; },
+
+    resetCounter(ns, key, o = {}) {
+      const state = readUnifiedState(cwd);
+      const bucket = state?.[COUNTER_ROOT];
+      if (bucket && typeof bucket === 'object') {
+        delete bucket[`${ns}::${scopeKey(key, o.sessionId)}`];
+        writeUnifiedState(cwd, state);
+      }
+      return true;
+    },
+
     getCounter(ns, key, o = {}) {
       const state = readUnifiedState(cwd);
       const bucket = state?.[COUNTER_ROOT];

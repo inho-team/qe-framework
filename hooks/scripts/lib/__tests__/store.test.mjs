@@ -375,6 +375,110 @@ test('concurrent session upserts: sqlite keeps every entry, file loses some',
   });
 
 // ---------------------------------------------------------------------------
+// SIVS loop guard — the counter whose loss defeats a hard block
+// ---------------------------------------------------------------------------
+
+test('concurrent remediation rounds are counted exactly, so the limit holds',
+  { skip: !SQLITE }, async () => {
+    // Before this, six concurrent rounds each reported count 1 / blocked false
+    // and persisted a final count of 1: the SIVS runaway guard was defeated
+    // entirely. Sequentially the same six counted 1..6 and blocked from four.
+    const { spawnSync } = await import('node:child_process');
+    const guardUrl = new URL('../loop-guard.mjs', import.meta.url).href;
+    const root = makeProject();
+    fs.mkdirSync(path.join(root, '.qe', 'state'), { recursive: true });
+
+    // Create the schema up front; racing the DDL is covered separately.
+    const warm = openStore(root, { backend: 'sqlite' });
+    warm.getCounter('sivs_loop', 'warm');
+    warm.close();
+
+    const script = `
+      const { recordAndCheck } = await import(${JSON.stringify(guardUrl)});
+      const r = recordAndCheck(process.env.LG_CWD, 'task-x', 'remediation');
+      process.stdout.write(JSON.stringify(r) + '\\n');
+    `;
+    const kids = Array.from({ length: 6 }, () => spawnSync(
+      process.execPath, ['--input-type=module', '-e', script],
+      { encoding: 'utf8', env: { ...process.env, LG_CWD: root } },
+    ));
+
+    const counts = kids.map(k => JSON.parse(k.stdout.trim()).count).sort((a, b) => a - b);
+    assert.deepEqual(counts, [1, 2, 3, 4, 5, 6], 'every round must get a distinct count');
+
+    const blocked = kids.filter(k => JSON.parse(k.stdout.trim()).blocked).length;
+    assert.equal(blocked, 3, 'rounds 4, 5 and 6 must be blocked against a limit of 3');
+  });
+
+test('an existing unified-state count is carried into the store, not discarded',
+  { skip: !SQLITE }, async () => {
+    // Regression: making the store authoritative initially reset any count
+    // already recorded in unified-state, so a task mid-loop had its limit
+    // cleared at exactly the moment the guard was doing its job.
+    const { recordAndCheck } = await import('../loop-guard.mjs');
+    const root = makeProject();
+    const stateDir = path.join(root, '.qe', 'state');
+    fs.mkdirSync(stateDir, { recursive: true });
+    fs.writeFileSync(path.join(stateDir, 'unified-state.json'), JSON.stringify({
+      sivs_loops: {
+        'uuid-seed': {
+          reentry: 0, remediation_rounds: 3, stages: [],
+          first_seen: Date.now(), updated_at: Date.now(),
+        },
+      },
+    }));
+
+    const verdict = recordAndCheck(root, 'uuid-seed', 'remediation');
+    assert.equal(verdict.count, 4, 'must continue from the recorded 3, not restart at 1');
+    assert.equal(verdict.blocked, true);
+  });
+
+test('seedCounter is insert-if-absent so a racing first touch cannot double it',
+  { skip: !SQLITE }, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend: 'sqlite' });
+    try {
+      store.seedCounter('ns', 'k', 3);
+      store.seedCounter('ns', 'k', 3); // second seed must be a no-op
+      assert.equal(store.getCounter('ns', 'k'), 3);
+      assert.equal(store.bumpCounter('ns', 'k', 1), 4);
+      // A seed after the key exists must not overwrite the live count.
+      store.seedCounter('ns', 'k', 99);
+      assert.equal(store.getCounter('ns', 'k'), 4);
+    } finally { store.close(); }
+  });
+
+test('resetLoop clears the store counters, so a task is not blocked forever',
+  { skip: !SQLITE }, async () => {
+    // The dangerous direction: a stale counter surviving a reset blocks
+    // legitimate work, which is worse than failing to stop a runaway.
+    const { recordAndCheck, resetLoop, checkLimits } = await import('../loop-guard.mjs');
+    const root = makeProject();
+    fs.mkdirSync(path.join(root, '.qe', 'state'), { recursive: true });
+
+    for (let i = 0; i < 5; i += 1) recordAndCheck(root, 'uuid-reset', 'remediation');
+    assert.equal(checkLimits(root, 'uuid-reset').remediation.blocked, true);
+
+    resetLoop(root, 'uuid-reset');
+    assert.equal(checkLimits(root, 'uuid-reset').remediation.count, 0);
+    assert.equal(checkLimits(root, 'uuid-reset').remediation.blocked, false);
+    assert.equal(recordAndCheck(root, 'uuid-reset', 'remediation').count, 1);
+  });
+
+for (const backend of BACKENDS) {
+  test(`[${backend}] resetCounter removes the key`, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend });
+    try {
+      store.bumpCounter('ns', 'k', 5);
+      assert.equal(store.getCounter('ns', 'k'), 5);
+      store.resetCounter('ns', 'k');
+      assert.equal(store.getCounter('ns', 'k'), 0);
+    } finally { store.close(); }
+  });
+}
+
+// ---------------------------------------------------------------------------
 // Fail-open and backend selection
 // ---------------------------------------------------------------------------
 

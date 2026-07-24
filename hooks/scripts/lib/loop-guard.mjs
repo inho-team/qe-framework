@@ -25,6 +25,7 @@
  */
 
 import { readUnifiedState, writeUnifiedState } from './state.mjs';
+import { openStore } from './store.mjs';
 
 export const DEFAULT_DEPTH_LIMIT = 5;      // R005 backward-routing depth
 export const REMEDIATION_LIMIT = 3;        // R006 remediation rounds
@@ -70,10 +71,56 @@ function isEntryCorrupt(entry) {
 }
 
 /**
- * Atomically record one loop event and return the limit verdict in a single
- * read-modify-write. `blocked` is true when the post-increment count exceeds the
- * limit (so depth 5 / round 3 are allowed, 6 / 4 are blocked), or when the entry
- * is loop-scoped-corrupt.
+ * Increment (or read) a loop counter in the store, which is atomic across
+ * processes. Returns null when the store cannot serve it, so the caller falls
+ * back to the read-modify-write path.
+ *
+ * This exists because the read-modify-write below is NOT atomic between
+ * processes, and Claude issues tool calls in parallel. Measured: six concurrent
+ * remediation rounds each reported `count: 1, blocked: false` and persisted a
+ * final count of 1 — the round limit was defeated entirely, letting a runaway
+ * SIVS loop through the one gate meant to stop it. Sequentially the same six
+ * calls counted 1..6 and blocked from the fourth, as intended.
+ *
+ * @param {string} cwd - Project root
+ * @param {string} uuid - Task UUID
+ * @param {string} field - 'reentry' | 'remediation_rounds'
+ * @param {number} delta - 1 to increment, 0 to read without incrementing
+ * @returns {number|null} Post-increment count, or null when unavailable
+ */
+function storeCounter(cwd, uuid, field, delta, seedFrom = 0) {
+  let store = null;
+  try {
+    store = openStore(cwd);
+    if (store.backend !== 'sqlite') return null;
+    const key = `${uuid}:${field}`;
+    // Carry any count already recorded in unified-state into the store the
+    // first time this key is touched. Without it the store starts at 0 and
+    // silently discards the existing rounds — a task mid-loop when the store
+    // is introduced would get its limit reset, weakening the guard exactly
+    // when it is doing its job. The seed is insert-if-absent, so concurrent
+    // first touches cannot double it.
+    if (seedFrom > 0) store.seedCounter('sivs_loop', key, seedFrom);
+    return delta
+      ? store.bumpCounter('sivs_loop', key, delta)
+      : store.getCounter('sivs_loop', key);
+  } catch {
+    return null;
+  } finally {
+    try { store?.close(); } catch { /* nothing recoverable */ }
+  }
+}
+
+/**
+ * Record one loop event and return the limit verdict. `blocked` is true when
+ * the post-increment count exceeds the limit (so depth 5 / round 3 are allowed,
+ * 6 / 4 are blocked), or when the entry is loop-scoped-corrupt.
+ *
+ * The count comes from the store when available, because only its UPSERT is
+ * atomic across processes. The unified-state entry is still maintained for the
+ * breadcrumbs (`stages`, `first_seen`, `updated_at`), for `sweepStale`, and as
+ * the fallback count on runtimes without sqlite.
+ *
  * @param {string} cwd
  * @param {string} uuid  full task UUID
  * @param {'reentry'|'remediation'} kind
@@ -99,7 +146,14 @@ export function recordAndCheck(cwd, uuid, kind, stage) {
   if (!Array.isArray(rec.stages)) rec.stages = [];
 
   const field = counterField(kind);
-  rec[field] = (typeof rec[field] === 'number' ? rec[field] : 0) + 1;
+  // Authoritative count first. When the store answers, its value wins and is
+  // mirrored into the entry so both views agree; otherwise fall back to the
+  // in-place increment, which keeps pre-store behaviour on older runtimes.
+  const legacy = typeof rec[field] === 'number' ? rec[field] : 0;
+  const atomic = storeCounter(cwd, uuid, field, 1, legacy);
+  rec[field] = atomic === null
+    ? (typeof rec[field] === 'number' ? rec[field] : 0) + 1
+    : atomic;
   if (kind === 'reentry' && stage) {
     rec.stages.push(stage);
     if (rec.stages.length > MAX_STAGES) rec.stages = rec.stages.slice(-MAX_STAGES);
@@ -125,8 +179,21 @@ export function checkLimits(cwd, uuid) {
     return { corrupt: true, reentry: { count: -1, limit: resolveDepthLimit(), blocked: true },
              remediation: { count: -1, limit: REMEDIATION_LIMIT, blocked: true } };
   }
-  const reentry = (entry && typeof entry.reentry === 'number') ? entry.reentry : 0;
-  const remediation = (entry && typeof entry.remediation_rounds === 'number') ? entry.remediation_rounds : 0;
+  // Prefer the store's counts for the same reason recordAndCheck does: the
+  // unified-state copy can be short by however many concurrent increments were
+  // lost, and reporting a count lower than reality is what lets a runaway pass.
+  const legacyReentry = (entry && typeof entry.reentry === 'number') ? entry.reentry : 0;
+  const legacyRemediation = (entry && typeof entry.remediation_rounds === 'number')
+    ? entry.remediation_rounds : 0;
+  const storedReentry = storeCounter(cwd, uuid, 'reentry', 0, legacyReentry);
+  const storedRemediation = storeCounter(cwd, uuid, 'remediation_rounds', 0, legacyRemediation);
+
+  const reentry = storedReentry !== null
+    ? storedReentry
+    : ((entry && typeof entry.reentry === 'number') ? entry.reentry : 0);
+  const remediation = storedRemediation !== null
+    ? storedRemediation
+    : ((entry && typeof entry.remediation_rounds === 'number') ? entry.remediation_rounds : 0);
   const depth = resolveDepthLimit();
   return {
     corrupt: false,
@@ -135,8 +202,34 @@ export function checkLimits(cwd, uuid) {
   };
 }
 
+/**
+ * Drop a task's counters from the store.
+ *
+ * Must run for every path that clears a loop entry. A store counter left behind
+ * after a reset would keep reporting the old count and block the task forever —
+ * the opposite failure from under-counting, and the worse one, because it stops
+ * legitimate work rather than merely failing to stop a runaway.
+ *
+ * @param {string} cwd - Project root
+ * @param {string} uuid - Task UUID
+ */
+function clearStoreCounters(cwd, uuid) {
+  let store = null;
+  try {
+    store = openStore(cwd);
+    if (store.backend !== 'sqlite') return;
+    store.resetCounter('sivs_loop', `${uuid}:reentry`);
+    store.resetCounter('sivs_loop', `${uuid}:remediation_rounds`);
+  } catch {
+    // Best effort; the unified-state entry is cleared by the caller regardless.
+  } finally {
+    try { store?.close(); } catch { /* nothing recoverable */ }
+  }
+}
+
 /** Clear a task's loop counters (call on clean task completion). */
 export function resetLoop(cwd, uuid) {
+  clearStoreCounters(cwd, uuid);
   const state = readUnifiedState(cwd);
   if (state?.sivs_loops && uuid in state.sivs_loops) {
     delete state.sivs_loops[uuid];
@@ -158,7 +251,11 @@ export function sweepStale(cwd, maxAgeMs = STALE_MAX_AGE_MS) {
   let swept = 0;
   for (const [uuid, entry] of Object.entries(state.sivs_loops)) {
     const last = entry && typeof entry.updated_at === 'number' ? entry.updated_at : (entry && entry.first_seen) || 0;
-    if (now - last > maxAgeMs) { delete state.sivs_loops[uuid]; swept++; }
+    if (now - last > maxAgeMs) {
+      clearStoreCounters(cwd, uuid);
+      delete state.sivs_loops[uuid];
+      swept++;
+    }
   }
   if (swept > 0) { try { writeUnifiedState(cwd, state); } catch {} }
   return swept;

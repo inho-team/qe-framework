@@ -423,6 +423,30 @@ export function createSqliteBackend(cwd, opts = {}) {
       return this.getCounter(ns, key, o);
     },
 
+    // Insert-if-absent, used to carry a pre-existing count from an older
+    // storage location into the store the first time a key is touched. It must
+    // be a single statement: two processes racing the same first touch would
+    // otherwise both seed and double the count. ON CONFLICT DO NOTHING makes
+    // the second one a no-op.
+    seedCounter(ns, key, value, o = {}) {
+      if (!Number.isFinite(value) || value <= 0) return false;
+      stmt(
+        `INSERT INTO counters(ns, k, session_id, n, updated_at) VALUES(?, ?, ?, ?, ?)
+         ON CONFLICT(ns, k, session_id) DO NOTHING`,
+      ).run(ns, key, sid(o.sessionId), Math.floor(value), Date.now());
+      return true;
+    },
+
+    // Delete rather than set to 0: a reset means "this key has no history",
+    // and an absent row reads back as 0 anyway. Callers use this after a task
+    // completes, so leaving a stale non-zero count would block the next run
+    // forever — the one failure direction worse than under-counting.
+    resetCounter(ns, key, o = {}) {
+      stmt('DELETE FROM counters WHERE ns = ? AND k = ? AND session_id = ?')
+        .run(ns, key, sid(o.sessionId));
+      return true;
+    },
+
     getCounter(ns, key, o = {}) {
       const row = stmt(
         'SELECT n FROM counters WHERE ns = ? AND k = ? AND session_id = ?',
