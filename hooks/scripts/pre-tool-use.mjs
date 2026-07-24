@@ -59,8 +59,12 @@ const RELEASE_VERSION_ACTION = `Use ${skillCommand('Qrelease')} instead.`;
 // `"version"` token in the payload rather than the file name alone.
 function isVersionOwnedManifest(filePath) {
   const p = String(filePath || '').replace(/\\/g, '/');
-  return /(?:^|\/)package\.json$/.test(p) ||
-    /(?:^|\/)\.claude-plugin\/(?:plugin|marketplace)\.json$/.test(p);
+  // Case-insensitive: on case-insensitive filesystems (macOS/Windows)
+  // `Package.json` resolves to the same file, so the gate must not depend on
+  // exact case. No case-colliding manifest names exist, so `i` adds no
+  // false positives.
+  return /(?:^|\/)package\.json$/i.test(p) ||
+    /(?:^|\/)\.claude-plugin\/(?:plugin|marketplace)\.json$/i.test(p);
 }
 
 // --- Load Unified State (Single I/O call) ---

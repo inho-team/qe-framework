@@ -1111,3 +1111,74 @@ test('pre-tool-use: Qrelease stage-1 tee write trips the version guard and passe
   assert.notStrictEqual(flagged.status, 2); // exact bound command → authorized
   assert.ok(fs.existsSync(flagPath)); // retained for the next rebound stage
 });
+
+// --- Defect 1: Write-tool version gate (5b7591e7) ---
+// The Edit gate blocks plugin.json version edits, but the Write tool had no
+// equivalent gate: a full-file Write to a version-owned manifest with a
+// "version" key slipped through. These fixtures pin the gap (red-on-old) and
+// the hardened behavior. Version-owned files: package.json,
+// .claude-plugin/plugin.json, .claude-plugin/marketplace.json.
+
+for (const owned of ['.claude-plugin/plugin.json', '.claude-plugin/marketplace.json', 'package.json']) {
+  test(`pre-tool-use: Write-tool ${owned} version content is hard-blocked (defect 1)`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-write-version-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const res = runHookPayload(dir, {
+      tool_name: 'Write',
+      tool_input: {
+        file_path: path.join(dir, ...owned.split('/')),
+        content: '{"name": "x", "version": "9.9.9"}',
+      },
+    });
+    assert.strictEqual(res.status, 2);
+  });
+}
+
+test('pre-tool-use: an active release-version flag does NOT unlock the Write-tool version gate (defect 1)', (t) => {
+  // Same rationale as the Edit gate: qe-release-version requires a command
+  // binding, and a Write payload has no `command`, so the binding can never
+  // match. The release train writes version files via bound Bash stages.
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-write-release-flag-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({
+    active: true,
+    skill: 'qe-release-version',
+    ts: Date.now(),
+    command: 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null # qe-release-version plugin version write',
+  }));
+  const res = runHookPayload(dir, {
+    tool_name: 'Write',
+    tool_input: {
+      file_path: path.join(dir, '.claude-plugin', 'plugin.json'),
+      content: '{"version": "9.9.9"}',
+    },
+  });
+  assert.strictEqual(res.status, 2); // fail-closed: binding cannot match a non-Bash tool
+});
+
+test('pre-tool-use: Write-tool non-version content and non-owned files pass (defect 1 false-positive guard)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-write-fp-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  // Owned file, but no "version" key → not a version write, passes.
+  const noVersion = runHookPayload(dir, {
+    tool_name: 'Write',
+    tool_input: {
+      file_path: path.join(dir, 'package.json'),
+      content: '{"name": "x", "dependencies": {"a": "1.0.0"}}',
+    },
+  });
+  assert.notStrictEqual(noVersion.status, 2);
+
+  // Non-owned file that happens to contain "version" → passes.
+  const nonOwned = runHookPayload(dir, {
+    tool_name: 'Write',
+    tool_input: {
+      file_path: path.join(dir, 'src', 'config.json'),
+      content: '{"version": "9.9.9"}',
+    },
+  });
+  assert.notStrictEqual(nonOwned.status, 2);
+});
