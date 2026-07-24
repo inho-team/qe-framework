@@ -187,12 +187,27 @@ test('--sql against a mutating statement exits 2 and changes nothing', { skip: !
   assert.equal(after, before, 'rejected statement must not have mutated the store');
 });
 
-test('--sql without a database explains how to create one', () => {
-  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-query-empty-'));
-  fs.mkdirSync(path.join(root, '.qe'), { recursive: true });
+test('--sql on a project with no database primes the index instead of erroring',
+  { skip: !SQLITE }, () => {
+    // The statement runs read-only and so cannot build the index itself. Raw
+    // SQL as an agent's first command used to answer from empty tables — a
+    // result indistinguishable from "nothing matched". The CLI now primes
+    // through a read-write store first.
+    const root = makeProject(); // has a TASK_LOG, no qe.db yet
+    assert.equal(fs.existsSync(path.join(root, '.qe', 'qe.db')), false);
+
+    const r = run(['--cwd', root, '--sql', 'SELECT COUNT(*) n FROM task_log']);
+    assert.equal(r.status, 0, r.stderr);
+    assert.equal(JSON.parse(r.stdout)[0].n, 2, 'must see the rows, not an empty table');
+  });
+
+test('--sql still reports a missing database when it cannot be created', () => {
+  // No .qe directory at all: priming has nothing to index and cannot create
+  // the store, so the caller gets an explicit error rather than empty output.
+  const root = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-query-bare-'));
   const r = run(['--cwd', root, '--sql', 'SELECT 1']);
-  assert.equal(r.status, 2);
-  assert.match(r.stderr, /reindex/);
+  assert.notEqual(r.status, 0, 'must not silently succeed');
+  if (r.status === 2) assert.match(r.stderr, /reindex|sqlite/);
 });
 
 test('a mistyped --cwd errors instead of creating a directory tree', () => {

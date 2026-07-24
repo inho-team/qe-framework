@@ -27,7 +27,7 @@
  */
 
 import { existsSync } from 'fs';
-import { dirname, resolve } from 'path';
+import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { openStore } from '../hooks/scripts/lib/store.mjs';
@@ -303,6 +303,30 @@ async function main() {
       process.stderr.write('--sql requires a statement\n');
       return 1;
     }
+    // Refresh the derived indexes through a normal read-write store first.
+    // The statement itself runs on a read-only connection, which by definition
+    // cannot self-heal a stale or missing index — so raw SQL as the very first
+    // command would answer from empty tables, and an empty result set is
+    // indistinguishable from "nothing matched".
+    try {
+      // Only prime inside an actual QE project. Opening the store creates
+      // `.qe/` on demand, and a stray query run from an unrelated directory
+      // should not leave a state folder behind.
+      if (!existsSync(join(cwd, '.qe'))) throw new Error('not a QE project');
+      const primer = openStore(cwd);
+      try {
+        if (primer.backend === 'sqlite') {
+          primer.queryTasks({ limit: 1 });
+          primer.queryFailures({ limit: 1 });
+        }
+      } finally {
+        primer.close();
+      }
+    } catch {
+      // Priming is best effort; the query below still runs against whatever
+      // the database already holds.
+    }
+
     if (!existsSync(getDbPath(cwd))) {
       process.stderr.write(`no store database at ${getDbPath(cwd)} — run: qe-query reindex\n`);
       return 2;
