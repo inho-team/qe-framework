@@ -1219,3 +1219,57 @@ test('pre-tool-use: git commit-tree plumbing and quoted "git commit" text still 
   const quoted = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'echo "run git commit later"' } });
   assert.notStrictEqual(quoted.status, 2);
 });
+
+// --- Defect 3: write-sink into version-owned manifest, fail-closed (5b7591e7) ---
+// The old sink guard required a literal `version` token in the raw command, so a
+// unicode-escaped JSON key (`version`) or a payload read from a source file
+// slipped through. Fail closed: any redirect/tee/dd sink into a version-owned
+// manifest is blocked regardless of payload, and covers all three manifests.
+
+for (const sink of [
+  'printf \'{"\\u0076ersion":"9.9.9"}\' > .claude-plugin/plugin.json', // unicode-escaped key
+  'echo whatever > .claude-plugin/marketplace.json',                    // marketplace was unguarded
+  'printf \'{"version":"9.9.9"}\' > package.json',                       // package.json was unguarded
+  'tee .claude-plugin/plugin.json < /tmp/x',                            // tee sink, payload from a file
+]) {
+  test(`pre-tool-use: version-manifest write sink ${JSON.stringify(sink)} is hard-blocked (defect 3)`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect3-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: sink } });
+    assert.strictEqual(res.status, 2);
+  });
+}
+
+test('pre-tool-use: release-version flag unlocks a bound manifest write sink (defect 3 green)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect3-green-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const command = 'printf \'{"\\u0076ersion":"9.9.9"}\' > .claude-plugin/plugin.json';
+  const flagPath = path.join(dir, '.qe', 'state', 'skill-bypass.json');
+  fs.mkdirSync(path.dirname(flagPath), { recursive: true });
+  fs.writeFileSync(flagPath, JSON.stringify({ active: true, skill: 'qe-release-version', ts: Date.now(), command }));
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command } });
+  assert.notStrictEqual(res.status, 2);
+});
+
+test('pre-tool-use: write sink into a non-manifest file passes (defect 3 false-positive guard)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect3-fp-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'echo log > build.log' } });
+  assert.notStrictEqual(res.status, 2);
+});
+
+// The sink scan must reuse the same de-obfuscation + shell -c descent as the
+// git-commit guard, or `${IFS}`, `bash -c`, and `>|` clobber re-open the same
+// evasions defect 2 closed (symmetry with matchesExecutable).
+for (const evade of [
+  'tee${IFS}.claude-plugin/plugin.json < /tmp/x',
+  'bash -c "tee .claude-plugin/plugin.json < /tmp/x"',
+  '>| .claude-plugin/plugin.json',
+]) {
+  test(`pre-tool-use: obfuscated manifest sink ${JSON.stringify(evade)} is hard-blocked (defect 3 symmetry)`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect3-sym-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: evade } });
+    assert.strictEqual(res.status, 2);
+  });
+}

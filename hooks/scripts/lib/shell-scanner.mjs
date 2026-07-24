@@ -246,7 +246,7 @@ export function shellDashCArgs(cmd) {
  * `git "commit"` — is a limitation of executableView's data-blank model (quotes
  * blank to spaces), not of this normalizer, and is not closed here.
  */
-function deobfuscateShellTokens(view) {
+export function deobfuscateShellTokens(view) {
   return view
     .replace(/\$\{IFS[^}]*\}/g, ' ')
     .replace(/\$IFS(?![A-Za-z0-9_])/g, ' ')

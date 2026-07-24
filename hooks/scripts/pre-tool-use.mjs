@@ -8,7 +8,7 @@ import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
 import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
-import { executableView, matchesExecutable } from './lib/shell-scanner.mjs';
+import { executableView, matchesExecutable, deobfuscateShellTokens, shellDashCArgs } from './lib/shell-scanner.mjs';
 import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
 import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs';
 
@@ -543,14 +543,45 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       });
     }
 
-    // version bump: only a real WRITE SINK into plugin.json — redirect (`> plugin.json`
-    // / `>> plugin.json`), `tee plugin.json`, or `dd of=…plugin.json` — counts. The
-    // write sink must live in an EXECUTABLE region (so `echo "...plugin.json..."` text
-    // passes), but the `version` mention is matched against the RAW command because the
-    // version string being written legitimately sits inside the quoted JSON payload.
-    const writesPluginJson =
-      /(?:>>?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*[^\s;|&]*plugin\.json/.test(view);
-    if (writesPluginJson && /version/.test(cmd)) {
+    // version bump: a real WRITE SINK — redirect (`>`/`>>`), `tee`, or `dd of=` —
+    // that targets a version-owned manifest (package.json / plugin.json /
+    // marketplace.json). The sink must live in an EXECUTABLE region (so
+    // `echo "...plugin.json..."` text passes). Fail closed (defect 3): the old
+    // guard required a literal `version` token in the raw command, which a
+    // unicode-escaped JSON key (`version`) or a payload read from a source
+    // file trivially evaded. The payload of a redirect cannot be recovered by
+    // the hook, so it is impossible to verify the write leaves `version`
+    // unchanged — the only sound option is to block any sink into a version
+    // manifest and require Qrelease's release-version capability. Qrelease's
+    // bound version stages carry that capability and pass; a legitimate
+    // non-version manifest overwrite is vanishingly rare and can use the Edit
+    // tool. (Deliberately more conservative than the spec's "allow unchanged
+    // JSON" path, which is unimplementable for an unreadable redirect payload.)
+    // Scan a text region for a write sink (`>`/`>>`/`>|` clobber, `tee`, `dd of=`)
+    // whose target basename is a version-owned manifest. Applied to the executable
+    // view, its de-obfuscated form, and every shell `-c`/`eval` argument — the same
+    // machinery matchesExecutable() uses for the commit guard, so `tee${IFS}…`,
+    // `bash -c "tee …"`, and `>| …` cannot re-open the evasions defect 2 closed.
+    const scanSink = (text) => {
+      const sinkRe = /(?:>>?\|?|\btee\b(?:\s+-a)?\s+|\bdd\b[^|;&]*\bof=)\s*([^\s;|&]+)/g;
+      let m;
+      while ((m = sinkRe.exec(text)) !== null) {
+        const base = m[1].replace(/\\/g, '/').split('/').pop().toLowerCase();
+        if (base === 'plugin.json' || base === 'marketplace.json' || base === 'package.json') return true;
+      }
+      return false;
+    };
+    let sinkHitsManifest = scanSink(view) || scanSink(deobfuscateShellTokens(view));
+    if (!sinkHitsManifest) {
+      for (const arg of shellDashCArgs(cmd)) {
+        const argView = executableView(arg);
+        if (scanSink(argView) || scanSink(deobfuscateShellTokens(argView))) {
+          sinkHitsManifest = true;
+          break;
+        }
+      }
+    }
+    if (sinkHitsManifest) {
       overrideRules.push({
         skill: RELEASE_VERSION_CAPABILITY,
         msg: `Direct version editing is blocked. ${RELEASE_VERSION_ACTION}`
