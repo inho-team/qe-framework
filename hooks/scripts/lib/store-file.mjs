@@ -16,11 +16,11 @@
  */
 
 import { existsSync, readFileSync, readdirSync } from 'fs';
-import { join } from 'path';
+import { join, relative } from 'path';
 
 import { readUnifiedState, writeUnifiedState } from './state.mjs';
 import { appendTelemetry, getTelemetryPath, readTelemetry } from './metrics.mjs';
-import { parseTaskLog } from './store-indexer.mjs';
+import { parseFailureContext, parseTaskLog } from './store-indexer.mjs';
 import {
   filterActiveSessions,
   readSessionRegistry,
@@ -182,6 +182,55 @@ export function createFileBackend(cwd, opts = {}) {
     queryFiles() { return null; },
     pruneIndex() { return 0; },
     upsertTaskRow() { return false; },
+    upsertFailure() { return false; },
+
+    // Like queryTasks, this reads the source files directly so the query CLI
+    // still answers on Node < 22.5. Failure records are small and few (tens),
+    // so a full walk is cheap; the index exists for consistency, not speed.
+    queryFailures(filter = {}) {
+      const root = join(cwd, '.qe', 'learning', 'failures');
+      if (!existsSync(root)) return [];
+
+      /**
+       * Collect CONTEXT.md paths beneath the failures root.
+       * @param {string} dir - Directory to walk
+       * @param {string[]} acc - Accumulator
+       * @returns {string[]} Absolute paths
+       */
+      const collect = (dir, acc = []) => {
+        let entries;
+        try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return acc; }
+        for (const entry of entries) {
+          if (entry.name.startsWith('.')) continue;
+          const full = join(dir, entry.name);
+          if (entry.isDirectory()) collect(full, acc);
+          else if (entry.name === 'CONTEXT.md') acc.push(full);
+        }
+        return acc;
+      };
+
+      const rows = [];
+      for (const abs of collect(root)) {
+        let record;
+        try {
+          record = parseFailureContext(readFileSync(abs, 'utf8'), relative(cwd, abs));
+        } catch { continue; }
+        if (!record) continue;
+        if (filter.uuid && record.taskUuid !== filter.uuid) continue;
+        if (filter.since && (record.occurredAt || 0) < Number(filter.since)) continue;
+        rows.push({
+          occurred_at: record.occurredAt,
+          task_uuid: record.taskUuid,
+          reason: record.reason,
+          unchecked_count: record.uncheckedCount,
+          changed_files: record.changedFiles,
+          src_path: record.srcPath,
+        });
+      }
+
+      rows.sort((a, b) => (b.occurred_at || 0) - (a.occurred_at || 0));
+      return filter.limit > 0 ? rows.slice(0, Math.floor(filter.limit)) : rows;
+    },
 
     // queryTasks is the exception: it parses `.qe/TASK_LOG.md` on demand. The
     // Markdown is the source of truth for both backends, so this returns real

@@ -178,6 +178,56 @@ export function parseTaskLog(content, srcPath = '.qe/TASK_LOG.md') {
 }
 
 /**
+ * Parse a `.qe/learning/failures/**\/CONTEXT.md` record.
+ *
+ * These files are written by `failure-capture.mjs` and are the only durable
+ * record QE keeps of *why* a verification run failed. The fields extracted
+ * here are the ones worth filtering on; the prose stays in the file.
+ *
+ * @param {string} content - CONTEXT.md text
+ * @param {string} relPath - Path relative to the project root, used as the id
+ * @returns {object|null} Structured record, or null if it is not a failure doc
+ */
+export function parseFailureContext(content, relPath) {
+  if (!content || !/^#\s*Failure Context/m.test(content)) return null;
+
+  const dateMatch = content.match(/^date:\s*(.+)$/m);
+  const uuidMatch = content.match(/^task_uuid:\s*(.+)$/m);
+
+  /**
+   * Collect the bullet lines of one `## Section`.
+   * @param {string} heading - Section title
+   * @returns {string[]} Bullet contents
+   */
+  const section = (heading) => {
+    // The terminator is "next ## heading, or true end of string". JavaScript
+    // has no \Z, and `$` under /m matches every line end — either mistake makes
+    // the final section of a document parse as empty. `(?![\s\S])` is the only
+    // reliable end-of-input assertion here.
+    const re = new RegExp(`^##\\s+${heading}\\s*$([\\s\\S]*?)(?=^##\\s|(?![\\s\\S]))`, 'm');
+    const body = content.match(re)?.[1] || '';
+    return body
+      .split('\n')
+      .filter(line => line.trim().startsWith('- '))
+      .map(line => line.trim().slice(2).trim())
+      .filter(Boolean);
+  };
+
+  const reasons = section('Failure Reasons');
+  const occurredAt = dateMatch ? Date.parse(dateMatch[1].trim()) : NaN;
+
+  return {
+    id: relPath,
+    occurredAt: Number.isFinite(occurredAt) ? occurredAt : null,
+    taskUuid: uuidMatch ? uuidMatch[1].trim() : null,
+    reason: reasons.join('; ') || null,
+    uncheckedCount: section('Unchecked Checklist Items').length,
+    changedFiles: section('Changed Files').length,
+    srcPath: relPath,
+  };
+}
+
+/**
  * Recursively collect files under a directory.
  * @param {string} root - Directory to walk
  * @param {string[]} [out] - Accumulator
@@ -240,7 +290,7 @@ export function reindex(cwd, store) {
   // The file backend has no index tables; asking it to index is a no-op, not
   // an error — callers should keep working against the filesystem.
   if (!store || store.backend !== 'sqlite') {
-    return { files: 0, tasks: 0, skipped: true, pruned: 0 };
+    return { files: 0, tasks: 0, failures: 0, skipped: true, pruned: 0 };
   }
 
   const qeDir = join(cwd, '.qe');
@@ -286,6 +336,20 @@ export function reindex(cwd, store) {
 
   const pruned = store.pruneIndex ? store.pruneIndex([...seenPaths]) : 0;
 
+  let failures = 0;
+  const failuresRoot = join(qeDir, 'learning', 'failures');
+  if (existsSync(failuresRoot) && store.upsertFailure) {
+    for (const abs of walk(failuresRoot)) {
+      if (!abs.endsWith('CONTEXT.md')) continue;
+      try {
+        const record = parseFailureContext(readFileSync(abs, 'utf8'), relative(cwd, abs));
+        if (record) { store.upsertFailure(record); failures += 1; }
+      } catch {
+        // One unreadable record must not abort the rest of the sweep.
+      }
+    }
+  }
+
   let tasks = 0;
   const taskLogPath = join(qeDir, 'TASK_LOG.md');
   if (existsSync(taskLogPath) && store.upsertTaskRow) {
@@ -301,7 +365,7 @@ export function reindex(cwd, store) {
     }
   }
 
-  return { files, tasks, skipped: false, pruned };
+  return { files, tasks, failures, skipped: false, pruned };
 }
 
 export { INDEXED_DIRS, STATUS_FOLDERS };

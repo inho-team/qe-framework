@@ -87,17 +87,19 @@ const CATALOG = {
     flags: ['--limit=N'],
     run: (store, args) => store.queryFiles({ kind: 'analysis', limit: args.limit ?? 50 }),
   },
+  failures: {
+    summary: 'Verification failure history (when, which task, why, how much was unchecked)',
+    flags: ['--uuid=<task>', '--since=<7d|YYYY-MM-DD>', '--limit=N'],
+    run: (store, args) => store.queryFailures({
+      uuid: args.uuid, since: args.since, limit: args.limit ?? 50,
+    }),
+  },
   events: {
-    summary: 'Telemetry events, newest last',
+    summary: 'Telemetry events, newest last (sparse: QE currently emits only task_completed)',
     flags: ['--kind=<eventType>', '--session=<sid>', '--since=<7d>', '--limit=N'],
     run: (store, args) => store.queryEvents({
       kind: args.kind, sessionId: args.session, since: args.since, limit: args.limit ?? 50,
     }),
-  },
-  failures: {
-    summary: 'Failure events (shorthand for events --kind=failure)',
-    flags: ['--since=<7d>', '--limit=N'],
-    run: (store, args) => store.queryEvents({ kind: 'failure', since: args.since, limit: args.limit ?? 50 }),
   },
   sessions: {
     summary: 'Known sessions and last-seen times',
@@ -367,7 +369,9 @@ async function main() {
 }
 
 /** Columns stored as epoch milliseconds, rendered as ISO dates instead. */
-const TIME_COLUMNS = new Set(['ts', 'dated_at', 'last_seen', 'indexed_at', 'mtime_ms']);
+const TIME_COLUMNS = new Set([
+  'ts', 'dated_at', 'last_seen', 'indexed_at', 'mtime_ms', 'occurred_at',
+]);
 
 /**
  * Replace epoch-millisecond columns with ISO strings.

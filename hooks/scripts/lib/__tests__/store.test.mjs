@@ -8,7 +8,30 @@ import path from 'node:path';
 
 import { openStore } from '../store.mjs';
 import { isSqliteAvailable } from '../store-sqlite.mjs';
-import { normalizeStatus, parseTaskLog, reindex } from '../store-indexer.mjs';
+import {
+  normalizeStatus, parseFailureContext, parseTaskLog, reindex,
+} from '../store-indexer.mjs';
+
+/** A realistic failure record as written by failure-capture.mjs. */
+const FAILURE_DOC = [
+  '# Failure Context',
+  '',
+  'date: 2026-07-17T12:36:41.291Z',
+  'task_uuid: a9eb6eaf',
+  '',
+  '## Failure Reasons',
+  '- VERIFY_CHECKLIST VERIFY_CHECKLIST_a9eb6eaf.md: 22 unchecked item(s)',
+  '',
+  '## Unchecked Checklist Items',
+  '- [ ] first',
+  '- [ ] second',
+  '',
+  '## Changed Files',
+  '- README.md',
+  '- docs/X.md',
+  '- scripts/y.mjs',
+  '',
+].join('\n');
 
 const SQLITE = isSqliteAvailable();
 const BACKENDS = SQLITE ? ['file', 'sqlite'] : ['file'];
@@ -264,9 +287,65 @@ test('reindex is a no-op on the file backend', () => {
   const root = makeProject();
   const store = openStore(root, { backend: 'file' });
   try {
-    assert.deepEqual(reindex(root, store), { files: 0, tasks: 0, skipped: true, pruned: 0 });
+    assert.deepEqual(reindex(root, store),
+      { files: 0, tasks: 0, failures: 0, skipped: true, pruned: 0 });
   } finally { store.close(); }
 });
+
+// ---------------------------------------------------------------------------
+// Failure history (Tier B)
+// ---------------------------------------------------------------------------
+
+test('parseFailureContext extracts the queryable fields', () => {
+  const rec = parseFailureContext(FAILURE_DOC, '.qe/learning/failures/2026-07/x/CONTEXT.md');
+  assert.equal(rec.taskUuid, 'a9eb6eaf');
+  assert.equal(rec.occurredAt, Date.parse('2026-07-17T12:36:41.291Z'));
+  assert.match(rec.reason, /22 unchecked/);
+  assert.equal(rec.uncheckedCount, 2);
+  assert.equal(rec.changedFiles, 3);
+  assert.equal(rec.id, '.qe/learning/failures/2026-07/x/CONTEXT.md');
+});
+
+test('parseFailureContext ignores documents that are not failure records', () => {
+  assert.equal(parseFailureContext('# Something Else\n\ndate: 2026-01-01', 'x.md'), null);
+  assert.equal(parseFailureContext('', 'x.md'), null);
+});
+
+test('parseFailureContext survives missing sections', () => {
+  const rec = parseFailureContext('# Failure Context\n\ndate: bad-date\n', 'y.md');
+  assert.equal(rec.occurredAt, null);
+  assert.equal(rec.taskUuid, null);
+  assert.equal(rec.reason, null);
+  assert.equal(rec.uncheckedCount, 0);
+});
+
+for (const backend of BACKENDS) {
+  test(`[${backend}] queryFailures reads the failure history`, () => {
+    const root = makeProject();
+    const dir = path.join(root, '.qe', 'learning', 'failures', '2026-07', 'run1');
+    fs.mkdirSync(dir, { recursive: true });
+    fs.writeFileSync(path.join(dir, 'CONTEXT.md'), FAILURE_DOC);
+
+    const store = openStore(root, { backend });
+    try {
+      if (backend === 'sqlite') assert.equal(reindex(root, store).failures, 1);
+
+      const rows = store.queryFailures({});
+      assert.equal(rows.length, 1);
+      assert.equal(rows[0].task_uuid, 'a9eb6eaf');
+      assert.equal(rows[0].unchecked_count, 2);
+
+      assert.equal(store.queryFailures({ uuid: 'a9eb6eaf' }).length, 1);
+      assert.equal(store.queryFailures({ uuid: 'nope' }).length, 0);
+      assert.equal(store.queryFailures({ since: Date.parse('2027-01-01') }).length, 0);
+
+      // Both backends must agree on column names, or the CLI renders
+      // different headers depending on the runtime.
+      assert.deepEqual(Object.keys(rows[0]).sort(),
+        ['changed_files', 'occurred_at', 'reason', 'src_path', 'task_uuid', 'unchecked_count']);
+    } finally { store.close(); }
+  });
+}
 
 test('reindex indexes files and prunes rows for deleted files', { skip: !SQLITE }, () => {
   const root = makeProject();

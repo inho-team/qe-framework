@@ -185,6 +185,25 @@ const MIGRATIONS = [
   CREATE INDEX IF NOT EXISTS tl_status ON task_log(status, dated_at DESC);
   CREATE INDEX IF NOT EXISTS tl_date   ON task_log(dated_at DESC);
   `,
+
+  // v3 — verification failure history (Tier B), derived from
+  // `.qe/learning/failures/**/CONTEXT.md`. These records already exist and
+  // already carry the structure worth querying (when, which task, why, how
+  // much was left unchecked); nothing new is emitted to produce them.
+  `
+  CREATE TABLE IF NOT EXISTS failures(
+    id              TEXT PRIMARY KEY,
+    occurred_at     INTEGER,
+    task_uuid       TEXT,
+    reason          TEXT,
+    unchecked_count INTEGER,
+    changed_files   INTEGER,
+    src_path        TEXT,
+    indexed_at      INTEGER
+  );
+  CREATE INDEX IF NOT EXISTS fa_time ON failures(occurred_at DESC);
+  CREATE INDEX IF NOT EXISTS fa_task ON failures(task_uuid, occurred_at DESC);
+  `,
 ];
 
 /**
@@ -539,6 +558,37 @@ export function createSqliteBackend(cwd, opts = {}) {
       if (limit) args.push(Math.floor(filter.limit));
       return stmt(
         `SELECT ${cols} FROM task_log${clause} ORDER BY dated_at DESC, row_no ASC${limit}`,
+      ).all(...args);
+    },
+
+    upsertFailure(record = {}) {
+      stmt(
+        `INSERT INTO failures(id, occurred_at, task_uuid, reason, unchecked_count, changed_files, src_path, indexed_at)
+         VALUES(?, ?, ?, ?, ?, ?, ?, ?)
+         ON CONFLICT(id) DO UPDATE SET
+           occurred_at = excluded.occurred_at, task_uuid = excluded.task_uuid,
+           reason = excluded.reason, unchecked_count = excluded.unchecked_count,
+           changed_files = excluded.changed_files, src_path = excluded.src_path,
+           indexed_at = excluded.indexed_at`,
+      ).run(
+        record.id, record.occurredAt ?? null, record.taskUuid ?? null,
+        record.reason ?? null, record.uncheckedCount ?? null,
+        record.changedFiles ?? null, record.srcPath ?? null, Date.now(),
+      );
+      return true;
+    },
+
+    queryFailures(filter = {}) {
+      const where = [];
+      const args = [];
+      if (filter.uuid) { where.push('task_uuid = ?'); args.push(filter.uuid); }
+      if (filter.since) { where.push('occurred_at >= ?'); args.push(Number(filter.since)); }
+      const clause = where.length ? ` WHERE ${where.join(' AND ')}` : '';
+      const limit = filter.limit > 0 ? ' LIMIT ?' : '';
+      if (limit) args.push(Math.floor(filter.limit));
+      return stmt(
+        `SELECT occurred_at, task_uuid, reason, unchecked_count, changed_files, src_path
+         FROM failures${clause} ORDER BY occurred_at DESC${limit}`,
       ).all(...args);
     },
 

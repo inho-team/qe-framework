@@ -34,6 +34,7 @@ const METHODS = [
   'upsertSession', 'listSessions',
   'indexFile', 'queryFiles', 'pruneIndex',
   'upsertTaskRow', 'queryTasks',
+  'upsertFailure', 'queryFailures',
 ];
 
 /** One warning per process, not per call — hooks run thousands of calls. */
