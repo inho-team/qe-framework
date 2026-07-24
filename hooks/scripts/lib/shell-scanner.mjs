@@ -228,9 +228,36 @@ export function shellDashCArgs(cmd) {
 }
 
 /**
+ * Collapse shell token-splitting obfuscation in an already-viewed (data-blanked)
+ * EXECUTABLE region so a guard regex sees the word the shell will actually run.
+ * Applied only to the executable view — DATA regions are already blanked, so a
+ * `${IFS}` or backslash inside a quoted string is never touched.
+ *   - `${IFS}` and any slice/variant `${IFS:0:1}`, `${IFS: -1}`, `${IFS#x}` …
+ *     → a single space (every `${IFS…}` expansion yields whitespace), so
+ *     `git${IFS}commit` and `git${IFS:0:1}commit` normalize to `git commit`.
+ *   - bare `$IFS` (not followed by a word char) → a single space.
+ *   - a backslash before a word character → removed, so `g\it commit`
+ *     (which the shell reads as `git commit`) normalizes the same way.
+ * Conservative by construction: it only ever joins/normalizes tokens the shell
+ * itself would, so it cannot invent a match that would not really execute.
+ *
+ * Known residual (out of scope, tracked as spec 5b7591e7 unverified-assumption):
+ * empty-quote token splicing that fuses a word the shell rejoins — `g""it commit`,
+ * `git "commit"` — is a limitation of executableView's data-blank model (quotes
+ * blank to spaces), not of this normalizer, and is not closed here.
+ */
+function deobfuscateShellTokens(view) {
+  return view
+    .replace(/\$\{IFS[^}]*\}/g, ' ')
+    .replace(/\$IFS(?![A-Za-z0-9_])/g, ' ')
+    .replace(/\\(?=[A-Za-z])/g, '');
+}
+
+/**
  * Convenience: does `re` match a real EXECUTABLE region of `cmd`? Tests the
- * executable view AND every shell `-c`/`eval` argument (re-viewed). This is the
- * single predicate the override guards should call.
+ * executable view AND every shell `-c`/`eval` argument (re-viewed), each also in
+ * its de-obfuscated form so token-split evasion (`git${IFS}commit`, `g\it`) is
+ * caught. This is the single predicate the override guards should call.
  */
 export function matchesExecutable(cmd, re) {
   try {
@@ -238,9 +265,20 @@ export function matchesExecutable(cmd, re) {
     // Reset lastIndex defensively in case a /g regex is passed.
     re.lastIndex = 0;
     if (re.test(view)) return true;
-    for (const arg of shellDashCArgs(cmd)) {
+    const normView = deobfuscateShellTokens(view);
+    if (normView !== view) {
       re.lastIndex = 0;
-      if (re.test(executableView(arg))) return true;
+      if (re.test(normView)) return true;
+    }
+    for (const arg of shellDashCArgs(cmd)) {
+      const argView = executableView(arg);
+      re.lastIndex = 0;
+      if (re.test(argView)) return true;
+      const normArg = deobfuscateShellTokens(argView);
+      if (normArg !== argView) {
+        re.lastIndex = 0;
+        if (re.test(normArg)) return true;
+      }
     }
     return false;
   } catch {

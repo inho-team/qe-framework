@@ -1182,3 +1182,40 @@ test('pre-tool-use: Write-tool non-version content and non-owned files pass (def
   });
   assert.notStrictEqual(nonOwned.status, 2);
 });
+
+// --- Defect 2: shell token-split git commit bypass (5b7591e7) ---
+// The commit guard matched /git\s+commit/ against the executable view, but
+// `${IFS}` expansion and backslash-escaped word characters split the token so
+// the shell still runs `git commit` while the regex misses it. These are the
+// only two cases that actually slipped the old matcher (red-on-old).
+
+for (const evil of ['git${IFS}commit -m x', 'git${IFS:0:1}commit -m x', 'g\\it commit -m x']) {
+  test(`pre-tool-use: obfuscated commit ${JSON.stringify(evil)} is hard-blocked (defect 2)`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect2-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: evil } });
+    assert.strictEqual(res.status, 2);
+  });
+}
+
+// Normal spacing was already caught by /git\s+commit/ — pin it as retained
+// coverage so a future normalization change cannot silently drop it.
+for (const already of ['git\tcommit -m x', 'git  commit -m x', 'git""commit -m x']) {
+  test(`pre-tool-use: normal-spacing commit ${JSON.stringify(already)} stays blocked (defect 2 coverage)`, (t) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect2-cov-'));
+    t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+    const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: already } });
+    assert.strictEqual(res.status, 2);
+  });
+}
+
+test('pre-tool-use: git commit-tree plumbing and quoted "git commit" text still pass (defect 2 false-positive guard)', (t) => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-defect2-fp-'));
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  const plumbing = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit-tree $tree' } });
+  assert.notStrictEqual(plumbing.status, 2);
+
+  const quoted = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'echo "run git commit later"' } });
+  assert.notStrictEqual(quoted.status, 2);
+});
