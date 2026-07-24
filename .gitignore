@@ -39,3 +39,9 @@ gbrain-분석.md
 
 # QE shadow-git snapshot store (never commit snapshot internals to the real repo)
 .qe/.snapshots/
+
+# QE local store (ADR-027). Binary and machine-local: the derived index is
+# rebuildable from the files, and the -wal/-shm sidecars are transient.
+.qe/qe.db
+.qe/qe.db-wal
+.qe/qe.db-shm

@@ -32,6 +32,7 @@
     "preuninstall": "sh -c 'cd / && node --input-type=module -e \"try { const p = process.env.npm_package_json; const { uninstallClaudeAssets } = await import(new URL(\\\"./scripts/lib/client_installers.mjs\\\", \\\"file://\\\" + p)); uninstallClaudeAssets(); } catch (err) { console.warn(\\\"[qe-framework] preuninstall skipped:\\\", err?.message || err); }\"'",
     "qe:secret": "node scripts/qe_secret.mjs",
     "qe:validate": "node scripts/validate_svs_config.mjs",
+    "qe:query": "node scripts/qe-query.mjs",
     "check:routing": "node scripts/check-skill-routing.mjs",
     "check:all": "node scripts/check-all.mjs",
     "check:evals": "node scripts/check-skill-evals.mjs",
