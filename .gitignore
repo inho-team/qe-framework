@@ -45,3 +45,8 @@ gbrain-분석.md
 .qe/qe.db
 .qe/qe.db-wal
 .qe/qe.db-shm
+
+# Transient baseline copy written by check-goal-router.mjs (PID-suffixed). The
+# guard removes stale ones itself, but an interrupted run leaves one behind and
+# it surfaces as untracked noise mid-run.
+hooks/scripts/.baseline-prompt-check-*.mjs
