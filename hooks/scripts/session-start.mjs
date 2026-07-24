@@ -100,6 +100,7 @@ try {
   // Fault tolerance — seeding is best-effort.
 }
 
+/** Resolves the session id from the hook payload, falling back to the transcript filename UUID. */
 function sessionIdFromPayload(payload) {
   let sessionId = payload.session_id || payload.sessionId || null;
   if (!sessionId && typeof payload.transcript_path === 'string') {
@@ -305,7 +306,8 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
     '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
     `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · version/release → /Qrelease · ` +
     `show version → ${skillCommand('Qversion')} · context save → ${skillCommand('Qcompact')} · restore → ${skillCommand('Qresume')} · ` +
-    `archive tasks → ${skillCommand('Qgc')} archive · refresh analysis → ${skillCommand('Qrefresh')}.` + fullMapPointer
+    `archive tasks → ${skillCommand('Qgc')} archive · refresh analysis → ${skillCommand('Qrefresh')}. ` +
+    `${skillCommand('Qgoal')} {목표} or a clear natural-language goal is the default goal entry.` + fullMapPointer
   );
 }
 
@@ -693,7 +695,7 @@ try {
 // (registry upsert, current-session.json, memo reset, invalidateCachedRatio, codex
 // reaper) have already run above — they are unaffected by this output-only branch.
 //
-// Bootstrap content (3 items, total ≤ 2048 UTF-8 bytes):
+// Bootstrap content (3 items, 2048 UTF-8 bytes is a guide, not an enforced cap):
 //   1. OVERRIDE MAP summary — routing cues so Claude reaches for the skill first
 //   2. Output style — 1-line reminder
 //   3. MISTAKE notification — only when .qe/MISTAKE.md exists and is non-empty
@@ -709,7 +711,7 @@ function buildMinimalBootstrap(cwdPath, cmdPrefix) {
     `manual commit → ${skillCmd('Qcommit')} · version/release → /Qrelease · ` +
     `context save → ${skillCmd('Qcompact')} · restore → ${skillCmd('Qresume')} · ` +
     `refresh → ${skillCmd('Qrefresh')} · show version → ${skillCmd('Qversion')} · ` +
-    `archive tasks → ${skillCmd('Qgc')} archive. Full map: QE_CONVENTIONS.md.`
+    `archive tasks → ${skillCmd('Qgc')} archive. ${skillCmd('Qgoal')} {목표} or a clear natural-language goal is the default goal entry. Full map: QE_CONVENTIONS.md.`
   );
 
   // 2. Output style (1 line)

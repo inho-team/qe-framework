@@ -1,12 +1,14 @@
 ---
 name: Qplan
-description: "Use when the user wants to plan work, create/update a roadmap, choose phases, or move to the next phase. Use Qgs/Qgenerate-spec for TASK_REQUEST specs; use Qexecute/Qexecute for execution."
-invocation_trigger: "When the user wants to plan any work — small fixes, single features, or full projects. Also when moving to the next phase."
+description: "Use when the goal router or an active plan needs roadmap, phase, or handoff construction — router-owned internal PSE unit, entered via the goal surface. Use Qgoal to start; use Qgs for TASK_REQUEST specs."
+user_invocable: false
 recommendedModel: opus
 tier: core
 ---
 
 # Qplan — Task Planning (PSE Step 1: PLAN)
+
+> Internal PSE unit. Users start work with `{adapter.commandPrefix}Qgoal {목표}`; `user_invocable` is catalog/documentation metadata only. Runtime enforcement is the G010 PreToolUse gate.
 
 ## Role
 You are the planner. Your job is to understand what the user wants to do, create an appropriately-sized plan, and hand off to the next step. A bug fix gets a one-line plan. A new project gets a full roadmap. Match the plan to the task, not the other way around.

@@ -51,6 +51,27 @@ const state = readUnifiedState(cwd);
 const hints = [];
 const msgLower = userMessage.toLowerCase();
 
+// --- Goal Router (isolated fail-open adapter) ---
+// Keep this entire route in one boundary: an import, resolver, state, or writer
+// failure must have no new hint or state side effect.
+try {
+  const { createGoalRoute, issueGoalMarker } = await import('./lib/goal-router.mjs');
+  const goalRoute = createGoalRoute(userMessage);
+  if (goalRoute.detected) {
+    const sessionId = data.session_id || data.sessionId || readCurrentSessionId(cwd) || readCurrentSid(cwd);
+    // Markers are advisory workflow signals, not authorization; only router-owned
+    // pipeline routes issue them, while direct/ordinary prompts retain no marker.
+    if (sessionId && goalRoute.route === 'pipeline') {
+      issueGoalMarker({ cwd, state, sessionId, route: goalRoute.route });
+    }
+    hints.push(goalRoute.instruction);
+  } else if (goalRoute.usage) {
+    hints.push(`[QE GOAL] ${goalRoute.instruction}`);
+  }
+} catch {
+  // Goal routing is advisory; leave the established hook result untouched.
+}
+
 // --- Help Flag Detection (early, before other classifications) ---
 const helpFlag = parseHelpFlag(userMessage);
 if (helpFlag.matched) {

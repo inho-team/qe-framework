@@ -1,13 +1,15 @@
 ---
 name: Qexecute
-description: "Use when executing a TASK_REQUEST/VERIFY_CHECKLIST or when already-changed code needs the test-review-fix quality loop. With no flag it auto-selects sequential or parallel-wave execution; `-verify` runs verification. Use Qautoresearch for iterative code-optimization loops and Qscenario-test for scenario/E2E."
-invocation_trigger: "When a TASK_REQUEST/VERIFY_CHECKLIST must be executed, or already-changed code needs the test-review-fix quality loop."
+description: "Use when a routed pipeline or an active task artifact (TASK_REQUEST UUID) needs execution or the -verify quality loop — router-owned internal PSE unit. Use Qgoal to enter; use Qautoresearch for optimization loops."
+user_invocable: false
 recommendedModel: haiku
 tier: core
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
 # Qexecute — Unified Execution Engine
+
+> Internal PSE unit. Users start work with `{adapter.commandPrefix}Qgoal {목표}`; `user_invocable` is catalog/documentation metadata only. Runtime enforcement is the G010 PreToolUse gate, while active UUID artifacts preserve in-chain continuity.
 
 ## Role
 The single entry point for executing spec documents. Qexecute consolidates the three former

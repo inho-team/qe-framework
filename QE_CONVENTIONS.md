@@ -12,11 +12,11 @@ All skills, agents, and documents in this framework MUST use these standard term
 
 | Concept | Standard Term | Deprecated | Notes |
 |---------|--------------|------------|-------|
-| User workflow | **PSE Chain** | ~~PSE Loop~~ | The 4-step user-facing workflow |
+| User workflow | **PSE Chain** | ~~PSE Loop~~ | Router-owned internal workflow entered through `Qgoal` |
 | Quality gate | **SIVS Loop** | ~~SVS Loop~~ | Inner quality gate within Execute/Verify steps |
 | Parallel execution group | **Wave** | ~~Swarm~~ | Independent items grouped for concurrent execution |
 | Parallel agent | **Teammate** | ~~Subagent~~ (internal only) | Haiku Teammate = Haiku-model agent in a Wave |
-| Spec generation skill | **Qgs** | Qgenerate-spec (internal full name) | Render as `/Qgs` in Claude and `$Qgs` in Codex |
+| Spec generation skill | **Qgs** | Qgenerate-spec (internal full name) | Router-owned internal alias; handoffs render the active prefix |
 | Skill internal stages | **Step** | — | Step 1, Step 2, ... inside a skill |
 | Project roadmap stages | **Phase** | — | Phase 1, Phase 2, ... in `.qe/planning/` |
 | Parallel batch within Phase | **Wave** | — | Wave 1.1, Wave 1.2, ... within a Phase |
@@ -29,9 +29,8 @@ All skills, agents, and documents in this framework MUST use these standard term
 ### PSE Chain (outer workflow)
 
 ```
-Claude: /Qplan  →  /Qgs  →  /Qexecute  →  /Qexecute -verify
-Codex:  $Qplan  →  $Qgs  →  $Qexecute  →  $Qexecute -verify
-        Plan       Spec      Execute          Verify
+User: $Qgoal {목표} / /Qgoal {목표} → router
+Internal: Qplan → Qgs (Qgenerate-spec) → Qexecute → Qexecute -verify / Qrt
 ```
 
 - **Plan**: Define roadmap, phases, requirements (`Qplan`)
@@ -50,16 +49,17 @@ The SIVS Loop runs **inside** the Execute and Verify steps of the PSE Chain. It 
 ### Relationship
 
 ```
-PSE Chain (user workflow)
-├── Plan ─────────── /Qplan
-├── Spec ─────────── /Qgs (Qgenerate-spec)
-├── Execute ──────── /Qexecute or /Qexecute
+PSE Chain (router-owned internal workflow)
+├── Entry ────────── $Qgoal {목표} / /Qgoal {목표}
+├── Plan ─────────── Qplan
+├── Spec ─────────── Qgs (Qgenerate-spec)
+├── Execute ──────── Qexecute / Qrt
 │     └── SIVS Loop (quality gate)
 │           ├── Spec: TASK_REQUEST defines the contract
 │           ├── Implement: Actual coding and file changes
 │           ├── Verify: VERIFY_CHECKLIST confirms completion
 │           └── Supervise: Supervision agents confirm quality
-└── Verify ───────── /Qexecute -verify
+└── Verify ───────── Qexecute -verify
       └── SIVS Loop (quality gate, final pass)
 ```
 
@@ -75,6 +75,8 @@ PSE Chain (user workflow)
 | Execute | `Qexecute` | Sequential execution (fallback for non-atomic tasks) |
 | Verify | `Qexecute -verify` | Test → review → fix quality loop |
 
+PSE units (`Qplan`, `Qgs`, `Qgenerate-spec`, `Qexecute`, `Qrt`) are router-owned internal units, not normal user entry points. Start new work with `$Qgoal {목표}` in Codex or `/Qgoal {목표}` in Claude. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
+
 ---
 
 ## Client Command Prefixes
@@ -84,8 +86,8 @@ prefix is client-specific.
 
 | Active client | Skill command prefix | Example |
 |---------------|----------------------|---------|
-| Claude | `/` | `/Qexecute 24740a27` |
-| Codex | `$` | `$Qexecute 24740a27` |
+| Claude | `/` | `/Qgoal {목표}` |
+| Codex | `$` | `$Qgoal {목표}` |
 
 All handoffs must render through the active-client prefix. Do not show a
 slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
@@ -109,9 +111,9 @@ Every PSE Chain skill MUST end with a `## Handoff` section. The handoff follows 
 1. **Phase context + Roadmap progress** — Display current Phase and overall progress at a glance
 2. **PSE Chain status, one line** — Show current completion/progress status
 3. **Task description line** — One-line natural language summary of what the next command does, placed directly above the `Next:` line
-4. **`Next command:` block** — Place alone in a code block for easy copying, **must include UUID or Phase argument**
-5. **No explanations** — Do not add alternatives, elaborations, or choices after the command. **Never include a fallback line** (`or: /Qgenerate-spec ...`, `If that doesn't work: ...`). `/Qgs` is the registered alias for `/Qgenerate-spec` — a duplicate line is noise.
-6. **Task type branching** — Guide only `type: code` to `/Qexecute -verify`. For docs/analysis/deletion tasks, guide to the next Phase
+4. **`Next command:` block** — For a new user entry, render active-prefix `Qgoal {목표}` alone in a code block. Router-owned in-chain handoffs may render their explicit UUID/phase command.
+5. **No explanations** — Do not add alternatives, elaborations, or choices after the command. Do not present a direct PSE command as a new-work fallback.
+6. **Task type branching** — In an active UUID chain, `type: code` may hand off to `Qexecute -verify`; otherwise guide to active-prefix `Qgoal {목표}`.
 7. **Short alias only** — Use the short phase label (e.g., `Phase 2: Codex Bridge`), not a copy of the full phase description. Max ~6 words.
 8. **Harness status is not completion** — If a handoff includes Execution Harness status, lane status, or status projection, it must still render the SIVS/PSE state separately. A finished lane does not replace VERIFY_CHECKLIST completion or Supervise.
 
@@ -193,7 +195,7 @@ All phases done. Finalize with $Qcommit
 
 ## Named Plan Layout
 
-Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple terminals can run `/Qplan` in parallel without clobbering each other's STATE/ROADMAP.
+Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple routed pipelines can coexist without clobbering each other's STATE/ROADMAP.
 
 **Per-plan files** (under `.qe/planning/plans/{slug}/`):
 - `ROADMAP.md`, `STATE.md`, `REQUIREMENTS.md`, `phases/{X}/SUMMARY_*.md`, `phases/{X}/RETROSPECTIVE.md`.
@@ -206,7 +208,7 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 - `.sessions/{session_id}.json` — per-session `{ activePlanSlug, updatedAt }` binding.
 
 **Plan resolution order** (used by consumer skills):
-1. Explicit slug argument (e.g., `/Qgs auth-refactor: 인증 모듈`).
+1. Router-owned explicit slug handoff (e.g., `/Qgs auth-refactor: 인증 모듈`).
 2. `.qe/state/current-session.json` → `session_id` → `.qe/planning/.sessions/{session_id}.json` → `activePlanSlug`.
 3. `.qe/planning/ACTIVE_PLAN`.
 4. Legacy flat `.qe/planning/ROADMAP.md` / `STATE.md` (pre-Named-Plan projects).
@@ -276,7 +278,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 ### 2. Token-Aware Context Management
 - **Thresholds**: Monitor context pressure at **140k tokens** (Warning/Snapshot) and **170k tokens** (Critical/Hard Stop).
 - **Semantic Compression**: When context is high, prioritize `SNAPSHOT_SUMMARY.md` over raw history preservation.
-- **Strategic Planning**: Use `.qe/planning/` for project roadmaps and phase-based state management via `/Qplan`.
+- **Strategic Planning**: Start with active-prefix `Qgoal {목표}`; the router owns PSE planning and `.qe/planning/` state.
 - **Token Fallback**: If real-time metrics are missing, use `Characters / 4` for estimation.
 
 ### 3. Persistent Mode Protection

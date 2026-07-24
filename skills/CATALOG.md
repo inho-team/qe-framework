@@ -4,18 +4,17 @@
 >
 > **Client prefix contract**: Claude renders QE skills as `/Q...`; Codex renders the same skills as `$Q...`.
 
-## Master Orchestrator (Primary Entry Point)
+## Goal-first Entry Point
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qplan` / `$Qplan` | When starting any project or milestone. | **Master entry point.** Manages the Plan-Spec-Execute (PSE) Loop. |
+| `/Qgoal {목표}` / `$Qgoal {목표}` | Start any new goal. | **Recommended entry point.** The router selects the workflow. |
 
 ## Core Components (Internal PSE Chain)
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qgs` / `$Qgs` | Alias for `Qgenerate-spec`. | Generates Haiku-Ready atomic specs. |
-| `/Qexecute` / `$Qexecute` | When executing a TASK_REQUEST or when code already on disk needs `-verify`. | Unified execution engine: sequential, parallel-wave, and verification modes. |
+| `Qplan`, `Qgs`/`Qgenerate-spec`, `Qexecute`, `Qrt` | Router and active UUID handoffs only. | Internal PSE units; task artifacts preserve in-chain continuity. |
 
 ## Specialized Quality & Debugging
 
@@ -30,8 +29,6 @@
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qexecute -utopia` / `$Qexecute -utopia` | When you want to enable fully autonomous execution mode. | Switches framework to ultra-mode (auto-approvals, auto-remediation). |
-| `/Qplan` | When a multi-phase project roadmap or high-level strategic planning is needed. | Manages PROJECT.md, ROADMAP.md and phases within .qe/planning/. |
 | `/Qcontext` | When managing folder-aware context memory (create, refresh, status). | Optimizes Claude's context window by loading only relevant folder context. |
 | `/Qinit` | When starting a new project or initializing the QE framework. | Sets up directory structure, conventions, and core configuration. |
 | `/Qcollect-skill` | When project-local stack guidance should be collected or refreshed. | Creates verified `.claude/skills/` guidance with TTL and user-edit protection. |

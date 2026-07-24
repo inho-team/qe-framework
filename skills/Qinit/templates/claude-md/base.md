@@ -158,7 +158,7 @@
 
 이 프로젝트에 QE 스킬셋이 로드되어 있습니다. 손에 익으면 반복 작업이 눈에 띄게 줄어듭니다:
 
-- **구현/수정** → `/Qgenerate-spec` + `/Qexecute` — 스펙 먼저 확정하면 back-and-forth 없이 한 번에 깔끔하게
+- **구현/수정** → `/Qgoal {목표}` — goal 한 줄이면 라우터가 spec→execute→verify 파이프라인을 자동 진행 (PSE 스킬 직접 호출은 게이트가 차단)
 - **커밋** → `/Qcommit` — AI 흔적 없는 자연스러운 커밋 메시지
 - **디버깅** → 가설 기반으로 원인을 좁히고, 수정 전 재현 조건과 검증 방법을 먼저 정리
 - **버전/릴리스 변경** → `/Qrelease` — bump, commit, tag, optional push/GitHub Release

@@ -12,6 +12,7 @@
     "Qexecute",
     "Qgc",
     "Qgenerate-spec",
+    "Qgoal",
     "Qgs",
     "Qhelp",
     "Qinit",
@@ -54,5 +55,6 @@
     "Qrt",
     "Qrun-task",
     "Qxlsx"
-  ]
+  ],
+  "externalOwnerPointers": []
 }

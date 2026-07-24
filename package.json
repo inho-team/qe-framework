@@ -1,7 +1,7 @@
 {
   "name": "@inho-team/qe-framework",
   "version": "8.3.0",
-  "description": "Query Execute Framework for Claude Code and Codex — SIVS loop, folder-aware context memory, 30 skills and 20 agents",
+  "description": "Query Execute Framework for Claude Code and Codex — SIVS loop, folder-aware context memory, 31 skills and 20 agents",
   "files": [
     ".claude-plugin/",
     "agents/",
@@ -14,6 +14,7 @@
     "!docs/archive/",
     "evals/",
     "hooks/",
+    "!hooks/scripts/.baseline-prompt-check-*",
     "install.js",
     "LICENSE",
     "package.json",

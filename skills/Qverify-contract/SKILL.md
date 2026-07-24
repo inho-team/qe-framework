@@ -154,5 +154,5 @@ Phase 3: Contract Layer — Verification complete
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 Contract: {name} — {verdict}
-Next: /Qexecute -verify
+Next: Continue the active UUID pipeline with `{adapter.commandPrefix}Qexecute -verify {UUID}`; for new work, start with `{adapter.commandPrefix}Qgoal {목표}`.
 ```

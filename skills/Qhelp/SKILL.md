@@ -44,15 +44,12 @@ This mode searches skills.sh, fetches original SKILL.md content, converts it to 
 QE Framework (Query Executor) — Quick Reference
 ================================================
 
-WORKFLOW
-  /Qgenerate-spec          Create task spec documents
-  /Qexecute [UUID]        Execute tasks with verification ($Qexecute on Codex)
+GOAL-FIRST WORKFLOW
+  /Qgoal {목표}            Start a new goal ($Qgoal on Codex)
   /Qcommit                 Commit & push (human-style, no AI traces)
   /Qupdate                 Update QE (Claude + Codex) and codex-plugin-cc bridge
-  /Qexecute -utopia [on|off]        Toggle fully autonomous mode ($Qexecute -utopia on Codex)
 
 DEVELOPMENT
-  /Qexecute -verify          Quality loop: test → review → fix ($Qexecute -verify on Codex)
   /Qmcp setup              MCP server setup + building guide
   /Qmcp ensure             Check MCP config, server availability, stale entries
 
@@ -65,9 +62,11 @@ TASK MANAGEMENT
   /Quser-action            Track external actions the user must perform
   /Qgc archive             Archive completed tasks
 
-PLANNING
-  /Qplan                   Plan a milestone/project
-  /Qgs                     Generate executable task specs
+PSE INTERNAL UNITS
+  Qplan, Qgs/Qgenerate-spec, Qexecute, Qrt
+  Router-owned; direct calls are reserved for active UUID handoffs.
+
+QA
   /Qqa-test-planner        QA test plans & bug reports
 
 META

@@ -1,13 +1,14 @@
 ---
 name: Qgs
-description: "Use when the user invokes Qgs or a Qplan handoff needs TASK_REQUEST + VERIFY_CHECKLIST generation. Alias for Qgenerate-spec. Use Qplan for roadmap; use Qexecute after specs exist."
-user_invocable: true
-invocation_trigger: "When the user wants to generate a spec, create a task, or types /Qgs on Claude or $Qgs on Codex. Also triggered from PSE Chain handoffs after Qplan."
+description: "Use when a Qplan handoff or routed goal needs TASK_REQUEST + VERIFY_CHECKLIST generation — router-owned internal PSE alias for Qgenerate-spec. Use Qgoal to enter; use Qexecute after specs exist."
+user_invocable: false
 recommendedModel: haiku
 tier: core
 ---
 
 # Qgs — Spec Generation (PSE Chain Step 2)
+
+> Internal PSE unit. Users start work with `{adapter.commandPrefix}Qgoal {목표}`; `user_invocable` is catalog/documentation metadata only. Runtime enforcement is the G010 PreToolUse gate. Router handoffs retain their explicit next command.
 
 This is the canonical shortcut for `Qgenerate-spec`.
 

@@ -288,7 +288,7 @@ Show the list of created files and guide the next steps.
 - Create `.claude/settings.json` only for the Claude adapter
 
 ## Will Not
-- Create task specs → use `{adapter.commandPrefix}Qgenerate-spec`
+- Create task specs directly — start new work with `{adapter.commandPrefix}Qgoal {목표}` instead
 - Write or modify code
 - Overwrite existing files
 - Modify source code (analysis is read-only)

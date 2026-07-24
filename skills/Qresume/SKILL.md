@@ -62,8 +62,8 @@ It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[
 
 ### Step 3: Suggest Next Actions
 Propose next actions based on restored context:
-- If there are incomplete tasks → guide with `{adapter.commandPrefix}Qexecute {UUID}`
-- If new work is needed → guide with `{adapter.commandPrefix}Qgenerate-spec`
+- If there are incomplete tasks → continue the UUID pipeline with `{adapter.commandPrefix}Qexecute {UUID}`
+- If new work is needed → guide with `{adapter.commandPrefix}Qgoal {목표}`
 - If decisions need review → display decision list
 
 ## .qe/analysis/ Integration

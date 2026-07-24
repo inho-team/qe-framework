@@ -10,6 +10,7 @@ import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from './lib/shell-scanner.mjs';
 import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
+import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -52,9 +53,20 @@ const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 const RELEASE_VERSION_CAPABILITY = 'qe-release-version';
 const RELEASE_VERSION_ACTION = `Use ${skillCommand('Qrelease')} instead.`;
 
+// Version-owned manifests whose `version` field only Qrelease may change:
+// package.json plus the two .claude-plugin manifests. marketplace.json carries
+// plugins[0].version (not a top-level key), so callers still match on the
+// `"version"` token in the payload rather than the file name alone.
+function isVersionOwnedManifest(filePath) {
+  const p = String(filePath || '').replace(/\\/g, '/');
+  return /(?:^|\/)package\.json$/.test(p) ||
+    /(?:^|\/)\.claude-plugin\/(?:plugin|marketplace)\.json$/.test(p);
+}
+
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
 
+/** Reads .qe/state/utopia-state.json; returns the parsed state only when enabled === true. */
 function readStandaloneUtopiaState(root) {
   const filePath = join(root, '.qe', 'state', 'utopia-state.json');
   if (!existsSync(filePath)) return null;
@@ -67,6 +79,83 @@ function readStandaloneUtopiaState(root) {
   return null;
 }
 
+// Lowercased for lenient-dispatcher hardening: whitespace, repeated namespace
+// prefixes, and case variants must not slip past the gate (no case-colliding
+// skill names exist, so folding adds zero false positives).
+const PSE_SKILLS = new Set(['qplan', 'qgs', 'qgenerate-spec', 'qexecute', 'qrt']);
+const TASK_CONTINUITY_DIRS = ['pending', 'in-progress', 'on-hold'];
+
+/** Fresh read of the goalRuntime namespace right before PSE admission; null on any failure. */
+function readGoalRuntimeFresh(root) {
+  // This is deliberately a fresh, read-only workflow signal immediately before
+  // PSE admission. It is advisory, not authorization: any same-write-permission
+  // process can forge this state, so it is never a security boundary.
+  try {
+    const fresh = readUnifiedState(root);
+    const runtime = fresh?.goalRuntime;
+    return runtime && runtime.version === 1 && Array.isArray(runtime.entries) ? runtime : null;
+  } catch {
+    return null;
+  }
+}
+
+/** True when an unexpired route==='pipeline' marker for this session exists (latest issuedAt wins). */
+function hasFreshPipelineMarker(root, sessionId, now) {
+  if (!sessionId) return false;
+  const runtime = readGoalRuntimeFresh(root);
+  if (!runtime) return false;
+  const valid = runtime.entries.filter((entry) => (
+    entry && typeof entry === 'object' && entry.version === 1 &&
+    typeof entry.sessionId === 'string' && entry.sessionId === sessionId &&
+    entry.route === 'pipeline' && Number.isFinite(entry.issuedAt) &&
+    Number.isFinite(entry.expiresAt) && now < entry.expiresAt
+  ));
+  // Multiplicity is order-irrelevant for admission: any qualifying entry passes,
+  // so "latest issuedAt wins" needs no sort here (documented for G011 readers).
+  return valid.length > 0;
+}
+
+// A real PSE invocation carries at most a handful of task UUIDs; cap the
+// distinct candidates so a long hex-rich args string (pasted spec/log/diff)
+// can never fan out into thousands of existsSync calls and blow the NFR4 budget.
+const MAX_UUID_CANDIDATES = 16;
+
+/** True when any 8-hex UUID in the Skill args maps to a live TASK_REQUEST artifact (pipeline continuity). */
+function hasTaskArtifactContinuity(root, args) {
+  const matches = String(args || '').match(/\b[0-9a-f]{8}\b/g) || [];
+  const unique = [];
+  const seen = new Set();
+  for (const uuid of matches) {
+    if (seen.has(uuid)) continue;
+    seen.add(uuid);
+    unique.push(uuid);
+    if (unique.length >= MAX_UUID_CANDIDATES) break;
+  }
+  return unique.some((uuid) => TASK_CONTINUITY_DIRS.some((dir) =>
+    existsSync(join(root, '.qe', 'tasks', dir, `TASK_REQUEST_${uuid}.md`))
+  ));
+}
+
+/** True only for an explicit utopia opt-in activated within the last 24h (stale/crashed state never passes). */
+function hasFreshUtopiaOptIn(root, now) {
+  const utopia = readStandaloneUtopiaState(root);
+  if (!utopia || utopia.enabled !== true || !utopia.activatedAt) return false;
+  const activatedAt = new Date(utopia.activatedAt).getTime();
+  const age = now - activatedAt;
+  return Number.isFinite(activatedAt) && age >= 0 && age < 24 * 60 * 60 * 1000;
+}
+
+/** True only when .qe/config.json goalRuntime.allowDirect is strictly boolean true (debug escape hatch). */
+function hasAllowDirectOptIn(root) {
+  try {
+    const raw = JSON.parse(readFileSync(join(root, '.qe', 'config.json'), 'utf8'));
+    return raw?.goalRuntime?.allowDirect === true;
+  } catch {
+    return false;
+  }
+}
+
+/** Normalizes the shell-tool aliases used across Claude/Codex payloads. */
 function isShellTool(name) {
   return ['Bash', 'Shell', 'shell', 'exec_command'].includes(name);
 }
@@ -236,7 +325,40 @@ if (toolName === 'Skill') {
       // Fault-tolerant: never let the usage counter break the hook.
     }
 
+    // Case-preserving single-prefix strip — the historical form the Qcommit
+    // skill-entry-hook below matches against (`=== 'Qcommit'`).
     const normalizedSkillName = String(skillName || '').replace(/^qe-framework:/, '');
+    // Aggressive fold used ONLY for the PSE gate's exact-match set: strip all
+    // whitespace and every repeated namespace prefix, then lowercase, so
+    // "qe-framework: Qplan" / "QPLAN" / doubled prefixes cannot slip past.
+    const pseSkillKey = String(skillName || '')
+      .replace(/\s+/g, '')
+      .replace(/^(?:qe-framework:)+/i, '')
+      .toLowerCase();
+
+    // Goal marker admission is a workflow-discipline gate, not an authorization
+    // mechanism. A process with the same filesystem write permission can forge
+    // marker/config state; the marker is never consumed, deleted, or reissued here.
+    if (PSE_SKILLS.has(pseSkillKey)) {
+      const now = Date.now();
+      // Keep this resolution chain byte-for-byte aligned with prompt-check's issuer.
+      const sessionId = data.session_id || data.sessionId || readCurrentSessionId(cwd) || readCurrentSid(cwd);
+      const permitted =
+        hasFreshPipelineMarker(cwd, sessionId, now) ||
+        hasTaskArtifactContinuity(cwd, skillInput.args || skillInput.arguments || skillInput.input || '') ||
+        hasFreshUtopiaOptIn(cwd, now) ||
+        hasAllowDirectOptIn(cwd);
+      if (!permitted) {
+        const activePrefix = process.env.QE_COMMAND_PREFIX ||
+          (String(data.client || process.env.QE_CLIENT || 'claude').toLowerCase().includes('codex') ? '$' : '/');
+        emitBlock({
+          skill: pseSkillKey,
+          reason: `Direct ${pseSkillKey} invocation requires an active goal pipeline.`,
+          action: `Start with ${activePrefix}Qgoal {목표}.`,
+        });
+      }
+    }
+
     // Qcommit needs a hook-owned trust path for autonomous clients whose
     // permission classifiers reject model-written bypass artifacts. The guard
     // below consumes this one-shot capability on the next matching git commit.
@@ -444,8 +566,26 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const filePath = toolInput.file_path || toolInput.filePath || '';
     const newStr = toolInput.new_string || '';
 
-    // Editing plugin.json version field → Qrelease version workflow
-    if (/plugin\.json$/.test(filePath) && /"version"/.test(newStr)) {
+    // Editing a version-owned manifest's version field → Qrelease version workflow
+    if (isVersionOwnedManifest(filePath) && /"version"/.test(newStr)) {
+      overrideRules.push({
+        skill: RELEASE_VERSION_CAPABILITY,
+        msg: `Direct version editing is blocked. ${RELEASE_VERSION_ACTION}`
+      });
+    }
+  }
+
+  if (toolName === 'Write') {
+    const filePath = toolInput.file_path || toolInput.filePath || '';
+    const content = toolInput.content || '';
+
+    // Write-tool parity with the Edit gate (defect 1): a full-file write to a
+    // version-owned manifest carrying a "version" token is a direct version
+    // edit and must route through Qrelease. Like Edit, the mandatory command
+    // binding on qe-release-version can never match a non-Bash payload, so this
+    // is effectively hard-closed — the release train writes versions via bound
+    // Bash stages, never via the Write tool.
+    if (isVersionOwnedManifest(filePath) && /"version"/.test(content)) {
       overrideRules.push({
         skill: RELEASE_VERSION_CAPABILITY,
         msg: `Direct version editing is blocked. ${RELEASE_VERSION_ACTION}`
