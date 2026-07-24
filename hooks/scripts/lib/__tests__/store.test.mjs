@@ -908,6 +908,73 @@ test('reindex indexes files and prunes rows for deleted files', { skip: !SQLITE 
   } finally { store.close(); }
 });
 
+// ---------------------------------------------------------------------------
+// Upgrading an existing installation
+// ---------------------------------------------------------------------------
+
+/**
+ * Build a database that predates the current schema.
+ * @param {string} root - Project root
+ * @param {number} claimedVersion - What `user_version` should claim
+ */
+function seedLegacyDb(root, claimedVersion) {
+  const sqlite = process.getBuiltinModule('node:sqlite');
+  const db = new sqlite.DatabaseSync(path.join(root, '.qe', 'qe.db'));
+  db.exec('PRAGMA journal_mode = WAL');
+  db.exec(`
+    CREATE TABLE state_kv(ns TEXT, k TEXT, session_id TEXT DEFAULT '', v TEXT,
+      updated_at INTEGER, PRIMARY KEY(ns, k, session_id));
+    CREATE TABLE counters(ns TEXT, k TEXT, session_id TEXT DEFAULT '',
+      n INTEGER DEFAULT 0, updated_at INTEGER, PRIMARY KEY(ns, k, session_id));
+  `);
+  db.prepare('INSERT INTO state_kv VALUES(?,?,?,?,?)').run('legacy', 'kept', '', '"old value"', 1);
+  db.prepare('INSERT INTO counters VALUES(?,?,?,?,?)').run('legacy', 'hits', '', 42, 1);
+  db.exec(`PRAGMA user_version = ${claimedVersion}`);
+  db.close();
+}
+
+test('an older schema upgrades in place and keeps its data', { skip: !SQLITE }, () => {
+  const root = makeProject();
+  seedLegacyDb(root, 1);
+
+  const store = openStore(root, { backend: 'sqlite' });
+  try {
+    assert.equal(store.backend, 'sqlite');
+    assert.equal(store.getState('legacy', 'kept'), 'old value', 'existing rows must survive');
+    assert.equal(store.getCounter('legacy', 'hits'), 42, 'existing counts must survive');
+    // And the tables added by later migrations must now work.
+    store.appendEvent({ kind: 'tool_use', tool: 'Read' });
+    assert.equal(store.queryEvents({}).length, 1);
+  } finally { store.close(); }
+});
+
+test('a database whose version overstates its tables repairs itself',
+  { skip: !SQLITE }, () => {
+    // An interrupted upgrade or a partial restore leaves user_version ahead of
+    // the schema. Trusting the version meant the first query against a missing
+    // table threw, the facade demoted to the file backend for the rest of the
+    // process, and the caller silently went back to the lost-update behaviour
+    // this backend exists to remove — while still reporting success.
+    const root = makeProject();
+    seedLegacyDb(root, 4); // claims current, actually has two tables
+
+    const file = path.join(root, 'probe.txt');
+    fs.writeFileSync(file, 'x');
+
+    const store = openStore(root, { backend: 'sqlite', sessionId: 's1' });
+    try {
+      store.memoPut(file, 'x');
+      assert.equal(store.memoValid(file), true, 'the memo table must have been created');
+      store.upsertSession({ sid: 'aaaaaaaa' });
+      assert.equal(store.listSessions({}).length, 1);
+      // Explicit empty scope: the store was opened with sessionId 's1', and
+      // the pre-existing row is project-global (session_id = '').
+      assert.equal(store.getCounter('legacy', 'hits', { sessionId: '' }), 42,
+        'repair must not discard data');
+      assert.equal(store.backend, 'sqlite', 'must not have demoted to the file backend');
+    } finally { store.close(); }
+  });
+
 test('schema migrates forward on an existing database', { skip: !SQLITE }, () => {
   const root = makeProject();
   const a = openStore(root, { backend: 'sqlite' });

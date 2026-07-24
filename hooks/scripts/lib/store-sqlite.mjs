@@ -260,9 +260,49 @@ const MIGRATIONS = [
  *
  * @param {object} db - An open DatabaseSync handle
  */
+/** Every table the current schema is expected to provide. */
+const EXPECTED_TABLES = [
+  'schema_meta', 'state_kv', 'counters', 'memo', 'events', 'sessions',
+  'file_index', 'learnings', 'task_log', 'failures', 'wiki_pages', 'wiki_links',
+];
+
+/**
+ * Names of the tables a database actually has.
+ * @param {object} db - An open DatabaseSync handle
+ * @returns {Set<string>}
+ */
+function tableNames(db) {
+  return new Set(
+    db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name),
+  );
+}
+
+/**
+ * Apply any migrations the database has not seen yet.
+ *
+ * `user_version` decides what runs, but it is only a claim: an interrupted
+ * upgrade, a hand-edited database, or a partially restored backup can leave the
+ * version ahead of the tables. That case is not theoretical — it was reproduced
+ * while testing the upgrade path, and the failure is quiet and expensive: the
+ * first query against a missing table throws, the facade demotes to the file
+ * backend for the rest of the process, and the caller keeps working with the
+ * lost-update behaviour this backend exists to remove.
+ *
+ * So the version is trusted only when the tables agree with it. Every statement
+ * is `IF NOT EXISTS`, which makes replaying the full list safe and idempotent.
+ *
+ * @param {object} db - An open DatabaseSync handle
+ */
 function migrate(db) {
-  const current = db.prepare('PRAGMA user_version').get()?.user_version ?? 0;
-  for (let v = current; v < MIGRATIONS.length; v += 1) {
+  const claimed = db.prepare('PRAGMA user_version').get()?.user_version ?? 0;
+  const present = tableNames(db);
+  const complete = EXPECTED_TABLES.every(name => present.has(name));
+
+  // Replay everything when the tables disagree with the version, otherwise
+  // continue from where the version says we left off.
+  const from = complete ? claimed : 0;
+
+  for (let v = from; v < MIGRATIONS.length; v += 1) {
     db.exec(MIGRATIONS[v]);
     db.exec(`PRAGMA user_version = ${v + 1}`);
   }
@@ -352,8 +392,18 @@ export function openSqlite(cwd, opts = {}) {
         // `user_version` is the cheaper probe: it is 0 only for a database we
         // have not initialised, which also covers a file left behind by a
         // half-finished creation.
+        // `user_version` alone is not enough to decide the schema is complete:
+        // it is a claim the tables can contradict after an interrupted upgrade
+        // or a partial restore. Counting tables is one indexed read of
+        // `sqlite_master`, cheap enough to pay on every open, and skipping it
+        // is how a half-migrated database silently demoted every caller to the
+        // file backend.
         const version = db.prepare('PRAGMA user_version').get()?.user_version ?? 0;
-        if (version === 0 || version < MIGRATIONS.length) {
+        const tableCount = Number(
+          db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'").get()?.n,
+        ) || 0;
+
+        if (version < MIGRATIONS.length || tableCount < EXPECTED_TABLES.length) {
           // WAL lets readers proceed during a write, which matters because
           // hooks read far more often than they write.
           db.exec('PRAGMA journal_mode = WAL');
