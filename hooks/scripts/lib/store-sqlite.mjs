@@ -19,7 +19,7 @@
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
 import { dirname, join, relative } from 'path';
 
-import { parseFailureContext, parseTaskLog } from './store-indexer.mjs';
+import { collectIndexableFiles, parseFailureContext, parseTaskLog } from './store-indexer.mjs';
 
 export const SCHEMA_VERSION = 3;
 
@@ -829,7 +829,32 @@ export function createSqliteBackend(cwd, opts = {}) {
       ).all(...args);
     },
 
+    // Keep `file_index` in step with the `.qe` tree before answering.
+    //
+    // Third instance of the same failure mode as `ensureTaskLogFresh` and
+    // `ensureFailuresFresh`: without it, `specs --status pending` reported
+    // nothing while four TASK_REQUEST files sat in `.qe/tasks/pending/`, and an
+    // agent cannot tell that apart from "no pending specs". The count check is
+    // metadata-only; the re-index that follows is the expensive part and runs
+    // only when the tree and the table disagree.
+    ensureFileIndexFresh() {
+      const records = collectIndexableFiles(cwd);
+      const indexed = Number(stmt('SELECT COUNT(*) AS n FROM file_index').get()?.n) || 0;
+      if (indexed === records.length) return false;
+
+      const live = new Set();
+      for (const record of records) {
+        this.indexFile(record);
+        live.add(record.path);
+      }
+      // Prune rows whose file is gone, or a completed task would keep
+      // answering as pending from wherever it used to live.
+      this.pruneIndex([...live]);
+      return true;
+    },
+
     queryFiles(filter = {}) {
+      this.ensureFileIndexFresh();
       const where = [];
       const args = [];
       if (filter.kind) { where.push('kind = ?'); args.push(filter.kind); }

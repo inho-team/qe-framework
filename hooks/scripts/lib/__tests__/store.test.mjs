@@ -690,6 +690,42 @@ for (const backend of BACKENDS) {
   });
 }
 
+test('queryFiles self-heals a cold index instead of reporting nothing',
+  { skip: !SQLITE }, () => {
+    // Third instance of the same silently-empty defect (after queryTasks and
+    // queryFailures): `specs --status pending` answered with nothing while four
+    // TASK_REQUEST files sat on disk, because file_index was only ever built by
+    // an explicit reindex.
+    const root = makeProject();
+    const pending = path.join(root, '.qe', 'tasks', 'pending');
+    fs.mkdirSync(pending, { recursive: true });
+    fs.writeFileSync(path.join(pending, 'TASK_REQUEST_aaa111.md'), '# One\n');
+    fs.writeFileSync(path.join(pending, 'TASK_REQUEST_bbb222.md'), '# Two\n');
+
+    const store = openStore(root, { backend: 'sqlite' });
+    try {
+      // No reindex() call anywhere in this test — the query must cover itself.
+      const rows = store.queryFiles({ kind: 'task', status: 'pending' });
+      assert.equal(rows.length, 2, 'must see the files without an explicit reindex');
+    } finally { store.close(); }
+  });
+
+test('queryFiles drops rows for files that disappeared', { skip: !SQLITE }, () => {
+  const root = makeProject();
+  const pending = path.join(root, '.qe', 'tasks', 'pending');
+  fs.mkdirSync(pending, { recursive: true });
+  fs.writeFileSync(path.join(pending, 'TASK_REQUEST_ccc333.md'), '# Three\n');
+  fs.writeFileSync(path.join(pending, 'TASK_REQUEST_ddd444.md'), '# Four\n');
+
+  const store = openStore(root, { backend: 'sqlite' });
+  try {
+    assert.equal(store.queryFiles({ kind: 'task' }).length, 2);
+    fs.unlinkSync(path.join(pending, 'TASK_REQUEST_ccc333.md'));
+    // A completed or removed task must stop answering as pending.
+    assert.equal(store.queryFiles({ kind: 'task' }).length, 1);
+  } finally { store.close(); }
+});
+
 test('reindex indexes files and prunes rows for deleted files', { skip: !SQLITE }, () => {
   const root = makeProject();
   const pending = path.join(root, '.qe', 'tasks', 'pending');

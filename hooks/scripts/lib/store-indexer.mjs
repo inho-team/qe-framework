@@ -276,26 +276,19 @@ function titleOf(content, fallback) {
 }
 
 /**
- * Rebuild the Tier B index for a project.
+ * Collect every `.qe` file that belongs in `file_index`, as ready-to-upsert
+ * records.
  *
- * Safe to run repeatedly; every write is an upsert keyed on path or uuid.
- * Rows for files that disappeared are pruned so a stale index cannot report a
- * task that no longer exists.
+ * Exported so `reindex()` and the sqlite backend's freshness check share one
+ * definition of "what is indexable". Duplicating that list is how an index and
+ * its refresh path drift into disagreeing about what should be there.
  *
  * @param {string} cwd - Project root
- * @param {object} store - An open store (must be the sqlite backend)
- * @returns {{files: number, tasks: number, skipped: boolean, pruned: number}}
+ * @returns {Array<object>} Records shaped for `store.indexFile()`
  */
-export function reindex(cwd, store) {
-  // The file backend has no index tables; asking it to index is a no-op, not
-  // an error — callers should keep working against the filesystem.
-  if (!store || store.backend !== 'sqlite') {
-    return { files: 0, tasks: 0, failures: 0, skipped: true, pruned: 0 };
-  }
-
+export function collectIndexableFiles(cwd) {
   const qeDir = join(cwd, '.qe');
-  let files = 0;
-  const seenPaths = new Set();
+  const records = [];
 
   for (const { dir, kind } of INDEXED_DIRS) {
     const root = join(qeDir, ...dir);
@@ -316,7 +309,7 @@ export function reindex(cwd, store) {
       const relPath = relative(cwd, abs);
       const uuidMatch = abs.match(/_([A-Za-z0-9-]{6,})\.md$/);
 
-      store.indexFile({
+      records.push({
         path: relPath,
         kind,
         status: statusFromPath(relPath),
@@ -329,10 +322,38 @@ export function reindex(cwd, store) {
         // collision here costs at most one skipped re-index of a local file.
         hash: content ? createHash('sha1').update(content).digest('hex').slice(0, 12) : null,
       });
-      seenPaths.add(relPath);
-      files += 1;
     }
   }
+
+  return records;
+}
+
+/**
+ * Rebuild the Tier B index for a project.
+ *
+ * Safe to run repeatedly; every write is an upsert keyed on path or uuid.
+ * Rows for files that disappeared are pruned so a stale index cannot report a
+ * task that no longer exists.
+ *
+ * @param {string} cwd - Project root
+ * @param {object} store - An open store (must be the sqlite backend)
+ * @returns {{files: number, tasks: number, skipped: boolean, pruned: number}}
+ */
+export function reindex(cwd, store) {
+  // The file backend has no index tables; asking it to index is a no-op, not
+  // an error — callers should keep working against the filesystem.
+  if (!store || store.backend !== 'sqlite') {
+    return { files: 0, tasks: 0, failures: 0, skipped: true, pruned: 0 };
+  }
+
+  const qeDir = join(cwd, '.qe');
+  const records = collectIndexableFiles(cwd);
+  const seenPaths = new Set();
+  for (const record of records) {
+    store.indexFile(record);
+    seenPaths.add(record.path);
+  }
+  const files = records.length;
 
   const pruned = store.pruneIndex ? store.pruneIndex([...seenPaths]) : 0;
 

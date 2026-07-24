@@ -273,7 +273,17 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 ### 1. Minimal I/O Rule (Enforced)
 - **Never read or write the same file twice** in a single execution turn.
 - **ContextMemo (enforced)**: The `pre-tool-use` hook **hard-blocks** redundant `Read` calls for files already cached in the session. If a file was read before and not modified since, the Read is rejected with `exit(2)` and a `MEMO HIT` message. After a `Write`/`Edit` to that file, the next Read is allowed.
-- **Unified State**: Use `unified-state.json` via `hooks/scripts/lib/state.mjs` for all persistent session data.
+- **Query, do not read whole files**: `.qe/TASK_LOG.md` alone is ~20k tokens. Use `npm run qe:query` for task status, specs, checklists, contracts, analysis docs, and verification failure history — a 20-row answer costs ~2k tokens and a `GROUP BY` aggregate ~30. Read the file only when you need one specific record in full.
+  ```bash
+  npm run qe:query -- --list                     # catalog of named queries
+  npm run qe:query -- tasks --status pending     # what is still open
+  npm run qe:query -- specs --status pending     # TASK_REQUEST files awaiting work
+  npm run qe:query -- verification --status in-progress
+  npm run qe:query -- failures --uuid <task>     # why verification failed before
+  npm run qe:query -- --sql "SELECT status, COUNT(*) c FROM task_log GROUP BY status"
+  ```
+  Read-only by construction: `--sql` accepts a single `SELECT` on a read-only connection. Markdown stays the source of truth; the index is derived and rebuilds itself.
+- **Unified State**: Use `unified-state.json` via `hooks/scripts/lib/state.mjs` for all persistent session data. High-frequency and contended state (ContextMemo, session registry, SIVS loop counters) lives in `.qe/qe.db` behind `hooks/scripts/lib/store.mjs` — see `.qe/planning/ADR-027-local-store-and-query-layer.md`.
 
 ### 2. Token-Aware Context Management
 - **Thresholds**: Monitor context pressure at **140k tokens** (Warning/Snapshot) and **170k tokens** (Critical/Hard Stop).
@@ -315,6 +325,7 @@ These skills are optimized for common workflows and consistently outperform gene
 | context restore | `Qresume` | Reconstructs working state from snapshot |
 | archive tasks | `Qgc archive` | Moves files into versioned archive with index |
 | project refresh | `Qrefresh` | Re-analyzes all four analysis files in one pass |
+| "what is still open / what failed before" | `npm run qe:query` | Answers from a derived index instead of pulling ~20k tokens of `TASK_LOG.md` into context; read-only, works the same from Claude and Codex |
 
 ---
 
