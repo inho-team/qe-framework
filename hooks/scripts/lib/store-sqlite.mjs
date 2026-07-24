@@ -16,10 +16,10 @@
  * @module store-sqlite
  */
 
-import { existsSync, mkdirSync, readFileSync, statSync } from 'fs';
-import { dirname, join } from 'path';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
+import { dirname, join, relative } from 'path';
 
-import { parseTaskLog } from './store-indexer.mjs';
+import { parseFailureContext, parseTaskLog } from './store-indexer.mjs';
 
 export const SCHEMA_VERSION = 3;
 
@@ -776,7 +776,46 @@ export function createSqliteBackend(cwd, opts = {}) {
       return true;
     },
 
+    // Keep the failure index in step with the files before answering.
+    //
+    // Same failure mode `ensureTaskLogFresh` exists for: without this, a store
+    // whose index has never been built answers "no failures" instead of
+    // erroring, and an agent cannot tell that apart from a genuine empty set.
+    // The check counts directory entries without reading them, and only
+    // re-parses when the count disagrees with the table.
+    ensureFailuresFresh() {
+      const root = join(cwd, '.qe', 'learning', 'failures');
+      if (!existsSync(root)) return false;
+
+      const paths = [];
+      const walk = (dir) => {
+        let entries;
+        try { entries = readdirSync(dir, { withFileTypes: true }); } catch { return; }
+        for (const entry of entries) {
+          if (entry.name.startsWith('.')) continue;
+          const full = join(dir, entry.name);
+          if (entry.isDirectory()) walk(full);
+          else if (entry.name === 'CONTEXT.md') paths.push(full);
+        }
+      };
+      walk(root);
+
+      const indexed = Number(stmt('SELECT COUNT(*) AS n FROM failures').get()?.n) || 0;
+      if (indexed === paths.length) return false;
+
+      for (const abs of paths) {
+        try {
+          const record = parseFailureContext(readFileSync(abs, 'utf8'), relative(cwd, abs));
+          if (record) this.upsertFailure(record);
+        } catch {
+          // One unreadable record must not abort the rest.
+        }
+      }
+      return true;
+    },
+
     queryFailures(filter = {}) {
+      this.ensureFailuresFresh();
       const where = [];
       const args = [];
       if (filter.uuid) { where.push('task_uuid = ?'); args.push(filter.uuid); }
