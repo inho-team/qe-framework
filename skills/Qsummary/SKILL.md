@@ -1,5 +1,6 @@
 ---
 name: Qsummary
+user_invocable: false
 description: Summarizes what was done, why, and what comes next in five lines or fewer. Use when wrapping up a session or when the user asks for a work summary, recap, or "what did we do".
 invocation_trigger: When the user asks for a work summary or recap, or when a session is being wrapped up and a dense What/Why/Next digest would help the next session start faster.
 recommendedModel: haiku

@@ -1,5 +1,6 @@
 ---
 name: Qsivs-config
+user_invocable: false
 description: View and modify the single-AI SIVS role configuration. Use when the user wants to set active-client model or reasoning effort for a SIVS stage.
 invocation_trigger: When the user wants to view or change SIVS role configuration, model assignment, or effort level.
 recommendedModel: haiku

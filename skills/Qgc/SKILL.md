@@ -1,7 +1,7 @@
 ---
 name: Qgc
 description: Unified garbage collection for QE: archive completed tasks, sweep stale .qe artifacts, and analyze code garbage such as doc-code drift, rule violations, and dead code.
-user_invocable: true
+user_invocable: false
 invocation_trigger: When the user wants archive, sweep, .qe cleanup, garbage collection, code cleanup, stale code checks, quality debt audits, dead code detection, or drift analysis.
 recommendedModel: sonnet
 ---

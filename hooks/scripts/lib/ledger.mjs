@@ -28,11 +28,12 @@ import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWriteJson } from './state.mjs';
 import { resolveActivePlanSlug } from './plan-resolver.mjs';
+import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
 
 const PLANS_DIR = '.qe/planning/plans';
 const STATUS_ENUM = ['pending', 'active', 'complete', 'failed', 'blocked'];
 // 'measurement' added for phase-report measured-evidence sourcing; all other values unchanged.
-const EVENT_ENUM = ['created', 'started', 'checkpoint', 'blocker', 'failed', 'measurement'];
+const EVENT_ENUM = ['created', 'started', 'checkpoint', 'blocker', 'failed', 'measurement', 'verified'];
 const PROGRESS_HEADING = '## Phase Progress';
 const STATUS_TAIL_BYTES = 8192;
 
@@ -179,6 +180,51 @@ export function append(cwd, slug, { goalId, event, status, evidence = '' }) {
   writeGoals(cwd, slug, doc); // atomic; only the mutated object changed in-memory
   recordEvent(cwd, slug, { ts: nowIso(), event, goalId, status: status || goal.status, evidence, attempt: goal.attempts });
   return { goalId, status: goal.status, attempts: goal.attempts };
+}
+
+/**
+ * Advance the Plan-owned Goal queue by one safe lifecycle action.
+ *
+ * `next` starts the first pending Goal only when no Goal is active or blocked.
+ * `complete` requires evidence for the sole active Goal and writes a reviewed,
+ * provenance-linked knowledge page. This is the only normal write-back path.
+ */
+export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) {
+  const doc = readGoals(cwd, slug);
+  if (!doc || !Array.isArray(doc.goals)) throw new Error(`no goals.json for slug ${slug}`);
+  const active = doc.goals.find((goal) => goal.status === 'active');
+  const blocked = doc.goals.find((goal) => goal.status === 'blocked');
+
+  if (action === 'next') {
+    if (active) return { action: 'continue', goal: { id: active.id, title: active.title } };
+    if (blocked) return { action: 'blocked', goal: { id: blocked.id, title: blocked.title } };
+    const next = doc.goals.find((goal) => goal.status === 'pending');
+    if (!next) return { action: 'complete', total: doc.goals.length };
+    const result = append(cwd, slug, { goalId: next.id, event: 'started', status: 'active' });
+    renderState(cwd, slug);
+    return { action: 'started', goal: { id: next.id, title: next.title }, attempts: result.attempts };
+  }
+
+  if (action === 'complete') {
+    if (!active) throw new Error('no active goal to complete');
+    const proof = String(evidence || '').trim();
+    if (!proof) throw new Error('verified completion requires evidence');
+    append(cwd, slug, { goalId: active.id, event: 'verified', status: 'complete', evidence: proof });
+    const knowledge = writeVerifiedGoalKnowledge(cwd, { slug, goal: active, evidence: proof });
+    renderState(cwd, slug);
+    return { action: 'completed', goal: { id: active.id, title: active.title }, knowledge };
+  }
+
+  if (action === 'block') {
+    if (!active) throw new Error('no active goal to block');
+    const reason = String(evidence || '').trim();
+    if (!reason) throw new Error('blocking a goal requires evidence');
+    append(cwd, slug, { goalId: active.id, event: 'blocker', status: 'blocked', evidence: reason });
+    renderState(cwd, slug);
+    return { action: 'blocked', goal: { id: active.id, title: active.title } };
+  }
+
+  throw new Error(`invalid advance action: ${action}`);
 }
 
 /** Render STATE.md's "## Phase Progress" block from goals.json (derived view). */
@@ -891,6 +937,7 @@ function main() {
     let res;
     if (cmd === 'create-goals') res = createGoals(cwd, slug, args.goal);
     else if (cmd === 'append') res = append(cwd, slug, { goalId: args['goal-id'], event: args.event, status: args.status, evidence: args.evidence });
+    else if (cmd === 'advance') res = advanceGoal(cwd, slug, { action: args.action, evidence: args.evidence });
     else if (cmd === 'render-state') res = renderState(cwd, slug);
     else if (cmd === 'status') res = status(cwd, slug);
     else { console.error(`ledger: unknown command '${cmd}'`); process.exit(2); }

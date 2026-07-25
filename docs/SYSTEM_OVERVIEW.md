@@ -47,19 +47,15 @@ The public documentation parity pass is summarized in
 ## User Workflow
 
 ```
-Claude: /Qinit → /Qcontext init → /Qplan → /Qgs → /Qexecute → /Qexecute -verify
-Codex:  $Qinit → $Qcontext init → $Qplan → $Qgs → $Qexecute → $Qexecute -verify
-        Setup     Context          Plan     Spec    Execute       Verify
+Claude: /Qplan → [initialize if needed] → [Plan-owned Goal loop]
+Codex:  $Qplan → [initialize if needed] → [Plan-owned Goal loop]
+        Plan       setup              knowledge → spec → execute → verify
 ```
 
 | Step | Claude | Codex | Purpose |
 |------|--------|-------|---------|
-| Setup | `/Qinit` | `$Qinit` | Initialize project, directory structure, conventions |
-| Context | `/Qcontext init` | `$Qcontext init` | Set up folder-aware context partitioning |
-| Plan | `/Qplan` | `$Qplan` | Create roadmap, phases, requirements |
-| Spec | `/Qgs` | `$Qgs` | Generate TASK_REQUEST + VERIFY_CHECKLIST |
-| Execute | `/Qexecute` | `$Qexecute` | Implement via parallel Haiku Wave |
-| Verify | `/Qexecute -verify` | `$Qexecute -verify` | Test → review → fix quality loop |
+| Plan | `/Qplan` | `$Qplan` | Create roadmap, phases, requirements, and ordered Goals |
+| Goal loop | internal | internal | Retrieve QE knowledge, generate spec, implement, verify, and advance only on evidence |
 
 ---
 

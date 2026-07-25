@@ -1,5 +1,6 @@
 ---
 name: Qsecret
+user_invocable: false
 description: 'Manage API keys and tokens through OS-backed secret storage so QE can use them without storing plaintext in the project. Supports metadata-only project/global registries plus secure execution with env injection.'
 invocation_trigger: When the user wants to store, rotate, list, delete, or safely use API keys, tokens, or other credentials in QE Framework.
 recommendedModel: haiku

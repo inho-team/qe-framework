@@ -53,18 +53,19 @@ function expectPass(root, skill = 'Qplan', extra = {}) {
   const result = invoke(root, { tool_name: 'Skill', tool_input: { skill, ...extra } });
   assert.equal(result.status, 0, `expected pass: ${result.status}; ${result.stdout}${result.stderr}`);
 }
-/** Asserts a direct PSE Skill invocation is blocked (exit 2) with the active-prefix Qgoal guidance. */
-function expectBlock(root, skill = 'Qplan', { client = 'claude', extra = {} } = {}) {
+/** Asserts a direct internal PSE Skill invocation is blocked (exit 2) with the active-prefix Qgoal guidance. */
+function expectBlock(root, skill = 'Qexecute', { client = 'claude', extra = {} } = {}) {
   const result = invoke(root, { tool_name: 'Skill', tool_input: { skill, ...extra } }, { client });
   const prefix = client === 'codex' ? '$' : '/';
   assert.equal(result.status, 2, `expected exit 2: ${result.status}; ${result.stdout}${result.stderr}`);
   assert.match(`${result.stdout}${result.stderr}`, new RegExp(`\\${prefix}Qgoal \\{목표\\}`));
 }
 
-ok('direct PSE call blocks with Claude prefix', () => expectBlock(fixtureRoot()));
+ok('direct internal PSE call blocks with Claude prefix', () => expectBlock(fixtureRoot()));
+ok('Qplan is the public controller and passes without a goal marker', () => expectPass(fixtureRoot(), 'Qplan'));
 ok('qe-framework namespace and Qrt exact-match block', () => expectBlock(fixtureRoot(), 'qe-framework:Qrt'));
 ok('normalization variants (space/case/doubled prefix) still block', () => {
-  for (const skill of ['qe-framework: Qplan', ' Qplan ', 'QPLAN', 'qe-framework:qe-framework:Qexecute', 'Qgs', 'Qgenerate-spec']) {
+  for (const skill of ['qe-framework:qe-framework:Qexecute', 'Qgs', 'Qgenerate-spec', 'Qrt']) {
     const result = invoke(fixtureRoot(), { tool_name: 'Skill', tool_input: { skill } });
     assert.equal(result.status, 2, `bypass variant not blocked: [${skill}] status=${result.status}`);
   }
@@ -96,7 +97,7 @@ for (const [name, runtime] of [
   ok(`${name} blocks`, () => {
     const root = fixtureRoot();
     writeJson(root, '.qe/state/unified-state.json', { goalRuntime: runtime });
-    expectBlock(root);
+    expectBlock(root, 'Qexecute');
   });
 }
 ok('expired marker plus existing UUID artifact passes', () => {
@@ -124,7 +125,7 @@ ok('fresh strictly-enabled utopia passes and expired does not', () => {
   expectPass(root, 'Qplan');
   const expired = fixtureRoot();
   writeJson(expired, '.qe/state/utopia-state.json', { enabled: true, activatedAt: new Date(NOW - 24 * 60 * 60 * 1000 - 1).toISOString() });
-  expectBlock(expired);
+  expectBlock(expired, 'Qexecute');
 });
 ok('allowDirect accepts only boolean true', () => {
   const pass = fixtureRoot();
@@ -133,7 +134,7 @@ ok('allowDirect accepts only boolean true', () => {
   for (const value of ['true', 1, {}, false]) {
     const root = fixtureRoot();
     writeJson(root, '.qe/config.json', { goalRuntime: { allowDirect: value } });
-    expectBlock(root);
+    expectBlock(root, 'Qexecute');
   }
 });
 ok('non-PSE Skill output remains byte-identical to baseline fixture', () => {
@@ -154,15 +155,15 @@ ok('non-Skill tool output remains byte-identical to baseline fixture', () => {
 });
 ok('Claude and Codex prefix rendering have policy parity', () => {
   assert.equal(renderSkillCommand('Qgoal', '{목표}', { client: 'claude' }).slice(1), renderSkillCommand('Qgoal', '{목표}', { client: 'codex' }).slice(1));
-  expectBlock(fixtureRoot(), 'Qplan', { client: 'codex' });
+  expectPass(fixtureRoot(), 'Qplan');
 });
 ok('p95 < 100ms after five warm-ups', () => {
   const root = fixtureRoot();
-  for (let index = 0; index < 5; index += 1) expectBlock(root);
+  for (let index = 0; index < 5; index += 1) expectBlock(root, 'Qexecute');
   const samples = [];
   for (let index = 0; index < 50; index += 1) {
     const started = performance.now();
-    expectBlock(root);
+    expectBlock(root, 'Qexecute');
     samples.push(performance.now() - started);
   }
   samples.sort((a, b) => a - b);
@@ -175,7 +176,7 @@ ok('p95 < 100ms with a large hex-rich args string (UUID fan-out cap)', () => {
   // ~10k distinct 8-hex tokens — the worst-case "user pasted a spec/log" arg on
   // the marker-less block path. The MAX_UUID_CANDIDATES cap must keep this bounded.
   const bigArgs = Array.from({ length: 10_000 }, (_, i) => i.toString(16).padStart(8, '0')).join(' ');
-  const payload = { tool_name: 'Skill', tool_input: { skill: 'Qplan', args: bigArgs } };
+  const payload = { tool_name: 'Skill', tool_input: { skill: 'Qexecute', args: bigArgs } };
   for (let index = 0; index < 5; index += 1) invoke(root, payload);
   const samples = [];
   for (let index = 0; index < 50; index += 1) {

@@ -1,5 +1,6 @@
 ---
 name: Qcollect-skill
+user_invocable: false
 description: Use when collecting verified project-local coding guidance into .claude/skills based on the project tech stack, with TTL and user-edit protection.
 invocation_trigger: Use when the user explicitly asks to collect, refresh, or install project-local stack skills.
 recommendedModel: sonnet

@@ -1,5 +1,6 @@
 ---
 name: Qautoresearch
+user_invocable: false
 description: "Autonomous experiment loop inspired by Karpathy's autoresearch. Repeatedly modifies target files, runs an experiment, evaluates a single metric, and keeps or discards the change — looping indefinitely until manually stopped. Use when optimizing code through iterative experimentation: ML training, algorithm benchmarks, build optimization, performance tuning, multi-file refactoring. Distinct from Edeep-researcher (web research) and Qexecute -utopia (task confirmation skip) — this skill runs a code-modify-evaluate loop."
 metadata: 
 source: "https://github.com/karpathy/autoresearch"

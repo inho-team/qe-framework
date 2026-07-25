@@ -1,7 +1,7 @@
 ---
 name: Qmcp
 description: Unified MCP operations for QE: check MCP client/server status, guide MCP server setup, and synchronize generic MCP config across supported clients.
-user_invocable: true
+user_invocable: false
 allowed-tools: "Bash(command:*), Bash(node:*), Bash(claude mcp:*), Bash(test:*), Bash(sed:*)"
 invocation_trigger: When the user wants MCP preflight, MCP server setup guidance, or MCP config sync across Claude, Codex, Gemini, or QE-managed clients.
 recommendedModel: haiku

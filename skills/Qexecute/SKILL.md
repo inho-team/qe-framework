@@ -50,9 +50,9 @@ skill. It reads the actual `TASK_REQUEST` — not the user's phrasing — to dec
 
 ## Step 1: Document Discovery
 
-**Wiki Knowledge Pull (조건부 — `.qe/wiki/`가 있을 때만):** `test -d .qe/wiki`가 참이면
-`node <QE plugin>/scripts/lib/wiki-retrieve.mjs "<task 의도>"`(cwd=현재 프로젝트)로 누적 지식을
-회수해 실행 컨텍스트에 반영(`tier: reviewed` 우선). 없으면 조용히 skip.
+**Plan Knowledge Pull:** Qplan performs knowledge retrieval before it creates this internal
+execution task. If the task needs more context, use `node scripts/qe-plan-context.mjs "<task intent>"`
+and verify selected source documents; do not invoke a user-facing wiki workflow.
 
 1. **State utility**: call `parseClaudeTaskTable(cwd)` from `hooks/scripts/lib/state.mjs`
    (prefers `.qe/TASK_LOG.md`, falls back to the legacy Claude task table).

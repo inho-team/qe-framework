@@ -101,12 +101,12 @@ const ASSERTIONS = [
   {
     skill: 'Qplan',
     required: [
-      'end a response without the next command: block — this is a hard failure', // line 251: explicit hard failure on missing handoff (distinctive: consequence statement)
-      'critical: after completing planning, you must display this structured output as the last thing in your response', // line 188-190: handoff position mandate (distinctive: complete display rule)
+      'qplan is the user-facing control surface for work', // Plan-first public entry point; internal QE capabilities must not leak into the user workflow
+      'only a verified goal with explicit evidence may write back to the wiki', // Evidence-gated knowledge write-back is the Plan-owned Goal loop invariant
     ],
     forbidden: [
-      // Tripwire: handoff logic must not be skippable (non-negated)
-      { phrase: 'may skip the handoff', context: 'Policy' },
+      // Tripwire: verification must never be weakened to allow evidence-free write-back
+      { phrase: 'verified completion does not require evidence', context: 'Policy' },
     ],
   },
 ];

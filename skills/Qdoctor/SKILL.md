@@ -1,5 +1,6 @@
 ---
 name: Qdoctor
+user_invocable: false
 description: "Diagnoses and repairs QE installation health across qe-framework, MCP client config, and the project .qe directory. Use for 'doctor', 'check QE health', dependency verification, corrupted .qe state, or repair guidance. Distinct from Qupdate, which updates installed assets."
 invocation_trigger: When QE dependencies or project state need health checks, repair recommendations, or safe automatic fixes.
 recommendedModel: haiku

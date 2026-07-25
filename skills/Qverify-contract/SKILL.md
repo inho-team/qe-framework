@@ -1,5 +1,6 @@
 ---
 name: Qverify-contract
+user_invocable: false
 description: Verify that an implementation and its tests honor a business-logic contract stored under .qe/contracts/active/. Delegates to the Econtract-judge LLM agent on cache miss; returns cached verdict on cache hit. Use when the user says 'verify contract', 'check contract', '/Qverify-contract', or when called from /Qexecute -verify.
 ---
 

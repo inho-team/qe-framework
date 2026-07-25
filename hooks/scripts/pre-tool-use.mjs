@@ -86,7 +86,9 @@ function readStandaloneUtopiaState(root) {
 // Lowercased for lenient-dispatcher hardening: whitespace, repeated namespace
 // prefixes, and case variants must not slip past the gate (no case-colliding
 // skill names exist, so folding adds zero false positives).
-const PSE_SKILLS = new Set(['qplan', 'qgs', 'qgenerate-spec', 'qexecute', 'qrt']);
+// Qplan is the public Plan controller. The remaining PSE units are internal
+// capabilities and retain goal-pipeline admission.
+const PSE_SKILLS = new Set(['qgs', 'qgenerate-spec', 'qexecute', 'qrt']);
 const TASK_CONTINUITY_DIRS = ['pending', 'in-progress', 'on-hold'];
 
 /** Fresh read of the goalRuntime namespace right before PSE admission; null on any failure. */

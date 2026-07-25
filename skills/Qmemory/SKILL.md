@@ -1,7 +1,7 @@
 ---
 name: Qmemory
 description: "Manage project memory — add, list, prune cross-session knowledge. Use when asked to remember conventions, gotchas, or decisions."
-user_invocable: true
+user_invocable: false
 recommendedModel: haiku
 ---
 

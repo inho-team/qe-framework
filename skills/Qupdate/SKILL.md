@@ -1,5 +1,6 @@
 ---
 name: Qupdate
+user_invocable: false
 description: 'Updates QE marketplace metadata/cache, the QE Framework body, installed Codex assets, and the codex-plugin-cc bridge using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", or "codex plugin".'
 allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*), Bash(git -C:*)"
 invocation_trigger: When the framework, its Codex assets, or the codex-plugin-cc bridge need updating.

@@ -10,7 +10,7 @@
 2. **Auditable** — every routing decision and gate verdict is logged (`.qe/state/sivs-audit.log`, gate audits); nothing is a black box you take on faith.
 3. **Transparent** — the whole loop is plain files and skills you can read: `Plan → Spec → Execute → Verify`, no hidden orchestration.
 
-**See it work:** run `/Qplan` on a real task and watch the spec gate reject a weak plan, then a high-reasoning Verify lead produce QA evidence with isolated subagents. Role contract: [`core/SIVS_SINGLE_AI_MODEL.md`](core/SIVS_SINGLE_AI_MODEL.md).
+**See it work:** run `/Qplan` on a real task. QE creates a Plan with ordered Goals, then internally performs knowledge preflight, spec, execution, and verification for each Goal. Role contract: [`core/SIVS_SINGLE_AI_MODEL.md`](core/SIVS_SINGLE_AI_MODEL.md).
 
 ---
 
@@ -26,9 +26,8 @@ Rendered guides — view in any browser, no install needed.
 ---
 
 ```
-Claude: /Qplan  →  /Qgs  →  /Qexecute  →  /Qexecute -verify
-Codex:  $Qplan  →  $Qgs  →  $Qexecute  →  $Qexecute -verify
-        Plan       Spec     Execute          Verify
+Claude: /Qplan → [Goal loop: knowledge → spec → execute → verify]
+Codex:  $Qplan → [Goal loop: knowledge → spec → execute → verify]
 ```
 
 ---
@@ -167,26 +166,21 @@ claude --plugin-dir /path/to/qe-framework
 
 ## Quick Start
 
-In Claude, you only need to remember two commands:
+In Claude, you only need to remember the Plan entry point:
 
 ```
-/Qinit    # Set up project and optional single-AI QA settings
-/Qplan    # Start working — the framework guides you through every next step
+/Qplan "what you want to achieve"    # Initializes when needed, then runs the Plan-owned Goal loop
 ```
 
-`/Qinit` keeps the active client for every SIVS stage and can enable high-reasoning QA for Verify and Supervise. After that, `/Qplan` takes over and tells you exactly what to run next.
+`/Qplan` initializes QE when needed, owns the Plan, and advances verified Goals internally. You review material decisions rather than run stage commands.
 
 In Codex, use the same skill names with the Codex skill prefix:
 
 ```text
-$Qinit
-$Qplan
+$Qplan "what you want to achieve"
 ```
 
-Every follow-up command should keep the active client prefix: Claude `/Q...`, Codex `$Q...`.
-
-Shared QE skills render follow-up commands with the active client prefix:
-Claude uses `/Q...`; Codex uses `$Q...`.
+Use `/Qplan` or `$Qplan` to start or re-plan work. Internal QE stages do not require user commands.
 
 `Qinit` creates the active client's project instruction artifact. Claude uses
 `CLAUDE.md`; Codex-capable projects may use `AGENTS.md`. Shared QE state and
@@ -197,18 +191,17 @@ reference.
 
 ## Architecture
 
-### PSE Chain (User Workflow)
+### Plan-owned Goal Loop
 
-The 4-step pipeline that drives all work:
+The Plan is the user workflow; Spec, Execute, and Verify are internal per-Goal stages:
 
 | Step | Claude | Codex | What it does |
 |------|--------|-------|-------------|
-| **Plan** | `/Qplan` | `$Qplan` | Roadmap, phases, requirements |
-| **Spec** | `/Qgs` | `$Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
-| **Execute** | `/Qexecute` | `$Qexecute` | Parallel Wave execution with Haiku Teammates |
-| **Verify** | `/Qexecute -verify` | `$Qexecute -verify` | Test → review → fix quality loop |
+| **Plan** | `/Qplan` | `$Qplan` | Roadmap, phases, requirements, ordered Goals |
+| **Knowledge** | internal | internal | Retrieve relevant QE evidence and project wiki pointers |
+| **Spec / Execute / Verify** | internal | internal | Generate evidence, implement, test, review, and gate the active Goal |
 
-`/Qexecute` (`$Qexecute` on Codex) is the sequential fallback when tasks can't be parallelized.
+Only verified Goal outcomes are added to the derived project wiki; QE documents remain the source of truth and qe.db remains the lookup index.
 
 Codex uses the same PSE skills with `$Q...`. The QE client adapter maps Claude
 Agent-tool workflows onto Codex native subagents and falls back to role-separated

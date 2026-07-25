@@ -1,5 +1,6 @@
 ---
 name: Qshadow
+user_invocable: false
 description: Manage the QE shadow-git snapshot store — create, list, diff, restore, and prune isolated shadow snapshots. Use when the user wants to checkpoint, review, or recover working-tree state without touching any real git repo.
 invocation_trigger: When the user says snapshot, shadow, checkpoint, review shadow history, restore from snapshot, or prune snapshots.
 recommendedModel: haiku

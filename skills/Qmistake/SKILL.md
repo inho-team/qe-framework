@@ -1,5 +1,6 @@
 ---
 name: Qmistake
+user_invocable: false
 description: Record mistakes so they are never repeated. When the user points out a mistake, confirms it and saves to .qe/MISTAKE.md. Loaded at every session start.
 invocation_trigger: When the user says something was wrong, points out a mistake, corrects behavior, or says "don't do that again". Also triggered by /Qmistake directly.
 recommendedModel: haiku

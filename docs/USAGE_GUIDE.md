@@ -55,16 +55,16 @@ safety hook (Codex requires you to trust hook definitions; the installer never a
 > assets too — skills matched by a name manifest, agents + hook fence by their managed fences.
 > A plain uninstall reports Codex orphans (dry-run) and never deletes non-QE content.
 
-## 2. Initialize a Project
+## 2. Start a Plan
 
-Use the active client command:
+Use the Plan entry point:
 
 ```text
-Claude: /Qinit
-Codex:  $Qinit
+Claude: /Qplan "what you want to achieve"
+Codex:  $Qplan "what you want to achieve"
 ```
 
-This creates:
+Qplan initializes QE internally when needed, then creates:
 - default project instruction artifact (Claude adapter: `CLAUDE.md`; Codex-capable projects may use `AGENTS.md`)
 - `.qe/`
 - project analysis files
@@ -75,45 +75,17 @@ This creates:
 Claude uses slash commands. Codex uses the same QE skill names with the `$`
 prefix.
 
-### Plan
+### Plan-owned Goal loop
 
 ```text
-Claude: /Qplan
-Codex:  $Qplan
+Claude: /Qplan "what you want to achieve"
+Codex:  $Qplan "what you want to achieve"
 ```
 
-Creates or updates planning artifacts in `.qe/planning/`.
-
-### Spec
-
-```text
-/Qgs
-$Qgs
-```
-
-Generates task specs from the active plan.
-
-### Execute
-
-```text
-/Qexecute
-$Qexecute
-```
-
-- `single-model`: Claude/Haiku atomic swarm path
-- `hybrid` / `multi-model`: configured implementer runner path
-- `tiered-model`: high-tier planning/judgment with cheaper lower-tier execution
-
-Use `/Qexecute` (`$Qexecute` on Codex) instead when the work is not meaningfully atomic.
-
-### Verify
-
-```text
-/Qexecute -verify
-$Qexecute -verify
-```
-
-Runs the review/verification loop.
+Qplan creates an ordered Goal queue and internally retrieves source-backed QE
+knowledge, generates the Goal's specification, executes it, verifies it, and
+advances only after evidence is recorded. Users do not invoke `Qgs`,
+`Qexecute`, `Qwiki-*`, or ledger commands.
 
 When a workflow relies on agent delegation, QE normalizes the behavior through
 the client adapter. Claude uses the Agent tool; Codex uses generated native

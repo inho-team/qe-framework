@@ -5,7 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
-import { createGoals, append, status, renderState, readGoals, recordEvent, tailLedger } from '../ledger.mjs';
+import { createGoals, append, advanceGoal, status, renderState, readGoals, recordEvent, tailLedger } from '../ledger.mjs';
 
 const SLUG = 'demo-plan';
 
@@ -72,6 +72,36 @@ test('append rejects invalid event/status (schema guard)', () => {
   assert.throws(() => append(cwd, SLUG, { goalId: 'G001', event: 'bogus' }), /invalid event/);
   assert.throws(() => append(cwd, SLUG, { goalId: 'G001', event: 'started', status: 'nope' }), /invalid status/);
   assert.throws(() => append(cwd, SLUG, { goalId: 'GXXX', event: 'started' }), /unknown goalId/);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('advanceGoal starts one Goal at a time and does not skip the active Goal', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['First::first objective', 'Second::second objective']);
+  const first = advanceGoal(cwd, SLUG);
+  assert.deepEqual(first.action, 'started');
+  assert.equal(first.goal.id, 'G001');
+  const again = advanceGoal(cwd, SLUG);
+  assert.equal(again.action, 'continue');
+  assert.equal(again.goal.id, 'G001');
+  const doc = readGoals(cwd, SLUG);
+  assert.equal(doc.goals[0].status, 'active');
+  assert.equal(doc.goals[1].status, 'pending');
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('advanceGoal requires verification evidence, writes knowledge, then advances sequentially', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['First::first objective', 'Second::second objective']);
+  advanceGoal(cwd, SLUG);
+  assert.throws(() => advanceGoal(cwd, SLUG, { action: 'complete' }), /requires evidence/);
+  const completed = advanceGoal(cwd, SLUG, { action: 'complete', evidence: 'tests: node --test passed' });
+  assert.equal(completed.action, 'completed');
+  assert.ok(existsSync(path.join(cwd, '.qe', 'wiki', 'pages', 'plan-goals', 'demo-plan-g001.md')));
+  assert.equal(readGoals(cwd, SLUG).goals[0].status, 'complete');
+  const next = advanceGoal(cwd, SLUG);
+  assert.equal(next.action, 'started');
+  assert.equal(next.goal.id, 'G002');
   rmSync(cwd, { recursive: true, force: true });
 });
 

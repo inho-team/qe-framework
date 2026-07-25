@@ -4,17 +4,18 @@
 >
 > **Client prefix contract**: Claude renders QE skills as `/Q...`; Codex renders the same skills as `$Q...`.
 
-## Goal-first Entry Point
+## Plan-first Entry Point
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `/Qgoal {목표}` / `$Qgoal {목표}` | Start any new goal. | **Recommended entry point.** The router selects the workflow. |
+| `/Qplan {의도}` / `$Qplan {의도}` | Start or re-plan work. | **Recommended entry point.** Qplan owns the ordered Goal queue and internal lifecycle. |
+| `/Qgoal {목표}` / `$Qgoal {목표}` | State a goal as an intake alias. | Routes the intent into Qplan; it does not create a separate workflow. |
 
 ## Core Components (Internal PSE Chain)
 
 | Skill | Invocation Trigger | Core Benefit |
 |-------|-------------------|--------------|
-| `Qplan`, `Qgs`/`Qgenerate-spec`, `Qexecute`, `Qrt` | Router and active UUID handoffs only. | Internal PSE units; task artifacts preserve in-chain continuity. |
+| `Qgs`/`Qgenerate-spec`, `Qexecute`, `Qrt` | Qplan-owned Goal lifecycle only. | Internal PSE units; users do not run stage commands. |
 
 ## Specialized Quality & Debugging
 

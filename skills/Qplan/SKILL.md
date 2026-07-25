@@ -1,255 +1,95 @@
 ---
 name: Qplan
-description: "Use when the goal router or an active plan needs roadmap, phase, or handoff construction — router-owned internal PSE unit, entered via the goal surface. Use Qgoal to start; use Qgs for TASK_REQUEST specs."
-user_invocable: false
+description: "Use when starting or resuming a Plan. Creates or updates a roadmap, then internally advances one verified Goal at a time through knowledge, spec, execution, and verification. Use Qgoal only as a goal-intake alias."
+user_invocable: true
 recommendedModel: opus
 tier: core
 ---
 
-# Qplan — Task Planning (PSE Step 1: PLAN)
+# Qplan — Plan-owned Goal Controller
 
-> Internal PSE unit. Users start work with `{adapter.commandPrefix}Qgoal {목표}`; `user_invocable` is catalog/documentation metadata only. Runtime enforcement is the G010 PreToolUse gate.
+`Qplan` is the user-facing control surface for work. A Plan owns an ordered
+Goal queue; Goals are not separate user commands. The user supplies an intent,
+reviews material Plan changes, and receives results. QE runs the internal work.
 
-## Role
-You are the planner. Your job is to understand what the user wants to do, create an appropriately-sized plan, and hand off to the next step. A bug fix gets a one-line plan. A new project gets a full roadmap. Match the plan to the task, not the other way around.
+## Model
 
-## PSE Chain Overview
-The QE framework enforces a strict chain. Each skill handles ONE step and guides the user to the next:
-
-```
-{adapter.commandPrefix}Qplan (PLAN) → {adapter.commandPrefix}Qgs (SPEC) → {adapter.commandPrefix}Qexecute (EXECUTE) → {adapter.commandPrefix}Qexecute -verify (VERIFY)
-```
-
-**Your responsibility is PLAN only. You MUST NOT write code, invoke `{adapter.commandPrefix}Qgs`, or invoke `{adapter.commandPrefix}Qexecute`.**
-
-## Pre-check: QE Framework Initialization
-
-Before starting planning, verify that the QE framework is set up. Treat the project instruction artifact as client-specific:
-- Claude projects normally use `CLAUDE.md`.
-- Codex-capable projects may also use `AGENTS.md`, but `.qe/` remains the QE state source of truth.
-
-1. Check if `CLAUDE.md` or `AGENTS.md` exists in the project root.
-2. Check if `.qe/` directory exists.
-
-**If either is missing**, the project has not been initialized:
-- **STOP** and display:
-  ```
-  ⚠️ QE framework is not initialized.
-  Please run {adapter.commandPrefix}Qinit first to set up the project.
-
-  Qinit handles project info collection, auto-analysis, and SIVS engine configuration in one step.
-  ```
-- Do NOT proceed with planning. Wait for the user to run `{adapter.commandPrefix}Qinit` first.
-
-**If both exist**, proceed to Step 0.5.
-
-### Step 0.4: Optional MCP Preflight
-
-If planning depends on a user-requested MCP server, invoke
-`{adapter.commandPrefix}Qmcp ensure` to check local client configuration before
-using that server.
-
-- `PASS` → the requested MCP server may be used.
-- `WARN` → continue with local-only planning and record the degraded MCP path.
-- `FAIL` → stop only when the plan explicitly depends on that MCP server;
-  otherwise continue without claiming MCP coverage.
-
-### Step 0.5: SIVS Single-AI Check (Silent)
-
-If `.qe/sivs-config.json` exists, validate that it contains no legacy `engine`
-or `background` field. The active client owns every SIVS stage; do not probe or
-install a second client.
-
-## Workflow
-
-### Step 0.6: Derive Plan Slug (silent, automatic)
-
-Before any planning writes, derive a **plan slug** — the identifier that scopes all files under `.qe/planning/plans/{slug}/`. The slug is the 1st-class name of this plan; Phase numbers are plan-local, never part of the global address. This lets multiple terminals run `{adapter.commandPrefix}Qplan` in parallel without clobbering each other's state.
-
-**Derivation rules** (do NOT ask the user):
-1. Extract 2–4 salient keywords from the user's planning prompt (domain verbs/nouns). Drop stopwords ("the", "a", "for", "에", "를", …), filler ("please", "좀"), and meta words ("plan", "project", "feature").
-2. Transliterate non-Latin tokens to Latin (e.g., "인증" → "auth", "결제" → "payment", "대시보드" → "dashboard"). When a clean transliteration isn't obvious, use the English equivalent.
-3. Lowercase, join with `-`, keep only `[a-z0-9-]`, strip leading/trailing dashes. Max 40 chars.
-4. **Collision**: if `.qe/planning/plans/{slug}/` already exists, append `-2`, `-3`, …
-5. **Micro/Small tasks** still get a slug. Bug fixes with no obvious keywords → `fix-{4-char-hex}` via `openssl rand -hex 2`.
-
-Examples: "인증 모듈 리팩터링" → `auth-refactor` · "JPA Audit 걸어줘" → `jpa-audit` · "Dashboard v2 기획" → `dashboard-v2` · "로그인 버튼 정렬 버그" → `login-button-align`/`fix-b4c2`.
-
-Record the chosen slug internally; it appears in the handoff `Next Command` so the user sees it but is not asked to approve.
-
-### Step 0.7: Assess Scale
-
-Determine the task scale:
-
-| Signal | Scale | Workflow |
-|--------|-------|----------|
-| Single bug fix, small refactor, one function | **Micro** | Skip to Micro Plan |
-| One feature, one component, a few files | **Small** | Skip to Small Plan |
-| Multi-feature, multi-phase, new project | **Full** | Full Planning |
-| Massive refactor, 10+ files, adversarial verification needed | **Workflow** | Suggest `/workflows` |
-
-**Workflow** (dynamic workflow escalation):
-1. Suggest the user create a dynamic workflow instead of PSE chain: "This task is large enough to benefit from a dynamic workflow. Try: 'Create a workflow for this task', or put the `ultracode` keyword in your prompt (it sets `xhigh` reasoning + dynamic workflow orchestration for the session)."
-2. If the user prefers PSE, proceed with Full Planning as normal.
-3. Dynamic workflows handle their own orchestration (up to 1,000 subagents) — QE planning is not needed.
-
-**Micro Plan** (estimated < 30 min of work):
-1. Confirm the task with the user in 1-2 lines.
-2. Skip roadmap, phases, and research — but still derive the slug (Step 0.6) and run Step 3.5 (Session Binding) so consumer skills can find this plan.
-3. Go directly to handoff with `Next Command: {adapter.commandPrefix}Qgs {slug}: {task}`.
-
-**Small Plan** (one feature / one component):
-1. Brief discovery: ask 1-2 clarifying questions max.
-2. Create a single-phase plan under `.qe/planning/plans/{slug}/` (ROADMAP.md optional, no Wave Model).
-3. List 3-7 tasks in plain text.
-4. Run Step 3.5 (Session Binding) then go to handoff.
-
-**Full Planning** (multi-phase project):
-Continue to Step 1 below.
-
-### Step 1: Deep Discovery & Research (Full Planning only)
-- **Interactive Discovery**: Use the `ask_user` tool (choice/text) to gather initial requirements and constraints. Do not guess; present options.
-- **Requirement Tiering**: Use `ask_user` to let the user select the priority (P0/P1/P2) for each core feature.
-- **Proactive Research**: If the domain is new, run **Edeep-researcher** first. Store findings in `.qe/planning/research/` (global — shared across all plans).
-- **Research Validation (MANDATORY)**: Before incorporating any research finding into the plan, verify key claims against the actual system:
-  1. "Feature X exists" → run `command X --help` or `command --version` via Bash
-  2. "API supports Y" → fetch official docs or run a minimal test
-  3. "File format accepts Z" → create a test file and run the validator
-  4. "Platform has N events/fields" → check against the actual working configuration
-  If verification fails, remove the claim from the plan or tag it `[UNVERIFIED]`. Never build phases around unverified external capabilities. This prevents the class of failure where research hallucinations propagate through the entire PSE chain unchecked.
-
-### Step 2: Strategic Roadmap Design (Full Planning only)
-Design a phased roadmap in `.qe/planning/plans/{slug}/ROADMAP.md`:
-- **Phase Goal**: Define a verifiable high-level objective for each phase. Phase numbers are plan-local (Phase 1, 2, 3… within this slug).
-- **Dependency Mapping**: Use the **Wave Model** to group independent tasks for parallel execution.
-- **Traceability**: Link each Phase to specific Requirement IDs in `plans/{slug}/REQUIREMENTS.md`.
-
-### Step 3: Activate Phase & Hand Off (MANDATORY)
-- **Activate Phase**: Write `.qe/planning/plans/{slug}/STATE.md` with the active phase line `- **Active Phase**: Phase {N} — {PhaseName}`.
-- **Materialize goal ledger** (Full Planning — needs ROADMAP Waves): once ROADMAP + STATE exist, run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` then `… render-state --slug {slug}`. This derives an append-only `goals.json` + `ledger.jsonl` from the ROADMAP Waves and regenerates STATE.md's `## Phase Progress` from them — never hand-maintain that block.
-- **STOP HERE**: Do NOT invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qexecute`. You MUST display the full Handoff section below — including the `Next Command:` block. Without it, the user has no way to proceed.
-
-### Step 3.5: Session Binding (MANDATORY — all scales)
-
-Bind this plan to the current terminal session so consumer skills (Qgs/Qexecute/Qexecute -verify) resolve to the right plan automatically.
-
-1. **Project-wide pointer** (always): write `{slug}\n` into `.qe/planning/ACTIVE_PLAN`.
-2. **Session-scoped binding** (best-effort): read `.qe/state/current-session.json` written by the session-start hook. If it parses and has a `session_id`, write `.qe/planning/.sessions/{session_id}.json`:
-   ```json
-   { "activePlanSlug": "{slug}", "updatedAt": "{ISO-8601}" }
-   ```
-   If the session file is missing or unreadable, skip silently — the pointer in step 1 is enough for the fallback.
-3. Create the plan directory if absent: `mkdir -p .qe/planning/plans/{slug}/phases` and `mkdir -p .qe/planning/.sessions`.
-
-### Step 3.6: Workflow Alternative (conditional)
-
-**For tasks assessed as Workflow scale**, display the following instead of the standard handoff:
-
-```
-This task may benefit from a dynamic workflow.
-Try: "Create a workflow for {task description}"
-Or put the `ultracode` keyword in your prompt — it enables xhigh + dynamic workflow orchestration
-for the session (`ultracode` is a session mode, not a plain --effort value).
-Note: `--effort xhigh` alone does not enable workflow orchestration — only `ultracode` does.
-See: docs/CLAUDE_CODE_FEATURES.md
+```text
+Plan → Goal 1 → Goal 2 → … → Goal N
+          │
+          ├─ knowledge preflight
+          ├─ spec
+          ├─ execute
+          ├─ verify
+          └─ verified knowledge write-back
 ```
 
-**If the user confirms they want to proceed with PSE**, continue to Step 4 and display the standard Handoff section.
+- **Plan** is the durable contract: roadmap, requirements, phases, and ordered Goals.
+- **Goal** is the smallest independently verifiable Plan outcome.
+- `.qe/` documents are evidence; `qe.db` is their lookup index; `.qe/wiki/` is a
+  derived project knowledge layer. Do not treat a DB row or LLM summary as the source of truth.
+- Only a verified Goal with explicit evidence may write back to the wiki.
 
-### Step 4 (Post-Execution): Verification & Transition
-After execution is complete (by `{adapter.commandPrefix}Qexecute` + `{adapter.commandPrefix}Qexecute -verify`), review the results:
-- **Phase Report (MANDATORY)**: Run `node hooks/scripts/lib/ledger.mjs phase-report --slug {slug} --phase {N}` and review the output before transitioning. If the report shows any requirement as `unmeasurable`, `deferred`, or `unknown`, surface those findings to the user before proceeding. Do NOT transition if unmet P0 requirements remain unacknowledged.
-- **Gap Handling (Decimal Phase)**: If critical gaps or bugs remain, generate a **Decimal Phase** (e.g., Phase 1.1).
-- **Retrospective**: Before moving to the next whole phase, generate `.qe/planning/plans/{slug}/phases/{X}/RETROSPECTIVE.md` using `core/RETROSPECTIVE_TEMPLATE.md` as the template.
-- **Transition**: Move to the next phase only after all MUST-HAVEs, UAT items, phase report review, and the Retro are done.
+## Entry and initialization
 
-## Documents to Manage
+1. Check for `CLAUDE.md` or `AGENTS.md` and `.qe/`. If either is absent, run the
+   internal Qinit bootstrap before continuing; do not ask the user to invoke it.
+2. Derive a unique slug from the intent (2–4 salient Latin keywords, lowercase
+   `[a-z0-9-]`, max 40 chars; append `-2`, `-3` on collision).
+3. Create or update `.qe/planning/plans/{slug}/` with `ROADMAP.md`,
+   `REQUIREMENTS.md`, and `STATE.md`. Full Plans must divide work into ordered,
+   independently verifiable Wave bullets; these become Goals.
+4. Bind the Plan through `.qe/planning/ACTIVE_PLAN` and the current session binding.
+5. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` and
+   `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
+   the `## Phase Progress` block.
 
-**Per-plan** (under `.qe/planning/plans/{slug}/`):
+## Internal Goal loop
 
-| File / Folder | Purpose |
-|------|---------|
-| `ROADMAP.md` | Phased waves, success criteria, and requirement traceability for this plan. |
-| `STATE.md` | Active phase + `## Phase Progress` (auto-derived from the ledger; do not hand-edit). |
-| `goals.json` | Ordered microgoals (id/objective/status/attempts), derived from ROADMAP Waves. |
-| `ledger.jsonl` | Append-only audit trail of goal events (created/started/checkpoint/blocker/failed/measurement). |
-| `REQUIREMENTS.md` | Functional and non-functional requirements (P0/P1/P2) for this plan. |
-| `phases/{X}/` | Phase artifacts (summaries, retros) for this plan. |
+Run this loop until the Plan is complete, blocked, or needs a material user decision.
+Do not expose `Qgs`, `Qexecute`, `Qwiki-*`, or a copied next-command handoff.
 
-**Global** (under `.qe/planning/`, shared across all plans):
+1. **Select:** Run `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action next`.
+   It starts only the first pending Goal; an active or blocked Goal prevents skipping.
+2. **Knowledge preflight:** Run `node scripts/qe-plan-context.mjs "{Goal objective}"`.
+   Use the returned reviewed wiki entries and QE artifact paths as pointers. Read only
+   the source documents required for the Goal; source files override summaries.
+3. **Internal PSE:** Generate the Goal's TASK_REQUEST and VERIFY_CHECKLIST, execute it,
+   then run the SIVS verification loop. These are internal units, not user commands.
+4. **Gate:** If verification fails or a required decision is unresolved, keep the Goal
+   active or call `advance --action block --evidence "{specific blocker}"`; do not start
+   another Goal. Ask the user only for a material scope, risk, or irreversible choice.
+5. **Complete:** Only after verified evidence exists, run
+   `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action complete --evidence "{evidence}"`.
+   This records the lifecycle event, updates STATE, and writes a provenance-linked
+   reviewed project-wiki page.
+6. Repeat at Step 1. When `advance --action next` returns `complete`, report the Plan
+   outcome, remaining risks, and evidence.
+7. At each completed Phase boundary, generate the retrospective from
+   `core/RETROSPECTIVE_TEMPLATE.md` before advancing the next Phase.
 
-| File / Folder | Purpose |
-|------|---------|
-| `PROJECT.md` | High-level project vision, core pillars, and milestone history. |
-| `DECISION_LOG.md` | Persistent record of architectural and strategic decisions. Decisions usually cut across plans. |
-| `research/` | Deep technical research reports and domain analysis. |
-| `ACTIVE_PLAN` | Single-line pointer to the most-recently-activated plan slug. |
-| `.sessions/{session_id}.json` | Per-session binding `{ activePlanSlug, updatedAt }`. |
+## Goal quality rules
 
-**Backward compatibility**: If an existing project has flat `.qe/planning/ROADMAP.md` / `STATE.md` (pre-Named-Plan era), leave them untouched. New `{adapter.commandPrefix}Qplan` invocations always use the `plans/{slug}/` layout. Consumer skills fall back to the flat files only when no plan is resolvable.
+- One active Goal at a time unless the Plan explicitly models a safe parallel Wave.
+- A Goal must state an objective, observable completion criterion, dependencies, and evidence.
+- Draft plans, model hypotheses, and unverified research never become reviewed project knowledge.
+- Use source-backed contracts, tests, verification reports, and decisions as first-class evidence.
+- Preserve an append-only ledger. Do not rewrite prior Goal events or fabricate completion.
 
-## Handoff (MANDATORY — never skip)
-**CRITICAL**: After completing planning, you MUST display this structured output as the LAST thing in your response. No matter how long the planning or research was, the response MUST end with this handoff. If the handoff is missing, the user cannot proceed to the next step. Fill in the `{...}` placeholders from the actual plan.
+## User communication
 
-### Section 1: Plan ID + Roadmap + PSE Chain (always first)
-
-```
-Plan:  {slug}
-
-Roadmap:  👉 Phase 1  →  ○ Phase 2  →  ○ Phase 3
-          {Name1}        {Name2}        {Name3}
-
-PSE Chain:  ✅ {adapter.commandPrefix}Qplan  →  👉 {adapter.commandPrefix}Qgs  →  {adapter.commandPrefix}Qexecute  →  {adapter.commandPrefix}Qexecute -verify
-```
-
-### Section 2: Plan Summary
-
-```
-## Plan Summary — {slug}
-
-{N} Phases · {M} Waves · ~{T} Tasks
-
-| Phase | Goal | Key Deliverables |
-|-------|------|-----------------|
-| {Phase1Name} | {1-line goal} | {comma-separated deliverables} |
-| {Phase2Name} | {1-line goal} | {comma-separated deliverables} |
-| ... | ... | ... |
-```
-
-### Section 3: Key Decisions (if any exist in DECISION_LOG.md)
-
-```
-## Key Decisions
-
-| ID | Decision | Rationale |
-|----|----------|-----------|
-| D001 | {decision title} | {1-line rationale} |
-| ... | ... | ... |
-```
-
-### Section 4: Next Command (always last, must be easy to copy)
-
-```
-{Phase 한 줄 요약 — 사용자 입력 언어로}
-{다음 명령 라벨 — 사용자 입력 언어로, 예: "다음 명령:" / "Next Command:" / "次のコマンド:"}
-
-  {adapter.commandPrefix}Qgs {slug}: {짧은 별칭}
-```
-
-**Rules:**
-- **`{slug}`는 Step 0.6에서 자동 생성한 이 plan의 식별자다.** Phase 번호가 아니라 slug가 1차 ID — Qgs/Qexecute는 slug로 plan을 resolve한다.
-- `{짧은 별칭}`: 현재 Phase의 짧은 이름만 쓴다 (예: "인증 모듈", "JPA Audit"). Phase의 전체 설명/요구사항/긴 문장을 복사하지 않는다. 최대 6단어.
-- **라벨 언어는 사용자 입력 언어를 따른다**. 사용자가 한글로 말하면 "다음 명령:", 영어로 말하면 "Next Command:".
-- Fallback 줄(`If that doesn't work: {adapter.commandPrefix}Qgenerate-spec ...`)은 **쓰지 않는다** — `Qgs`는 `Qgenerate-spec`의 공식 alias이므로 중복이다.
-- 이 블록이 **응답의 마지막**이어야 한다. 뒤에 설명/대안 금지. **`Next Command` 블록 없이 응답이 끝나면 handoff 실패다.**
+At Plan creation or material replan, show the ordered Goal list, current Goal, success criteria,
+and any required decision. During normal progression, report concise status rather than internal
+commands. On completion, provide the evidence-backed Plan result.
 
 ## Will
-- Create roadmap, requirements, and phase structure.
-- Use Sonnet/Opus for deep architectural reasoning.
-- Always display the structured handoff (PSE Chain → Summary → Decisions → Next Command).
+
+- Create, resume, and advance Plan-owned Goals.
+- Use QE knowledge internally before each Goal and write back only verified outcomes.
+- Run internal spec, execution, and verification units without user command choreography.
 
 ## Will Not
-- Write or modify source code.
-- Invoke `{adapter.commandPrefix}Qgs` or `{adapter.commandPrefix}Qexecute` directly.
-- Skip the handoff or bury the next command in prose.
-- End a response without the `Next Command:` block — this is a hard failure.
+
+- Ask the user to invoke `Qgs`, `Qexecute`, `Qwiki-*`, or a raw ledger command.
+- Skip an active or blocked Goal.
+- Promote LLM-generated text to reviewed knowledge without verification evidence.

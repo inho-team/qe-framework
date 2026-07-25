@@ -1,5 +1,6 @@
 ---
 name: Qcommit
+user_invocable: false
 description: Creates git commits that look human-written — no Co-Authored-By, no AI-style language, no emoji. Use when the user says 'commit', 'push', 'save changes', or wants to save/push code changes.
 invocation_trigger: When changes are ready to be staged and committed to git.
 recommendedModel: haiku

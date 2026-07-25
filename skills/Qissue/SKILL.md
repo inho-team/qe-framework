@@ -1,7 +1,7 @@
 ---
 name: Qissue
 description: File GitHub issues against the qe-framework repo from the CLI. Use for requests like "file a bug", "report an issue", "feature request", "이슈 올려줘", or "버그 리포트". Onboards first-time users with a one-time PAT prompt, then delegates to the `gh` CLI. Default target: `inho-team/qe-framework`.
-user_invocable: true
+user_invocable: false
 invocation_trigger: When the user wants to submit a bug report, feature request, or question to the qe-framework repository (or another repo via `--repo owner/name`).
 recommendedModel: haiku
 ---

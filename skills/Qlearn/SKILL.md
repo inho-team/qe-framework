@@ -1,7 +1,7 @@
 ---
 name: Qlearn
 description: "Cross-session learning memory — records and recalls learnings (mistakes, conventions, gotchas, decisions) in .qe/learnings.md, ranked by time-decayed relevance and injected top-N at session start. Superset of Qmistake."
-user_invocable: true
+user_invocable: false
 metadata:
   author: inho
   version: "1.0.0"

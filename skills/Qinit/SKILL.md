@@ -1,5 +1,6 @@
 ---
 name: Qinit
+user_invocable: false
 description: QE framework (Query Executor) initial setup. Creates the QE state directory, client-specific instruction/config artifacts, and .gitignore entries in a new project, then auto-analyzes the project. Use when the user wants to initialize a project or set up the framework.
 invocation_trigger: When framework initialization, maintenance, or audit is required.
 recommendedModel: haiku

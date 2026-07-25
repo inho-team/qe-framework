@@ -29,11 +29,11 @@ All skills, agents, and documents in this framework MUST use these standard term
 ### PSE Chain (outer workflow)
 
 ```
-User: $Qgoal {목표} / /Qgoal {목표} → router
-Internal: Qplan → Qgs (Qgenerate-spec) → Qexecute → Qexecute -verify / Qrt
+User: $Qplan {의도} / /Qplan {의도} (or $Qgoal / /Qgoal) → Plan intake
+Internal: Plan-owned Goal loop → knowledge → Qgs → Qexecute → Qexecute -verify / Qrt
 ```
 
-- **Plan**: Define roadmap, phases, requirements (`Qplan`)
+- **Plan**: Define roadmap, phases, requirements, and an ordered Goal queue (`Qplan`)
 - **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgs`)
 - **Execute**: Implement checklist items via Wave execution (`Qexecute`)
 - **Verify**: Test → review → fix quality loop (`Qexecute -verify`)
@@ -49,9 +49,10 @@ The SIVS Loop runs **inside** the Execute and Verify steps of the PSE Chain. It 
 ### Relationship
 
 ```
-PSE Chain (router-owned internal workflow)
-├── Entry ────────── $Qgoal {목표} / /Qgoal {목표}
-├── Plan ─────────── Qplan
+PSE Chain (Plan-owned internal workflow)
+├── Entry ────────── $Qplan {의도} / /Qplan {의도}
+├── Plan ─────────── Qplan creates ordered Goals
+├── Goal loop ────── retrieve knowledge → Spec → Execute → Verify
 ├── Spec ─────────── Qgs (Qgenerate-spec)
 ├── Execute ──────── Qexecute / Qrt
 │     └── SIVS Loop (quality gate)
@@ -69,13 +70,13 @@ PSE Chain (router-owned internal workflow)
 
 | PSE Step | Skill | Role |
 |----------|-------|------|
-| Plan | `Qplan` | Roadmap, phases, requirements |
+| Plan | `Qplan` | Roadmap, phases, requirements, sequential Goal control |
 | Spec | `Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
 | Execute | `Qexecute` | Wave execution with Haiku Teammates (default) |
 | Execute | `Qexecute` | Sequential execution (fallback for non-atomic tasks) |
 | Verify | `Qexecute -verify` | Test → review → fix quality loop |
 
-PSE units (`Qplan`, `Qgs`, `Qgenerate-spec`, `Qexecute`, `Qrt`) are router-owned internal units, not normal user entry points. Start new work with `$Qgoal {목표}` in Codex or `/Qgoal {목표}` in Claude. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
+`Qplan` is the public Plan controller. `Qgs`, `Qgenerate-spec`, `Qexecute`, and `Qrt` are internal PSE units, not normal user entry points. Start new work with `$Qplan {의도}` in Codex or `/Qplan {의도}` in Claude; `$Qgoal`/`/Qgoal` remain accepted intake aliases. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
 
 ---
 
@@ -86,8 +87,8 @@ prefix is client-specific.
 
 | Active client | Skill command prefix | Example |
 |---------------|----------------------|---------|
-| Claude | `/` | `/Qgoal {목표}` |
-| Codex | `$` | `$Qgoal {목표}` |
+| Claude | `/` | `/Qplan {의도}` |
+| Codex | `$` | `$Qplan {의도}` |
 
 All handoffs must render through the active-client prefix. Do not show a
 slash-only handoff in Codex-facing text, and do not rewrite Claude examples to
@@ -106,14 +107,14 @@ Codex runtime lacks the required subagent primitive.
 
 ## Handoff Format Rules
 
-Every PSE Chain skill MUST end with a `## Handoff` section. The handoff follows these rules:
+Internal PSE units MUST report their state back to Qplan. Qplan reports Plan and Goal status to the user; it does not hand users a chain of internal commands.
 
 1. **Phase context + Roadmap progress** — Display current Phase and overall progress at a glance
 2. **PSE Chain status, one line** — Show current completion/progress status
-3. **Task description line** — One-line natural language summary of what the next command does, placed directly above the `Next:` line
-4. **`Next command:` block** — For a new user entry, render active-prefix `Qgoal {목표}` alone in a code block. Router-owned in-chain handoffs may render their explicit UUID/phase command.
-5. **No explanations** — Do not add alternatives, elaborations, or choices after the command. Do not present a direct PSE command as a new-work fallback.
-6. **Task type branching** — In an active UUID chain, `type: code` may hand off to `Qexecute -verify`; otherwise guide to active-prefix `Qgoal {목표}`.
+3. **Current Goal** — State the active Goal, its completion criterion, and whether it is progressing, blocked, or verified.
+4. **No command choreography** — Do not ask users to invoke `Qgs`, `Qexecute`, `Qwiki-*`, or ledger commands. A new Plan may be started with active-prefix `Qplan {의도}`.
+5. **No explanations after a required decision** — If a material decision is needed, present only the decision and its consequences.
+6. **Task type branching** — Internal code tasks may enter `Qexecute -verify`; Qplan remains responsible for the user-facing status.
 7. **Short alias only** — Use the short phase label (e.g., `Phase 2: Codex Bridge`), not a copy of the full phase description. Max ~6 words.
 8. **Harness status is not completion** — If a handoff includes Execution Harness status, lane status, or status projection, it must still render the SIVS/PSE state separately. A finished lane does not replace VERIFY_CHECKLIST completion or Supervise.
 

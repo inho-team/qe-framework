@@ -1,7 +1,7 @@
 ---
 name: Qqa
 description: "Unified QA entry point for planning test documentation, running single-pass scenarios, and orchestrating the multi-agent QA council."
-user_invocable: true
+user_invocable: false
 metadata:
   author: inho
   version: "1.0.0"

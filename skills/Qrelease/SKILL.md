@@ -1,5 +1,6 @@
 ---
 name: Qrelease
+user_invocable: false
 description: Creates a QE Framework version bump, changelog entry, release commit, annotated tag, optional push, and optional GitHub Release. Use for release, bump, tag, or publish requests; use Qversion for read-only version inspection.
 invocation_trigger: When the user asks to bump, tag, publish, or release QE Framework.
 recommendedModel: haiku

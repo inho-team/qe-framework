@@ -1,5 +1,6 @@
 ---
 name: Qhelp
+user_invocable: false
 description: Shows QE Framework usage overview. With no arg, prints the full catalog. With a skill name arg (e.g., /Qhelp Qcommit), reads that skill's SKILL.md and summarizes it in the user's language. Also supports find/search skills mode via reference/find-skills.md.
 invocation_trigger: User asks for help, uses /Qhelp, or invokes any QE skill with --help / -h flag.
 recommendedModel: haiku
@@ -44,36 +45,16 @@ This mode searches skills.sh, fetches original SKILL.md content, converts it to 
 QE Framework (Query Executor) — Quick Reference
 ================================================
 
-GOAL-FIRST WORKFLOW
-  /Qgoal {목표}            Start a new goal ($Qgoal on Codex)
-  /Qcommit                 Commit & push (human-style, no AI traces)
-  /Qupdate                 Update QE (Claude + Codex) and codex-plugin-cc bridge
+PLAN-FIRST WORKFLOW
+  /Qplan {의도}             Start or re-plan work ($Qplan on Codex)
+  /Qgoal {목표}             Goal-intake alias; routes into Qplan
 
-DEVELOPMENT
-  /Qmcp setup              MCP server setup + building guide
-  /Qmcp ensure             Check MCP config, server availability, stale entries
-
-TASK MANAGEMENT
-  /Qinit                   Initialize QE in a project
-  /Qcollect-skill          Collect verified local stack skills into .claude/skills/
-  /Qrefresh                Refresh project analysis
-  /Qresume                 Restore previous session context
-  /Qcompact                Save context / session handoff ($Qcompact on Codex)
-  /Quser-action            Track external actions the user must perform
-  /Qgc archive             Archive completed tasks
-
-PSE INTERNAL UNITS
-  Qplan, Qgs/Qgenerate-spec, Qexecute, Qrt
-  Router-owned; direct calls are reserved for active UUID handoffs.
-
-QA
-  /Qqa-test-planner        QA test plans & bug reports
+INTERNAL CAPABILITIES
+  QE selects setup, knowledge retrieval, spec, execution, verification,
+  QA, memory, commit, refresh, and archival capabilities from the active Plan.
+  Do not invoke internal stage skills directly.
 
 META
-  /Qrelease [bump]         Mutate release state: bump, commit, tag, optional publish
-  /Qversion                Show current version (read-only)
-  /Qhelp find              Search skills.sh marketplace
-  /Qalias                  Path & command aliases
   /Qhelp                   This help screen
 
 AGENTS (auto-selected by complexity)
