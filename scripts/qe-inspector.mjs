@@ -48,10 +48,18 @@ const tableNames = db.prepare(
   "select name from sqlite_master where type='table' and name not like 'sqlite_%' order by name",
 ).all().map((r) => r.name);
 
+const CELL_CAP = 300; // keep the embedded HTML small: cap long text cells (e.g. qe_files.content)
 const tables = {};
 for (const name of tableNames) {
   const total = db.prepare(`select count(*) c from "${name}"`).get().c;
-  const rows = db.prepare(`select * from "${name}" limit ${ROW_CAP}`).all();
+  const raw = db.prepare(`select * from "${name}" limit ${ROW_CAP}`).all();
+  const rows = raw.map((r) => {
+    const o = {};
+    for (const [k, v] of Object.entries(r)) {
+      o[k] = (typeof v === 'string' && v.length > CELL_CAP) ? v.slice(0, CELL_CAP) + `… (+${v.length - CELL_CAP} chars)` : v;
+    }
+    return o;
+  });
   const cols = rows[0] ? Object.keys(rows[0])
     : db.prepare(`pragma table_info("${name}")`).all().map((c) => c.name);
   tables[name] = { total, shown: rows.length, cols, rows };
