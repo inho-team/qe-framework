@@ -1,4 +1,13 @@
 # .qe/docs — Domain Knowledge
+<!-- qe-doc-frontmatter
+kind: report
+uuid: README
+plan: legacy
+phase: "legacy"
+created: "2026-07-05"
+status: completed
+links: []
+-->
 
 이 디렉터리는 프로젝트 도메인 지식 문서를 담습니다. session-start hook이 작업과 관련된 도메인 문서를 여기서 찾도록 설계됐습니다.
 

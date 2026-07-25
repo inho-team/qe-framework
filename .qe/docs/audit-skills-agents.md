@@ -1,4 +1,13 @@
 # 스킬·에이전트 정합성 검증 보고서
+<!-- qe-doc-frontmatter
+kind: report
+uuid: audit-skills-agents
+plan: legacy
+phase: "legacy"
+created: "2026-07-13"
+status: completed
+links: []
+-->
 
 - **Task**: TASK_REQUEST_24783692
 - **Date**: 2026-06-24

@@ -60,6 +60,32 @@ test('computeIndex is deterministic and groups every kind section', () => {
   }
 });
 
+test('a kind section past the 50K-token threshold shards by uuid first-hex', () => {
+  const { root, mk } = makeRoot();
+  try {
+    // Force one kind section well past SHARD_TOKEN_LIMIT (50K tokens ≈ 200K chars):
+    // 160 audit docs with ~2KB titles → ~330K chars of section body. uuids span
+    // every first-hex value so multiple shard buckets are produced.
+    const hex = '0123456789abcdef';
+    const bigTitle = 'X'.repeat(2000);
+    for (let i = 0; i < 160; i++) {
+      const uuid = hex[i % 16] + i.toString(16).padStart(7, '0').slice(-7);
+      mk(`.qe/security-reports/SECURITY_REPORT_${uuid}.md`,
+        `# ${bigTitle}\n<!-- qe-doc-frontmatter\nkind: audit\nuuid: ${uuid}\nstatus: completed\n-->\nbody`);
+    }
+    const idx = computeIndex(root);
+    const shardHeaders = idx.match(/^### audit · [0-9a-f]$/gm) || [];
+    assert.ok(shardHeaders.length >= 2, `expected multiple audit shards, got ${shardHeaders.length}`);
+    assert.ok(idx.includes('### audit · 0'), 'first-hex 0 shard present');
+    // A small kind section stays flat (no shard header) — threshold is per-section.
+    mk('.qe/tasks/pending/TASK_REQUEST_aaaaaaaa.md', '# TASK_REQUEST_aaaaaaaa — small\nbody');
+    const idx2 = computeIndex(root);
+    assert.ok(!/^### spec · /m.test(idx2), 'a sub-threshold section must not shard');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
 test('rebuildIndex writes .qe/index.md atomically and self-heals stale rows', () => {
   const { root, mk } = makeRoot();
   try {
