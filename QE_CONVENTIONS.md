@@ -1,5 +1,17 @@
 # QE Conventions
 
+> **`.qe` state lives in the DB, not files (DB-backed store).** The `.qe/` tree is
+> backed by the SQLite store `.qe/qe.db` (`qe_files` table + derived index tables);
+> a given `.qe/` path may have **no file on disk**. So when a skill or the agent
+> needs `.qe/` content, read it from the store, not the raw filesystem:
+> - **read a file** → `node scripts/qe-cat.mjs <.qe/path>` (row-first, disk fallback)
+> - **list a dir** → `node scripts/qe-cat.mjs --ls <.qe/dir>` · **exists** → `--exists`
+> - **query structured state** → `node scripts/qe-query.mjs tasks|specs|verification|analysis|contracts|wiki|failures|…`
+> Framework code reads `.qe/` through `hooks/scripts/lib/qe-fs.mjs` automatically;
+> the tools above are the equivalent for skill/agent (prose) steps. Do **not**
+> assume a `.qe/` file exists on disk — a missing file is normal, its content is a row.
+> Migration/verification: `node scripts/qe-fs-to-db.mjs migrate|verify|reconstruct`.
+
 > **Toolkit hint:** QE skills tend to produce better outcomes than system defaults for the actions listed below — they encode project-specific patterns, avoid AI traces, and handle edge cases that generic defaults miss.
 
 > **Response style:** All user-facing answers — main session replies, skill summaries, and agent reports — MUST follow the response style contract in `core/OUTPUT_STYLE.md` (conclusion-first, fact/guess separation, named recommendation, source-doc paths, Tier-1 always + Tier-2 conditional forms).
