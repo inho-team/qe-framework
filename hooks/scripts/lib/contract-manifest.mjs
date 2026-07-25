@@ -6,7 +6,7 @@
  * Validates contract names, resolves contract paths, and lists active/pending contracts.
  */
 
-import { existsSync, readdirSync } from 'node:fs';
+import { existsSync, readdirSync } from './qe-fs.mjs';
 import path from 'node:path';
 
 // Names that must never be usable as contract identifiers.

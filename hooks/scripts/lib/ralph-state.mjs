@@ -73,7 +73,7 @@
  * @module ralph-state
  */
 
-import { readFileSync, existsSync, unlinkSync } from 'fs';
+import { readFileSync, existsSync, unlinkSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { readUnifiedState, writeUnifiedState, getNamespace, setNamespace, atomicWriteJson } from './state.mjs';
 import { exitPersistentMode } from './persistent-mode.mjs';

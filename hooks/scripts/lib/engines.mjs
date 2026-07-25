@@ -6,7 +6,7 @@
 // pool, so the model that checks work never shares a provider with the one that
 // wrote it. This lets Implement/Verify independence be enforced by config, not trust.
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from './qe-fs.mjs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 

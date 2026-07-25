@@ -26,9 +26,9 @@
  */
 
 import * as realFs from 'node:fs';
-import { DatabaseSync } from 'node:sqlite';
 import { createHash } from 'node:crypto';
 import { isAbsolute, resolve, relative, join, dirname, basename } from 'node:path';
+import { loadSqliteModule } from './store-sqlite.mjs';
 
 const ROOT = process.env.QE_ROOT || process.cwd();
 const QE = join(ROOT, '.qe');
@@ -52,7 +52,12 @@ function qeRel(p) {
 let _db = null;
 function db() {
   if (_db) return _db;
-  _db = new DatabaseSync(DB_PATH);
+  // Keep the Node SQLite experimental-warning suppression centralized in the
+  // backend loader. Hooks must keep stderr clean because clients consume it
+  // as diagnostic output.
+  const sqlite = loadSqliteModule();
+  if (!sqlite) throw new Error('qe-fs: node:sqlite is unavailable');
+  _db = new sqlite.DatabaseSync(DB_PATH);
   _db.exec(`CREATE TABLE IF NOT EXISTS qe_files(
     path TEXT PRIMARY KEY, content TEXT, encoding TEXT, size INTEGER,
     mode INTEGER, mtime_ms INTEGER, sha256 TEXT, migrated_at INTEGER)`);
@@ -158,8 +163,27 @@ export function statSync(p, opts) {
   };
 }
 
-// Pass-throughs for anything a consumer imports but we don't virtualize.
+export function rmSync(p, opts) {
+  const rel = qeRel(p);
+  if (rel == null) return realFs.rmSync(p, opts);
+  const prefix = rel.endsWith('/') ? rel : rel + '/';
+  db().prepare('DELETE FROM qe_files WHERE path=? OR path LIKE ?').run(rel, prefix + '%');
+  if (realFs.existsSync(p)) { try { realFs.rmSync(p, { recursive: true, force: true, ...opts }); } catch { /* ignore */ } }
+}
+
+export function appendFileSync(p, data, opts) {
+  const rel = qeRel(p);
+  if (rel == null) return realFs.appendFileSync(p, data, opts);
+  const prev = existsSync(p) ? readFileSync(p) : Buffer.alloc(0);
+  const add = Buffer.isBuffer(data) ? data : Buffer.from(String(data), (opts && opts.encoding) || 'utf8');
+  writeFileSync(p, Buffer.concat([prev, add]));
+}
+
+export function lstatSync(p, opts) { return statSync(p, opts); }       // no symlinks in the store
+export function utimesSync(p, a, m) { if (qeRel(p) == null) return realFs.utimesSync(p, a, m); } // row mtime set on write
+
+// Pass-throughs for fd-based / temp ops we never virtualize.
 export const {
-  appendFileSync, rmSync, chmodSync, copyFileSync, realpathSync, openSync, closeSync,
+  chmodSync, copyFileSync, realpathSync, openSync, closeSync, readSync, fstatSync, mkdtempSync,
 } = realFs;
 export default realFs;

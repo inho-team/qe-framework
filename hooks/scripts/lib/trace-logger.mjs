@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { appendFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
+import { appendFileSync, readFileSync, existsSync, mkdirSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 /**

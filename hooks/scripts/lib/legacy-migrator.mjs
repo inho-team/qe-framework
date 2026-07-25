@@ -14,7 +14,7 @@
  * be `false` until validated against real-world projects to keep startup safe.
  */
 
-import { existsSync, mkdirSync, readdirSync, renameSync, statSync, lstatSync } from 'fs';
+import { existsSync, mkdirSync, readdirSync, renameSync, statSync, lstatSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 const SESSIONS_SUBDIR = 'sessions';

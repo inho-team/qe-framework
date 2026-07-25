@@ -8,7 +8,7 @@
  * @module skill-budget
  */
 
-import { readdirSync, readFileSync, existsSync } from 'fs';
+import { readdirSync, readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { CONTEXT_POLICY_DEFAULTS } from './context-policy.mjs';
 

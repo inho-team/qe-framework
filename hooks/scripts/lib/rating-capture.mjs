@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync, readdirSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 // Path: .qe/learning/signals/ratings.jsonl

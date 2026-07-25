@@ -9,7 +9,7 @@
  * index, and `.qe/wiki/` as a derived, reviewable knowledge layer.
  */
 
-import { existsSync, mkdirSync, renameSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, renameSync, writeFileSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { openStore } from './store.mjs';
 

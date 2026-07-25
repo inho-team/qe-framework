@@ -10,7 +10,7 @@
  * @module hooks/scripts/lib/gate-audit
  */
 
-import { appendFileSync, mkdirSync, existsSync } from 'fs';
+import { appendFileSync, mkdirSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 const VALID_STAGES = new Set(['spec', 'verify', 'supervise']);

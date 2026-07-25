@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { randomBytes } from 'crypto';
 import { atomicWriteJson } from './state.mjs';

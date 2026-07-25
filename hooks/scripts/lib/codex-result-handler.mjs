@@ -13,7 +13,7 @@
  * needing to know which strategy produced it.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync } from './qe-fs.mjs';
 import { join } from 'path';
 import {
   resolveCodexStateDir,

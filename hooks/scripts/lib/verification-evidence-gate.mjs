@@ -27,7 +27,7 @@
  * (MIT License, 2024). Rewritten in QE/SIVS terminology without copying original prose.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './qe-fs.mjs';
 import { execSync } from 'child_process';
 
 // ── Completion/pass claim matcher ─────────────────────────────────────────────

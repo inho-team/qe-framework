@@ -23,7 +23,7 @@
  * (TTL-guarded) prevents overlapping spawns from racing on the same sid.
  */
 
-import { readFileSync, existsSync, mkdirSync, statSync, unlinkSync, openSync, closeSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, statSync, unlinkSync, openSync, closeSync } from './qe-fs.mjs';
 import { join, dirname } from 'path';
 import { readClaudeOAuthToken } from './claude-token.mjs';
 import { writeSessionName, readSessionName } from './session-resolver.mjs';

@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join, resolve, dirname } from 'path';
 import { fileURLToPath } from 'url';
 import { spawn } from 'child_process';

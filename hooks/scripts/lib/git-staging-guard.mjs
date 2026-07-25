@@ -35,7 +35,7 @@
  */
 
 import { spawnSync } from 'node:child_process';
-import { existsSync, statSync } from 'node:fs';
+import { existsSync, statSync } from './qe-fs.mjs';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

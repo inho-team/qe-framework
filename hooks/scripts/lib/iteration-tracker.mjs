@@ -2,7 +2,7 @@
 // See https://github.com/Yeachan-Heo/oh-my-claudecode for original.
 'use strict';
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync, renameSync, unlinkSync } from './qe-fs.mjs';
 import { join, dirname } from 'path';
 import { randomBytes } from 'crypto';
 

@@ -16,7 +16,7 @@
 //   maybeSpawnRefresh()     — one-shot refresh at session start (lock-guarded).
 //   ensurePeriodicRefresh() — start a recurring qcron tmux job if not already running.
 
-import { existsSync, statSync, mkdirSync, writeFileSync } from 'fs';
+import { existsSync, statSync, mkdirSync, writeFileSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { execSync, spawn } from 'child_process';
 

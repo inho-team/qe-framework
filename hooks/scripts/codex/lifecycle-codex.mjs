@@ -2,7 +2,7 @@
 'use strict';
 
 import { spawnSync, spawn } from 'node:child_process';
-import { readFileSync, existsSync } from 'node:fs';
+import { readFileSync, existsSync } from '../lib/qe-fs.mjs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 

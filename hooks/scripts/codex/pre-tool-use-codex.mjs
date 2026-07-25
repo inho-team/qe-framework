@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { existsSync, readFileSync, statSync } from 'fs';
+import { existsSync, readFileSync, statSync } from '../lib/qe-fs.mjs';
 import { join } from 'path';
 import { emitBlock } from '../lib/block-emitter.mjs';
 import { executableView, matchesExecutable } from '../lib/shell-scanner.mjs';

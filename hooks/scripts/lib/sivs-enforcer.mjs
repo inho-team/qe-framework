@@ -13,7 +13,7 @@
  * @module hooks/scripts/lib/sivs-enforcer
  */
 
-import { appendFileSync, mkdirSync } from 'fs';
+import { appendFileSync, mkdirSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { checkPoolDisjoint } from './engines.mjs';
 

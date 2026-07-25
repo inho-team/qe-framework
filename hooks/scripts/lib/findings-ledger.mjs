@@ -16,7 +16,7 @@
  * stream from the "one canonical record per id" invariant the guard checks.
  */
 
-import { existsSync, readFileSync, appendFileSync, mkdirSync } from 'node:fs';
+import { existsSync, readFileSync, appendFileSync, mkdirSync } from './qe-fs.mjs';
 import { join, dirname } from 'node:path';
 
 /** Terminal statuses in precedence order (highest first). A finding's canonical

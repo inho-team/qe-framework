@@ -1,4 +1,4 @@
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'node:fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from './qe-fs.mjs';
 import path from 'node:path';
 import { computeContractHash } from './contract-hash.mjs';
 import { assertValidContractName } from './contract-manifest.mjs';

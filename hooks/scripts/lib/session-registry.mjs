@@ -5,7 +5,7 @@
  * scope for this feature.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { atomicWriteJson } from './state.mjs';
 

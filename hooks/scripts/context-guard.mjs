@@ -3,7 +3,7 @@
 // See https://github.com/Yeachan-Heo/oh-my-claudecode for original.
 'use strict';
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join } from 'path';
 import { estimateUsage, readCachedRatio, readCachedLimit, readConfiguredLimit, readDetectedLimit, readNativeCodexWindow, writeCachedLimit, writeDetectedLimit, recordBlock, resetBlocks, getBlockCount, modelIdToLimit } from './lib/context-meter.mjs';
 import {

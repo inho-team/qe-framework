@@ -21,7 +21,7 @@
  * @module sweep-analyzer
  */
 
-import { readdirSync, readFileSync, statSync, existsSync } from 'fs';
+import { readdirSync, readFileSync, statSync, existsSync } from './qe-fs.mjs';
 import { join, relative } from 'path';
 import { isAllComplete } from './checklist-parser.mjs';
 

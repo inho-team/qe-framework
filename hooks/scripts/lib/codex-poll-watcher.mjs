@@ -16,7 +16,7 @@
  * Contains: JSON with { detected: true, timestamp, diffStat, elapsedSec }
  */
 
-import { mkdirSync, writeFileSync } from 'fs';
+import { mkdirSync, writeFileSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { isProcessAlive } from '../../../scripts/lib/codex_bridge.mjs';

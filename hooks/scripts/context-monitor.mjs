@@ -31,7 +31,7 @@
  * - State is persisted in session-stats.json alongside existing fields.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join } from 'path';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { readCachedRatio, readCachedLimit, readConfiguredLimit, readDetectedLimit, readNativeCodexWindow, writeCachedLimit, writeDetectedLimit, estimateUsage, modelIdToLimit } from './lib/context-meter.mjs';

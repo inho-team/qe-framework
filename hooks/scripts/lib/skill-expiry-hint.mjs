@@ -1,4 +1,4 @@
-import { existsSync, readdirSync, readFileSync } from 'fs';
+import { existsSync, readdirSync, readFileSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 export function collectExpiredSkillHints(cwd, cfg = {}, options = {}) {

@@ -6,7 +6,7 @@
  * is not set, so these rails are completely inert in normal (non-autonomous) sessions.
  */
 
-import { readFileSync } from 'fs';
+import { readFileSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 const PROTECTED_BRANCHES = new Set(['main', 'master']);

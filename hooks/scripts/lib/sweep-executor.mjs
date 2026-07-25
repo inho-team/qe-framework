@@ -16,7 +16,7 @@
  * @module sweep-executor
  */
 
-import { renameSync, unlinkSync, existsSync, mkdirSync, readdirSync } from 'fs';
+import { renameSync, unlinkSync, existsSync, mkdirSync, readdirSync } from './qe-fs.mjs';
 import { join, basename } from 'path';
 
 export function nextArchiveVersion(archiveDir) {

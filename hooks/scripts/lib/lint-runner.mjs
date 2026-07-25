@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, writeFileSync } from './qe-fs.mjs';
 import { execSync } from 'child_process';
 import { join, extname, dirname } from 'path';
 import { readUnifiedState, writeUnifiedState } from './state.mjs';

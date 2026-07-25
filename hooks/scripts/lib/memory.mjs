@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from 'fs';
+import { readFileSync, writeFileSync, existsSync, mkdirSync } from './qe-fs.mjs';
 import { join, dirname } from 'path';
 
 const MEMORY_FILE = 'project-memory.json';

@@ -23,7 +23,7 @@
  *   node ledger.mjs status --slug S
  */
 
-import { appendFileSync, readFileSync, writeFileSync, renameSync, existsSync, mkdirSync, openSync, readSync, closeSync, fstatSync } from 'fs';
+import { appendFileSync, readFileSync, writeFileSync, renameSync, existsSync, mkdirSync, openSync, readSync, closeSync, fstatSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { fileURLToPath } from 'url';
 import { atomicWriteJson } from './state.mjs';

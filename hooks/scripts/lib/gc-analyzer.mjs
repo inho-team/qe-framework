@@ -4,7 +4,7 @@
  * Provides doc-drift detection, rule violation scanning, and dead code analysis.
  */
 
-import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, writeFileSync, mkdirSync, readdirSync, statSync } from './qe-fs.mjs';
 import { join, extname, basename, relative } from 'path';
 import { execSync } from 'child_process';
 import { checkComments, isCheckableFile } from './comment-checker.mjs';

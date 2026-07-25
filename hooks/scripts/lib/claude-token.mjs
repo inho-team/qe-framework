@@ -20,7 +20,7 @@
  * error message can never leak.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 

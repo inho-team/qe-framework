@@ -20,7 +20,7 @@
  * shape so the gate can never crash the Stop hook.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { readClaudeOAuthToken } from './claude-token.mjs';
 

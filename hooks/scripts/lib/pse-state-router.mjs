@@ -6,7 +6,7 @@
  * suggest the next PSE command when no explicit or hard route already wins.
  */
 
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from './qe-fs.mjs';
 import { basename, join } from 'path';
 import { getChangedFiles } from './changed-files.mjs';
 import { resolveActivePlanSlug, resolveRoadmapPath, resolveStatePath } from './plan-resolver.mjs';
