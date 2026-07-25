@@ -867,6 +867,49 @@ test('queryFiles self-heals a cold index instead of reporting nothing',
     } finally { store.close(); }
   });
 
+test('an in-place edit is reflected without add/remove', { skip: !SQLITE }, () => {
+  // Regression: a count-only freshness check missed an edit that left the file
+  // count unchanged. A spec kept serving its old title, and a wiki page its
+  // old tier, until something added or removed a file. The signature now folds
+  // in mtimes.
+  const root = makeProject();
+  const pending = path.join(root, '.qe', 'tasks', 'pending');
+  fs.mkdirSync(pending, { recursive: true });
+  const spec = path.join(pending, 'TASK_REQUEST_edit1.md');
+  fs.writeFileSync(spec, '# First Title\n');
+
+  const store = openStore(root, { backend: 'sqlite' });
+  try {
+    assert.equal(store.queryFiles({ kind: 'task' })[0].title, 'First Title');
+
+    fs.writeFileSync(spec, '# Changed Title\n');
+    const future = new Date(Date.now() + 5000);
+    fs.utimesSync(spec, future, future);
+
+    assert.equal(store.queryFiles({ kind: 'task' })[0].title, 'Changed Title',
+      'the in-place edit must be picked up');
+  } finally { store.close(); }
+});
+
+test('an in-place wiki edit is reflected', { skip: !SQLITE }, () => {
+  const root = makeProject();
+  const dir = path.join(root, '.qe', 'wiki', 'pages', 'demo', 'concepts');
+  fs.mkdirSync(dir, { recursive: true });
+  const page = path.join(dir, 'c1.md');
+  fs.writeFileSync(page, '---\ntype: concept\ncanonical: c1\ntopic: demo\ntier: draft\n---\nx\n');
+
+  const store = openStore(root, { backend: 'sqlite' });
+  try {
+    assert.equal(store.queryWiki({})[0].tier, 'draft');
+
+    fs.writeFileSync(page, '---\ntype: concept\ncanonical: c1\ntopic: demo\ntier: reviewed\n---\nx\n');
+    const future = new Date(Date.now() + 5000);
+    fs.utimesSync(page, future, future);
+
+    assert.equal(store.queryWiki({})[0].tier, 'reviewed', 'the tier change must show');
+  } finally { store.close(); }
+});
+
 test('queryFiles drops rows for files that disappeared', { skip: !SQLITE }, () => {
   const root = makeProject();
   const pending = path.join(root, '.qe', 'tasks', 'pending');

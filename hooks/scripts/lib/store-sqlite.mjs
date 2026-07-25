@@ -873,6 +873,30 @@ export function createSqliteBackend(cwd, opts = {}) {
     // erroring, and an agent cannot tell that apart from a genuine empty set.
     // The check counts directory entries without reading them, and only
     // re-parses when the count disagrees with the table.
+    // A freshness signature that changes when files are added, removed OR
+    // edited in place. Count alone misses an in-place edit — reproduced: a spec
+    // whose content changed under a stable filename kept serving its old title.
+    // Combining the count with the summed mtimes catches that at the cost of a
+    // stat per file, which the rebuild walk pays anyway.
+    freshSig(paths) {
+      let sumMtime = 0;
+      for (const p of paths) {
+        try { sumMtime += Math.floor(statSync(p).mtimeMs); } catch { /* gone mid-walk */ }
+      }
+      return `${paths.length}:${sumMtime}`;
+    },
+
+    readFreshMark(key) {
+      return stmt('SELECT v FROM schema_meta WHERE k = ?').get(key)?.v || '';
+    },
+
+    writeFreshMark(key, sig) {
+      stmt(
+        `INSERT INTO schema_meta(k, v) VALUES(?, ?)
+         ON CONFLICT(k) DO UPDATE SET v = excluded.v`,
+      ).run(key, sig);
+    },
+
     ensureFailuresFresh() {
       const root = join(cwd, '.qe', 'learning', 'failures');
       if (!existsSync(root)) return false;
@@ -890,8 +914,9 @@ export function createSqliteBackend(cwd, opts = {}) {
       };
       walk(root);
 
-      const indexed = Number(stmt('SELECT COUNT(*) AS n FROM failures').get()?.n) || 0;
-      if (indexed === paths.length) return false;
+      const sig = this.freshSig(paths);
+      if (sig === this.readFreshMark('failures_sig')) return false;
+      this.writeFreshMark('failures_sig', sig);
 
       for (const abs of paths) {
         try {
@@ -927,8 +952,9 @@ export function createSqliteBackend(cwd, opts = {}) {
     // rather than an ordering artefact.
     ensureWikiFresh() {
       const collected = collectWikiPages(cwd);
-      const indexed = Number(stmt('SELECT COUNT(*) AS n FROM wiki_pages').get()?.n) || 0;
-      if (indexed === collected.length && collected.length > 0) return false;
+      const sig = this.freshSig(collected.map(({ page }) => join(cwd, page.path)));
+      if (sig === this.readFreshMark('wiki_sig') && collected.length > 0) return false;
+      this.writeFreshMark('wiki_sig', sig);
 
       const bySlug = new Map();
       for (const { page } of collected) if (page.slug) bySlug.set(page.slug, page.path);
@@ -1021,16 +1047,18 @@ export function createSqliteBackend(cwd, opts = {}) {
 
     // Keep `file_index` in step with the `.qe` tree before answering.
     //
-    // Third instance of the same failure mode as `ensureTaskLogFresh` and
-    // `ensureFailuresFresh`: without it, `specs --status pending` reported
-    // nothing while four TASK_REQUEST files sat in `.qe/tasks/pending/`, and an
-    // agent cannot tell that apart from "no pending specs". The count check is
-    // metadata-only; the re-index that follows is the expensive part and runs
-    // only when the tree and the table disagree.
+    // Same failure mode as `ensureTaskLogFresh` and `ensureFailuresFresh`:
+    // without it, `specs --status pending` reported nothing while four
+    // TASK_REQUEST files sat in `.qe/tasks/pending/`, and an agent cannot tell
+    // that apart from "no pending specs". The signature (count + summed mtimes)
+    // also catches an in-place edit that leaves the count unchanged; the
+    // records already carry mtime, so it costs nothing extra here.
     ensureFileIndexFresh() {
       const records = collectIndexableFiles(cwd);
-      const indexed = Number(stmt('SELECT COUNT(*) AS n FROM file_index').get()?.n) || 0;
-      if (indexed === records.length) return false;
+      const sumMtime = records.reduce((a, r) => a + Math.floor(r.mtimeMs || 0), 0);
+      const sig = `${records.length}:${sumMtime}`;
+      if (sig === this.readFreshMark('file_index_sig')) return false;
+      this.writeFreshMark('file_index_sig', sig);
 
       const live = new Set();
       for (const record of records) {
