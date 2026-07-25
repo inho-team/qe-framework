@@ -305,15 +305,21 @@ export function detectFailure(cwd) {
     // Fault tolerance — ignore scan errors
   }
 
-  // Condition 2: Agent error log exists
+  // Condition 2: Agent error log has UNHANDLED failures.
+  // `auto-fallback` rows record a Codex crash that Claude already recovered from,
+  // so they are informational — a session with only recovered fallbacks is not a
+  // failure. Only genuinely unhandled error rows trip the flag.
   try {
     const errorLogPath = join(cwd, '.qe', 'state', 'agent-errors.json');
     if (existsSync(errorLogPath)) {
       const raw = readFileSync(errorLogPath, 'utf8');
       const errors = JSON.parse(raw);
-      if (Array.isArray(errors) && errors.length > 0) {
-        result.failed = true;
-        result.reasons.push(`Agent errors: ${errors.length} error(s) logged`);
+      if (Array.isArray(errors)) {
+        const unhandled = errors.filter(e => e?.kind !== 'auto-fallback');
+        if (unhandled.length > 0) {
+          result.failed = true;
+          result.reasons.push(`Agent errors: ${unhandled.length} error(s) logged`);
+        }
       }
     }
   } catch {

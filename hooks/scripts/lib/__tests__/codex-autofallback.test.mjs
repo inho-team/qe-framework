@@ -18,7 +18,11 @@ import {
   isAutoFallbackEnabled,
   resolveCodexFallback,
 } from '../codex-result-handler.mjs';
-import { captureAbnormalWorkerExit, recordAutoFallback } from '../failure-capture.mjs';
+import {
+  captureAbnormalWorkerExit,
+  recordAutoFallback,
+  detectFailure,
+} from '../failure-capture.mjs';
 
 /**
  * Run `fn` against a throwaway workspace dir and always clean it up.
@@ -183,6 +187,41 @@ test('crashed -> single retry -> exhaustion drives Claude fallback', () => {
     );
     // Single-retry cap: exactly 2 abnormal-exit entries (attempt + 1 retry).
     assert.equal(retryEntries.length, 2);
+  });
+});
+
+// --- detectFailure treats a recovered auto-fallback as non-failure ---------
+
+test('detectFailure: agent-errors with ONLY auto-fallback rows is not a failure', () => {
+  withTmp((cwd) => {
+    recordAutoFallback(cwd, { stage: 'implement', taskUuid: 'u', reason: 'crashed' });
+    const d = detectFailure(cwd);
+    // A recovered Codex crash is not an unhandled session failure.
+    assert.equal(d.failed, false);
+    assert.deepEqual(d.reasons, []);
+  });
+});
+
+test('detectFailure: a real abnormal-worker-exit row still fails', () => {
+  withTmp((cwd) => {
+    captureAbnormalWorkerExit(cwd, { crashed: true, status: 'crashed' }, {
+      taskUuid: 'u', workerId: 'w', itemId: 'i',
+    });
+    const d = detectFailure(cwd);
+    assert.equal(d.failed, true);
+    assert.match(d.reasons.join(' '), /Agent errors/);
+  });
+});
+
+test('detectFailure: auto-fallback rows do not mask a real failure', () => {
+  withTmp((cwd) => {
+    recordAutoFallback(cwd, { stage: 'implement', taskUuid: 'u', reason: 'crashed' });
+    captureAbnormalWorkerExit(cwd, { crashed: true, status: 'crashed' }, {
+      taskUuid: 'u', workerId: 'w', itemId: 'i',
+    });
+    const d = detectFailure(cwd);
+    // The real abnormal-exit row must still trip the failure flag.
+    assert.equal(d.failed, true);
   });
 });
 
