@@ -39,7 +39,7 @@
 | `/Qupdate` | When the QE framework, its Codex assets, or the codex-plugin-cc bridge need updating. | One command: updates the framework body (Claude + Codex) and checks/updates the codex-plugin-cc bridge. |
 | `/Qmistake` | When user points out a mistake or corrects behavior. | Records to .qe/MISTAKE.md, loaded every session start. |
 | `/Qversion` | When you need to check the current framework version. | Displays version info and recent changelog. |
-| `/Qsivs-config` | When you need to view or change SIVS engine routing (claude/codex per stage). | CLI-style config manager for `.qe/sivs-config.json`. |
+| `/Qsivs-config` | When you need to view or change SIVS active-client model/effort settings. | CLI-style single-AI role config manager for `.qe/sivs-config.json`. |
 | `/Qgc archive` | When a task is completed and needs to be archived. | Moves files to archive and cleans up temporary state. |
 | `/Qhelp` | When you need the QE catalog overview or a skill summary. | Full catalog or per-skill summary in the user's language. |
 | `/Qdoctor` | When QE installation or `.qe/` state looks broken. | Diagnoses and repairs framework, companion, and project-state health. |

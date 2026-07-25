@@ -14,6 +14,10 @@
 
 ## SIVS Engine Routing
 
+> **Superseded:** SIVS is now single-AI. The active client owns every stage;
+> cross-client bridges and per-stage engine routing are not execution paths.
+> The authoritative contract is `core/SIVS_SINGLE_AI_MODEL.md`.
+
 Each SIVS stage can be configured to use Claude or Codex. Routing is base-agnostic and bidirectional: with `.qe/sivs-config.json`, a Claude base session delegates Codex stages through `codex_bridge`, and a Codex base session delegates Claude stages through `claude_bridge` / `Qclaude-rescue` (DECISION_LOG D028/D029/D030).
 
 Recommended default when Codex is available is **Claude Head / Codex Body**

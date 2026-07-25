@@ -2,7 +2,7 @@
 name: Qcritical-review
 description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qexecute -verify, Esupervision."
 invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review, structured debate, or code risk proof.
-recommendedModel: sonnet
+recommendedModel: opus
 ---
 
 # Qcritical-review — Adversarial Verification
@@ -24,8 +24,8 @@ Stress-tests artifacts at each SIVS stage through adversarial sub-agents. Produc
 {adapter.commandPrefix}Qcritical-review --stage spec                  # Review a spec document
 {adapter.commandPrefix}Qcritical-review --stage verify                # Review an implementation
 {adapter.commandPrefix}Qcritical-review --stage supervise             # Review merge readiness
-{adapter.commandPrefix}Qcritical-review --mode cross-model            # Use both Claude + Codex as reviewers
-{adapter.commandPrefix}Qcritical-review --stage verify --mode cross-model   # Combine stage + mode
+{adapter.commandPrefix}Qcritical-review --mode cross-model            # Deprecated: uses isolated active-client reviewers
+{adapter.commandPrefix}Qcritical-review --stage verify --mode cross-model   # Compatibility spelling
 {adapter.commandPrefix}Qcritical-review --debate <topic>              # Structured multi-round debate
 {adapter.commandPrefix}Qcritical-review --risk {UUID}                 # Evidence-backed code risk proof
 {adapter.commandPrefix}Qcritical-review <file>                        # Auto-detect stage from file type
@@ -36,18 +36,14 @@ Stress-tests artifacts at each SIVS stage through adversarial sub-agents. Produc
 
 | Mode | Agents | When to Use |
 |------|--------|-------------|
-| `claude-only` (default) | 3 Claude sub-agents | Fast, low-cost reviews |
-| `cross-model` | 2 Claude + 1 Codex | High-stakes reviews needing independent model perspectives |
+| `isolated-critical` (default) | 3 isolated active-client sub-agents | High-stakes critical review |
+| `cross-model` (deprecated) | Resolves to `isolated-critical` | Compatibility only; never invokes another AI client |
 | `--debate <topic>` | Debate agents/engines | Structured debate; see [./reference/debate-mode.md](./reference/debate-mode.md) |
 | `--risk {UUID}` | Erisk-proof-auditor | Code Risk Gate proof; see [./reference/risk-mode.md](./reference/risk-mode.md) |
 
-In `cross-model` mode, the most adversarial agent per stage is routed to Codex:
-
-| Stage | Codex Agent | Why This One |
-|-------|------------|-------------|
-| `spec` | Edge Case Finder | boundary critic uses a different engine |
-| `verify` | Devil's Advocate | strongest implementation critic uses a different engine |
-| `supervise` | Merge Blocker | merge opposition uses a different engine |
+SIVS uses one active AI client. Reviewer independence comes from fresh isolated
+contexts and non-overlapping adversarial roles; a review mode must not bridge to
+another AI client.
 
 ## 9-Step Protocol
 
@@ -106,7 +102,7 @@ Full mode definitions live in [./reference/thinking-modes.md](./reference/thinki
 
 #### Verify Stage Agents
 
-These agents implement the mandatory Verify gate: [./reference/verify-gate-protocol.md](./reference/verify-gate-protocol.md). **Devil's Advocate** is the cross-model-upgrade target.
+These agents implement the mandatory Verify gate: [./reference/verify-gate-protocol.md](./reference/verify-gate-protocol.md). The Verify lead and **Devil's Advocate** use high reasoning effort.
 
 | Agent | Role | Key Questions |
 |-------|------|--------------|
@@ -186,27 +182,13 @@ Display the full report, then ask:
 3. Agents must NOT be told what other agents are looking for.
 4. The Lead waits, collects, and closes every reviewer handle; stale handles are warnings.
 
-## Engine Routing per Mode
+## Single-AI Reviewer Execution
 
-**claude-only (default):** all 3 agents use `subagent_type: "general-purpose"`.
-
-**codex-native base session:** use native Codex subagents when available; otherwise run role-separated inline passes and mark `crossmodel=degraded`, `mode=role-separated-inline`.
-
-**cross-model:** resolve bridge availability through `codex_bridge.mjs` / `Qclaude-rescue` equivalents. Route the designated adversarial agent to `codex:codex-rescue` when available; otherwise fall back to same-engine reviewers with `crossmodel=false` or `crossmodel=degraded`.
-
-### Automatic cross-model upgrade (mandatory Spec gate)
-
-The manual `--mode cross-model` above is opt-in. The **mandatory Spec self-reference gate** (invoked by Qgenerate-spec Step 2.6) instead upgrades **automatically and with zero configuration** (DECISION_LOG D012):
-
-1. **Baseline (always runs):** all Spec agents are same-engine sub-agents (`subagent_type: "general-purpose"`). Fully functional with **no codex installed** — independence comes from fresh context + adversarial role.
-2. **Auto-upgrade:** detect codex reachability via `getCodexPluginInfo()` / `isCodexReachable()` from `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer** to `subagent_type: "codex:codex-rescue"` for a truly independent engine.
-3. **Same-engine fallback:** if codex is absent or unreachable, silently keep the same-engine baseline. **Codex is never a required dependency.**
-
-The same automatic upgrade applies to the **Verify gate** (cross-model target = Devil's Advocate) and the **Supervise gate** (cross-model target = Merge Blocker).
-
-**Cross-model failure fallback (all gates):** an optional upgrade must never block a mandatory gate or silently pass as if it were cross-model.
-- If the codex sub-agent errors or times out → log `crossmodel=false` + reason, **re-run that one agent on Claude** (`general-purpose`), and mark the gate result **`degraded`** → at least **WARN** (independence was reduced).
-- If the Claude re-run also fails → **WARN-blocked** (NOT PASS), requiring explicit user override, with audit `reason=double-failure`.
+All reviewers run as isolated subagents of the active client. The Verify and
+Supervise leads use high reasoning effort, collect the independent reports, and
+create the final verification/QA document. If native subagents are unavailable,
+run isolated inline passes, record `mode=degraded-inline`, and cap the verdict at
+WARN. Do not invoke a bridge or a second AI client.
 
 #### Bootstrap clause (reviewing Qcritical-review itself)
 

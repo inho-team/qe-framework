@@ -194,37 +194,21 @@ Intermediate verification every 3 items (or per `<!-- verify-interval: N -->`).
 ### Lifecycle Cleanup
 Before returning, close all delegated handles and include their terminal status in the final report.
 
-### SIVS Engine Routing
-1. Load `.qe/sivs-config.json` (`scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. `resolveEngine("implement", config)` — Claude/`claude` = standard; Claude/`codex` = delegate
-   via `codex_bridge.mjs`/codex-plugin-cc (fallback Claude + warn); Codex/`codex` = native
-   subagents or `degraded-inline`; Codex/`claude` = `Qclaude-rescue`/`claude_bridge.mjs` or
-   `crossmodel=false`. MCP server tools are not the default PSE/SIVS execution path.
-3. `detectLegacyConfig()` → show migration warning if non-null.
-4. **Codex Materialization Check (mandatory after Codex `Done`)**: read
-   `.qe/state/unified-state.json` → `codex_materialization` (completed/failed/crashed/running),
-   then `.qe/agent-results/codex-ready.signal` (detected/crashed/timeout, 30s poll ≤ 1h).
-   Missing `.qe/sivs-config.json` → all stages default to Claude.
-5. **Auto-fallback (default ON).** When a Codex-delegated stage returns
-   `crashed`/`failed`/`timeout` (process-dead, SIGKILL, exit 137, timeout, failed)
-   and the existing **single** Codex retry is exhausted, Claude auto-takes over
-   **only that failed stage** — no `AskUserQuestion`, no manual prompt. The
-   fallback path reuses the `(taskUuid, workerId, itemId)` retry counter in
-   `failure-capture.mjs` and adds **no** second retry. Every fallback appends a
-   best-effort record to `.qe/state/agent-errors.json`
-   (`timestamp`, `stage`, `taskUuid`, `reason`, `jobId`/`pid` when known,
-   `fallbackEngine: "claude"`); a record failure never blocks the stage. Surface
-   a concise **non-blocking** post-hoc notice —
-   `stage X: Codex crashed -> auto-recovered with Claude` — never a confirmation.
-   `.qe/sivs-config.json` routing is **never** modified; next-stage routing still
-   follows the stored config. Use `codex-result-handler.mjs` →
-   `resolveCodexFallback(cwd, result, { stage, taskUuid })` /
-   `formatResultInstruction(result, { autoFallback })`.
-6. **Escape hatch — `QE_SIVS_AUTOFALLBACK=off`** (also `0`/`false`/`no`): restores
-   the legacy manual prompt. The `formatResultInstruction()` failure branches
-   return the original "Ask user" choices, and the `codex-inline-degrade` path
-   stays reachable and behavior-compatible. Routing config is unchanged in both
-   modes.
+### SIVS Single-AI Role Contract
+The active client owns the full loop; cross-client routing, bridges, and engine
+fallback are not SIVS execution paths. Read `core/SIVS_SINGLE_AI_MODEL.md`.
+
+- **Implement:** the main thread delegates bounded checklist work to
+  `Etask-executor` (or native same-client subagents), synthesizes changes, and
+  performs the required checks. A missing native subagent capability uses
+  `mode=degraded-inline`; it never invokes another AI client.
+- **Verify:** a high-reasoning critical lead creates the verification evidence,
+  then calls isolated review/test subagents before deciding PASS/WARN/FAIL.
+- **Supervise:** a separate high-reasoning critical lead validates the Verify
+  evidence and calls the domain QA subagents before deciding release readiness.
+- `.qe/sivs-config.json` only selects active-client model/effort. Verify and
+  Supervise default to `effort: high`; lowering them must be reported as
+  degraded QA.
 
 **Build Admission Gate:** let the PreToolUse Bash hook enforce machine-global build admission
 before any build/test command; wait and retry if blocked, do not bypass.
@@ -285,11 +269,9 @@ sub-agent spawn or the orchestrator's aggregation inference.
   else floor = 5). The reduction is cross-stage de-duplication, not dropped
   coverage. If no removable duplication applies to a task, record "no reduction
   achieved" rather than an implicit pass.
-- **Degraded independence (NF1):** when codex is unreachable, Qcritical's Merge
-  Blocker re-runs on Claude and the gate is marked `degraded` → at least WARN,
-  `crossmodel=false` — independence is preserved via separate-context adversarial
-  roles, never collapsed to a silent same-engine PASS. A config that merely lists
-  cross-model routing is not sufficient; the runtime path must degrade visibly.
+- **Degraded QA:** when native subagents are unavailable, use isolated inline
+  roles, mark `mode=degraded-inline`, and do not report PASS without later
+  delegated evidence.
 
 **For `type: code`, hand off to `-verify` mode** (test-review-fix quality loop) before final completion.
 

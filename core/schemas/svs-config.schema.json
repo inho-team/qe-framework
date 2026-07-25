@@ -1,14 +1,14 @@
 {
   "$schema": "http://json-schema.org/draft-07/schema#",
-  "title": "SIVS Engine Configuration Schema",
-  "description": "JSON Schema for qe-framework v5.x SIVS (Spec-Implement-Verify-Supervise) engine configuration",
+  "title": "SIVS Single-AI Role Configuration Schema",
+  "description": "JSON Schema for qe-framework SIVS single-AI role configuration",
   "type": "object",
   "additionalProperties": false,
   "properties": {
-    "profile": {
-      "type": "string",
-      "enum": ["claude-head", "codex-head", "all-claude", "all-codex", "custom"],
-      "description": "Named SIVS role profile. Head = spec + supervise, Body = implement + verify. Metadata only: the per-stage engine entries are the source of truth for routing. 'custom' marks a config edited stage-by-stage away from any named profile."
+    "schemaVersion": {
+      "type": "integer",
+      "const": 2,
+      "description": "Single-AI role configuration format."
     },
     "spec": {
       "$ref": "#/definitions/stageConfig",
@@ -32,25 +32,14 @@
       "type": "object",
       "additionalProperties": false,
       "properties": {
-        "engine": {
-          "type": "string",
-          "enum": ["claude", "codex"],
-          "default": "claude",
-          "description": "AI engine to handle this SIVS stage"
-        },
         "model": {
           "type": "string",
-          "description": "Optional model override (e.g., 'gpt-5.4-mini' for codex engine)"
+          "description": "Optional active-client model override"
         },
         "effort": {
           "type": "string",
           "enum": ["low", "medium", "high", "xhigh", "max"],
-          "description": "Reasoning effort level (Claude: low/medium/high/max, Codex: low/medium/high/xhigh)"
-        },
-        "background": {
-          "type": "boolean",
-          "default": false,
-          "description": "For Codex stages, run through codex-plugin-cc background mode and retrieve results with /codex:status and /codex:result"
+          "description": "Reasoning effort level for the active client"
         },
         "compaction": {
           "type": "object",

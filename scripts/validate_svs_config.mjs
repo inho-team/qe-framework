@@ -2,220 +2,103 @@
 
 import fs from 'fs';
 import path from 'path';
-import { getDefaultSivsConfig, resolveProfileName } from './lib/codex_bridge.mjs';
 
 const CONFIG_PATH = path.join(process.cwd(), '.qe', 'sivs-config.json');
 const LEGACY_CONFIG_PATH = path.join(process.cwd(), '.qe', 'svs-config.json');
-
-const ALLOWED_ENGINES = ['claude', 'codex'];
+const STAGES = ['spec', 'implement', 'verify', 'supervise'];
 const ALLOWED_EFFORTS = ['low', 'medium', 'high', 'xhigh', 'max'];
-const ALLOWED_PROFILES = ['claude-head', 'codex-head', 'all-claude', 'all-codex', 'custom'];
-const ALLOWED_TOP_LEVEL_KEYS = new Set(['profile', 'spec', 'implement', 'verify', 'supervise']);
-const ALLOWED_STAGE_KEYS = new Set(['engine', 'model', 'effort', 'background', 'compaction']);
+const ALLOWED_TOP_LEVEL_KEYS = new Set(['schemaVersion', ...STAGES]);
+const ALLOWED_STAGE_KEYS = new Set(['model', 'effort', 'compaction']);
 
-/**
- * Validate configuration object against SIVS schema
- * @returns {{ valid: boolean, config?: object, errors?: string[] }}
- */
 function validateConfig(config) {
   const errors = [];
-
-  // Check top-level keys
   for (const key of Object.keys(config)) {
     if (!ALLOWED_TOP_LEVEL_KEYS.has(key)) {
-      errors.push(`Invalid top-level key "${key}". Allowed: profile, spec, implement, verify, supervise`);
+      errors.push(`Invalid top-level key "${key}". Allowed: schemaVersion, ${STAGES.join(', ')}`);
     }
   }
-
-  // Validate profile (metadata field; stage entries remain the source of truth)
-  if (config.profile !== undefined) {
-    if (typeof config.profile !== 'string') {
-      errors.push(`profile must be a string, got ${typeof config.profile}`);
-    } else if (!ALLOWED_PROFILES.includes(config.profile)) {
-      errors.push(`profile must be one of [${ALLOWED_PROFILES.join(', ')}], got "${config.profile}"`);
-    }
+  if (config.schemaVersion !== undefined && config.schemaVersion !== 2) {
+    errors.push(`schemaVersion must be 2, got ${JSON.stringify(config.schemaVersion)}`);
   }
 
-  // Validate each stage
-  for (const stage of ['spec', 'implement', 'verify', 'supervise']) {
-    if (config[stage] !== undefined) {
-      const stageConfig = config[stage];
-
-      // Stage must be an object
-      if (typeof stageConfig !== 'object' || stageConfig === null || Array.isArray(stageConfig)) {
-        errors.push(`${stage} must be an object`);
-        continue;
-      }
-
-      // Check allowed keys in stage
-      for (const key of Object.keys(stageConfig)) {
-        if (!ALLOWED_STAGE_KEYS.has(key)) {
-          errors.push(`${stage}.${key} is not allowed. Allowed: engine, model, effort, background, compaction`);
-        }
-      }
-
-      // Validate engine
-      if (stageConfig.engine !== undefined) {
-        if (!ALLOWED_ENGINES.includes(stageConfig.engine)) {
-          errors.push(`${stage}.engine must be "claude" or "codex", got "${stageConfig.engine}"`);
-        }
-      }
-
-      // Validate model
-      if (stageConfig.model !== undefined) {
-        if (typeof stageConfig.model !== 'string') {
-          errors.push(`${stage}.model must be a string, got ${typeof stageConfig.model}`);
-        }
-      }
-
-      // Validate effort
-      if (stageConfig.effort !== undefined) {
-        if (!ALLOWED_EFFORTS.includes(stageConfig.effort)) {
-          errors.push(`${stage}.effort must be one of [${ALLOWED_EFFORTS.join(', ')}], got "${stageConfig.effort}"`);
-        }
-      }
-
-      // Validate background
-      if (stageConfig.background !== undefined) {
-        if (typeof stageConfig.background !== 'boolean') {
-          errors.push(`${stage}.background must be a boolean, got ${typeof stageConfig.background}`);
-        }
-      }
-
-      // Validate compaction
-      if (stageConfig.compaction !== undefined) {
-        if (typeof stageConfig.compaction !== 'object' || stageConfig.compaction === null || Array.isArray(stageConfig.compaction)) {
-          errors.push(`${stage}.compaction must be an object`);
-        } else {
-          const allowedCompactionKeys = new Set(['enabled', 'strategy']);
-          for (const key of Object.keys(stageConfig.compaction)) {
-            if (!allowedCompactionKeys.has(key)) {
-              errors.push(`${stage}.compaction.${key} is not allowed. Allowed: enabled, strategy`);
-            }
-          }
-          if (stageConfig.compaction.enabled !== undefined && typeof stageConfig.compaction.enabled !== 'boolean') {
-            errors.push(`${stage}.compaction.enabled must be a boolean`);
-          }
-          if (stageConfig.compaction.strategy !== undefined) {
-            const allowedStrategies = ['server', 'client', 'auto'];
-            if (!allowedStrategies.includes(stageConfig.compaction.strategy)) {
-              errors.push(`${stage}.compaction.strategy must be one of [server, client, auto], got "${stageConfig.compaction.strategy}"`);
-            }
-          }
-        }
-      }
-    }
-  }
-
-  if (errors.length > 0) {
-    return { valid: false, errors };
-  }
-
-  return { valid: true };
-}
-
-/**
- * Merge user config with defaults
- */
-function resolveConfig(config) {
-  const defaults = getDefaultSivsConfig();
-  const resolved = {};
-  for (const stage of ['spec', 'implement', 'verify', 'supervise']) {
-    resolved[stage] = {
-      engine: config[stage]?.engine ?? defaults[stage].engine,
-      ...(config[stage]?.model && { model: config[stage].model }),
-      ...(config[stage]?.effort && { effort: config[stage].effort }),
-      ...(config[stage]?.background !== undefined && { background: config[stage].background })
-    };
-  }
-  return resolved;
-}
-
-/**
- * Format config for display
- */
-function formatConfig(config) {
-  const lines = [];
-  for (const stage of ['spec', 'implement', 'verify', 'supervise']) {
+  for (const stage of STAGES) {
     const stageConfig = config[stage];
-    let line = `  ${stage.padEnd(12)} ${stageConfig.engine}`;
-    const details = [];
-    if (stageConfig.model) {
-      details.push(`model: ${stageConfig.model}`);
+    if (stageConfig === undefined) continue;
+    if (typeof stageConfig !== 'object' || stageConfig === null || Array.isArray(stageConfig)) {
+      errors.push(`${stage} must be an object`);
+      continue;
     }
-    if (stageConfig.effort) {
-      details.push(`effort: ${stageConfig.effort}`);
+    for (const key of Object.keys(stageConfig)) {
+      if (!ALLOWED_STAGE_KEYS.has(key)) {
+        const migration = key === 'engine' || key === 'background'
+          ? ' Remove engine/background: SIVS now uses the active client only.'
+          : '';
+        errors.push(`${stage}.${key} is not allowed. Allowed: model, effort, compaction.${migration}`);
+      }
     }
-    if (stageConfig.background !== undefined) {
-      details.push(`background: ${stageConfig.background}`);
+    if (stageConfig.model !== undefined && (typeof stageConfig.model !== 'string' || !stageConfig.model.trim())) {
+      errors.push(`${stage}.model must be a non-empty string`);
     }
-    if (details.length > 0) {
-      line += ` (${details.join(', ')})`;
+    if (stageConfig.effort !== undefined && !ALLOWED_EFFORTS.includes(stageConfig.effort)) {
+      errors.push(`${stage}.effort must be one of [${ALLOWED_EFFORTS.join(', ')}], got "${stageConfig.effort}"`);
     }
-    lines.push(line);
+    if (stageConfig.compaction !== undefined) {
+      const compaction = stageConfig.compaction;
+      if (typeof compaction !== 'object' || compaction === null || Array.isArray(compaction)) {
+        errors.push(`${stage}.compaction must be an object`);
+      } else {
+        for (const key of Object.keys(compaction)) {
+          if (!['enabled', 'strategy'].includes(key)) errors.push(`${stage}.compaction.${key} is not allowed`);
+        }
+        if (compaction.enabled !== undefined && typeof compaction.enabled !== 'boolean') errors.push(`${stage}.compaction.enabled must be a boolean`);
+        if (compaction.strategy !== undefined && !['server', 'client', 'auto'].includes(compaction.strategy)) errors.push(`${stage}.compaction.strategy must be one of [server, client, auto]`);
+      }
+    }
   }
-  return lines.join('\n');
+  return errors;
 }
 
-/**
- * Main validation logic
- */
+function resolveConfig(config = {}) {
+  return Object.fromEntries(STAGES.map((stage) => [stage, {
+    effort: config[stage]?.effort || ((stage === 'verify' || stage === 'supervise') ? 'high' : 'default'),
+    ...(config[stage]?.model ? { model: config[stage].model } : {}),
+  }]));
+}
+
+function formatConfig(config) {
+  return STAGES.map((stage) => {
+    const current = config[stage];
+    return `  ${stage.padEnd(12)} effort: ${current.effort}${current.model ? `, model: ${current.model}` : ''}`;
+  }).join('\n');
+}
+
 function main() {
-  try {
-    // Check for new config path first, then legacy
-    let configPath = CONFIG_PATH;
-    if (!fs.existsSync(CONFIG_PATH)) {
-      if (fs.existsSync(LEGACY_CONFIG_PATH)) {
-        configPath = LEGACY_CONFIG_PATH;
-        console.log('[sivs-config] Using legacy .qe/svs-config.json — consider renaming to .qe/sivs-config.json');
-      } else {
-        const resolved = resolveConfig({});
-        console.log('[sivs-config] No .qe/sivs-config.json found. Using defaults:');
-        console.log(formatConfig(resolved));
-        process.exit(0);
-      }
-    }
-
-    const fileContent = fs.readFileSync(configPath, 'utf-8');
-    let config;
-
-    try {
-      config = JSON.parse(fileContent);
-    } catch (e) {
-      console.error(`[sivs-config] Validation error: Invalid JSON in ${configPath}`);
+  let configPath = CONFIG_PATH;
+  if (!fs.existsSync(configPath)) {
+    if (fs.existsSync(LEGACY_CONFIG_PATH)) {
+      console.error('[sivs-config] Legacy .qe/svs-config.json is unsupported. Create .qe/sivs-config.json with schemaVersion: 2.');
       process.exit(1);
     }
-
-    // Ensure config is an object
-    if (typeof config !== 'object' || config === null || Array.isArray(config)) {
-      console.error(`[sivs-config] Validation error: Config must be a JSON object`);
-      process.exit(1);
-    }
-
-    const validation = validateConfig(config);
-
-    if (!validation.valid) {
-      for (const error of validation.errors) {
-        console.error(`[sivs-config] Validation error: ${error}`);
-      }
-      process.exit(1);
-    }
-
-    const resolved = resolveConfig(config);
-    const effectiveProfile = resolveProfileName(config);
-    const declaredProfile = config.profile;
-    console.log('[sivs-config] Valid configuration:');
-    if (declaredProfile && declaredProfile !== effectiveProfile) {
-      console.log(`  profile      ${declaredProfile} (declared) / ${effectiveProfile} (effective from stages)`);
-    } else {
-      console.log(`  profile      ${effectiveProfile}`);
-    }
-    console.log(formatConfig(resolved));
-    process.exit(0);
-  } catch (e) {
-    console.error(`[sivs-config] Unexpected error: ${e.message}`);
+    console.log('[sivs-config] No .qe/sivs-config.json found. Single-AI defaults:');
+    console.log(formatConfig(resolveConfig()));
+    return;
+  }
+  let config;
+  try { config = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {
+    console.error(`[sivs-config] Validation error: Invalid JSON in ${configPath}`);
     process.exit(1);
   }
+  if (typeof config !== 'object' || config === null || Array.isArray(config)) {
+    console.error('[sivs-config] Validation error: Config must be a JSON object');
+    process.exit(1);
+  }
+  const errors = validateConfig(config);
+  if (errors.length) {
+    errors.forEach((error) => console.error(`[sivs-config] Validation error: ${error}`));
+    process.exit(1);
+  }
+  console.log('[sivs-config] Valid single-AI role configuration:');
+  console.log(formatConfig(resolveConfig(config)));
 }
 
 main();

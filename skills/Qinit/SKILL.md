@@ -62,7 +62,33 @@ Ask the user for the minimum required information:
 - **Project description**: One-line summary
 - **Tech stack**: Primary languages/frameworks (optional)
 
-### Step 1.5: SIVS Engine Configuration (Optional)
+### Step 1.5: SIVS Single-AI Quality Configuration (Optional)
+
+Use one active AI client for the full SIVS loop. Do not detect, install, or
+route to a second AI client. Ask whether to create the default high-quality QA
+configuration:
+
+```json
+{
+  "questions": [{
+    "question": "SIVS 고품질 QA 설정을 적용하시겠습니까?",
+    "header": "SIVS 설정",
+    "multiSelect": false,
+    "options": [
+      { "label": "기본 고품질 QA (Recommended)", "description": "Verify와 Supervise를 고사양·비판적 사고 역할로 실행합니다." },
+      { "label": "나중에 설정", "description": "초기화만 진행합니다." }
+    ]
+  }]
+}
+```
+
+On the recommended option, create `.qe/sivs-config.json` with
+`schemaVersion: 2`, `verify.effort: high`, and `supervise.effort: high`, then
+run the framework validator. On the other option, create no config. The active
+client remains the owner of every stage in both cases. The legacy engine-routing
+procedure below is retained only as historical reference and must not be run.
+
+<!-- LEGACY ENGINE ROUTING: do not execute
 
 **Codex Plugin Detection (MANDATORY):** Before presenting engine options, you MUST run the following bash command. Do NOT skip this step. Do NOT guess the result. The output determines what status to display.
 
@@ -151,6 +177,8 @@ Claude adapter: call `AskUserQuestion` with these **exact** parameters (copy ver
    ```
 
 **On option 3 "나중에 설정"**: Skip — Show guidance message: "`.qe/sivs-config.json`은 나중에 수동 생성하거나 `{adapter.commandPrefix}Qsivs-config`로 설정할 수 있습니다."
+
+-->
 
 ### Step 2: Auto-analyze Project
 Delegate the analysis to the `Erefresh-executor` sub-agent. Since Erefresh-executor uses the same analysis logic as Qrefresh, consistency of analysis is guaranteed.

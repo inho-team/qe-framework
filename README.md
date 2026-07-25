@@ -4,13 +4,13 @@
 
 > <!--qe:skills-->32<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
-**A transparent, auditable, cross-model quality gate for coding agents.** Three things set QE apart:
+**A transparent, auditable, single-AI quality gate for coding agents.** Three things set QE apart:
 
-1. **Cross-model by construction** — the model that *verifies* work never shares a provider with the model that *wrote* it. Independence is enforced structurally (pool-disjointness in `core/engines.json`), not by trust.
+1. **Role-separated QA by construction** — one active AI client owns a session, while isolated critical subagents verify and supervise the work.
 2. **Auditable** — every routing decision and gate verdict is logged (`.qe/state/sivs-audit.log`, gate audits); nothing is a black box you take on faith.
 3. **Transparent** — the whole loop is plain files and skills you can read: `Plan → Spec → Execute → Verify`, no hidden orchestration.
 
-**See it work:** run `/Qplan` on a real task and watch the spec gate reject a weak plan, then a cross-model Verify grade the result. Independence guarantee: [`docs/SIVS_INDEPENDENCE.md`](docs/SIVS_INDEPENDENCE.md) · Positioning FAQ: [`docs/POSITIONING.md`](docs/POSITIONING.md).
+**See it work:** run `/Qplan` on a real task and watch the spec gate reject a weak plan, then a high-reasoning Verify lead produce QA evidence with isolated subagents. Role contract: [`core/SIVS_SINGLE_AI_MODEL.md`](core/SIVS_SINGLE_AI_MODEL.md).
 
 ---
 
@@ -170,11 +170,11 @@ claude --plugin-dir /path/to/qe-framework
 In Claude, you only need to remember two commands:
 
 ```
-/Qinit    # Set up project, choose engine routing (Claude, Codex, or hybrid)
+/Qinit    # Set up project and optional single-AI QA settings
 /Qplan    # Start working — the framework guides you through every next step
 ```
 
-`/Qinit` asks how you want to assign engines to each stage (Spec, Implement, Verify, Supervise). Pick a single engine or mix Claude and Codex — your choice. After that, `/Qplan` takes over and tells you exactly what to run next.
+`/Qinit` keeps the active client for every SIVS stage and can enable high-reasoning QA for Verify and Supervise. After that, `/Qplan` takes over and tells you exactly what to run next.
 
 In Codex, use the same skill names with the Codex skill prefix:
 
@@ -234,45 +234,26 @@ Runs inside Execute and Verify steps:
      └──────────────────────────────────────┘
 ```
 
-### Multi-Engine Routing
+### Single-AI Role Separation
 
 The problem with single-model workflows: the same model that writes the spec also implements it, reviews it, and approves it. That's self-grading.
 
-QE solves this by letting you **assign a different engine to each SIVS stage**. Without Codex, Claude handles all stages. When Codex is available, Implement and Verify prefer Codex by default to reduce Claude session token pressure, while Spec and Supervise remain Claude-led unless you explicitly reroute them. Routing is bidirectional: a Claude base session can route Codex stages through `codex-plugin-cc`, and a Codex base session can route Claude stages back through `Qclaude-rescue` plus `claude_bridge.mjs` (the reverse of `codex-plugin-cc`'s `/codex:rescue`).
-
-You decide what fits your project. Some examples:
-
-```
-Solo developer, simple project:
-  Spec → Claude    Implement → Claude    Verify → Claude    Supervise → Claude
-  (no Codex installed — just use Claude for everything, zero config needed)
-
-Claude session token saver:
-  Spec → Claude    Implement → Codex     Verify → Codex     Supervise → Claude
-  (default when Codex is available — Claude thinks, Codex does heavy execution)
-
-Maximum independence:
-  Spec → Claude    Implement → Codex     Verify → Claude    Supervise → Codex
-  (no stage shares the same engine with its neighbor)
-```
+QE uses one active client. Spec stays in the main thread; Implement is led by
+the main thread with bounded subagents; Verify and Supervise are high-reasoning
+critical QA roles that produce evidence and use isolated subagents.
 
 Pick a setup with the active client prefix:
 
 ```
-Claude: /Qsivs-config verify codex --background true # long verify job in Codex background
-Codex:  $Qsivs-config verify codex --background true
-Claude: /Qsivs-config set --all claude               # route every stage to Claude
-Codex:  $Qsivs-config set --all claude
+Claude: /Qsivs-config set verify --effort high
+Codex:  $Qsivs-config set verify --effort high
 Claude: /Qsivs-config                                # see current setup
 Codex:  $Qsivs-config
 Claude: /Qsivs-config --help                         # full options
 Codex:  $Qsivs-config --help
 ```
 
-No Codex? No problem. No Claude delegation from Codex? Also fine. Each base runs
-solo with zero config, and routing activates only when you opt into the bridge
-for the other engine. The four base/engine combinations are documented in
-`.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md`.
+Choose Claude or Codex for a session; SIVS does not invoke the other client.
 
 ### Folder-Aware Context Memory
 
@@ -398,13 +379,13 @@ install download optional guidance.
 
 ## Configuration
 
-### SIVS Engine Routing
+### SIVS Single-AI Role Settings
 
 ```text
 Claude: /Qsivs-config                    # Show current routing
 Codex:  $Qsivs-config
-Claude: /Qsivs-config implement codex    # Route implement stage to Codex
-Codex:  $Qsivs-config implement codex
+Claude: /Qsivs-config set verify --effort high
+Codex:  $Qsivs-config set verify --effort high
 Claude: /Qsivs-config --help             # Full usage guide
 Codex:  $Qsivs-config --help
 ```
@@ -413,10 +394,9 @@ Config file: `.qe/sivs-config.json`
 
 ```json
 {
-  "spec":      { "engine": "claude" },
-  "implement": { "engine": "codex", "model": "gpt-5.4", "effort": "high" },
-  "verify":    { "engine": "codex", "background": true },
-  "supervise": { "engine": "claude" }
+  "schemaVersion": 2,
+  "verify": { "effort": "high" },
+  "supervise": { "effort": "high" }
 }
 ```
 
@@ -451,7 +431,7 @@ qe-framework/
 ├── docs/                    # Guides and references
 └── .qe/                    # Project state (per-project)
     ├── context/             # Folder-aware context memory
-    ├── sivs-config.json     # Engine routing config
+    ├── sivs-config.json     # Single-AI role settings
     └── tasks/               # Task tracking
 ```
 

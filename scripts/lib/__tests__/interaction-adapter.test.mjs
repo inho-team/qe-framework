@@ -12,14 +12,13 @@ import {
 } from '../interaction_adapter.mjs';
 
 const sivsQuestion = {
-  id: 'sivs-routing',
+  id: 'sivs-quality-profile',
   kind: 'choice',
-  question: 'SIVS 엔진 라우팅을 설정하시겠습니까?',
-  default: 'hybrid',
+  question: 'SIVS 고품질 검증 수준을 설정하시겠습니까?',
+  default: 'high-qa',
   requiresExplicitAnswer: true,
   options: [
-    { label: 'Claude + Codex Hybrid (Recommended)', value: 'hybrid' },
-    { label: 'Claude single-engine', value: 'claude' },
+    { label: '기본 고품질 QA (Recommended)', value: 'high-qa' },
     { label: 'Configure later', value: 'later' },
   ],
 };
@@ -31,23 +30,29 @@ test('command rendering uses client-specific prefixes', () => {
   assert.equal(renderSkillCommand('Qexecute -verify', 'a1b2c3d4', { client: 'claude' }), '/Qexecute -verify a1b2c3d4');
 });
 
-test('SIVS questions require Codex or Hybrid option', () => {
+test('SIVS quality questions use the single-AI profile', () => {
   assert.deepEqual(validateQuestionSchema(sivsQuestion), []);
-  assert.equal(hasCodexOrHybridOption(sivsQuestion), true);
+  assert.equal(hasCodexOrHybridOption(sivsQuestion), false);
   assert.deepEqual(validateSivsQuestion(sivsQuestion), []);
 
   const bad = {
     ...sivsQuestion,
-    options: [{ label: 'Claude single-engine', value: 'claude' }],
+    options: [{ label: '기본 고품질 QA', value: 'high-qa' }],
   };
-  assert.deepEqual(validateSivsQuestion(bad), ['SIVS routing questions must include a Codex or Hybrid option']);
+  assert.deepEqual(validateSivsQuestion(bad), []);
+
+  const legacy = {
+    ...sivsQuestion,
+    options: [{ label: 'Claude + Codex Hybrid', value: 'hybrid' }],
+  };
+  assert.deepEqual(validateSivsQuestion(legacy), ['SIVS questions must not offer Codex or Hybrid routing in single-AI mode']);
 });
 
 test('Codex choice rendering and defaults preserve the same schema', () => {
   const rendered = renderCodexChoice(sivsQuestion);
-  assert.match(rendered, /1\. Claude \+ Codex Hybrid/);
+  assert.match(rendered, /1\. 기본 고품질 QA/);
   assert.match(rendered, /\[default\]/);
 
-  assert.deepEqual(selectDefault(sivsQuestion, { qutopia: true }).selected.value, 'hybrid');
+  assert.deepEqual(selectDefault(sivsQuestion, { qutopia: true }).selected.value, 'high-qa');
   assert.equal(selectDefault(sivsQuestion, { nonInteractive: true }).blocked, true);
 });

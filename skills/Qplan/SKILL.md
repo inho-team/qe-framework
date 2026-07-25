@@ -54,14 +54,11 @@ using that server.
 - `FAIL` → stop only when the plan explicitly depends on that MCP server;
   otherwise continue without claiming MCP coverage.
 
-### Step 0.5: Codex Plugin Version Check (Silent)
+### Step 0.5: SIVS Single-AI Check (Silent)
 
-If `.qe/sivs-config.json` exists and any stage uses `"codex"`, call `getCodexPluginInfo()` from `scripts/lib/codex_bridge.mjs`:
-- **Not installed**: Show warning: "Codex engine configured but codex-plugin-cc is not installed. Run `{adapter.commandPrefix}Qupdate` to install, or stages will fallback to Claude."
-- **Installed but stale (>30 days)**: Show hint: "codex-plugin-cc v{version} installed {N} days ago. Run `{adapter.commandPrefix}Qupdate` to check for updates."
-- **Installed and fresh**: No output, proceed silently.
-
-If no sivs-config.json or all stages are Claude, skip this check entirely.
+If `.qe/sivs-config.json` exists, validate that it contains no legacy `engine`
+or `background` field. The active client owns every SIVS stage; do not probe or
+install a second client.
 
 ## Workflow
 

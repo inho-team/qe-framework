@@ -258,18 +258,18 @@ guard enforces it; `scripts/lib/doc-index.mjs` rebuilds the index after any doc 
 - **auto-memory** (`~/.claude/.../memory/`): AI 행동 교정, 사용자 선호, cross-project reference를 저장한다.
 - **Qlearn** (`.qe/learnings.md`): 프로젝트 특정 기술 교훈(mistake/gotcha/decision/convention)을 우선 기록한다. 같은 교훈을 auto-memory와 이중 저장하지 않는다.
 
-### Codex Runtime Policy
-When invoking Codex (`codex:codex-rescue`, SIVS codex routing):
-- **Stage defaults** — without Codex, all SIVS stages use Claude. When Codex is available, Spec and Supervise stay Claude-led while Implement and Verify prefer Codex; explicit `.qe/sivs-config.json` entries can override this.
-- **Role profiles** — the Head/Body split is a named preset over the four stages: **Head = Spec + Supervise**, **Body = Implement + Verify**. `/Qsivs-config profile <name>` sets all four at once — `claude-head` (default: Claude Head / Codex Body), `codex-head` (Codex Head / Claude Body), `all-claude`, `all-codex`. The stored `profile` field is metadata; the per-stage engine entries remain the routing source of truth.
-- **Fallback is bidirectional** — engine assignment is a preference. A `codex` stage degrades to Claude when codex-plugin-cc is absent; a `claude` stage degrades to Codex in a Codex-native session where Claude is unreachable. See `resolveEngine()` in `scripts/lib/codex_bridge.mjs`.
-- **Cross-engine execution is bridge-owned** — when Claude must hand a stage to Codex, route through `scripts/lib/codex_bridge.mjs` and the `codex-plugin-cc` bridge. When Codex must hand a stage to Claude, route through `scripts/lib/claude_bridge.mjs` and `Qclaude-rescue`. MCP server tools are not the canonical PSE/SIVS execution path.
-- **Spec/Supervise assistance** — Claude owns requirements and final judgment, but should actively use Codex for bounded repo search, context gathering, test diagnosis, and second-opinion review when that reduces Claude token load.
-- **Runtime mode is selectable** — foreground is preferred for short Codex tasks so stdout lands in the conversation. Background is allowed for long Implement/Verify jobs only when the session retrieves results with `/codex:status` and `/codex:result <job-id>` before final reporting.
-- **Session result hint** — SessionStart may emit `[Session State] ... codex:<status>...:retrieve /codex:result` when a background Codex job is still relevant. Treat it as a retrieval reminder, not as completion evidence.
-- **Concise Codex output** — ask Codex for relevant files, line numbers, summaries, and next actions; do not paste raw bulk search output back into Claude unless necessary.
-- **Per-scope config design** — `loadSivsConfig(cwd)` uses exact-path loading (no walk-up); hook cwd = session cwd. Each repo (e.g. `qe-framework/`) has its own `.qe/sivs-config.json` scope independent from a wrapper workspace's config. The two configs do not conflict in a single session — they apply to different session cwds by design. See the config-scope authority section of `D-f876457e-1` in the plan `DECISION_LOG.md` for the authority rule.
-- **Gate subagent engine ownership** — SIVS `enforceRouting` hard-blocks direct Agent spawns (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise, `Ecode-reviewer` → verify) that violate the configured engine. However, **gate subagents inside `Qcritical-review`** (Devil's Advocate, Security Auditor, Merge Blocker, etc.) are **protocol-owned**: the gate protocol itself controls their engine assignment (including the automatic Codex cross-model upgrade for DA/Merge Blocker). SIVS enforcer does not reach inside protocol-owned spawns. This means gate execution is **mixed** under `codex-head`: DA/Merge Blocker → Codex (protocol auto-upgrade), other agents → Claude (protocol-owned). G4 Risk Proof (`Erisk-proof-auditor`) is Claude-only (not in SIVS STAGE_MAP). See DECISION_LOG `D-f876457e-1`.
+### Single-AI SIVS Runtime Policy
+
+- The active client owns Spec, Implement, Verify, and Supervise; no SIVS path
+  invokes a second AI client or bridge.
+- Spec is main-thread work. Implement is main-thread-led and uses bounded
+  same-client subagents. Verify and Supervise are high-reasoning critical QA
+  leads that create evidence and call isolated same-client subagents.
+- `.qe/sivs-config.json` configures only active-client `model`, `effort`, and
+  compaction. Verify and Supervise default to `effort: high`.
+- Native subagent loss degrades to isolated inline work (`mode=degraded-inline`)
+  and cannot yield a stronger-than-WARN QA verdict without later delegated proof.
+- See `core/SIVS_SINGLE_AI_MODEL.md` for the authoritative contract.
 
 ---
 

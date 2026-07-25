@@ -41,28 +41,16 @@ Command rendering rules:
 - Multiple tasks get separate TASK_REQUEST / VERIFY_CHECKLIST pairs.
 - Newly generated documents always go in `pending/`.
 
-## SIVS Engine Routing
+## SIVS Single-AI Role Contract
 
-Before executing the spec generation workflow, resolve SIVS engine routing:
+The active client owns every SIVS stage; do not delegate Spec to another AI
+client or bridge. The **main thread** creates TASK_REQUEST and
+VERIFY_CHECKLIST, then runs the mandatory spec critical gate with isolated
+subagent roles. If native subagents are unavailable, use role-separated inline
+passes and record `mode=degraded-inline`.
 
-1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. Call `resolveEngine("spec", config)`.
-   - **Base client = Claude, stage engine = `claude` (default)**: Proceed with the standard workflow below. Claude owns the spec, but may delegate bounded repo search/context gathering to Codex when useful.
-   - **Base client = Claude, stage engine = `codex`**: Delegate spec generation through `codex_bridge.mjs` / codex-plugin-cc. If the bridge is unavailable, warn and fall back to Claude.
-   - **Base client = Codex, stage engine = `codex`**: Use the native Codex execution path. If native subagent delegation is unavailable, keep the work in the lead session as a role-separated inline pass and mark the route `degraded-inline`.
-   - **Base client = Codex, stage engine = `claude`**: Delegate through `Qclaude-rescue` / `claude_bridge.mjs` when available. If the bridge is unavailable, warn and run the spec stage on Codex with `crossmodel=false`.
-3. Check for legacy config: call `detectLegacyConfig()`. If non-null, display the migration warning to the user before proceeding.
-
-**Codex Spec Delegation Format:**
-When delegating to Codex, pass the following prompt structure:
-```
-Generate a TASK_REQUEST and VERIFY_CHECKLIST for: {user's task description}
-Project context: {from active project instruction artifact, e.g. CLAUDE.md or AGENTS.md}
-Phase context: {from ROADMAP.md active phase}
-Format: Markdown with checklist items
-```
-
-**Fallback guarantee**: If `.qe/sivs-config.json` does not exist, all stages default to Claude. This preserves existing single-engine workflows while Codex routing remains available through SIVS config.
+`.qe/sivs-config.json` may set an active-client model or effort, but it cannot
+route this stage to Claude or Codex. See `core/SIVS_SINGLE_AI_MODEL.md`.
 
 ## Optional MCP Preflight
 
@@ -197,7 +185,7 @@ Any fail → fix automatically. After max iterations, proceed with best version.
 Step 2.5 checks spec *quality* with the same model that drafted it — which cannot
 catch errors rooted in that model's own blind spots (the **self-reference
 problem**, acute when the SIVS engine is homogeneously all-Claude or all-Codex).
-Step 2.6 closes that gap with an **independent adversarial gate**.
+Step 2.6 closes that gap with an **isolated adversarial gate**.
 
 **This gate ALWAYS runs.** Unlike Step 2.5, it has **no skip conditions** — it
 runs regardless of item count or task type (DECISION_LOG D011). Spec-stage errors
@@ -209,9 +197,8 @@ gate exists to close.
 1. Invoke `{adapter.commandPrefix}Qcritical-review --stage spec` against the just-drafted TASK_REQUEST
    (+ VERIFY_CHECKLIST). The gate spawns the Structural Reviewer + Critical
    Reviewer + Edge Case Finder in parallel and returns a PASS/WARN/FAIL verdict.
-   Engine routing is automatic: same-engine baseline always, with the Critical
-   Reviewer auto-upgraded to codex when reachable — no config required. Full
-   protocol: `skills/Qcritical-review/reference/spec-gate-protocol.md`.
+   The active client uses isolated reviewer roles only; it never calls a second
+   AI client. Full protocol: `skills/Qcritical-review/reference/spec-gate-protocol.md`.
 2. **On FAIL:** the spec contains CRITICAL/HIGH problems. Revise the TASK_REQUEST
    / VERIFY_CHECKLIST to address them and re-run the gate (max 2 iterations).
    Then enter Step 3 in **blocked mode** (see below) if still FAIL.

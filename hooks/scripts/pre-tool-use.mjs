@@ -375,40 +375,8 @@ if (toolName === 'Skill') {
       };
     }
 
-    // SIVS Skill Entry Guard: inject mandatory engine hint before skill loads
-    const SKILL_STAGE_MAP = {
-      'Qgenerate-spec': 'spec', 'qe-framework:Qgenerate-spec': 'spec',
-      'Qgs': 'spec', 'qe-framework:Qgs': 'spec',
-      'Qexecute': 'implement', 'qe-framework:Qexecute': 'implement',
-      'Qrt': 'implement', 'qe-framework:Qrt': 'implement',
-    };
-    const sivsStage = SKILL_STAGE_MAP[skillName];
-    if (sivsStage) {
-      try {
-        const bridgePath = join(__dirname, '..', '..', 'scripts', 'lib', 'codex_bridge.mjs');
-        const { loadSivsConfig, resolveEngine } = await import(
-          pathToFileURL(bridgePath).href
-        );
-        const sivsConfig = loadSivsConfig(cwd);
-        const routing = resolveEngine(sivsStage, sivsConfig);
-        if (routing.engine === 'codex') {
-          if (!routing.warning) {
-            hints.push(
-              `[SIVS CODEX-PREFERRED] ${sivsStage} stage resolves to Codex engine. ` +
-              `You MUST delegate to codex:codex-rescue subagent. Do NOT implement directly with Write/Edit. ` +
-              `Do NOT spawn Claude-only agents (Etask-executor) for this stage unless the user explicitly overrides routing.`
-            );
-          } else {
-            hints.push(
-              `[SIVS FALLBACK] ${sivsStage} stage resolved to codex but codex is unreachable (${routing.warning}). ` +
-              `Claude fallback is allowed for this invocation.`
-            );
-          }
-        }
-      } catch {
-        // Fault-tolerant: never let SIVS guard crash the hook
-      }
-    }
+    // SIVS is single-AI: the active client owns all stages. Stage role details
+    // are supplied by the invoked skill, never by a cross-client routing hint.
   }
 }
 
@@ -747,32 +715,7 @@ if (toolName === 'Bash' && cfg.staging_guard !== false) {
   }
 }
 
-// --- SIVS Option Guard (AskUserQuestion) ---
-// Hard-block any SIVS engine routing question that omits the Codex Hybrid option.
-// Detection: broad keyword match (sivs, 엔진, engine) + semantic check (must have codex/hybrid label).
-if (toolName === 'AskUserQuestion') {
-  const toolInput = data.tool_input || data.toolInput || {};
-  const questions = toolInput.questions || [];
-  for (const q of questions) {
-    const qText = (q.question || '').toLowerCase();
-    const isSivsQuestion =
-      qText.includes('sivs') ||
-      (qText.includes('엔진') && (qText.includes('라우팅') || qText.includes('설정') || qText.includes('선택'))) ||
-      (qText.includes('engine') && (qText.includes('routing') || qText.includes('config') || qText.includes('select'))) ||
-      (qText.includes('spec') && qText.includes('implement') && qText.includes('verify'));
-    if (isSivsQuestion) {
-      const labels = (q.options || []).map(o => (o.label || '').toLowerCase());
-      const hasCodexOption = labels.some(l => l.includes('codex') || l.includes('hybrid'));
-      if (!hasCodexOption) {
-        emitBlock({
-          skill: '_sivs_options',
-          reason: 'SIVS option guard: "Claude + Codex Hybrid" option is MISSING',
-          action: 'Re-call AskUserQuestion with all three options: Claude Only, Claude + Codex Hybrid, Configure Later',
-        });
-      }
-    }
-  }
-}
+// SIVS configuration is single-AI and must not enforce a cross-client option.
 
 // --- Secret Scanner (Write/Edit only) ---
 if (['Write', 'Edit'].includes(toolName)) {
@@ -847,68 +790,8 @@ if (toolName === 'Task' || toolName === 'Agent') {
   }
 }
 
-// --- SIVS Routing Enforcer (Agent tool calls) ---
-if (toolName === 'Agent') {
-  try {
-    const { enforceRouting, appendAuditLog } = await import('./lib/sivs-enforcer.mjs');
-    const bridgePath = join(__dirname, '..', '..', 'scripts', 'lib', 'codex_bridge.mjs');
-    const { loadSivsConfig, isCodexReachable } = await import(
-      pathToFileURL(bridgePath).href
-    );
-    const sivsConfig = loadSivsConfig(cwd);
-    if (sivsConfig && Object.keys(sivsConfig).length > 0) {
-      const toolInput = data.tool_input || data.toolInput || {};
-      const reachable = isCodexReachable(state);
-      const result = enforceRouting(toolInput, sivsConfig, reachable);
-      appendAuditLog(cwd, result);
-      if (result.actualEngine === 'codex' && result.action !== 'block') {
-        try {
-          const { injectCodexContext } = await import('./lib/codex-context-injector.mjs');
-          const injection = await injectCodexContext(cwd, toolInput, result.stage);
-          if (injection.injected) {
-            mutatedInput = { ...toolInput, prompt: injection.updatedPrompt };
-            const artifactSummary = injection.artifacts
-              .map((artifact) => `${artifact.kind}(${artifact.bytes}B)`)
-              .join(', ');
-            hints.push(`[SIVS CONTEXT] Injected artifact context into codex delegation: ${artifactSummary}`);
-          }
-        } catch {
-          // Fault-tolerant: context injection must never affect routing.
-        }
-      }
-      if (result.action === 'block') {
-        emitBlock({
-          skill: result.configuredEngine === 'codex' ? 'codex:codex-rescue' : 'Etask-executor',
-          reason: `SIVS routing violation: ${result.stage} stage requires ${result.configuredEngine} engine`,
-          action: `Use ${result.configuredEngine === 'codex' ? 'codex:codex-rescue' : 'Etask-executor'} subagent instead`,
-          bypass: `sivs-config.json — change ${result.stage}.engine to claude`,
-        });
-      }
-      if (result.action === 'fallback') {
-        hints.push(`[SIVS FALLBACK] ${result.stage} stage configured for codex but falling back to claude: ${result.reason}. Fix: ensure codex-plugin-cc is installed and operational.`);
-      }
-    } else {
-      // Visibility-only (no behavior change): loadSivsConfig() returned empty.
-      // If a config file nevertheless exists on disk, SIVS enforcement is
-      // silently inactive (malformed/unparseable, or intentionally emptied) —
-      // the one path where routing is not enforced with no signal. Leave an
-      // audit breadcrumb so a disabled gate is not invisible. Enforcement flow
-      // is unchanged; this branch only appends to the audit log.
-      const cfgBase = join(cwd, '.qe');
-      if (existsSync(join(cfgBase, 'sivs-config.json')) || existsSync(join(cfgBase, 'svs-config.json'))) {
-        appendAuditLog(cwd, {
-          stage: null,
-          configuredEngine: null,
-          actualEngine: null,
-          action: 'skip',
-          reason: 'config_present_but_inactive',
-        });
-      }
-    }
-  } catch {
-    // Fault-tolerant: never let SIVS enforcer crash the hook
-  }
-}
+// SIVS cross-client routing is intentionally disabled. Normal delegation
+// enforcement above remains responsible for same-client subagent safety.
 
 // --- Qexecute -utopia QA mode: verify loop reminder ---
 const currentCalls = stats.tool_calls;

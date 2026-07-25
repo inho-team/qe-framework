@@ -58,8 +58,8 @@ export function isSivsRoutingQuestion(question) {
 export function validateSivsQuestion(question) {
   if (!isSivsRoutingQuestion(question)) return [];
   return hasCodexOrHybridOption(question)
-    ? []
-    : ['SIVS routing questions must include a Codex or Hybrid option'];
+    ? ['SIVS questions must not offer Codex or Hybrid routing in single-AI mode']
+    : [];
 }
 
 export function renderCodexChoice(question) {

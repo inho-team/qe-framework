@@ -2,10 +2,9 @@
 
 > The **mandatory** Spec-stage verification gate that breaks the self-reference
 > problem. Invoked by `{adapter.commandPrefix}Qgenerate-spec` (Step 2.6) on **every** spec, with no
-> skip conditions. A FAIL verdict blocks downstream execution (Qexecute /
-> Qexecute) until the spec is fixed. See DECISION_LOG D011 (always mandatory),
-> D012 (same-engine baseline + codex cross-model upgrade), D013 (extend
-> Qcritical-review rather than build new).
+> skip conditions. A FAIL verdict blocks downstream execution until the spec is
+> fixed. The active client alone runs all roles; see
+> `core/SIVS_SINGLE_AI_MODEL.md`.
 
 Cognitive modes referenced here are defined in [thinking-modes.md](./thinking-modes.md).
 
@@ -33,40 +32,15 @@ when the client can enforce isolation.
 | Critical Reviewer | Critical | thinking-modes.md → Mode 2 |
 | Edge Case Finder | Critical (boundary focus) | Qcritical-review spec table |
 
-The **Critical Reviewer** is the designated "most adversarial" agent for
-cross-model upgrade (see below).
+The **Critical Reviewer** uses high reasoning effort and remains isolated from
+the other reviewer outputs until aggregation.
 
-## Engine routing (baseline + auto-upgrade)
+## Single-AI execution
 
-Per D012, the gate runs with **zero external dependency** by default and upgrades
-opportunistically:
-
-1. **Baseline (always):** all agents run as same-engine sub-agents
-   (`subagent_type: "general-purpose"`). This is fully functional with no codex
-   installed — structural independence via fresh context + adversarial role.
-2. **Auto cross-model upgrade:** detect codex reachability via
-   `getCodexPluginInfo()` / `isCodexReachable()` from
-   `scripts/lib/codex_bridge.mjs`. If reachable, route the **Critical Reviewer**
-   (the most adversarial agent) to `subagent_type: "codex:codex-rescue"` for a
-   genuinely independent engine. The other agents stay on Claude.
-3. **Same-engine fallback:** if codex is not installed or unreachable, silently
-   fall back to the same-engine baseline. Codex is **never** a required dependency.
-
-For a Codex-native base session, "same-engine sub-agents" means native Codex
-subagents when they are available. If they are unavailable, the Lead runs the
-three roles with role-separated inline execution and records
-`mode=role-separated-inline` plus the isolation limits.
-
-No configuration is needed for either path — the upgrade is automatic when codex
-is present.
-
-**Cross-model failure fallback:** an optional cross-model upgrade must never block the
-mandatory gate or silently pass as if it were cross-model.
-- If the codex sub-agent errors or times out → log `crossmodel=false` + reason,
-  **re-run the Critical Reviewer on Claude** (`general-purpose`), and mark the
-  gate result **`degraded`** → at least **WARN** (independence was reduced).
-- If the Claude re-run also fails → **WARN-blocked** (NOT PASS), requiring
-  explicit user override, with audit `reason=double-failure`.
+All three reviewers are isolated subagents of the active client. If native
+delegation is unavailable, use role-separated inline passes, record
+`mode=degraded-inline`, and cap the result at WARN. No bridge or second AI
+client is permitted.
 
 (Note: empty-diff / missing-checklist degradation paths from the Verify/Supervise
 gates do NOT apply here — the Spec gate reviews the spec document itself, before
@@ -80,7 +54,7 @@ Each agent returns a single JSON object (parsed by the gate):
 {
   "agent": "Structural Reviewer | Critical Reviewer | Edge Case Finder",
   "mode": "structural | critical",
-  "engine": "claude | codex",
+  "engine": "active-client",
   "findings": [
     {
       "severity": "CRITICAL | HIGH | MEDIUM | LOW",

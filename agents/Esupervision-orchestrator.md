@@ -3,7 +3,7 @@ name: Esupervision-orchestrator
 description: Supervision orchestrator that performs expert-level quality assessment. Loads domain profiles from core/supervision-domains.yaml and aggregates PASS/PARTIAL/FAIL grades.
 tools: Read, Grep, Glob, Bash, Write
 memory: project
-recommendedModel: haiku
+recommendedModel: opus
 color: purple
 ---
 
@@ -15,23 +15,11 @@ Expert-level quality supervision orchestrator. Loads task-type domain profiles, 
 
 ## Client Adapter Compatibility
 
-Generic:
-1. Resolve the Supervise stage engine from `.qe/sivs-config.json`.
-2. Read `core/supervision-domains.yaml`, load the task-type profile, and walk every severity category in that profile.
-3. Aggregate PASS/PARTIAL/FAIL verdicts using the `common` grade rules in `core/supervision-domains.yaml`.
-
-Claude adapter:
-1. Use Claude domain supervisors and Agent tool delegation where available.
-2. Use Codex only as a bounded second opinion when the stage route requests it.
-
-Codex adapter:
-1. Use native Codex reviewer/supervisor agents when available.
-2. If native subagents are unavailable, run the domain supervisor roles as role-separated inline passes and mark `degraded-inline`.
-3. Use `Qclaude-rescue` / `claude_bridge.mjs` only when the Supervise stage explicitly routes to Claude.
-
-Fallback / degradation:
-1. If cross-client delegation is unavailable, keep supervision on the active client and report `crossmodel=false`.
-2. Never skip the Supervise gate for `type: code` or `type: other` after binary Verify passes.
+The active client owns Supervise; it never invokes a second AI client. This is a
+**high-reasoning critical lead** role (`recommendedModel: opus`) and must call
+same-client domain QA subagents. If subagents are unavailable, use isolated
+inline passes and report `mode=degraded-inline`; do not upgrade that run beyond
+WARN without fresh command evidence. Read `core/SIVS_SINGLE_AI_MODEL.md`.
 
 ## Will
 - **Minimal I/O Rule**: Use **ContextMemo** hints. Do NOT re-read specs if `supervision_context` is provided.
@@ -84,33 +72,12 @@ Supervise always sees verified work. Full protocol:
 
 Grade rules and return formatting are defined only in `core/supervision-domains.yaml` under `common`; reference that block instead of restating the rules here.
 
-## SIVS Engine Routing
+## SIVS Single-AI Supervision
 
-Before starting supervision, resolve SIVS engine routing:
-
-1. Read `.qe/sivs-config.json` from the project root (via `scripts/lib/codex_bridge.mjs` → `loadSivsConfig()`).
-2. Call `resolveEngine("supervise", config)`.
-   - **Base client = Claude, stage engine = `claude` (default)**: Proceed with the YAML-backed domain profile audit. Claude owns the final judgment, runs code delegates when required, and may ask Codex for a bounded second opinion when useful.
-   - **Base client = Claude, stage engine = `codex`**: Delegate code review to Codex via `codex_bridge.mjs` / codex-plugin-cc:
-     1. If available: invoke the Codex review route for standard review, or the adversarial review route for deeper analysis.
-     2. Parse Codex review output and map to supervision verdict:
-        - No issues found → PASS
-        - Minor issues → PARTIAL (with findings)
-        - Critical issues → FAIL (trigger remediation)
-     3. If NOT available: show warning and fallback to Claude supervision with `crossmodel=false`.
-   - **Base client = Codex, stage engine = `codex`**: Use native Codex reviewer/supervisor agents when available; otherwise use `degraded-inline`.
-   - **Base client = Codex, stage engine = `claude`**: Delegate through `Qclaude-rescue` / `claude_bridge.mjs` when available; otherwise keep supervision on Codex and report `crossmodel=false`.
-
-**Codex Supervision Mapping:**
-| Codex Review Output | Supervision Verdict |
-|---|---|
-| No issues / clean | PASS |
-| Suggestions only | PARTIAL |
-| Critical findings | FAIL → REMEDIATION_REQUEST |
-
-**Hybrid mode**: When `supervise.engine` is `"codex"`, Codex handles the primary review. However, domain-specific checks (security via Esecurity-officer) can still run in parallel as an additional gate if the task type warrants it.
-
-**Fallback guarantee**: Missing `.qe/sivs-config.json` → all stages default to Claude. Zero impact on existing workflows.
+Supervise is a high-reasoning, critical-thinking QA lead on the active client.
+It independently reads Verify evidence, dispatches the required domain agents,
+and reports a release-readiness verdict. `.qe/sivs-config.json` can request
+`model` or `effort`; it cannot route Supervise to another client.
 
 ## Execution Workflow
 
