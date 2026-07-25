@@ -211,6 +211,54 @@ export function captureAbnormalWorkerExit(cwd, exitInfo = {}, options = {}) {
   };
 }
 
+const AUTO_FALLBACK_REASONS = ['crashed', 'failed', 'timeout'];
+
+/**
+ * Record a SIVS auto-fallback (Claude took over a failed Codex stage) into
+ * `.qe/state/agent-errors.json`. Reuses the same log the retry counter reads,
+ * but writes `kind: 'auto-fallback'` so it is NEVER counted as a Codex retry
+ * (the retry counter only tallies `kind: 'abnormal-worker-exit'`). This is the
+ * concurrency guard that keeps the auto-fallback path from causing double-retry.
+ *
+ * Best-effort: a write failure returns `{ recorded: false }` and never throws,
+ * so a broken log cannot block stage continuation. The persisted `reason` is
+ * clamped to the greppable `crashed`/`failed`/`timeout` enum and no raw error
+ * body is stored, so the log stays free of sensitive diagnostic text.
+ *
+ * @param {string} cwd - Project root directory
+ * @param {object} opts
+ * @param {string} [opts.stage] - failed SIVS stage (spec|implement|verify)
+ * @param {string} [opts.taskUuid] - owning task UUID
+ * @param {string} [opts.reason] - one of crashed|failed|timeout
+ * @param {string|null} [opts.jobId] - Codex job id, when known
+ * @param {number|null} [opts.pid] - Codex worker pid, when known
+ * @returns {{ recorded: boolean, entry: object }}
+ */
+export function recordAutoFallback(cwd, opts = {}) {
+  const reason = AUTO_FALLBACK_REASONS.includes(opts.reason) ? opts.reason : 'failed';
+  const entry = {
+    kind: 'auto-fallback',
+    timestamp: new Date().toISOString(),
+    stage: opts.stage || null,
+    taskUuid: opts.taskUuid || null,
+    reason,
+    fallbackEngine: 'claude',
+  };
+  const jobId = pickFirst(opts.jobId);
+  if (jobId !== null) entry.jobId = jobId;
+  if (Number.isInteger(opts.pid) && opts.pid > 0) entry.pid = opts.pid;
+
+  try {
+    const errors = readAgentErrors(cwd);
+    errors.push(entry);
+    writeAgentErrors(cwd, errors);
+    return { recorded: true, entry };
+  } catch {
+    // Best-effort — a broken log must not block stage continuation.
+    return { recorded: false, entry };
+  }
+}
+
 /**
  * Detect failure conditions for the current session.
  * Returns { failed: boolean, reasons: string[], uncheckedItems: string[], taskUuid: string|null }

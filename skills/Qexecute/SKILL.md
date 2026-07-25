@@ -203,8 +203,28 @@ Before returning, close all delegated handles and include their terminal status 
 3. `detectLegacyConfig()` → show migration warning if non-null.
 4. **Codex Materialization Check (mandatory after Codex `Done`)**: read
    `.qe/state/unified-state.json` → `codex_materialization` (completed/failed/crashed/running),
-   then `.qe/agent-results/codex-ready.signal` (detected/crashed/timeout, 30s poll ≤ 1h),
-   then fallback prompt. Missing `.qe/sivs-config.json` → all stages default to Claude.
+   then `.qe/agent-results/codex-ready.signal` (detected/crashed/timeout, 30s poll ≤ 1h).
+   Missing `.qe/sivs-config.json` → all stages default to Claude.
+5. **Auto-fallback (default ON).** When a Codex-delegated stage returns
+   `crashed`/`failed`/`timeout` (process-dead, SIGKILL, exit 137, timeout, failed)
+   and the existing **single** Codex retry is exhausted, Claude auto-takes over
+   **only that failed stage** — no `AskUserQuestion`, no manual prompt. The
+   fallback path reuses the `(taskUuid, workerId, itemId)` retry counter in
+   `failure-capture.mjs` and adds **no** second retry. Every fallback appends a
+   best-effort record to `.qe/state/agent-errors.json`
+   (`timestamp`, `stage`, `taskUuid`, `reason`, `jobId`/`pid` when known,
+   `fallbackEngine: "claude"`); a record failure never blocks the stage. Surface
+   a concise **non-blocking** post-hoc notice —
+   `stage X: Codex crashed -> auto-recovered with Claude` — never a confirmation.
+   `.qe/sivs-config.json` routing is **never** modified; next-stage routing still
+   follows the stored config. Use `codex-result-handler.mjs` →
+   `resolveCodexFallback(cwd, result, { stage, taskUuid })` /
+   `formatResultInstruction(result, { autoFallback })`.
+6. **Escape hatch — `QE_SIVS_AUTOFALLBACK=off`** (also `0`/`false`/`no`): restores
+   the legacy manual prompt. The `formatResultInstruction()` failure branches
+   return the original "Ask user" choices, and the `codex-inline-degrade` path
+   stays reachable and behavior-compatible. Routing config is unchanged in both
+   modes.
 
 **Build Admission Gate:** let the PreToolUse Bash hook enforce machine-global build admission
 before any build/test command; wait and retry if blocked, do not bypass.

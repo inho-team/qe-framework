@@ -22,6 +22,10 @@ import {
   isCodexRuntimeLossMessage,
   sanitizeCodexDiagnosticMessage,
 } from '../../../scripts/lib/codex_bridge.mjs';
+import { recordAutoFallback } from './failure-capture.mjs';
+
+// Codex stage outcomes that are eligible for automatic Claude takeover.
+const AUTO_FALLBACK_STATUSES = ['crashed', 'failed', 'timeout'];
 
 const SIGNAL_DIR_NAME = join('.qe', 'agent-results');
 const SIGNAL_FILE_NAME = 'codex-ready.signal';
@@ -243,13 +247,58 @@ export function isPollWatcherActive(cwd) {
 }
 
 /**
+ * Whether SIVS auto-fallback is enabled. Default ON — Claude auto-recovers a
+ * failed Codex stage without prompting. The `QE_SIVS_AUTOFALLBACK=off` escape
+ * hatch (also `0`/`false`/`no`) restores the legacy manual-prompt behavior.
+ *
+ * @param {NodeJS.ProcessEnv} [env] - environment to read (injectable for tests)
+ * @returns {boolean}
+ */
+export function isAutoFallbackEnabled(env = process.env) {
+  const raw = (env?.QE_SIVS_AUTOFALLBACK ?? '').toString().trim().toLowerCase();
+  return !['off', '0', 'false', 'no'].includes(raw);
+}
+
+/**
+ * Build the non-blocking post-hoc notice shown when Claude has already taken
+ * over a failed Codex stage. It must never route to a user question: it informs
+ * after the fact. The message is greppable (`stage X: Codex <reason> ->
+ * auto-recovered with Claude`) and reminds the reader that `.qe/sivs-config.json`
+ * routing is untouched.
+ *
+ * @param {string} header - status header (CRASHED|FAILED|TIMEOUT)
+ * @param {string} reason - lowercase reason (crashed|failed|timeout)
+ * @param {string} stage - failed SIVS stage
+ * @param {CodexResult} result
+ * @returns {string}
+ */
+function autoRecoverInstruction(header, reason, stage, result) {
+  return `**Codex Materialization: ${header} — auto-recovered with Claude** (source: ${result.source})
+stage ${stage}: Codex ${reason} -> auto-recovered with Claude
+${result.error ? `Reason detail: ${result.error}` : ''}
+Claude has taken over this single failed stage automatically. This is a post-hoc notice — do NOT ask the user.
+Next-stage routing follows \`.qe/sivs-config.json\` unchanged. Set \`QE_SIVS_AUTOFALLBACK=off\` to restore manual prompts.`;
+}
+
+/**
  * Generate a human-readable materialization instruction block
  * that skills can embed directly in their output.
  *
+ * When auto-fallback is enabled (the default), the crashed/failed/timeout
+ * branches return a non-blocking "auto-recovered with Claude" notice instead of
+ * a user prompt. With `QE_SIVS_AUTOFALLBACK=off` the legacy manual instructions
+ * are preserved verbatim.
+ *
  * @param {CodexResult} result
+ * @param {object} [options] - { autoFallback?: boolean, stage?: string }
  * @returns {string} Markdown instruction block
  */
-export function formatResultInstruction(result) {
+export function formatResultInstruction(result, options = {}) {
+  const autoFallback = options.autoFallback !== undefined
+    ? options.autoFallback
+    : isAutoFallbackEnabled();
+  const stage = options.stage || result.phase || result.stage || 'implement';
+
   switch (result.status) {
     case 'completed':
       return `**Codex Materialization: COMPLETE** (source: ${result.source})
@@ -263,16 +312,19 @@ Companion is still working. Check again in 30 seconds.
 Run: \`cat .qe/agent-results/codex-ready.signal 2>/dev/null || echo "still polling"\``;
 
     case 'timeout':
+      if (autoFallback) return autoRecoverInstruction('TIMEOUT', 'timeout', stage, result);
       return `**Codex Materialization: TIMEOUT** (${result.elapsedSec ? Math.round(result.elapsedSec / 60) + 'm' : '1h'} elapsed)
 No file changes detected. Ask user:
 (a) Keep waiting +1h  (b) Retry with Codex  (c) Fallback to Claude  (d) Check Codex process`;
 
     case 'failed':
+      if (autoFallback) return autoRecoverInstruction('FAILED', 'failed', stage, result);
       return `**Codex Materialization: FAILED**
 ${result.error ? `Error: ${result.error}` : 'Codex job failed without error details.'}
 Ask user: (a) Retry with Codex  (b) Fallback to Claude  (c) Check logs`;
 
     case 'crashed':
+      if (autoFallback) return autoRecoverInstruction('CRASHED', 'crashed', stage, result);
       return `**Codex Materialization: CRASHED**
 ${result.error ? `Error: ${result.error}` : 'Codex companion process died before file changes materialized.'}
 Retry Codex once via the existing retry path, or fallback to Claude if the retry has already been used.`;
@@ -283,6 +335,44 @@ Neither companion state nor signal file found. Codex companion may not be runnin
 Run: \`ps aux | grep -i codex | grep -v grep\` to check process.
 Ask user: (a) Retry with Codex  (b) Implement with Claude  (c) Check Codex logs`;
   }
+}
+
+/**
+ * Single orchestration entry point for a Codex stage outcome: when auto-fallback
+ * is on and the stage crashed/failed/timed out, append a fallback record to
+ * `.qe/state/agent-errors.json` (best-effort) and return the notice; otherwise
+ * return the manual instruction. Recording uses `recordAutoFallback`, which
+ * writes a non-retry-counted row, so this never causes a double Codex retry.
+ *
+ * @param {string} cwd - Project root directory
+ * @param {CodexResult} result
+ * @param {object} [options] - { autoFallback?: boolean, stage?: string, taskUuid?: string }
+ * @returns {{ autoFallback: boolean, isFailure: boolean, recorded: object|null, instruction: string }}
+ */
+export function resolveCodexFallback(cwd, result, options = {}) {
+  const autoFallback = options.autoFallback !== undefined
+    ? options.autoFallback
+    : isAutoFallbackEnabled();
+  const isFailure = AUTO_FALLBACK_STATUSES.includes(result.status);
+  const stage = options.stage || result.phase || result.stage || 'implement';
+
+  let recorded = null;
+  if (autoFallback && isFailure) {
+    recorded = recordAutoFallback(cwd, {
+      stage,
+      taskUuid: options.taskUuid,
+      reason: result.status,
+      jobId: result.jobId ?? null,
+      pid: result.pid ?? null,
+    });
+  }
+
+  return {
+    autoFallback,
+    isFailure,
+    recorded,
+    instruction: formatResultInstruction(result, { ...options, autoFallback, stage }),
+  };
 }
 
 /**
