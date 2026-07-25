@@ -121,6 +121,9 @@ Write the report to:
 .qe/agent-results/risk-proof-{UUID}.md
 ```
 
+After writing, rebuild the derived index once — `node scripts/lib/doc-index.mjs` (single
+scan-based rebuild; never append to `.qe/index.md`). See `core/DOC_CONVENTIONS.md`.
+
 The report must include:
 
 ```markdown

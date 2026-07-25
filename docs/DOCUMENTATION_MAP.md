@@ -20,6 +20,7 @@ Use this file to find the right document quickly.
 - Claude/Codex measured parity matrix: [../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md](../.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
 - Claude/Codex public-doc parity report: [../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md](../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md)
 - Hook lifecycle and safety policy: [HOOKS.md](HOOKS.md)
+- Execution-document convention (frontmatter, `[[link]]`, derived index): [../core/DOC_CONVENTIONS.md](../core/DOC_CONVENTIONS.md)
 
 ## Usage
 

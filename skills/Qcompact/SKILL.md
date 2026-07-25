@@ -102,6 +102,7 @@ Call the Ehandoff-executor sub-agent to generate the handoff document.
 - Required sections exist and are filled in
 - No potentially confidential information (API keys, passwords, tokens)
 - Referenced files exist
+- Rebuild the derived index once — `node scripts/lib/doc-index.mjs` (single scan-based rebuild; never append to `.qe/index.md`). See `core/DOC_CONVENTIONS.md`.
 
 #### Step 4: Report to User
 - Handoff file location

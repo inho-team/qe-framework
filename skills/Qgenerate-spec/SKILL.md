@@ -142,6 +142,7 @@ Required information:
 
 ### Step 2: Draft Documents
 Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE.md`, `VERIFY_CHECKLIST_TEMPLATE.md`). For any generated project instruction artifact, reference `QE_CONVENTIONS.md` (project root) for QE rules (file naming, task status, completion criteria) and include a reference line pointing to it. Replace `{{placeholder}}` with actual content.
+- **Frontmatter substitution (per `core/DOC_CONVENTIONS.md`)**: the title-following `qe-doc-frontmatter` block placeholders are filled deterministically — `{{kind}}` = the generator mapping value (`TASK_REQUEST` → `spec`, `VERIFY_CHECKLIST` → `verify`), `{{plan}}` = the active plan slug, `{{phase}}` = the requested/current phase name, `{{created}}` = today's date (`YYYY-MM-DD`), `{{status}}` = `pending` at creation. Keep the H1 title on line 1 so the completion hook still extracts it; the frontmatter block goes on the line immediately after.
 - **Model Preference**: Use **Haiku** for drafting standardized templates to reduce latency.
 
 ### Step 2.4: Premise Verification (Mandatory for external dependencies)

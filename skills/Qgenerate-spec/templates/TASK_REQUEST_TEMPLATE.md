@@ -1,4 +1,14 @@
 # TASK_REQUEST_{{UUID}}.md — {{작업_제목}}
+<!-- qe-doc-frontmatter
+kind: {{kind}}
+uuid: {{UUID}}
+plan: {{plan}}
+phase: "{{phase}}"
+created: "{{created}}"
+status: {{status}}
+links:
+  - "[[.qe/checklists/pending/VERIFY_CHECKLIST_{{UUID}}.md]]"
+-->
 
 ## 무엇을 원하는가?
 {{what}}

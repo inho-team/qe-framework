@@ -1,4 +1,14 @@
 # VERIFY_CHECKLIST_{{UUID}}.md — 결과 검증
+<!-- qe-doc-frontmatter
+kind: {{kind}}
+uuid: {{UUID}}
+plan: {{plan}}
+phase: "{{phase}}"
+created: "{{created}}"
+status: {{status}}
+links:
+  - "[[.qe/tasks/pending/TASK_REQUEST_{{UUID}}.md]]"
+-->
 
 ## 검증 기준
 {{#each checks}}

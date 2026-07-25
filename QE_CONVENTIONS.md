@@ -236,6 +236,13 @@ All skills MUST respond in the same language the user used in their most recent 
 - One task shares the same UUID across both documents.
 - UUID: 8-character random hex (`openssl rand -hex 4`). Must check for collision before use.
 
+### Document Convention
+Newly generated execution documents (spec/verify/audit/execution/handoff/report) carry a
+title-following `<!-- qe-doc-frontmatter ... -->` block and are indexed in the derived
+`.qe/index.md` MOC. The full contract — frontmatter fields, `[[link]]` rules, the derived
+index, and the grandfather boundary — lives in `core/DOC_CONVENTIONS.md`. The `check-doc-conventions`
+guard enforces it; `scripts/lib/doc-index.mjs` rebuilds the index after any doc create/move.
+
 ### Task Status
 | Status | Meaning |
 |--------|---------|

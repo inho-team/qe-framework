@@ -114,7 +114,8 @@ Determine the overall report grade:
 ### Phase 5 — Report
 1. Create `.qe/security-reports/` directory if it does not exist
 2. Write the report to `.qe/security-reports/SECURITY_REPORT_{YYYYMMDD_HHMMSS}.md`
-3. Return the overall grade and report path to the main context
+3. Rebuild the derived index once — `node scripts/lib/doc-index.mjs` (single scan-based rebuild; never append to `.qe/index.md`). See `core/DOC_CONVENTIONS.md`.
+4. Return the overall grade and report path to the main context
 
 ---
 

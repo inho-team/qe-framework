@@ -60,6 +60,9 @@ node -e "import('./hooks/scripts/lib/session-resolver.mjs').then(m => { const r 
 - Validate that task UUIDs are valid
 - Flag outdated handoffs (24h+) with a warning
 
+### Index Rebuild
+- After writing the handoff document, rebuild the derived index once — `node scripts/lib/doc-index.mjs` (single scan-based rebuild; never append to `.qe/index.md`). See `core/DOC_CONVENTIONS.md`.
+
 > Base patterns: see core/AGENT_BASE.md
 
 ## Will
