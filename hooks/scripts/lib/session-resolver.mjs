@@ -23,7 +23,7 @@
  * the first time a session starts after the upgrade.
  */
 
-import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from 'fs';
+import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { atomicWriteJson } from './state.mjs';
 import { getLatestCodexJobStatus } from '../../../scripts/lib/codex_bridge.mjs';

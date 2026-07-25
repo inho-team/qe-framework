@@ -14,7 +14,7 @@
  * the legacy flat files instead of surfacing a stack trace.
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 const PLANS_DIR = '.qe/planning/plans';

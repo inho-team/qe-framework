@@ -33,7 +33,7 @@
  * @module checklist-parser
  */
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './qe-fs.mjs';
 
 /**
  * Parse a VERIFY_CHECKLIST markdown file and extract task items.

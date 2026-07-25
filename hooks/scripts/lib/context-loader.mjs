@@ -21,7 +21,7 @@
  * - Functions are self-contained: no shared state, no side effects.
  */
 
-import { readFileSync, existsSync, readdirSync } from 'fs';
+import { readFileSync, existsSync, readdirSync } from './qe-fs.mjs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { formatMemoryForInjection } from './memory.mjs';
