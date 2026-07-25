@@ -52,6 +52,7 @@
 |-------|-------------------|--------------|
 | `/Qcompact` | When context must be saved or handed off before a session ends. | Structured snapshot recoverable in future sessions. |
 | `/Qresume` | When resuming work after compaction or a session break. | Restores working state from the saved snapshot. |
+| `/Qsummary` | When wrapping up a session or asked for a work recap. | Dense What/Why/Next digest in five lines or fewer; report-only. |
 | `/Qmemory` | When conventions, gotchas, or decisions should persist across sessions. | Project memory with TTL management. |
 | `/Qlearn` | When lessons from failures should be recalled in later sessions. | Time-decay-ranked learnings injected at session start. |
 | `/Qshadow` | When the working tree needs checkpoints without touching real git. | Isolated shadow-git snapshots: create, diff, restore, prune. |
