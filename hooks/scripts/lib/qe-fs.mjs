@@ -8,15 +8,21 @@
  * served from and written to the `qe_files` table; every other path — /dev/stdin,
  * source files, anything outside .qe — passes straight through to real fs.
  *
- * Semantics for .qe/ paths: DB is the source of truth.
+ * Semantics for .qe/ paths (DB is the read source of truth):
  *   read      → row content if present, else the on-disk file (un-migrated), else ENOENT
- *   write     → upsert the row; the on-disk file is NOT (re)created
+ *   write     → upsert the row; ALSO mirror to disk unless DB_ONLY (see below)
  *   exists    → a row OR an on-disk file
  *   readdir   → union of immediate children from rows and from disk
- *   unlink    → drop the row (and the disk file if it lingers)
+ *   unlink    → drop the row (and the disk file)
  *   rename    → move the row (supports the write-tmp-then-rename atomic pattern)
- * Reads fall back to disk so a not-yet-migrated file still works; because reads
- * are row-first, a stale disk file never shadows a written row.
+ *
+ * Two modes (env QE_STORE_DB_ONLY):
+ *   unset/0 (default, transition-safe): writes go to BOTH the row and the disk
+ *     file, so consumers not yet routed through this shim still read fresh data.
+ *   1 (abolition end-state): writes go to the row ONLY — no disk file is created,
+ *     so the .qe files can stay deleted. Flip this once every consumer is on the
+ *     shim.
+ * Reads are row-first so a stale disk file never shadows a written row.
  */
 
 import * as realFs from 'node:fs';
@@ -28,6 +34,9 @@ const ROOT = process.env.QE_ROOT || process.cwd();
 const QE = join(ROOT, '.qe');
 const DB_PATH = join(QE, 'qe.db');
 const DB_SELF = /\.qe\/qe\.db(-wal|-shm|-journal)?$/;
+// default: mirror writes to disk too (safe while some consumers still read files);
+// QE_STORE_DB_ONLY=1 stops disk writes so .qe files can stay deleted.
+const DB_ONLY = process.env.QE_STORE_DB_ONLY === '1';
 
 /** Repo-relative `.qe/...` path when `p` addresses a store-backed file, else null. */
 function qeRel(p) {
@@ -82,6 +91,9 @@ export function writeFileSync(p, data, opts) {
   if (rel == null) return realFs.writeFileSync(p, data, opts);
   const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data), (opts && opts.encoding) || 'utf8');
   upsert(rel, buf, opts && opts.mode);
+  if (!DB_ONLY) { // mirror to disk for consumers not yet on the shim
+    try { realFs.mkdirSync(dirname(p), { recursive: true }); realFs.writeFileSync(p, data, opts); } catch { /* best effort */ }
+  }
 }
 
 export function existsSync(p) {
@@ -106,9 +118,9 @@ export function unlinkSync(p) {
 export function renameSync(a, b) {
   const ra = qeRel(a); const rb = qeRel(b);
   if (ra == null && rb == null) return realFs.renameSync(a, b);
-  // read source (row or disk), write dest, drop source
+  // read source (row or disk), write dest (shim write = dual-aware), drop source
   const buf = readFileSync(a);
-  if (rb == null) { realFs.writeFileSync(b, buf); } else { upsert(rb, buf); }
+  if (rb == null) realFs.writeFileSync(b, buf); else writeFileSync(b, buf);
   unlinkSync(a);
 }
 

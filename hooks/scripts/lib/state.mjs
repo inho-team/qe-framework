@@ -1,7 +1,10 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync } from 'fs';
+// .qe/ file access is routed through the DB-backed store (qe-fs.mjs); non-.qe
+// paths (e.g. /dev/stdin) pass straight through to real fs. This lets the
+// framework's state live in the qe_files table instead of on disk.
+import { readFileSync, writeFileSync, existsSync, mkdirSync, renameSync, unlinkSync, readdirSync, statSync } from './qe-fs.mjs';
 import { join, dirname } from 'path';
 import { tmpdir } from 'os';
 import { randomBytes } from 'crypto';

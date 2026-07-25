@@ -33,7 +33,10 @@ function runInSandbox(body) {
     ${body}
     console.log('OK');
   `;
-  const r = spawnSync('node', ['--input-type=module', '-e', script], { encoding: 'utf8' });
+  // exercise the abolition end-state (DB_ONLY): writes never touch disk
+  const r = spawnSync('node', ['--input-type=module', '-e', script], {
+    encoding: 'utf8', env: { ...process.env, QE_STORE_DB_ONLY: '1' },
+  });
   return { ok: r.stdout.includes('OK'), out: r.stdout, err: r.stderr, status: r.status };
 }
 
