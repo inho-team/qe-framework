@@ -142,20 +142,22 @@ function moveIfExists(srcPath, destPath) {
 
 /**
  * Move TASK_REQUEST_{uuid}.md and VERIFY_CHECKLIST_{uuid}.md out of
- * `pending/` into `completed/`. Idempotent per file.
+ * `pending/` or `in-progress/` into `completed/`. Idempotent per file.
  *
  * @returns {{taskMoved: boolean, checklistMoved: boolean}}
  */
 export function movePendingToCompleted(cwd, uuid) {
   if (!uuid) return { taskMoved: false, checklistMoved: false };
 
-  const taskSrc = join(cwd, '.qe', 'tasks', 'pending', `TASK_REQUEST_${uuid}.md`);
+  const taskPending = join(cwd, '.qe', 'tasks', 'pending', `TASK_REQUEST_${uuid}.md`);
+  const taskActive = join(cwd, '.qe', 'tasks', 'in-progress', `TASK_REQUEST_${uuid}.md`);
   const taskDst = join(cwd, '.qe', 'tasks', 'completed', `TASK_REQUEST_${uuid}.md`);
-  const listSrc = join(cwd, '.qe', 'checklists', 'pending', `VERIFY_CHECKLIST_${uuid}.md`);
+  const listPending = join(cwd, '.qe', 'checklists', 'pending', `VERIFY_CHECKLIST_${uuid}.md`);
+  const listActive = join(cwd, '.qe', 'checklists', 'in-progress', `VERIFY_CHECKLIST_${uuid}.md`);
   const listDst = join(cwd, '.qe', 'checklists', 'completed', `VERIFY_CHECKLIST_${uuid}.md`);
 
-  const taskResult = moveIfExists(taskSrc, taskDst);
-  const listResult = moveIfExists(listSrc, listDst);
+  const taskResult = moveIfExists(existsSync(taskPending) ? taskPending : taskActive, taskDst);
+  const listResult = moveIfExists(existsSync(listPending) ? listPending : listActive, listDst);
 
   return {
     taskMoved: taskResult.moved,
@@ -229,13 +231,12 @@ export function runTaskCompletedActions(cwd, event) {
     };
   }
 
-  // Backfill task name/phase from the pending TASK_REQUEST when the hook
-  // payload did not carry them. Read before the move so the path is valid.
+  // Backfill task name from the active request before the move.
   let taskName = event.taskName;
   if (!taskName) {
-    taskName = extractTaskNameFromRequest(
-      join(cwd, '.qe', 'tasks', 'pending', `TASK_REQUEST_${uuid}.md`)
-    );
+    const pending = join(cwd, '.qe', 'tasks', 'pending', `TASK_REQUEST_${uuid}.md`);
+    const active = join(cwd, '.qe', 'tasks', 'in-progress', `TASK_REQUEST_${uuid}.md`);
+    taskName = extractTaskNameFromRequest(existsSync(pending) ? pending : active);
   }
 
   const log = appendTaskLogRow(cwd, {

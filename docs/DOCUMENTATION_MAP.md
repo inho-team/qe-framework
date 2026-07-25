@@ -12,6 +12,7 @@ Use this file to find the right document quickly.
 - Philosophy and design intent: [PHILOSOPHY.md](PHILOSOPHY.md)
 - Single-AI SIVS role model: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
 - Verify evidence / Supervise release-gate decision: [ADR-028-evidence-and-release-gates.md](ADR-028-evidence-and-release-gates.md)
+- SIVS assurance model, risk triggers, and effectiveness metrics: [SIVS_ASSURANCE_MODEL.md](SIVS_ASSURANCE_MODEL.md)
 - System overview: [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)
 - Execution harness contract: [../core/EXECUTION_HARNESS.md](../core/EXECUTION_HARNESS.md)
 - Execution harness validation plan: [../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md](../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md)

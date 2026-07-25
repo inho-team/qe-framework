@@ -12,34 +12,20 @@
 
 ---
 
-## SIVS Engine Routing
+## SIVS Single-AI Role Model
 
-> **Superseded:** SIVS is now single-AI. The active client owns every stage;
-> cross-client bridges and per-stage engine routing are not execution paths.
-> The authoritative contract is `core/SIVS_SINGLE_AI_MODEL.md`.
+Each session uses one active AI client. SIVS never delegates a stage to another
+client. The authoritative contract is `core/SIVS_SINGLE_AI_MODEL.md`:
 
-Each SIVS stage can be configured to use Claude or Codex. Routing is base-agnostic and bidirectional: with `.qe/sivs-config.json`, a Claude base session delegates Codex stages through `codex_bridge`, and a Codex base session delegates Claude stages through `claude_bridge` / `Qclaude-rescue` (DECISION_LOG D028/D029/D030).
+- Spec is authored in the main thread and adversarially challenged.
+- Implement is main-thread-led with bounded same-client subagents.
+- Verify is a high-reasoning evidence gate.
+- Supervise is a high-reasoning release gate for security, business rules,
+  change impact, operations, and residual-risk ownership.
 
-Recommended default when Codex is available is **Claude Head / Codex Body**
-(`claude-head`): Spec and Supervise stay Claude-led, while Implement and Verify
-prefer Codex.
-
-- **Spec**: Claude generates specs natively, or delegates to Codex via `/codex:rescue`
-- **Implement**: Claude executes via agents, or delegates to Codex via `/codex:rescue --write`
-- **Verify**: Claude validates results, or delegates to Codex via `/codex:rescue --verify`
-- **Supervise**: Claude runs domain supervisors, or delegates to Codex via `/codex:review`
-
-Configuration: `.qe/sivs-config.json` (optional — absent config means each base runs solo with zero external dependencies)
-
-This architecture ensures:
-- Claude-only and Codex-only baselines work without any external dependencies
-- Cross-engine delegation is strictly optional via the Codex and Claude bridges
-- No external provider APIs (Gemini, GPT) are directly invoked by the framework
-- User retains full choice of which engine handles each SIVS stage
-
-**Gate subagent engine ownership (Phase 5 / D-f876457e-1):** SIVS `enforceRouting` hard-blocks direct Agent spawns (`Etask-executor` → implement, `Esupervision-orchestrator` → supervise, `Ecode-reviewer` → verify) that violate the configured engine. However, gate subagents spawned *inside* `Qcritical-review` (Devil's Advocate, Security Auditor, Merge Blocker, Merge Advocate, Impartial Judge) are **protocol-owned**: the gate protocol itself controls their engine assignment, including the automatic Codex cross-model upgrade for DA and Merge Blocker. SIVS enforcer does not reach inside protocol-owned spawns. This mixed ownership is profile-independent: stage routing may choose Claude or Codex for the top-level SIVS stage, while `Qcritical-review` still owns its adversarial role routing. Under `codex-head`, G3 Verify is mixed (DA → Codex via protocol auto-upgrade, Security Auditor + Performance Skeptic → Claude) and G5 Supervise includes a Codex orchestrator aggregation. Under the recommended `claude-head`, top-level Supervise is Claude-led, while DA/Merge Blocker can still auto-upgrade to Codex inside the gate protocol. G4 Risk Proof (`Erisk-proof-auditor`) is Claude-only (not in SIVS STAGE_MAP). The Supervise call budget is 4–5 (≤4 when Esecurity-officer is not warranted; floor = 5 when security audit fires); the reduction from baseline 6–7 comes from the findings pipeline (Phase 2 / R002) injecting Verify findings into Supervise so cross-stage `Ecode-reviewer`/`Ecode-test-engineer` re-audits on unchanged files are skipped — not from routing changes. See DECISION_LOG `D-f876457e-1` and `skills/Qcritical-review/reference/{verify-gate-protocol,supervise-gate-protocol}.md`.
-
-**Per-scope config design:** `loadSivsConfig(cwd)` uses exact-path loading (no directory walk-up); hook cwd = session cwd. Each repo has its own `.qe/sivs-config.json` scope independent from a wrapper workspace's config — two configs in separate scopes do not conflict in a single session by design. See `QE_CONVENTIONS.md` Codex Runtime Policy and DECISION_LOG `D-f876457e-1` (config scope authority rules).
+Fresh context, role separation, and isolated subagents provide the required
+independence. If delegation is unavailable, the run is `degraded-inline` and
+cannot claim a stronger-than-WARN QA result without later delegated evidence.
 
 ---
 
@@ -251,7 +237,7 @@ Every skill, agent, and hook in this framework must uphold the following:
 
 7. **Verify research before planning.** Web search results, blog posts, and documentation claims must be tested against the actual system before incorporating into plans. Run `--help`, `--version`, or a minimal test to confirm the feature exists. Unverified claims must be tagged `[UNVERIFIED]` in all downstream documents. Never build phases around unverified external capabilities.
 
-8. **Independent verification at every stage.** A stage cannot certify its own output — that is the self-reference problem, and it is acute when the SIVS engine is homogeneous (all-Claude or all-Codex), because the verifier shares the author's blind spots. Every SIVS stage therefore runs a **mandatory independent verification gate** with **structural independence** (a fresh-context adversarial sub-agent in a distinct cognitive mode — Spec: Structural+Critical, Verify: Critical, Supervise: Meticulous), auto-upgraded to a cross-model engine (Codex) when reachable. A gate FAIL is **not a dead-end**: it routes **backward** to the stage that caused it (Spec→Spec, Verify→Implement/Spec, Supervise→Verify→Implement→Spec), re-entering the loop until it passes or the 3-round cap escalates to the user. Codex is never a required dependency — the same-engine baseline always runs. See `skills/Qcritical-review/reference/{thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
+8. **Independent verification at every stage.** A stage cannot certify its own output. Every SIVS stage therefore uses structural independence: fresh-context adversarial subagents in distinct cognitive modes (Spec: Structural+Critical, Verify: Critical, Supervise: Meticulous). A gate FAIL routes backward to its cause (Spec→Spec, Verify→Implement/Spec, Supervise→Verify→Implement→Spec) until it passes or the 3-round cap escalates to the user. A degraded inline run cannot claim PASS without later delegated evidence. See `skills/Qcritical-review/reference/{thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
 
 ---
 

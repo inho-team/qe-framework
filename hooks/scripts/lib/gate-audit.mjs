@@ -34,7 +34,7 @@ function sanitize(value) {
  * Append one atomic audit line for a gate run.
  * @param {string} cwd - Project root used to resolve `.qe/agent-results/`
  * @param {string} stage - SIVS gate stage: 'spec' | 'verify' | 'supervise'
- * @param {object} entry - { verdict, agents, crossmodel, route, uuid, timestamp? }
+ * @param {object} entry - { verdict, agents, mode, route, uuid, timestamp? }
  * @returns {{ written: boolean, line: string, file: string }} Result (written=false on I/O error)
  */
 export function appendGateAudit(cwd, stage, entry = {}) {
@@ -50,7 +50,7 @@ export function appendGateAudit(cwd, stage, entry = {}) {
       `${sanitize(ts)} | ${safeStage}` +
       ` | verdict=${sanitize(entry.verdict) || '-'}` +
       ` | agents=${sanitize(entry.agents) || '-'}` +
-      ` | crossmodel=${sanitize(entry.crossmodel) || '-'}` +
+      ` | mode=${sanitize(entry.mode) || '-'}` +
       ` | route=${sanitize(entry.route) || '-'}` +
       ` | uuid=${sanitize(entry.uuid) || '-'}\n`;
     if (!existsSync(dir)) mkdirSync(dir, { recursive: true });

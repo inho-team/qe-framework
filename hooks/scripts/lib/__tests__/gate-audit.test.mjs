@@ -15,7 +15,7 @@ test('gate-audit: writes a single newline-terminated line with the schema', () =
   const cwd = makeTempDir();
   try {
     const r = appendGateAudit(cwd, 'verify', {
-      verdict: 'PASS', agents: 3, crossmodel: 'true', route: '-', uuid: 'abc123',
+      verdict: 'PASS', agents: 3, mode: 'delegated', route: '-', uuid: 'abc123',
       timestamp: '2026-06-08T00:00:00.000Z',
     });
     assert.equal(r.written, true);
@@ -23,7 +23,7 @@ test('gate-audit: writes a single newline-terminated line with the schema', () =
     const content = readFileSync(r.file, 'utf-8');
     assert.equal(
       content,
-      '2026-06-08T00:00:00.000Z | verify | verdict=PASS | agents=3 | crossmodel=true | route=- | uuid=abc123\n'
+      '2026-06-08T00:00:00.000Z | verify | verdict=PASS | agents=3 | mode=delegated | route=- | uuid=abc123\n'
     );
   } finally {
     rmSync(cwd, { recursive: true, force: true });
@@ -104,7 +104,7 @@ test('gate-audit: missing fields render as "-"', () => {
     const r = appendGateAudit(cwd, 'verify', { timestamp: '2026-06-08T00:00:00.000Z' });
     assert.equal(
       r.line,
-      '2026-06-08T00:00:00.000Z | verify | verdict=- | agents=- | crossmodel=- | route=- | uuid=-\n'
+      '2026-06-08T00:00:00.000Z | verify | verdict=- | agents=- | mode=- | route=- | uuid=-\n'
     );
   } finally {
     rmSync(cwd, { recursive: true, force: true });

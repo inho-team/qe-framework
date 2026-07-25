@@ -33,8 +33,10 @@ import {
 function mkproject() {
   const root = mkdtempSync(join(tmpdir(), 'qe-task-completed-'));
   mkdirSync(join(root, '.qe', 'tasks', 'pending'), { recursive: true });
+  mkdirSync(join(root, '.qe', 'tasks', 'in-progress'), { recursive: true });
   mkdirSync(join(root, '.qe', 'tasks', 'completed'), { recursive: true });
   mkdirSync(join(root, '.qe', 'checklists', 'pending'), { recursive: true });
+  mkdirSync(join(root, '.qe', 'checklists', 'in-progress'), { recursive: true });
   mkdirSync(join(root, '.qe', 'checklists', 'completed'), { recursive: true });
   return root;
 }
@@ -131,6 +133,21 @@ test('task-completed: re-invocation with same uuid is idempotent', (t) => {
   const logContent = readFileSync(join(root, '.qe', 'TASK_LOG.md'), 'utf8');
   const rowCount = (logContent.match(new RegExp(`\\| ${uuid} \\|`, 'g')) || []).length;
   assert.equal(rowCount, 1, 'only one row per uuid');
+});
+
+test('task-completed: moves an active task pair to completed', (t) => {
+  const root = mkproject();
+  t.after(() => rmSync(root, { recursive: true, force: true }));
+  const uuid = 'active001';
+  writeFileSync(join(root, '.qe', 'tasks', 'in-progress', `TASK_REQUEST_${uuid}.md`), `# TASK_REQUEST_${uuid}.md — Active task\n`, 'utf8');
+  writeFileSync(join(root, '.qe', 'checklists', 'in-progress', `VERIFY_CHECKLIST_${uuid}.md`), '# verify\n\n- [x] done\n', 'utf8');
+
+  const summary = runTaskCompletedActions(root, { uuid, status: 'complete' });
+
+  assert.equal(summary.taskMoved, true);
+  assert.equal(summary.checklistMoved, true);
+  assert.equal(existsSync(join(root, '.qe', 'tasks', 'completed', `TASK_REQUEST_${uuid}.md`)), true);
+  assert.equal(existsSync(join(root, '.qe', 'checklists', 'completed', `VERIFY_CHECKLIST_${uuid}.md`)), true);
 });
 
 // ---------------------------------------------------------------------------

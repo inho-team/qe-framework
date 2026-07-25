@@ -109,7 +109,7 @@ from `hooks/scripts/lib/gate-audit.mjs` to the shared
 `.qe/agent-results/spec-gate.log` (single `O_APPEND` write):
 
 ```
-{ISO-8601} | spec | verdict={PASS|WARN|FAIL} | agents={n} | crossmodel={true|false|degraded} | route={spec|-} | uuid={UUID}
+{ISO-8601} | spec | verdict={PASS|WARN|FAIL} | agents={n} | mode={delegated|degraded-inline} | route={spec|-} | uuid={UUID}
 ```
 
 (`route=spec` on FAIL — the Spec gate's backward target is the Spec stage itself.)

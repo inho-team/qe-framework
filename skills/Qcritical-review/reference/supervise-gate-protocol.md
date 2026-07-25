@@ -120,7 +120,7 @@ from `hooks/scripts/lib/gate-audit.mjs` to the shared
 `.qe/agent-results/supervise-gate.log` (single `O_APPEND` write, no interleave):
 
 ```
-{ISO-8601} | supervise | verdict={PASS|WARN|FAIL} | agents={n} | crossmodel={true|false|degraded} | route={verify|implement|spec|-} | uuid={UUID}
+{ISO-8601} | supervise | verdict={PASS|WARN|FAIL} | agents={n} | mode={delegated|degraded-inline} | route={verify|implement|spec|-} | uuid={UUID}
 ```
 
 ## Findings pipeline — consume Verify findings (Phase 2 / R002)

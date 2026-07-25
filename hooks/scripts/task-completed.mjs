@@ -24,7 +24,9 @@ const hints = [];
 // NOT actually complete. Block completion and do not fire side effects — we
 // do not want to log/move/archive a half-finished task.
 if (taskId) {
-  const checklistPath = join(cwd, '.qe', 'checklists', 'pending', `VERIFY_CHECKLIST_${taskId}.md`);
+  const pending = join(cwd, '.qe', 'checklists', 'pending', `VERIFY_CHECKLIST_${taskId}.md`);
+  const active = join(cwd, '.qe', 'checklists', 'in-progress', `VERIFY_CHECKLIST_${taskId}.md`);
+  const checklistPath = existsSync(pending) ? pending : active;
   if (existsSync(checklistPath)) {
     const content = readFileSync(checklistPath, 'utf8');
     const unchecked = (content.match(/- *\[ +\]/g) || []).length;

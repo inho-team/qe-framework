@@ -167,7 +167,7 @@ The helper uses a single `O_APPEND` write so concurrent multi-UUID gate runs do
 not interleave:
 
 ```
-{ISO-8601} | verify | verdict={PASS|WARN|FAIL} | agents={n} | crossmodel={true|false|degraded} | route={implement|spec|-} | uuid={UUID}
+{ISO-8601} | verify | verdict={PASS|WARN|FAIL} | agents={n} | mode={delegated|degraded-inline} | route={implement|spec|-} | uuid={UUID}
 ```
 
 ## Findings pipeline (Verify → Supervise, Phase 2 / R002)
