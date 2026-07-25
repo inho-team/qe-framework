@@ -4,6 +4,8 @@ user_invocable: false
 description: Verify that an implementation and its tests honor a business-logic contract stored under .qe/contracts/active/. Delegates to the Econtract-judge LLM agent on cache miss; returns cached verdict on cache hit. Use when the user says 'verify contract', 'check contract', '/Qverify-contract', or when called from /Qexecute -verify.
 ---
 
+> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+
 # Contract Verification (Qverify-contract)
 
 ## Role

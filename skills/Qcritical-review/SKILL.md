@@ -6,6 +6,8 @@ invocation_trigger: When critical verification is needed at any SIVS stage, or w
 recommendedModel: opus
 ---
 
+> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+
 # Qcritical-review — Adversarial Verification
 
 ## Role

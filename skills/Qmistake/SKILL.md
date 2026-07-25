@@ -6,6 +6,8 @@ invocation_trigger: When the user says something was wrong, points out a mistake
 recommendedModel: haiku
 ---
 
+> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+
 # Qmistake — Mistake Registry
 
 ## Role

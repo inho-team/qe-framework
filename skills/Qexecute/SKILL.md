@@ -7,6 +7,8 @@ tier: core
 allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
 ---
 
+> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+
 # Qexecute — Unified Execution Engine
 
 > Internal PSE unit. Users start work with `{adapter.commandPrefix}Qgoal {목표}`; `user_invocable` is catalog/documentation metadata only. Runtime enforcement is the G010 PreToolUse gate, while active UUID artifacts preserve in-chain continuity.
