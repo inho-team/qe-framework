@@ -20,6 +20,9 @@ const model = readFileSync(join(root, 'core/SIVS_SINGLE_AI_MODEL.md'), 'utf8');
 for (const phrase of ['Spec | Main thread', 'Implement | Main thread', 'Verify | High-reasoning critical lead', 'Supervise | High-reasoning critical lead']) {
   if (!model.includes(phrase)) failures.push(`role model missing: ${phrase}`);
 }
+if (!/Verify is an \*\*evidence gate\*\*/.test(model) || !/Supervise is a \*\*release gate\*\*/.test(model)) {
+  failures.push('single-AI model must separate Verify evidence from Supervise release decisions');
+}
 if (failures.length) {
   console.error('[sivs-single-ai] FAIL');
   failures.forEach((failure) => console.error(`- ${failure}`));

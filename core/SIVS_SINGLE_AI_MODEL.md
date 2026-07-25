@@ -16,8 +16,27 @@ it is not represented as provider-pool separation.
 |---|---|---|
 | Spec | Main thread | Write TASK_REQUEST and VERIFY_CHECKLIST; run the spec critical gate. |
 | Implement | Main thread | Delegate implementation work to bounded subagents; the main thread integrates and verifies their results. |
-| Verify | High-reasoning critical lead | Create verification evidence and delegate adversarial review/test checks before returning a verdict. |
-| Supervise | High-reasoning critical lead | Independently inspect Verify evidence and delegate domain QA before a release-readiness verdict. |
+| Verify | High-reasoning critical lead | Prove the change meets its spec through executable evidence; delegate adversarial test/reproduction checks before returning a verdict. |
+| Supervise | High-reasoning critical lead | Consume Verify evidence and decide release readiness from security, business rules, change impact, and operational risk. |
+
+## Verify and Supervise boundary
+
+Verify is an **evidence gate**. It owns checklist traceability, tests, static
+checks, failure reproduction, and implementation defects. Its output is a
+`VERIFY_CHECKLIST` result plus a findings ledger with commands, outcomes, and
+unresolved items.
+
+Supervise is a **release gate**, not a second line-by-line review. It consumes
+the Verify ledger and only reopens a file when it changed after Verify or when a
+HIGH/CRITICAL risk requires it. Its required decision dimensions are:
+
+1. security and permission boundaries;
+2. business invariants, state transitions, and policy rules named in the spec;
+3. change impact, rollback, data migration, and operational readiness;
+4. residual-risk ownership and release/merge decision.
+
+Supervise returns `PASS`, `PARTIAL`, or `FAIL` with an explicit release decision.
+Any unresolved HIGH/CRITICAL security or business-rule risk blocks PASS.
 
 ## Configuration
 

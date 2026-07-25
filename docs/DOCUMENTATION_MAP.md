@@ -10,6 +10,8 @@ Use this file to find the right document quickly.
 ## Concepts
 
 - Philosophy and design intent: [PHILOSOPHY.md](PHILOSOPHY.md)
+- Single-AI SIVS role model: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
+- Verify evidence / Supervise release-gate decision: [ADR-028-evidence-and-release-gates.md](ADR-028-evidence-and-release-gates.md)
 - System overview: [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)
 - Execution harness contract: [../core/EXECUTION_HARNESS.md](../core/EXECUTION_HARNESS.md)
 - Execution harness validation plan: [../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md](../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md)
@@ -25,7 +27,7 @@ Use this file to find the right document quickly.
 ## Usage
 
 - General usage guide: [USAGE_GUIDE.md](USAGE_GUIDE.md)
-- Multi-model setup: [MULTI_MODEL_SETUP.md](MULTI_MODEL_SETUP.md)
+- Single-AI SIVS settings: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
 - Global MCP setup: [MCP_GLOBAL_SETUP.md](MCP_GLOBAL_SETUP.md)
 - Secret management: [SECRETS.md](SECRETS.md)
 - Multi-model user guide: [USER_GUIDE_MULTI_MODEL.md](USER_GUIDE_MULTI_MODEL.md)

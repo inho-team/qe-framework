@@ -4,9 +4,8 @@
 > `Esupervision-orchestrator` for `type:code` and `type:other` tasks, **only
 > after binary Verify has passed**. Its cognitive mode is **Meticulous**
 > (꼼꼼한 사고) — see [thinking-modes.md](./thinking-modes.md) Mode 3. On FAIL it
-> routes **backward** (DECISION_LOG D014/D015). Engine baseline + codex
-> auto cross-model upgrade as in
-> [spec-gate-protocol.md](./spec-gate-protocol.md).
+> routes **backward** (DECISION_LOG D014/D015). It is the single-AI release
+> gate defined in `core/SIVS_SINGLE_AI_MODEL.md`.
 
 ## When it runs
 
@@ -22,14 +21,14 @@
 
 ## Agents (Supervise stage)
 
-The **existing three** Supervise-stage agents (none dropped). All operate in the
-Meticulous mode; **Merge Blocker** is the cross-model-upgrade target.
+The three Supervise-stage agents operate in Meticulous mode. The Supervise lead
+and Merge Blocker use high reasoning effort.
 
 | Agent | Focus |
 |-------|-------|
-| Merge Blocker | Regression risk, coverage sufficiency, unresolved TODOs, "do not merge" case |
-| Merge Advocate | Cost of delay, acceptable residual risk, "ready to merge" case |
-| Impartial Judge | Weigh both; which concerns are real vs hypothetical |
+| Merge Blocker | Security, business-invariant, regression, rollback, and operational blockers |
+| Merge Advocate | Evidence-backed residual risk, mitigation, and release value |
+| Impartial Judge | Release decision, risk owner, and route to Verify/Implement/Spec |
 
 For `type:code`, Supervise is the final owner of the **Code Risk Gate**:
 
@@ -49,14 +48,13 @@ HIGH/CRITICAL unknown or evidence-free defer remains.
 
 ## Mode scope (vs Verify)
 
-Supervise (Meticulous) judges **merge/release readiness**, not implementation
-correctness. Allowed: release-blocking risk from already-passed verify evidence,
-unresolved/residual findings carried from Verify, regression-test sufficiency,
-boundary/ownership violations, packaging/docs readiness. Disallowed: launching
-*new* implementation-correctness attacks (that is the Verify gate's scope) —
-unless a correctness issue is surfaced as a release-readiness blocker, in which
-case it routes back to Verify (see Backward routing). This keeps Supervise from
-duplicating Verify.
+Supervise (Meticulous) judges **merge/release readiness**, not a second full
+implementation review. It consumes Verify evidence and checks: security and
+permission boundaries, business invariants/state transitions/policy rules,
+change impact, rollback/data migration, operational readiness, and explicit
+residual-risk ownership. It may re-open only files changed after Verify or a
+HIGH/CRITICAL risk path. New implementation correctness attacks route back to
+Verify rather than being duplicated here.
 
 For code tasks, release readiness includes whether the final report honestly
 names residual risks and unverified assumptions. A PASS that hides an unresolved
@@ -73,13 +71,12 @@ Reuse the spec-gate JSON schema and 3-agent verdict aggregation — see
 `root_cause_stage` field. The orchestrator's existing grade mapping applies:
 Qcritical FAIL → supervision FAIL; WARN → PARTIAL; PASS → no impact.
 
-## Engine routing & cross-model failure fallback
+## Single-AI execution
 
-Identical policy to the Verify gate: same-engine baseline (all 3 agents
-`general-purpose`); auto-upgrade **Merge Blocker** to `codex:codex-rescue` when
-codex is reachable; on codex error/timeout re-run that agent on Claude, mark
-`degraded` → at least WARN; double failure → WARN-blocked + audit
-`reason=double-failure`. The upgrade never blocks the mandatory gate.
+The active client delegates the three roles in isolated contexts. It must run
+`Esecurity-officer` for security-sensitive changes and a business-rule review
+against the spec's explicit invariants. If delegation is unavailable, record
+`mode=degraded-inline`; do not report PASS without later delegated evidence.
 
 ## Backward routing (FAIL is not a dead-end)
 

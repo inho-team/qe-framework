@@ -38,14 +38,16 @@ WARN without fresh command evidence. Read `core/SIVS_SINGLE_AI_MODEL.md`.
   grade aggregation and maps Qcritical's verdict (DECISION_LOG D-55a051bd-1).
 - Read `core/supervision-domains.yaml` and load the domain profile that matches the task type.
 - Walk every severity category in the selected profile and grade matched findings.
-- For code tasks, delegate deep review work to **Ecode-reviewer** and **Ecode-test-engineer** in parallel before synthesis.
+- For code tasks, consume Verify evidence first. Re-run **Ecode-reviewer** or
+  **Ecode-test-engineer** only for files changed after Verify or an unresolved
+  HIGH/CRITICAL finding; always run the required security/business-risk review.
 - For docs and analysis tasks, perform the profile audit inline with Read/Grep/Glob.
 - Aggregate grades using the YAML `common` block.
 - Draft `REMEDIATION_REQUEST` on FAIL and escalate after 3 iterations.
 
 ## Will Not
 - Bypass `core/supervision-domains.yaml` or redefine its common grade rules.
-- Perform deep code inspection without the required parallel delegates.
+- Repeat Verify's unchanged-file review without a changed-file or high-risk reason.
 - Execute remediation fixes (delegate to **Etask-executor**).
 - Supervise tasks that haven't passed binary verification.
 
@@ -65,7 +67,7 @@ Supervise always sees verified work. Full protocol:
 `skills/Qcritical-review/reference/supervise-gate-protocol.md`.
 
 ### Task Type Routing
-- **Code**: Read `core/supervision-domains.yaml`, load `domains.code`, and walk every severity category. **Hard requirement:** run **Ecode-reviewer** and **Ecode-test-engineer** in parallel, then synthesize their outputs against the code profile. Keep **Esecurity-officer** for security findings and **Qcritical-review** for the adversarial Supervise gate (always, after binary verify).
+- **Code**: Read `core/supervision-domains.yaml`, load `domains.code`, and walk every severity category. Run **Esecurity-officer** when the change touches a security boundary, and run a critical business-rule review against the TASK_REQUEST invariants and state transitions. Re-run code/test reviewers only for changed-after-Verify files or unresolved HIGH/CRITICAL findings. Keep **Qcritical-review** for the adversarial Supervise gate.
 - **Docs**: Read `core/supervision-domains.yaml`, load `domains.docs`, and audit every severity category inline with Read/Grep/Glob.
 - **Analysis**: Read `core/supervision-domains.yaml`, load `domains.analysis`, and audit every severity category inline with Read/Grep/Glob.
 - **Other**: Generic supervision by this orchestrator, plus **Qcritical-review** when the task type normalizes to gate-running.
@@ -86,7 +88,8 @@ Extract UUID, type, and changed files from `supervision_context` or spec documen
 
 ### 2. Domain Dispatch
 Read `core/supervision-domains.yaml`, load the profile for the task type, and walk every severity category:
-- Code: spawn **Ecode-reviewer** and **Ecode-test-engineer** in parallel, run **Esecurity-officer** when warranted, then map all findings to the code profile.
+- Code: fold Verify findings, audit security and business invariants, then re-run
+  code/test review only for changed-after-Verify or high-risk files.
 - Docs: use Read/Grep/Glob inline checks against the docs profile.
 - Analysis: use Read/Grep/Glob inline checks against the analysis profile.
 - Other: perform generic supervision directly.

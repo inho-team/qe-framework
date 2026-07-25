@@ -22,6 +22,8 @@ domains:
         - architecture consistency
         - duplicate code
         - cyclomatic complexity
+        - business rule and state-transition preservation
+        - release-impact and rollback readiness
       excludes:
         security: "Out of scope; delegate to Esecurity-officer."
     delegates:
@@ -80,6 +82,20 @@ domains:
             severity: WARN
           - signal: "Complexity >15."
             severity: FAIL
+      business-rules:
+        severities:
+          - signal: "A TASK_REQUEST business invariant or state transition has no evidence of preservation."
+            severity: FAIL
+          - signal: "Authorization, pricing, entitlement, or lifecycle policy changed without an explicit rule-level review."
+            severity: FAIL
+          - signal: "A business rule is ambiguous but the release decision does not name an owner or defer rationale."
+            severity: WARN
+      release-impact:
+        severities:
+          - signal: "Data migration, rollback, or compatibility impact is unassessed for a change that requires it."
+            severity: FAIL
+          - signal: "Operational alerting, documentation, or rollout impact is missing for a production-affecting change."
+            severity: WARN
 
   docs:
     scope:

@@ -5,8 +5,8 @@
 > cognitive mode is **Critical** (비판적 사고) — see
 > [thinking-modes.md](./thinking-modes.md) Mode 2. On FAIL it does NOT dead-end:
 > it routes **backward** to the stage that caused the failure (DECISION_LOG
-> D014/D015). Engine baseline + codex auto cross-model upgrade per
-> [spec-gate-protocol.md](./spec-gate-protocol.md) §"Engine routing".
+> D014/D015). It follows the single-AI isolated-review contract in
+> `core/SIVS_SINGLE_AI_MODEL.md`.
 
 ## When it runs
 
@@ -18,8 +18,8 @@
 
 ## Agents (Verify stage)
 
-The **existing three** Verify-stage agents (none dropped). All operate in the
-Critical mode; **Devil's Advocate** is the cross-model-upgrade target.
+The three Verify-stage agents operate in Critical mode. The Verify lead and
+Devil's Advocate use high reasoning effort.
 
 | Agent | Focus | Source |
 |-------|-------|--------|
@@ -35,9 +35,10 @@ code path, or explicit defer rationale is a gate FAIL.
 
 ## Mode scope (vs Supervise)
 
-Verify (Critical) attacks **implementation correctness**: assumptions, missing
-error cases, crashes, untested paths, security/perf defects in the code itself.
-It does NOT judge merge/release readiness — that is the Supervise gate's job
+Verify (Critical) produces **objective implementation evidence**: checklist
+traceability, command/test output, missing error cases, crashes, and untested
+paths. It may identify a security or business-rule defect, but does not decide
+whether residual risk is acceptable for release — that is the Supervise gate's job
 ([supervise-gate-protocol.md](./supervise-gate-protocol.md)). This separation
 keeps the two gates non-redundant.
 
@@ -52,21 +53,12 @@ Reuse the spec-gate JSON schema and 3-agent verdict aggregation verbatim — see
 §"Verdict aggregation". Each finding additionally carries a `root_cause_stage`
 field (see Backward routing).
 
-## Engine routing & cross-model failure fallback
+## Single-AI execution
 
-- **Baseline (always):** all 3 agents are same-engine sub-agents
-  (`general-purpose`).
-- **Auto-upgrade:** if codex is reachable (`getCodexPluginInfo()` /
-  `isCodexReachable()`), route **Devil's Advocate** to `codex:codex-rescue`.
-- **Cross-model failure fallback:** if the codex sub-agent errors or times out,
-  log `crossmodel=false` with the reason, **re-run that one agent on Claude
-  (`general-purpose`)**, and mark the gate result `degraded` → at least **WARN**
-  (the strongest critic ran same-engine, so independence is reduced; never let a
-  optional upgrade silently PASS as if cross-model). An optional upgrade
-  **never blocks** the mandatory gate.
-- **Double failure:** if the Claude re-run also errors, the gate result is
-  **WARN-blocked** (NOT PASS) requiring explicit user override, with an audit
-  line `reason=double-failure`.
+The active client delegates all three roles with isolated contexts. If native
+delegation is unavailable, record `mode=degraded-inline`; the verdict cannot be
+stronger than WARN until delegated evidence is available. Never invoke another
+AI client.
 
 ## Backward routing (FAIL is not a dead-end)
 
