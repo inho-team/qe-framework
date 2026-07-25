@@ -54,7 +54,7 @@
 
 - **Description**: Percentage of tasks that pass all verification on first attempt
 - **Formula**: `first_attempt_passes / total_verified_tasks * 100`
-- **Collection**: Qexecute -verify (track iteration count; pass@1 = iteration 1 success)
+- **Collection**: Qexecute -verify or TaskCompleted payload (explicit verification attempt count; pass@1 = attempt 1 success)
 - **Normal Range**: 60-80%
 - **Warning Threshold**: Below 40%
 - **Interpretation**: Low pass@1 suggests specs need more detail or implementation quality is poor
@@ -71,6 +71,7 @@ All metrics are stored in unified-state under the `harnessMetrics` namespace:
     "tasksTotal": 0,
     "tasksCompleted": 0,
     "tasksPassAt1": 0,
+    "tasksPassAt1Observed": 0,
     "totalLinesChanged": 0,
     "totalImplementMs": 0,
     "totalVerifyMs": 0,
@@ -85,8 +86,32 @@ All metrics are stored in unified-state under the `harnessMetrics` namespace:
 | Hook/Skill | Metrics Updated |
 |------------|----------------|
 | TaskCreated | tasksTotal++ |
-| TaskCompleted | tasksCompleted++, tasksPassAt1 (conditional) |
+| TaskCompleted | tasksCompleted++, tasksPassAt1 only when an explicit attempt count is present |
 | PostToolUse (Write/Edit) | totalLinesChanged |
 | Qexecute | totalImplementMs |
 | Qexecute -verify | totalVerifyMs, pass@1 tracking |
 | SessionEnd | Final aggregation, telemetry flush |
+
+## Collection Coverage
+
+The schema is broader than the events every client exposes. Treat a metric as
+measured only when its listed event has actually populated it:
+
+| Signal | Current automatic evidence | Limitation |
+|--------|----------------------------|------------|
+| Task completion | `TaskCompleted` | Total-task creation must be emitted by the plan runtime. |
+| Pass@1 | Explicit attempt count on `TaskCompleted` | Missing attempt counts are recorded as unknown, never as a first pass. |
+| Delegation dispatch | `PreToolUse` `Task`/`Agent` requests | Records requests and selected model, not worker completion, queue time, or elapsed time. |
+| Churn, implementation/verification time, defect escape | No portable event emitter yet | Do not use the target ranges as measured results until the active client emits these events. |
+
+This distinction prevents policy telemetry from being mistaken for proof that a
+parallel workflow was faster or successful. Runtime-specific lifecycle timing
+may be added when the client exposes reliable start/stop events.
+
+## Metric 7: Delegation Dispatch Mix
+
+- **Description**: Count delegated-work requests by agent and selected model tier.
+- **Collection**: PreToolUse for `Task` and `Agent`; emits `delegation_requested` telemetry.
+- **Interpretation**: Use it to audit whether Wave and QA delegation follow the
+  routing policy. It is dispatch evidence only, not worker completion or latency.
+  Do not claim a speedup without lifecycle timing from the active client runtime.

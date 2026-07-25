@@ -86,12 +86,40 @@ export function initMetrics() {
     tasksTotal: 0,
     tasksCompleted: 0,
     tasksPassAt1: 0,
+    tasksPassAt1Observed: 0,
     totalLinesChanged: 0,
     totalImplementMs: 0,
     totalVerifyMs: 0,
     defectEscapes: 0,
+    delegationRequests: 0,
+    delegationAutoInjections: 0,
+    delegationByAgent: {},
+    delegationByModel: {},
     sessionStartedAt: new Date().toISOString()
   };
+}
+
+/**
+ * Record a delegated-work request. This is dispatch telemetry, not completion
+ * telemetry: runtimes do not expose a portable subagent-stop hook.
+ *
+ * @param {Object} metrics - Current metrics object
+ * @param {{agentName?: string, model?: string, action?: string}} request
+ * @returns {Object} Updated metrics
+ */
+export function recordDelegationRequest(metrics, request = {}) {
+  const agentName = request.agentName || 'unknown';
+  const model = request.model || 'unspecified';
+
+  metrics.delegationRequests = (metrics.delegationRequests || 0) + 1;
+  metrics.delegationByAgent = metrics.delegationByAgent || {};
+  metrics.delegationByModel = metrics.delegationByModel || {};
+  metrics.delegationByAgent[agentName] = (metrics.delegationByAgent[agentName] || 0) + 1;
+  metrics.delegationByModel[model] = (metrics.delegationByModel[model] || 0) + 1;
+  if (request.action === 'inject') {
+    metrics.delegationAutoInjections = (metrics.delegationAutoInjections || 0) + 1;
+  }
+  return metrics;
 }
 
 /**
@@ -102,8 +130,11 @@ export function initMetrics() {
  */
 export function recordTaskCompletion(metrics, passedFirstAttempt) {
   metrics.tasksCompleted += 1;
-  if (passedFirstAttempt) {
-    metrics.tasksPassAt1 += 1;
+  if (typeof passedFirstAttempt === 'boolean') {
+    metrics.tasksPassAt1Observed = (metrics.tasksPassAt1Observed || 0) + 1;
+    if (passedFirstAttempt) {
+      metrics.tasksPassAt1 += 1;
+    }
   }
   return metrics;
 }
@@ -145,9 +176,9 @@ export function getMetricsSummary(metrics) {
     ? Math.round(metrics.tasksCompleted / metrics.tasksTotal * 100)
     : 0;
 
-  const passAt1Rate = metrics.tasksCompleted > 0
-    ? Math.round(metrics.tasksPassAt1 / metrics.tasksCompleted * 100)
-    : 0;
+  const passAt1Rate = metrics.tasksPassAt1Observed > 0
+    ? `${Math.round(metrics.tasksPassAt1 / metrics.tasksPassAt1Observed * 100)}%`
+    : 'unknown';
 
   const churnRate = metrics.tasksCompleted > 0
     ? Math.round(metrics.totalLinesChanged / metrics.tasksCompleted)
@@ -157,5 +188,5 @@ export function getMetricsSummary(metrics) {
     ? (metrics.totalVerifyMs / metrics.totalImplementMs).toFixed(2)
     : '0.00';
 
-  return `Tasks: ${metrics.tasksCompleted}/${metrics.tasksTotal} (${resolutionRate}%) | Pass@1: ${passAt1Rate}% | Churn: ${churnRate} lines/task | VTax: ${verifyTax}`;
+  return `Tasks: ${metrics.tasksCompleted}/${metrics.tasksTotal} (${resolutionRate}%) | Pass@1: ${passAt1Rate} | Churn: ${churnRate} lines/task | VTax: ${verifyTax}`;
 }

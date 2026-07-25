@@ -72,15 +72,18 @@ try {
   if (!metricsState.harnessMetrics) {
     metricsState.harnessMetrics = initMetrics();
   }
-  // Check if this is a first-attempt pass (no prior iterations recorded)
-  const isPassAt1 = true; // Default: assume first attempt unless iteration data exists
+  // Only record Pass@1 when the lifecycle payload supplies a verifiable attempt
+  // count. Treating an omitted count as a first pass inflated the metric.
+  const attemptRaw = data.verification_attempt ?? data.verificationAttempt ?? data.attempt;
+  const attempt = Number(attemptRaw);
+  const isPassAt1 = Number.isInteger(attempt) && attempt > 0 ? attempt === 1 : null;
   recordTaskCompletion(metricsState.harnessMetrics, isPassAt1);
   writeUnifiedState(cwd, metricsState);
 
   appendTelemetry(cwd, {
     eventType: 'task_completed',
     sessionId: data.session_id || data.sessionId || 'unknown',
-    data: { passAt1: isPassAt1 }
+    data: { passAt1: isPassAt1, verificationAttempt: Number.isInteger(attempt) && attempt > 0 ? attempt : null }
   });
 } catch {
   // Never let metrics bugs block the hook's primary purpose.

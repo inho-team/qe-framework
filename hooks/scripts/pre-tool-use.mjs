@@ -11,6 +11,7 @@ import { emitBlock } from './lib/block-emitter.mjs';
 import { executableView, matchesExecutable, deobfuscateShellTokens, shellDashCArgs } from './lib/shell-scanner.mjs';
 import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
 import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs';
+import { appendTelemetry, initMetrics, recordDelegationRequest } from './lib/metrics.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -787,6 +788,18 @@ if (toolName === 'Task' || toolName === 'Agent') {
       hints.push(result.message);
     }
     updateDelegationStats(state, result.action);
+    if (!state.harnessMetrics) state.harnessMetrics = initMetrics();
+    const agentName = toolInput.subagent_type || toolInput.subagentType || toolInput.agent || toolInput.agentName || toolInput.name || 'unknown';
+    recordDelegationRequest(state.harnessMetrics, {
+      agentName,
+      model: result.model,
+      action: result.action,
+    });
+    appendTelemetry(cwd, {
+      eventType: 'delegation_requested',
+      sessionId: data.session_id || data.sessionId || 'unknown',
+      data: { agentName, model: result.model, action: result.action },
+    });
   } catch {
     // Fault-tolerant: ignore delegation enforcer errors
   }
