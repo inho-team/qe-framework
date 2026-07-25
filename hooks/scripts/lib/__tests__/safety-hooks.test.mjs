@@ -758,9 +758,13 @@ test('pre-tool-use: unrelated skill entry does not arm commit bypass', (t) => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-commit-skill-entry-'));
   t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
 
+  // Use a neutral, non-PSE skill: PSE_SKILLS (qplan/qgs/qgenerate-spec/qexecute/qrt)
+  // are goal-gated and block direct entry, which is unrelated to the commit-bypass
+  // arming this test exercises. Qhelp is not gated, so its entry succeeds and the
+  // assertion still proves an unrelated skill does not arm the commit bypass.
   const skillEntry = runHookPayload(dir, {
     tool_name: 'Skill',
-    tool_input: { skill: 'Qexecute' },
+    tool_input: { skill: 'Qhelp' },
   });
   assert.strictEqual(skillEntry.status, 0);
   assert.strictEqual(runCommitGuard(null, dir), 2);
