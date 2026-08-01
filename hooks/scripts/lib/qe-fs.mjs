@@ -34,9 +34,13 @@ const ROOT = process.env.QE_ROOT || process.cwd();
 const QE = join(ROOT, '.qe');
 const DB_PATH = join(QE, 'qe.db');
 const DB_SELF = /\.qe\/qe\.db(-wal|-shm|-journal)?$/;
-// default: mirror writes to disk too (safe while some consumers still read files);
-// QE_STORE_DB_ONLY=1 stops disk writes so .qe files can stay deleted.
-const DB_ONLY = process.env.QE_STORE_DB_ONLY === '1';
+// default: mirror writes to disk too (safe while some consumers still read files).
+// Flip to DB-only (no disk writes, so .qe files stay deleted) via env
+// QE_STORE_DB_ONLY=1 OR a persistent marker file .qe/.store-db-only that every
+// hook process sees. The marker is read with real fs so it never depends on the
+// store being readable.
+const DB_ONLY = process.env.QE_STORE_DB_ONLY === '1'
+  || realFs.existsSync(join(QE, '.store-db-only'));
 
 /** Repo-relative `.qe/...` path when `p` addresses a store-backed file, else null. */
 function qeRel(p) {
