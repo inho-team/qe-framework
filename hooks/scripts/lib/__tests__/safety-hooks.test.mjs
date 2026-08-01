@@ -1277,3 +1277,124 @@ for (const evade of [
     assert.strictEqual(res.status, 2);
   });
 }
+
+// --- FIX4 (5b7591e7 defect 4): skill-bypass.json forgery hard-block + Qrelease hook-owned ---
+
+test('FIX4: Write tool forging skill-bypass.json is hard-blocked', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-write-'));
+  const res = runHookPayload(dir, {
+    tool_name: 'Write',
+    tool_input: { file_path: path.join(dir, '.qe/state/skill-bypass.json'), content: '{"active":true,"skill":"Qcommit"}' },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.strictEqual(res.status, 2);
+});
+
+test('FIX4: Edit tool modifying skill-bypass.json is hard-blocked', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-edit-'));
+  const res = runHookPayload(dir, {
+    tool_name: 'Edit',
+    tool_input: { file_path: path.join(dir, '.qe/state/skill-bypass.json'), old_string: 'a', new_string: '{"active":true,"skill":"Qcommit"}' },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.strictEqual(res.status, 2);
+});
+
+test('FIX4: Bash sink into skill-bypass.json is hard-blocked', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-sink-'));
+  const res = runHookPayload(dir, {
+    tool_name: 'Bash',
+    tool_input: { command: `printf '%s' '{"active":true,"skill":"Qcommit"}' > .qe/state/skill-bypass.json` },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.strictEqual(res.status, 2);
+});
+
+test('FIX4: Qrelease skill entry arms release bypass without a standalone flag', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-qrel-'));
+  const entry = runHookPayload(dir, { tool_name: 'Skill', tool_input: { skill: 'Qrelease' } });
+  assert.strictEqual(entry.status, 0);
+  assert.ok(!fs.existsSync(path.join(dir, '.qe/state/skill-bypass.json')));
+  // A release-stage version-manifest sink should now pass on the hook-owned bypass.
+  const stage = runHookPayload(dir, {
+    tool_name: 'Bash',
+    tool_input: { command: 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null' },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.notStrictEqual(stage.status, 2);
+});
+
+test('FIX4: without a Qrelease entry, a version-manifest sink stays blocked (no widening)', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-noentry-'));
+  const stage = runHookPayload(dir, {
+    tool_name: 'Bash',
+    tool_input: { command: 'tee .claude-plugin/plugin.json < src.json >/dev/null' },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.strictEqual(stage.status, 2);
+});
+
+// --- FIX4 audit remediations (Esecurity-officer FAIL/WARN) ---
+
+test('FIX4 audit: `..` traversal Write of skill-bypass.json is blocked', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-dotdot-'));
+  const res = runHookPayload(dir, {
+    tool_name: 'Write',
+    tool_input: { file_path: path.join(dir, '.qe/state/../state/skill-bypass.json'), content: '{"active":true,"skill":"Qcommit"}' },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.strictEqual(res.status, 2);
+});
+
+test('FIX4 audit: cp/mv into skill-bypass.json is blocked', () => {
+  for (const verb of ['cp', 'mv']) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), `qe-fix4-${verb}-`));
+    const res = runHookPayload(dir, {
+      tool_name: 'Bash',
+      tool_input: { command: `${verb} /tmp/forged.json .qe/state/skill-bypass.json` },
+    });
+    fs.rmSync(dir, { recursive: true, force: true });
+    assert.strictEqual(res.status, 2, `${verb} should be blocked`);
+  }
+});
+
+test('FIX4 audit: tee --append / -- into skill-bypass.json is blocked', () => {
+  for (const cmd of [
+    'printf x | tee --append .qe/state/skill-bypass.json',
+    'printf x | tee -- .qe/state/skill-bypass.json',
+  ]) {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-teeflag-'));
+    const res = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: cmd } });
+    fs.rmSync(dir, { recursive: true, force: true });
+    assert.strictEqual(res.status, 2, `blocked: ${cmd}`);
+  }
+});
+
+test('FIX4 audit (FAIL-2): a forged FILE flag does NOT grant unbound release', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-forgefile-'));
+  fs.mkdirSync(path.join(dir, '.qe', 'state'), { recursive: true });
+  // Attacker plants a file (simulating a write that slipped past the tool block)
+  // claiming the hook-owned source. It must NOT yield unbound release authorization.
+  fs.writeFileSync(
+    path.join(dir, '.qe/state/skill-bypass.json'),
+    JSON.stringify({ active: true, skill: 'qe-release-version', source: 'skill-entry-hook', ts: Date.now() }),
+  );
+  const stage = runHookPayload(dir, {
+    tool_name: 'Bash',
+    tool_input: { command: 'tee .claude-plugin/plugin.json < src.json >/dev/null' },
+  });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.strictEqual(stage.status, 2, 'forged file must not grant unbound release');
+});
+
+test('FIX4 audit (WARN-2): hook-owned release flag survives the git commit stage', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-survive-'));
+  runHookPayload(dir, { tool_name: 'Skill', tool_input: { skill: 'Qrelease' } });
+  // commit stage (matches Qcommit rule via `also`) must NOT consume the release flag
+  const commit = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "chore(release): v9.9.9"' } });
+  assert.notStrictEqual(commit.status, 2);
+  // a subsequent release-stage version write must still be authorized
+  const after = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null' } });
+  fs.rmSync(dir, { recursive: true, force: true });
+  assert.notStrictEqual(after.status, 2, 'release flag must survive the commit stage');
+});

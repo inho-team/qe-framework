@@ -68,6 +68,25 @@ function isVersionOwnedManifest(filePath) {
     /(?:^|\/)\.claude-plugin\/(?:plugin|marketplace)\.json$/i.test(p);
 }
 
+// The standalone skill-bypass flag (defect 4). Only the hook itself may write it,
+// via the Skill-entry bootstrap below — any tool-driven create/modify/replace is
+// forgery and is hard-blocked. Anchored to the `.qe/state/` location so unrelated
+// files never collide; a `..`/backslash variant still normalizes onto this path.
+function isSkillBypassFile(filePath) {
+  const raw = String(filePath || '').replace(/\\/g, '/');
+  // Collapse `.`/`..` segments so a traversal variant
+  // (`.qe/state/../state/skill-bypass.json`) cannot dodge the suffix match. The
+  // reader honors the OS-resolved real path, so the guard must resolve too.
+  const parts = [];
+  for (const seg of raw.split('/')) {
+    if (seg === '' || seg === '.') continue;
+    if (seg === '..') { parts.pop(); continue; }
+    parts.push(seg);
+  }
+  const p = parts.join('/');
+  return /(?:^|\/)\.qe\/state\/skill-bypass\.json$/i.test(p) || p === '.qe/state/skill-bypass.json';
+}
+
 // --- Load Unified State (Single I/O call) ---
 const state = readUnifiedState(cwd);
 
@@ -378,6 +397,23 @@ if (toolName === 'Skill') {
       };
     }
 
+    // Qrelease needs the same hook-owned trust path (defect 4 / FIX1a). The old
+    // flow had Qrelease WRITE .qe/state/skill-bypass.json before each of its four
+    // release stages — but that same file is now forgery-blocked below, which
+    // would deadlock a legitimate release. Instead the hook itself issues the
+    // release-version capability here, in unified-state (never the blocked file),
+    // scoped by the 120s TTL and retained across the release stages
+    // (keepReleaseSessionFlag). Because it is hook-issued only on a genuine
+    // Qrelease skill entry, it cannot be forged.
+    if (normalizedSkillName === 'Qrelease') {
+      state.skill_bypass = {
+        active: true,
+        skill: RELEASE_VERSION_CAPABILITY,
+        ts: Date.now(),
+        source: 'skill-entry-hook',
+      };
+    }
+
     // SIVS is single-AI: the active client owns all stages. Stage role details
     // are supplied by the invoked skill, never by a cross-client routing hint.
   }
@@ -470,7 +506,22 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     //    "any command". Presence is detected by the key, not by truthiness.
     const hasCommandField = bypass.command !== undefined && bypass.command !== null;
     const requiresCommandBinding = bypass.skill === RELEASE_VERSION_CAPABILITY;
-    if (!hasCommandField && !requiresCommandBinding) {
+    // Hook-owned release bootstrap (FIX1a): issued only on a genuine Qrelease skill
+    // entry, so it cannot be forged (the standalone flag file is blocked). It
+    // authorizes the release-version capability for the release stages within the
+    // 120s TTL without a per-stage command binding, replacing the old
+    // rewrite-the-file-before-each-stage flow.
+    // SECURITY (FIX4 audit FAIL-2): trust the unbound hook-owned release capability
+    // ONLY when it came from hook-written unified-state — never from the standalone
+    // file. `acceptedBypassFile` is non-null exactly when `bypass` was loaded from a
+    // file, which is attacker-forgeable; a forged file therefore falls through to the
+    // exact-command binding path (its pre-FIX4 blast radius), not to unbound release.
+    const hookOwnedRelease = acceptedBypassFile === null
+      && bypass.source === 'skill-entry-hook'
+      && bypass.skill === RELEASE_VERSION_CAPABILITY;
+    if (hookOwnedRelease) {
+      bypassSkill = bypass.skill || null;
+    } else if (!hasCommandField && !requiresCommandBinding) {
       bypassSkill = bypass.skill || null;
     } else {
       const boundCommand = typeof bypass.command === 'string' ? bypass.command.trim() : '';
@@ -559,6 +610,43 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       });
     }
 
+    // Forging the bypass flag via a Bash write sink (defect 4). Same sink
+    // machinery (view + de-obfuscated + shell -c args), target =
+    // .qe/state/skill-bypass.json → unconditionally blocked (non-bypassable `_`).
+    const scanBypassSink = (text) => {
+      // redirect / tee (incl. -a, --append, --, and other long flags) / dd of=.
+      const sinkRe = /(?:>>?\|?|\btee\b(?:\s+-{1,2}[A-Za-z-]+)*\s+|\bdd\b[^|;&]*\bof=)\s*([^\s;|&]+)/g;
+      let m;
+      while ((m = sinkRe.exec(text)) !== null) {
+        if (isSkillBypassFile(m[1])) return true;
+      }
+      // Non-sink write verbs (cp/mv/install/ln/rsync): block if ANY path token is
+      // the flag. Enumeration is inherently incomplete (see FIX4 residual note),
+      // but this closes the audit-reproduced cp/mv vectors.
+      if (/\b(?:cp|mv|install|ln|rsync)\b/.test(text)) {
+        for (const tok of text.split(/[\s;|&]+/)) {
+          if (isSkillBypassFile(tok)) return true;
+        }
+      }
+      return false;
+    };
+    let sinkHitsBypass = scanBypassSink(view) || scanBypassSink(deobfuscateShellTokens(view));
+    if (!sinkHitsBypass) {
+      for (const arg of shellDashCArgs(cmd)) {
+        const argView = executableView(arg);
+        if (scanBypassSink(argView) || scanBypassSink(deobfuscateShellTokens(argView))) {
+          sinkHitsBypass = true;
+          break;
+        }
+      }
+    }
+    if (sinkHitsBypass) {
+      overrideRules.push({
+        skill: '_skill_bypass_forge',
+        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qrelease/Qcommit receive a hook-owned bypass on skill entry; this file must never be written by a command.'
+      });
+    }
+
     // in-place edit (sed/perl/ruby -i) → Edit tool
     if (matchesExecutable(cmd, /\b(?:sed|perl|ruby)\s+(?:-[a-zA-Z]*i|--in-place)\b/)) {
       overrideRules.push({
@@ -572,6 +660,15 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     const filePath = toolInput.file_path || toolInput.filePath || '';
     const newStr = toolInput.new_string || '';
 
+    // Forging the standalone bypass flag (defect 4): unconditionally blocked. The
+    // `_`-prefixed skill has no bypass path, so nothing can authorize this write.
+    if (isSkillBypassFile(filePath)) {
+      overrideRules.push({
+        skill: '_skill_bypass_forge',
+        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qrelease/Qcommit receive a hook-owned bypass on skill entry; this file must never be tool-written.'
+      });
+    }
+
     // Editing a version-owned manifest's version field → Qrelease version workflow
     if (isVersionOwnedManifest(filePath) && /"version"/.test(newStr)) {
       overrideRules.push({
@@ -584,6 +681,15 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   if (toolName === 'Write') {
     const filePath = toolInput.file_path || toolInput.filePath || '';
     const content = toolInput.content || '';
+
+    // Forging the standalone bypass flag (defect 4): unconditionally blocked,
+    // matching the Edit gate above. Hook-owned skill-entry bypass replaces it.
+    if (isSkillBypassFile(filePath)) {
+      overrideRules.push({
+        skill: '_skill_bypass_forge',
+        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qrelease/Qcommit receive a hook-owned bypass on skill entry; this file must never be tool-written.'
+      });
+    }
 
     // Write-tool parity with the Edit gate (defect 1): a full-file write to a
     // version-owned manifest carrying a "version" token is a direct version
@@ -609,7 +715,12 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       (Array.isArray(rule.also) && rule.also.includes(bypassSkill));
     if (bypassMatchesRule) {
       bypassUsed = true;
-      if (rule.skill === 'Qcommit' && bypass?.source === 'skill-entry-hook') {
+      // SECURITY (FIX4 audit WARN-2): consume the one-shot ONLY for a genuine
+      // Qcommit flag. The release capability also matches the commit rule (via
+      // `also`), and it now carries source:'skill-entry-hook' too — without the
+      // skill check the git-commit stage would delete the release flag mid-release,
+      // breaking a retry/second-commit/post-commit version write.
+      if (rule.skill === 'Qcommit' && bypass?.skill === 'Qcommit' && bypass?.source === 'skill-entry-hook') {
         consumeSkillEntryBypass = true;
       }
       continue;

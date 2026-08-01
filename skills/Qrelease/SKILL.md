@@ -92,25 +92,27 @@ Run `npm run sync:metadata` only against a temporary copy or use `git diff --no-
    tee package.json < .qe/state/qrelease.lock/package.json.next >/dev/null
    ```
 
-### 4. Use the hook bypass exactly as implemented
+### 4. Use the hook-owned release bypass (do NOT write skill-bypass.json)
 
-The protected capability is `qe-release-version`. Its file is `.qe/state/skill-bypass.json`. The capability always requires a non-empty `command` that trim-matches the complete next Bash tool input exactly. A missing, empty, non-string, mismatched, unrelated, or expired binding grants no bypass.
+The protected capability is `qe-release-version`. As of the defect-4 hardening the
+hook **issues this capability itself** in unified-state the moment the `Qrelease`
+skill is entered (`source: "skill-entry-hook"`), and **every tool write to
+`.qe/state/skill-bypass.json` is hard-blocked** — do NOT create, rewrite, or
+delete that file. Forging it is impossible through the tool layer.
 
-Immediately before the protected plugin write, record `issuedAt = Date.now()` once. Before every release stage below, replace `.qe/state/skill-bypass.json` with the Write tool using this shape:
+The hook-owned flag authorizes the release stages below within a single
+120-second TTL from skill entry and is retained across the version write →
+changelog → commit → tag sequence. If the sequence cannot finish within 120s,
+stop and run the failure procedure, then re-enter the `Qrelease` skill to reissue
+a fresh flag; never attempt to write or extend the flag by hand.
 
-```json
-{"active":true,"skill":"qe-release-version","ts":ISSUED_AT_NUMBER,"command":"EXACT_NEXT_BASH_TOOL_INPUT"}
-```
-
-`ISSUED_AT_NUMBER` is the same numeric first timestamp at every stage; never refresh it. JSON-escape the exact command string. The hook retains this release-capability flag after a successful stage, and Qrelease rewrites only its `command` for the next stage. The entire version write → changelog → commit → tag sequence must finish within 120 seconds of that original timestamp. Before each stage, if `Date.now() - issuedAt >= 120000`, stop, remove the bypass file, and run the failure procedure; do not open a new TTL window mid-release.
-
-Rebind and execute these four exact, separate Bash tool inputs in order:
+Execute these four exact, separate Bash tool inputs in order:
 
 ```bash
 tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null # qe-release-version plugin version write
 ```
 
-The trailing comment is mandatory: it keeps the word `version` in the raw command, so the hook's plugin-write guard engages and this write is authorized only through the bound `qe-release-version` flag instead of slipping past an idle guard. A forgotten or mismatched rebind therefore hard-blocks here, before any protected file changes.
+The trailing comment is retained for readability; the hook's plugin-write guard engages on the manifest sink regardless, and the write is authorized by the hook-owned `qe-release-version` capability issued at skill entry (no per-stage rebinding).
 
 ```bash
 tee CHANGELOG.md < .qe/state/qrelease.lock/CHANGELOG.next >/dev/null
@@ -136,7 +138,7 @@ Record `RELEASE_COMMIT=$(git rev-parse HEAD)` in the lock owner record, confirm 
 git tag -a vX.Y.Z -m "QE Framework vX.Y.Z" "$RELEASE_COMMIT"
 ```
 
-Confirm `git rev-list -n 1 vX.Y.Z` equals `RELEASE_COMMIT`, then delete `.qe/state/skill-bypass.json`. Tag and changelog commands are not independently blocked by the current hook, but rebinding all four stages keeps the retained flag bound to one exact command at every point and matches the implemented multi-step release protocol.
+Confirm `git rev-list -n 1 vX.Y.Z` equals `RELEASE_COMMIT`. The hook-owned bypass self-expires with its 120s TTL — there is no `skill-bypass.json` to delete (and writing/deleting it is blocked). Tag and changelog commands are not independently blocked by the hook; the retained hook-owned capability covers the whole four-stage sequence within one TTL window.
 
 ### 5. First cut-over release only
 
@@ -170,7 +172,7 @@ Local commit and tag creation do not authorize a remote mutation.
 
 ## Failure and Rollback
 
-On any failure, remove `.qe/state/skill-bypass.json` first and preserve `owner.json` until recovery is verified.
+On any failure, stop invoking release stages and let the hook-owned bypass lapse with its 120s TTL (there is no `skill-bypass.json` to remove — writing/deleting it is blocked). Preserve `owner.json` until recovery is verified.
 
 - Before the release commit: because preflight required a clean tree, restore only the release-owned tracked files with `git restore -- package.json .claude-plugin/plugin.json CHANGELOG.md` and inspect `git status --short`.
 - After the local tag: delete it with `git tag -d vX.Y.Z`.
