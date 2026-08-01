@@ -15,6 +15,17 @@ All entries should land in `[Unreleased]` until `/Qrelease` cuts a version.
 
 ## [Unreleased]
 
+### Changed (Breaking)
+
+- **Goal is the single entry point (goal-runtime).** Direct calls to the PSE
+  skills are now hard-blocked by the `PreToolUse` gate — the block set is
+  `Qgs`, `Qgenerate-spec`, `Qexecute`, and the `Qrt` alias — and redirected to
+  `/Qgoal {목표}` (or a clear natural-language goal detected on prompt submit).
+  `Qplan` is **not** blocked: it now owns the goal-driven workflow. Existing
+  `pending`/`in-progress`/`on-hold` task artifacts still admit a continuation,
+  and `!direct`/`!full` override triage. Non-goal prompts and non-PSE skills are
+  unchanged (regression 0). Migration guide: `docs/MIGRATION_v8_to_v9.md`.
+
 ### Added
 
 - **Local release ownership replaces `qe-admin-mcp`.** The external admin MCP is

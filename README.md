@@ -312,6 +312,8 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 > Codex: `$Qinit` · `$Qcontext` · `$Qplan` · `$Qgs` · `$Qexecute` · `$Qexecute -verify` · `$Qsivs-config`
 >
 > *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The shipped catalog is intentionally kept small enough to stay discoverable.)*
+>
+> **v9 (Breaking):** goal is the single entry point. Calling `Qgs` / `Qgenerate-spec` / `Qexecute` directly is blocked — use `/Qgoal {목표}` (or just state a clear goal). `Qplan` now owns the goal-driven workflow. See [`docs/MIGRATION_v8_to_v9.md`](docs/MIGRATION_v8_to_v9.md).
 
 Specialist guidance removed from the default catalog is no longer installed as
 part of the framework. Keep project-specific guidance in local docs, custom
