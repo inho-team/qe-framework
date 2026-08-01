@@ -24,6 +24,7 @@ Use this file to find the right document quickly.
 - Claude/Codex public-doc parity report: [../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md](../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md)
 - Hook lifecycle and safety policy: [HOOKS.md](HOOKS.md)
 - Execution-document convention (frontmatter, `[[link]]`, derived index): [../core/DOC_CONVENTIONS.md](../core/DOC_CONVENTIONS.md)
+- Goal completion contract (acceptance, regression, independent verification): [../core/GOAL_ACCEPTANCE_CONTRACT.md](../core/GOAL_ACCEPTANCE_CONTRACT.md)
 
 ## Usage
 

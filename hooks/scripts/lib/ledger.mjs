@@ -19,16 +19,23 @@
  * CLI:
  *   node ledger.mjs create-goals --slug S [--goal "Title::Objective" ...]
  *   node ledger.mjs append --slug S --goal-id G001 --event checkpoint --status complete [--evidence "..."]
+ *   node ledger.mjs set-acceptance --slug S --goal-id G001 --file contract.json
+ *   node ledger.mjs run-evidence --slug S --goal-id G001 --role implementation|verification [--verifier NAME]
+ *   node ledger.mjs record-evidence --slug S --goal-id G001 --file evidence.json
  *   node ledger.mjs render-state --slug S
  *   node ledger.mjs status --slug S
  */
 
 import { appendFileSync, readFileSync, writeFileSync, renameSync, existsSync, mkdirSync, openSync, readSync, closeSync, fstatSync } from './qe-fs.mjs';
 import { join } from 'path';
+import { createHash } from 'crypto';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'url';
 import { atomicWriteJson } from './state.mjs';
 import { resolveActivePlanSlug } from './plan-resolver.mjs';
+import { readCurrentSessionId } from './session-resolver.mjs';
 import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
+import { isAllowlistCommand } from './verification-evidence-gate.mjs';
 
 const PLANS_DIR = '.qe/planning/plans';
 const STATUS_ENUM = ['pending', 'active', 'complete', 'failed', 'blocked'];
@@ -57,6 +64,11 @@ function statePath(cwd, slug) { return join(planDir(cwd, slug), 'STATE.md'); }
 function requirementsPath(cwd, slug) { return join(planDir(cwd, slug), 'REQUIREMENTS.md'); }
 /** Path to the plan's `DECISION_LOG.md`. */
 function decisionLogPath(cwd, slug) { return join(planDir(cwd, slug), 'DECISION_LOG.md'); }
+/** Directory holding per-goal acceptance contracts and completion evidence. */
+function evidenceDir(cwd, slug) { return join(planDir(cwd, slug), 'evidence'); }
+function acceptancePath(cwd, slug, goalId) { return join(evidenceDir(cwd, slug), `${goalId}.acceptance.json`); }
+function completionEvidencePath(cwd, slug, goalId) { return join(evidenceDir(cwd, slug), `${goalId}.completion.json`); }
+function runEvidencePath(cwd, slug, goalId, role) { return join(evidenceDir(cwd, slug), `${goalId}.${role}-run.json`); }
 /** Path for a phase report file (reports/ subdir under plan). */
 function reportPath(cwd, slug, phaseNum) { return join(planDir(cwd, slug), 'reports', `PHASE_${phaseNum}_REPORT.md`); }
 /** Current time as an ISO-8601 string (ledger event timestamp). */
@@ -167,9 +179,10 @@ export function createGoals(cwd, slug, explicitGoals = []) {
  * Fail-closed enforcement (only-active-mutable) is Phase 2 (Qgs); Phase 1
  * keeps the primitive permissive but records every transition.
  */
-export function append(cwd, slug, { goalId, event, status, evidence = '' }) {
+export function append(cwd, slug, { goalId, event, status, evidence = '', allowComplete = false }) {
   if (!EVENT_ENUM.includes(event)) throw new Error(`invalid event: ${event}`);
   if (status && !STATUS_ENUM.includes(status)) throw new Error(`invalid status: ${status}`);
+  if (status === 'complete' && !allowComplete) throw new Error('Goal completion must use advance --action complete');
   const doc = readGoals(cwd, slug);
   if (!doc) throw new Error(`no goals.json for slug ${slug}`);
   const goal = doc.goals.find(g => g.id === goalId);
@@ -180,6 +193,145 @@ export function append(cwd, slug, { goalId, event, status, evidence = '' }) {
   writeGoals(cwd, slug, doc); // atomic; only the mutated object changed in-memory
   recordEvent(cwd, slug, { ts: nowIso(), event, goalId, status: status || goal.status, evidence, attempt: goal.attempts });
   return { goalId, status: goal.status, attempts: goal.attempts };
+}
+
+function readJsonFile(file, label) {
+  try { return JSON.parse(readFileSync(file, 'utf8')); }
+  catch { throw new Error(`${label} must be readable JSON`); }
+}
+
+function nonEmpty(value) { return typeof value === 'string' && value.trim().length > 0; }
+function contractHash(contract) { return createHash('sha256').update(JSON.stringify(contract)).digest('hex'); }
+
+function idsAreUnique(items) {
+  const ids = items.map(item => item?.id);
+  return ids.every(nonEmpty) && new Set(ids).size === ids.length;
+}
+
+/**
+ * Validate the contract written before a Goal starts.  It deliberately names
+ * scenarios and requirements separately: a passing test alone must not become
+ * a retroactive definition of user value.
+ */
+function validateAcceptanceContract(contract, goalId) {
+  if (!contract || typeof contract !== 'object' || Array.isArray(contract)) throw new Error('acceptance contract must be an object');
+  if (contract.schema !== 1 || contract.goalId !== goalId) throw new Error(`acceptance contract must declare schema: 1 and goalId: ${goalId}`);
+  if (!Array.isArray(contract.requirements) || contract.requirements.length === 0 || !idsAreUnique(contract.requirements) ||
+      !contract.requirements.every(item => nonEmpty(item.criterion) && isGoalRunnerCommand(item.command))) throw new Error('acceptance contract requires uniquely identified requirements with criteria and runnable commands');
+  if (!Array.isArray(contract.scenarios) || contract.scenarios.length === 0 || !idsAreUnique(contract.scenarios) ||
+      !contract.scenarios.every(item => nonEmpty(item.scenario) && nonEmpty(item.expected) && isGoalRunnerCommand(item.command))) throw new Error('acceptance contract requires uniquely identified user scenarios with expected results and runnable commands');
+  if (!contract.regression || !nonEmpty(contract.regression.scope) || !isGoalRunnerCommand(contract.regression.command)) throw new Error('acceptance contract requires regression scope and runnable command');
+  if (!contract.humanAcceptance || typeof contract.humanAcceptance.required !== 'boolean') throw new Error('acceptance contract requires humanAcceptance.required');
+  return contract;
+}
+
+function isGoalRunnerCommand(command) {
+  return typeof command === 'string' && !/^\s*cd\s/i.test(command) && isAllowlistCommand(command);
+}
+
+function commandResult(cwd, command) {
+  const parts = command.trim().split(/\s+/);
+  const result = spawnSync(parts[0], parts.slice(1), { cwd, encoding: 'utf8', timeout: 60_000, maxBuffer: 64 * 1024 });
+  const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
+  return { command, exitCode: Number.isInteger(result.status) ? result.status : null, signal: result.signal || null,
+    passed: !result.error && result.status === 0, outputHash: createHash('sha256').update(output).digest('hex'), executedAt: nowIso() };
+}
+
+/** Execute every locked Goal command and persist machine-collected evidence. */
+export function runGoalEvidence(cwd, slug, { goalId, role, verifier = '' }) {
+  if (!['implementation', 'verification'].includes(role)) throw new Error('run role must be implementation or verification');
+  if (role === 'verification' && !nonEmpty(verifier)) throw new Error('verification run requires a verifier identity');
+  const doc = readGoals(cwd, slug);
+  const goal = doc?.goals?.find(item => item.id === goalId);
+  if (!goal || goal.status !== 'active') throw new Error('evidence runs require the active Goal');
+  const sessionId = readCurrentSessionId(cwd);
+  if (!sessionId) throw new Error('machine evidence run requires a current QE session id');
+  const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, goalId), 'acceptance contract'), goalId);
+  if (!goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
+  const commands = [...contract.requirements, ...contract.scenarios, contract.regression]
+    .map(item => item.command).filter((value, index, values) => values.indexOf(value) === index);
+  const runs = commands.map(command => commandResult(cwd, command));
+  const record = { schema: 1, goalId, role, sessionId, verifier: role === 'verification' ? verifier : null, contractHash: goal.acceptance.hash, runs, passed: runs.every(run => run.passed), executedAt: nowIso() };
+  if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
+  atomicWriteJson(runEvidencePath(cwd, slug, goalId, role), record);
+  recordEvent(cwd, slug, { ts: nowIso(), event: 'measurement', goalId, status: 'active', evidence: `${role}-run=${join('evidence', `${goalId}.${role}-run.json`)}; passed=${record.passed}`, attempt: goal.attempts });
+  return { goalId, role, passed: record.passed, runs };
+}
+
+function requirePassingRuns(cwd, slug, goal, goalId) {
+  let implementationSession = null;
+  for (const role of ['implementation', 'verification']) {
+    const file = runEvidencePath(cwd, slug, goalId, role);
+    if (!existsSync(file)) throw new Error(`verified completion requires a ${role} machine evidence run`);
+    const run = readJsonFile(file, `${role} evidence run`);
+    if (run.schema !== 1 || run.goalId !== goalId || run.role !== role || !nonEmpty(run.sessionId) || run.contractHash !== goal.acceptance?.hash || run.passed !== true || !Array.isArray(run.runs) || run.runs.length === 0 || !run.runs.every(item => item.passed === true && nonEmpty(item.outputHash))) {
+      throw new Error(`${role} machine evidence run is missing, stale, or failed`);
+    }
+    if (role === 'implementation') implementationSession = run.sessionId;
+    if (role === 'verification' && (!nonEmpty(run.verifier) || run.sessionId === implementationSession)) throw new Error('verification evidence must come from a distinct QE session with a verifier identity');
+  }
+}
+
+function evidenceCovers(contractItems, evidenceItems, label) {
+  if (!Array.isArray(evidenceItems) || !idsAreUnique(evidenceItems)) throw new Error(`completion evidence requires uniquely identified ${label}`);
+  const byId = new Map(evidenceItems.map(item => [item.id, item]));
+  for (const item of contractItems) {
+    const result = byId.get(item.id);
+    if (!result || result.outcome !== 'pass' || !nonEmpty(result.evidence)) throw new Error(`completion evidence does not pass ${label} ${item.id}`);
+  }
+}
+
+/** Validate a completion record against the pre-existing acceptance contract. */
+function validateCompletionEvidence(evidence, contract, goalId) {
+  if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) throw new Error('completion evidence must be an object');
+  if (evidence.schema !== 1 || evidence.goalId !== goalId) throw new Error(`completion evidence must declare schema: 1 and goalId: ${goalId}`);
+  evidenceCovers(contract.requirements, evidence.requirements, 'requirements');
+  evidenceCovers(contract.scenarios, evidence.scenarios, 'scenarios');
+  if (!evidence.regression || evidence.regression.outcome !== 'pass' || !nonEmpty(evidence.regression.evidence)) throw new Error('completion evidence requires a passing regression result');
+  const independent = evidence.independentVerification;
+  if (!independent || !nonEmpty(independent.verifier) || independent.mode !== 'machine-reexecution' ||
+      independent.outcome !== 'pass' || !nonEmpty(independent.evidence)) throw new Error('completion evidence requires passing independent verification');
+  const human = evidence.humanAcceptance;
+  if (!human || (contract.humanAcceptance.required ? human.status !== 'passed' || !nonEmpty(human.evidence) : human.status !== 'not-required' && human.status !== 'passed')) {
+    throw new Error('completion evidence does not satisfy human acceptance requirement');
+  }
+  if (!Array.isArray(evidence.limitations)) throw new Error('completion evidence requires limitations array (use [] when none)');
+  return evidence;
+}
+
+/** Persist a pre-execution, user-outcome-oriented acceptance contract for a pending Goal. */
+export function setGoalAcceptance(cwd, slug, { goalId, file }) {
+  const doc = readGoals(cwd, slug);
+  const goal = doc?.goals?.find(item => item.id === goalId);
+  if (!goal) throw new Error(`unknown goalId: ${goalId}`);
+  if (goal.status !== 'pending') throw new Error('acceptance contract can only be set before a Goal starts');
+  const contract = validateAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId);
+  if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
+  atomicWriteJson(acceptancePath(cwd, slug, goalId), contract);
+  goal.acceptance = { status: 'defined', file: join('evidence', `${goalId}.acceptance.json`), hash: contractHash(contract) };
+  writeGoals(cwd, slug, doc);
+  recordEvent(cwd, slug, { ts: nowIso(), event: 'checkpoint', goalId, status: goal.status, evidence: `acceptance=${goal.acceptance.file}`, attempt: goal.attempts });
+  return { goalId, acceptance: goal.acceptance };
+}
+
+/** Persist evidence only when it satisfies the Goal's immutable acceptance contract. */
+export function recordGoalEvidence(cwd, slug, { goalId, file }) {
+  const doc = readGoals(cwd, slug);
+  const goal = doc?.goals?.find(item => item.id === goalId);
+  if (!goal) throw new Error(`unknown goalId: ${goalId}`);
+  if (goal.status !== 'active') throw new Error('completion evidence can only be recorded for the active Goal');
+  const contractFile = acceptancePath(cwd, slug, goalId);
+  if (!existsSync(contractFile)) throw new Error('Goal has no acceptance contract');
+  const contract = validateAcceptanceContract(readJsonFile(contractFile, 'acceptance contract'), goalId);
+  if (!goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
+  const evidence = validateCompletionEvidence(readJsonFile(file, 'completion evidence'), contract, goalId);
+  requirePassingRuns(cwd, slug, goal, goalId);
+  if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
+  atomicWriteJson(completionEvidencePath(cwd, slug, goalId), evidence);
+  goal.completionEvidence = { status: 'recorded', file: join('evidence', `${goalId}.completion.json`) };
+  writeGoals(cwd, slug, doc);
+  recordEvent(cwd, slug, { ts: nowIso(), event: 'measurement', goalId, status: 'active', evidence: `completion=${goal.completionEvidence.file}; verifier=${evidence.independentVerification.verifier}`, attempt: goal.attempts });
+  return { goalId, completionEvidence: goal.completionEvidence };
 }
 
 /**
@@ -200,6 +352,11 @@ export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) 
     if (blocked) return { action: 'blocked', goal: { id: blocked.id, title: blocked.title } };
     const next = doc.goals.find((goal) => goal.status === 'pending');
     if (!next) return { action: 'complete', total: doc.goals.length };
+    if (!existsSync(acceptancePath(cwd, slug, next.id))) {
+      return { action: 'needs-acceptance', goal: { id: next.id, title: next.title }, reason: 'Define user scenarios, requirement criteria, regression command, and human-acceptance need before starting.' };
+    }
+    const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, next.id), 'acceptance contract'), next.id);
+    if (!next.acceptance?.hash || next.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
     const result = append(cwd, slug, { goalId: next.id, event: 'started', status: 'active' });
     renderState(cwd, slug);
     return { action: 'started', goal: { id: next.id, title: next.title }, attempts: result.attempts };
@@ -207,10 +364,14 @@ export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) 
 
   if (action === 'complete') {
     if (!active) throw new Error('no active goal to complete');
-    const proof = String(evidence || '').trim();
-    if (!proof) throw new Error('verified completion requires evidence');
-    append(cwd, slug, { goalId: active.id, event: 'verified', status: 'complete', evidence: proof });
-    const knowledge = writeVerifiedGoalKnowledge(cwd, { slug, goal: active, evidence: proof });
+    const evidenceFile = completionEvidencePath(cwd, slug, active.id);
+    if (!existsSync(evidenceFile)) throw new Error('verified completion requires recorded acceptance, regression, and independent-verification evidence');
+    const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, active.id), 'acceptance contract'), active.id);
+    if (!active.acceptance?.hash || active.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
+    const proof = validateCompletionEvidence(readJsonFile(evidenceFile, 'completion evidence'), contract, active.id);
+    requirePassingRuns(cwd, slug, active, active.id);
+    append(cwd, slug, { goalId: active.id, event: 'verified', status: 'complete', evidence: `completion=${join('evidence', `${active.id}.completion.json`)}`, allowComplete: true });
+    const knowledge = writeVerifiedGoalKnowledge(cwd, { slug, goal: active, evidence: JSON.stringify(proof) });
     renderState(cwd, slug);
     return { action: 'completed', goal: { id: active.id, title: active.title }, knowledge };
   }
@@ -937,6 +1098,9 @@ function main() {
     let res;
     if (cmd === 'create-goals') res = createGoals(cwd, slug, args.goal);
     else if (cmd === 'append') res = append(cwd, slug, { goalId: args['goal-id'], event: args.event, status: args.status, evidence: args.evidence });
+    else if (cmd === 'set-acceptance') res = setGoalAcceptance(cwd, slug, { goalId: args['goal-id'], file: args.file });
+    else if (cmd === 'record-evidence') res = recordGoalEvidence(cwd, slug, { goalId: args['goal-id'], file: args.file });
+    else if (cmd === 'run-evidence') res = runGoalEvidence(cwd, slug, { goalId: args['goal-id'], role: args.role, verifier: args.verifier });
     else if (cmd === 'advance') res = advanceGoal(cwd, slug, { action: args.action, evidence: args.evidence });
     else if (cmd === 'render-state') res = renderState(cwd, slug);
     else if (cmd === 'status') res = status(cwd, slug);

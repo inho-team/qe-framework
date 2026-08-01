@@ -172,7 +172,7 @@ In Claude, you only need to remember the Plan entry point:
 /Qplan "what you want to achieve"    # Initializes when needed, then runs the Plan-owned Goal loop
 ```
 
-`/Qplan` initializes QE when needed, owns the Plan, and advances verified Goals internally. You review material decisions rather than run stage commands.
+`/Qplan` initializes QE when needed, owns the Plan, and advances verified Goals internally. A Goal completes only when its pre-defined acceptance criteria, user scenarios, regression evidence, independent verification, and required human acceptance are recorded. You review material decisions rather than run stage commands.
 
 In Codex, use the same skill names with the Codex skill prefix:
 

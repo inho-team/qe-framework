@@ -41,9 +41,16 @@ Plan → Goal 1 → Goal 2 → … → Goal N
 3. Create or update `.qe/planning/plans/{slug}/` with `ROADMAP.md`,
    `REQUIREMENTS.md`, and `STATE.md`. Full Plans must divide work into ordered,
    independently verifiable Wave bullets; these become Goals.
-4. Bind the Plan through `.qe/planning/ACTIVE_PLAN` and the current session binding.
-5. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` and
-   `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
+4. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` to assign
+   stable Goal IDs.
+5. For every Goal, define a pre-execution acceptance contract from
+   `core/GOAL_ACCEPTANCE_CONTRACT.md`: requirement criteria, at least one user
+   scenario with a runnable command, a regression command, and whether human acceptance is required.
+   Save it as `evidence/{goalId}.acceptance.json`, then run
+   `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
+   Do not let tests or implementation retrospectively define what success means.
+6. Bind the Plan through `.qe/planning/ACTIVE_PLAN` and the current session binding.
+7. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
    the `## Phase Progress` block.
 
 ## Internal Goal loop
@@ -58,22 +65,29 @@ Do not expose `Qgs`, `Qexecute`, `Qwiki-*`, or a copied next-command handoff.
    the source documents required for the Goal; source files override summaries.
 3. **Internal PSE:** Generate the Goal's TASK_REQUEST and VERIFY_CHECKLIST, execute it,
    then run the SIVS verification loop. These are internal units, not user commands.
-4. **Gate:** If verification fails or a required decision is unresolved, keep the Goal
+4. **Completion evidence:** Before completion, record `evidence/{goalId}.completion.json`
+   against the immutable acceptance contract. It must show every requirement and
+   user scenario passing, a passing regression result, machine re-execution by a
+   named verifier, known limitations, and required human acceptance. Run every
+   locked contract command via `ledger.mjs run-evidence` first for `implementation`
+   and again from a distinct QE session for `verification --verifier {identity}`;
+   then run `record-evidence`.
+5. **Gate:** If verification fails, evidence is incomplete, or a required decision is unresolved, keep the Goal
    active or call `advance --action block --evidence "{specific blocker}"`; do not start
    another Goal. Ask the user only for a material scope, risk, or irreversible choice.
-5. **Complete:** Only after verified evidence exists, run
-   `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action complete --evidence "{evidence}"`.
+6. **Complete:** Only after the acceptance evidence has been recorded, run
+   `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action complete`.
    This records the lifecycle event, updates STATE, and writes a provenance-linked
    reviewed project-wiki page.
-6. Repeat at Step 1. When `advance --action next` returns `complete`, report the Plan
+7. Repeat at Step 1. When `advance --action next` returns `complete`, report the Plan
    outcome, remaining risks, and evidence.
-7. At each completed Phase boundary, generate the retrospective from
+8. At each completed Phase boundary, generate the retrospective from
    `core/RETROSPECTIVE_TEMPLATE.md` before advancing the next Phase.
 
 ## Goal quality rules
 
 - One active Goal at a time unless the Plan explicitly models a safe parallel Wave.
-- A Goal must state an objective, observable completion criterion, dependencies, and evidence.
+- A Goal must state an objective, requirement criteria, user scenario, regression scope, dependencies, and evidence before work starts.
 - Draft plans, model hypotheses, and unverified research never become reviewed project knowledge.
 - Use source-backed contracts, tests, verification reports, and decisions as first-class evidence.
 - Preserve an append-only ledger. Do not rewrite prior Goal events or fabricate completion.
@@ -94,4 +108,5 @@ commands. On completion, provide the evidence-backed Plan result.
 
 - Ask the user to invoke `Qgs`, `Qexecute`, `Qwiki-*`, or a raw ledger command.
 - Skip an active or blocked Goal.
+- Mark a Goal complete from a bare test claim, implementation report, or self-verification.
 - Promote LLM-generated text to reviewed knowledge without verification evidence.

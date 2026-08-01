@@ -50,6 +50,15 @@ Internal: Plan-owned Goal loop → knowledge → Qgs → Qexecute → Qexecute -
 - **Execute**: Implement checklist items via Wave execution (`Qexecute`)
 - **Verify**: Test → review → fix quality loop (`Qexecute -verify`)
 
+### Goal completion standard
+
+A Goal may become `complete` only after its pre-execution acceptance contract is
+matched by recorded evidence: every requirement criterion and user scenario
+passes, the applicable regression command passes, an independent verifier passes,
+and any required human acceptance is recorded. A bare implementation report,
+test claim, or self-verification is not Goal completion. See
+[`core/GOAL_ACCEPTANCE_CONTRACT.md`](core/GOAL_ACCEPTANCE_CONTRACT.md).
+
 ### SIVS Loop (inner quality gate)
 
 ```
