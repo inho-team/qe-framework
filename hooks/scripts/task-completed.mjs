@@ -1,7 +1,7 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, existsSync } from 'fs';
+import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join } from 'path';
 import { execSync } from 'child_process';
 import { readStdinJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';

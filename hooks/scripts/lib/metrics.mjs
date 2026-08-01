@@ -3,7 +3,7 @@
 
 // Consolidates harness metrics (unified-state) + telemetry (JSONL).
 
-import { appendFileSync, readFileSync, existsSync, mkdirSync } from 'fs';
+import { appendFileSync, readFileSync, existsSync, mkdirSync } from './qe-fs.mjs';
 import { join } from 'path';
 
 /**
