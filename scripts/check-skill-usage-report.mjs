@@ -38,9 +38,9 @@ function mkSkill(root, relParentDir) {
 
 // ── 1. normalization: prefix strip + alias collapse ───────────────────────────
 expect(normalizeSkillName('qe-framework:Qcommit') === 'Qcommit', '[norm] prefix not stripped');
-expect(normalizeSkillName('Qgs') === 'Qgenerate-spec', '[norm] Qgs alias not collapsed');
-expect(normalizeSkillName('qe-framework:Qgs') === 'Qgenerate-spec', '[norm] namespaced alias not collapsed');
-expect(normalizeSkillName('Qrt') === 'Qexecute', '[norm] Qrt alias not collapsed');
+expect(normalizeSkillName('Qgenerate-spec') === 'Qgenerate-spec', '[norm] canonical skill changed');
+expect(normalizeSkillName('qe-framework:Qgenerate-spec') === 'Qgenerate-spec', '[norm] namespaced canonical skill changed');
+expect(normalizeSkillName('Qexecute') === 'Qexecute', '[norm] canonical name changed');
 expect(normalizeSkillName('') === '' && normalizeSkillName('qe-framework:') === '', '[norm] empty not handled');
 expect(normalizeSkillName(42) === '', '[norm] non-string not handled');
 
@@ -62,8 +62,8 @@ expect(normalizeSkillName(42) === '', '[norm] non-string not handled');
 // ── 3. computeReport: alias collapse + never-used oracle ───────────────────────
 {
   const canonical = ['Foo', 'Qgenerate-spec', 'Qexecute'];
-  // used via aliases + namespaced + bare; Qrt→Qexecute, Qgs→Qgenerate-spec
-  const skillsUsed = ['Qgs', 'qe-framework:Qgs', 'Qrt'];
+  // used via namespaced + bare canonical names.
+  const skillsUsed = ['Qgenerate-spec', 'qe-framework:Qgenerate-spec', 'Qexecute'];
   const r = computeReport(canonical, skillsUsed, {});
   expect(r.canonicalCount === 3, '[report] canonicalCount wrong');
   expect(r.usedCount === 2, `[report] used distinct should be 2 (Qgenerate-spec,Qexecute), got ${r.usedCount}`);

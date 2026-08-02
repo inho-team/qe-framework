@@ -50,10 +50,10 @@ test('RED: non-baseline skill with forbidden template trigger -> exit 1', () => 
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('GREEN: Qinit with forbidden trigger is allowlisted -> exit 0', () => {
+test('RED: removed initialization skill has no trigger exception -> exit 1', () => {
   const dir = fixture({ Qinit: FORBIDDEN });
   try {
-    assert.equal(runGuard(dir).status, 0);
+    assert.equal(runGuard(dir).status, 1);
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
@@ -71,7 +71,7 @@ test('RED: forbidden trigger detected case-insensitively / period-agnostically',
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
-test('GREEN: real repo skills/ pass the guard (Qinit baseline)', () => {
+test('GREEN: real repo skills/ pass the guard without exemptions', () => {
   const r = spawnSync('node', [GUARD], { encoding: 'utf8' });
   assert.equal(r.status, 0, r.stderr);
 });

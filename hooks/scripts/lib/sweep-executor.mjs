@@ -10,7 +10,7 @@
  *            deletes volatile items (agent-results)
  *   - volatile-only: applies the delete list only (used by Stop hook for quiet cleanup)
  *
- * Archive version: reuses Earchive-executor convention — inspects .qe/.archive/ for
+ * Archive version: deterministic sweep convention — inspects .qe/.archive/ for
  * existing vX.Y.Z dirs and bumps minor (v0.1.0 → v0.2.0 → ...).
  *
  * @module sweep-executor

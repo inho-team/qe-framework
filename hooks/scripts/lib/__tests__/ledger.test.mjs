@@ -34,30 +34,41 @@ function writeJson(cwd, name, value) {
   return file;
 }
 
-function acceptance(goalId = 'G001', humanRequired = false) {
+function acceptance(goalId = 'G001', humanRequired = false, goalObjective = 'first objective') {
   return {
     schema: 1, goalId,
+    goalShape: {
+      primaryOutcome: 'The user completes the requested primary flow.',
+      completionMetric: 'The locked user-journey command exits successfully.',
+      allowedPaths: ['src/primary-flow.mjs', 'test/primary-flow.test.mjs'],
+      nonGoals: ['No unrelated UI, API, migration, or deployment work.'],
+      dependencies: [],
+    },
     requirements: [{ id: 'R001', criterion: 'Requested behavior works', command: 'node --test --help' }],
-    scenarios: [{ id: 'S001', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
+    scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
     regression: { scope: 'existing behavior', command: 'node --test --help' },
     humanAcceptance: { required: humanRequired },
+    goalAlignment: { objective: goalObjective, rationale: 'R001 and S001 together demonstrate the requested user outcome.' },
+    riskAssessment: { categories: ['none'], rationale: 'The Goal has no detected high-impact operational or security change.' },
   };
 }
 
-function completion(goalId = 'G001', humanRequired = false) {
+function completion(goalId = 'G001', humanRequired = false, goalObjective = 'first objective') {
   return {
     schema: 1, goalId,
     requirements: [{ id: 'R001', outcome: 'pass', evidence: 'targeted behavior test passed' }],
     scenarios: [{ id: 'S001', outcome: 'pass', evidence: 'primary user flow executed successfully' }],
     regression: { outcome: 'pass', evidence: 'node --test passed' },
     independentVerification: { verifier: 'fresh reviewer', mode: 'machine-reexecution', outcome: 'pass', evidence: 'machine reran the locked acceptance commands' },
+    goalAlignment: { objective: goalObjective, verifier: 'fresh reviewer', outcome: 'pass', evidence: 'The independent verifier confirmed each result covers the unchanged Goal objective.' },
     humanAcceptance: humanRequired ? { status: 'passed', evidence: 'UAR-001 signed off' } : { status: 'not-required' },
     limitations: [],
   };
 }
 
 function defineAcceptance(cwd, goalId = 'G001', humanRequired = false) {
-  return setGoalAcceptance(cwd, SLUG, { goalId, file: writeJson(cwd, `${goalId}.acceptance.input.json`, acceptance(goalId, humanRequired)) });
+  const goal = readGoals(cwd, SLUG).goals.find(item => item.id === goalId);
+  return setGoalAcceptance(cwd, SLUG, { goalId, file: writeJson(cwd, `${goalId}.acceptance.input.json`, acceptance(goalId, humanRequired, goal.objective)) });
 }
 
 test('create-goals writes ordered microgoals + one created event each', () => {
@@ -112,6 +123,35 @@ test('append rejects invalid event/status (schema guard)', () => {
   assert.throws(() => append(cwd, SLUG, { goalId: 'G001', event: 'started', status: 'nope' }), /invalid status/);
   assert.throws(() => append(cwd, SLUG, { goalId: 'GXXX', event: 'started' }), /unknown goalId/);
   assert.throws(() => append(cwd, SLUG, { goalId: 'G001', event: 'checkpoint', status: 'complete' }), /must use advance/);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('broad Goal contracts are rejected before execution and must be split', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['Broad::implement UI API migration docs and deployment']);
+  const broad = acceptance('G001', false, 'implement UI API migration docs and deployment');
+  broad.goalShape.allowedPaths = ['a.mjs', 'b.mjs', 'c.mjs', 'd.mjs', 'e.mjs', 'f.mjs'];
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'broad-paths.json', broad) }), /1-5 unique relative paths/);
+  broad.goalShape.allowedPaths = ['a.mjs'];
+  broad.requirements = Array.from({ length: 4 }, (_, index) => ({ id: `R${index + 1}`, criterion: `criterion ${index + 1}`, command: 'node --test --help' }));
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'broad-requirements.json', broad) }), /at most 3 requirements/);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('code-changing Goal contracts require behavioral test evidence', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['Code::change runtime behavior']);
+  const structuralOnly = acceptance('G001', false, 'change runtime behavior');
+  structuralOnly.requirements[0].command = 'npm run qe:validate';
+  structuralOnly.scenarios[0].command = 'node scripts/check-all.mjs';
+  structuralOnly.regression.command = 'npm run qe:validate';
+  assert.throws(
+    () => setGoalAcceptance(cwd, SLUG, {
+      goalId: 'G001',
+      file: writeJson(cwd, 'structural-only.json', structuralOnly),
+    }),
+    /requires at least one behavioral node --test command/,
+  );
   rmSync(cwd, { recursive: true, force: true });
 });
 
@@ -176,6 +216,57 @@ test('acceptance contract is immutable after definition and required human accep
   changed.scenarios[0].expected = 'A different post-hoc definition';
   writeFileSync(contractFile, JSON.stringify(changed), 'utf8');
   assert.throws(() => recordGoalEvidence(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'good-evidence.json', completion('G001', true)) }), /changed after it was recorded/);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('acceptance requires a verbatim Goal objective, user journey, and risk-based human acceptance', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['Deploy::Deploy payment authentication migration']);
+  const invalid = acceptance('G001', false, 'A conveniently narrower objective');
+  invalid.scenarios[0].kind = 'unit-test';
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'invalid-contract.json', invalid) }), /user-journey/);
+  invalid.scenarios[0].kind = 'user-journey';
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'misaligned-contract.json', invalid) }), /preserve the Goal objective/);
+  const risky = acceptance('G001', false, 'Deploy payment authentication migration');
+  risky.riskAssessment = { categories: ['payment'], rationale: 'Payment changes are high impact.' };
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'underclassified-contract.json', risky) }), /omits detected Goal risk/);
+  risky.riskAssessment = { categories: ['payment', 'authentication', 'deployment', 'data-migration'], rationale: 'The Goal changes payment, authentication, deployment, and data migration paths.' };
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'missing-human-contract.json', risky) }), /humanAcceptance/);
+  risky.humanAcceptance.required = true;
+  assert.equal(setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'risky-contract.json', risky) }).acceptance.status, 'defined');
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('completion evidence requires an independent Goal-to-evidence alignment verdict', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['First::first objective']);
+  defineAcceptance(cwd);
+  advanceGoal(cwd, SLUG);
+  runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation' });
+  setSession(cwd, '22222222-2222-2222-2222-222222222222');
+  runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'verification', verifier: 'fresh reviewer' });
+  const misaligned = completion();
+  misaligned.goalAlignment.objective = 'a narrower implementation outcome';
+  assert.throws(() => recordGoalEvidence(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'misaligned-completion.json', misaligned) }), /Goal-to-evidence alignment/);
+  const wrongReviewer = completion();
+  wrongReviewer.goalAlignment.verifier = 'implementation author';
+  assert.throws(() => recordGoalEvidence(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'wrong-reviewer-completion.json', wrongReviewer) }), /Goal-to-evidence alignment/);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('machine evidence accepts an explicit session id to avoid global-pointer races', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['First::first objective']);
+  defineAcceptance(cwd);
+  advanceGoal(cwd, SLUG);
+  const explicit = '33333333-3333-3333-3333-333333333333';
+  runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation', sessionId: explicit });
+  const runFile = path.join(cwd, '.qe', 'planning', 'plans', SLUG, 'evidence', 'G001.implementation-run.json');
+  assert.equal(JSON.parse(readFileSync(runFile, 'utf8')).sessionId, explicit);
+  assert.throws(
+    () => runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'verification', verifier: 'reviewer', sessionId: 'short-id' }),
+    /valid full QE session id/,
+  );
   rmSync(cwd, { recursive: true, force: true });
 });
 

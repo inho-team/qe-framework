@@ -20,6 +20,7 @@ const REPO_ROOT = path.resolve(__dirname, '..', '..', '..');
 
 const QE_FENCE_BEGIN = '# QE Framework Agent Configuration — managed by qe-framework installer';
 const QE_FENCE_END = '# End QE Framework Agent Configuration';
+const QE_HOOK_FENCE_BEGIN = '# QE Framework Hook Configuration — managed by qe-framework installer';
 
 /** Create a temp homeDir with ~/.codex pre-existing (simulates a Codex user). */
 function makeCodexHome(opts = {}) {
@@ -96,11 +97,19 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
   for (const toml of tomlFiles.slice(0, 3)) {
     const content = fs.readFileSync(path.join(agentsDir, toml), 'utf8');
     assert.ok(content.includes('name ='), `${toml} contains name field`);
-    assert.ok(content.includes('sandbox_mode = "workspace-write"'), `${toml} contains sandbox_mode`);
+    assert.match(content, /sandbox_mode = "(?:read-only|workspace-write)"/, `${toml} contains sandbox_mode`);
     assert.ok(content.includes('developer_instructions = """'), `${toml} contains developer_instructions`);
     assert.ok(content.includes('# Codex Native Agent Compatibility'), `${toml} contains compatibility note`);
     assert.ok(content.includes('role-separated inline execution'), `${toml} explains inline fallback`);
   }
+  assert.ok(
+    fs.readFileSync(path.join(agentsDir, 'Ecode-reviewer.toml'), 'utf8').includes('sandbox_mode = "read-only"'),
+    'read-only reviewer installs with read-only Codex sandbox',
+  );
+  assert.ok(
+    fs.readFileSync(path.join(agentsDir, 'Ecode-test-engineer.toml'), 'utf8').includes('sandbox_mode = "workspace-write"'),
+    'test writer installs with workspace-write Codex sandbox',
+  );
 
   // config.toml must have exactly ONE QE fence
   assert.ok(fs.existsSync(configPath), 'config.toml created');
@@ -112,6 +121,16 @@ test('(a) install into existing ~/.codex: skills, agent tomls, and config fence 
 
   // Fence must contain agent entries
   assert.ok(configContent.includes('[agents.'), 'config fence contains agent entries');
+  for (const [event, timeout] of [
+    ['SessionStart', 5], ['PreToolUse', 3], ['PostToolUse', 5],
+    ['Stop', 5], ['UserPromptSubmit', 3],
+  ]) {
+    const block = new RegExp(`\\[\\[hooks\\.${event}\\]\\][\\s\\S]*?timeout = ${timeout}(?:\\n|$)`);
+    assert.match(configContent, block, `${event} uses the audited ${timeout}s Codex budget`);
+  }
+  assert.ok(!configContent.includes('[[hooks.Notification]]'), 'unsupported Notification hook is not installed');
+  assert.ok(!configContent.includes('[[hooks.TeammateIdle]]'), 'Claude-only TeammateIdle hook is not installed');
+  assert.ok(!configContent.includes('[[hooks.TaskCompleted]]'), 'Claude-only TaskCompleted hook is not installed');
 });
 
 // ---------------------------------------------------------------------------
@@ -167,7 +186,7 @@ test('(b2) reinstall removes stray duplicate QE agent sections', (t) => {
   assert.ok(!configContent.includes('/tmp/old.toml'), 'old fenced QE agent section removed');
 });
 
-test('(b3) reinstall purges legacy QE skills before copying current assets', (t) => {
+test('(b3) reinstall preserves unowned legacy-named skills', (t) => {
   const homeDir = makeCodexHome();
   t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
 
@@ -181,9 +200,67 @@ test('(b3) reinstall purges legacy QE skills before copying current assets', (t)
   installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
 
   for (const legacyDir of legacyDirs) {
-    assert.ok(!fs.existsSync(legacyDir), `legacy ${path.basename(legacyDir)} skill removed during reinstall`);
+    assert.equal(
+      fs.readFileSync(path.join(legacyDir, 'SKILL.md'), 'utf8'),
+      'legacy execution skill',
+      `unowned legacy-named ${path.basename(legacyDir)} skill preserved during reinstall`,
+    );
   }
   assert.ok(fs.existsSync(path.join(homeDir, '.codex', 'skills', 'Qupdate')), 'current Qupdate skill installed');
+});
+
+test('(b4) install preserves unowned files in generic scripts and hooks directories', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+  const codexDir = path.join(homeDir, '.codex');
+  const userScript = path.join(codexDir, 'scripts', 'user-tool.mjs');
+  const userHook = path.join(codexDir, 'hooks', 'user-hook.mjs');
+  fs.mkdirSync(path.dirname(userScript), { recursive: true });
+  fs.mkdirSync(path.dirname(userHook), { recursive: true });
+  fs.writeFileSync(userScript, 'USER SCRIPT', 'utf8');
+  fs.writeFileSync(userHook, 'USER HOOK', 'utf8');
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  assert.equal(fs.readFileSync(userScript, 'utf8'), 'USER SCRIPT');
+  assert.equal(fs.readFileSync(userHook, 'utf8'), 'USER HOOK');
+  assert.ok(fs.existsSync(path.join(codexDir, '.qe-owned-assets.json')), 'per-file ownership receipt written');
+});
+
+test('(b5) purge preserves user-modified managed files and unrelated files', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+  const codexDir = path.join(homeDir, '.codex');
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  const modified = path.join(codexDir, 'scripts', 'qe-cat.mjs');
+  const unmodified = path.join(codexDir, 'scripts', 'qe-query.mjs');
+  const unrelated = path.join(codexDir, 'hooks', 'user-hook.mjs');
+  fs.writeFileSync(modified, 'USER MODIFIED', 'utf8');
+  fs.writeFileSync(unrelated, 'USER HOOK', 'utf8');
+
+  cleanupCodexAssets({ homeDir, purge: true, log: () => {} });
+
+  assert.equal(fs.readFileSync(modified, 'utf8'), 'USER MODIFIED');
+  assert.equal(fs.readFileSync(unrelated, 'utf8'), 'USER HOOK');
+  assert.ok(!fs.existsSync(unmodified), 'byte-identical managed script removed');
+  assert.ok(!fs.existsSync(path.join(codexDir, '.qe-codex-version')), 'managed version stamp removed');
+  assert.ok(!fs.existsSync(path.join(codexDir, '.qe-owned-assets.json')), 'ownership receipt removed after purge');
+});
+
+test('(b6) an unowned hook-entry collision is preserved but never activated', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+  const codexDir = path.join(homeDir, '.codex');
+  const entry = path.join(codexDir, 'hooks', 'scripts', 'codex', 'lifecycle-codex.mjs');
+  fs.mkdirSync(path.dirname(entry), { recursive: true });
+  fs.writeFileSync(entry, 'USER ENTRY', 'utf8');
+
+  installCodexAssets({ repoRoot: REPO_ROOT, homeDir, log: () => {}, syncManifest: false });
+
+  assert.equal(fs.readFileSync(entry, 'utf8'), 'USER ENTRY');
+  const config = fs.readFileSync(path.join(codexDir, 'config.toml'), 'utf8');
+  assert.ok(!config.includes(QE_HOOK_FENCE_BEGIN), 'unowned executable is not activated as a QE hook');
 });
 
 // ---------------------------------------------------------------------------

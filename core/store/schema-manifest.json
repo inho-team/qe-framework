@@ -1,0 +1,12 @@
+{
+  "manifestVersion": 1,
+  "currentSchemaVersion": 4,
+  "frameworkCompatibility": [{ "framework": "8.3.x", "schema": 4, "minReadable": 1 }],
+  "schemas": {
+    "4": {
+      "erd": "erd/v4.md",
+      "migrationPolicy": "append-only",
+      "tables": ["schema_meta", "state_kv", "counters", "memo", "events", "sessions", "file_index", "learnings", "task_log", "failures", "wiki_pages", "wiki_links", "qe_files"]
+    }
+  }
+}

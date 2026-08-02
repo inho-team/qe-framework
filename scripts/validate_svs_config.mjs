@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import fs from 'fs';
+import { existsSync, readFileSync } from '../hooks/scripts/lib/qe-fs.mjs';
 import path from 'path';
 
 const CONFIG_PATH = path.join(process.cwd(), '.qe', 'sivs-config.json');
@@ -74,8 +74,8 @@ function formatConfig(config) {
 
 function main() {
   let configPath = CONFIG_PATH;
-  if (!fs.existsSync(configPath)) {
-    if (fs.existsSync(LEGACY_CONFIG_PATH)) {
+  if (!existsSync(configPath)) {
+    if (existsSync(LEGACY_CONFIG_PATH)) {
       console.error('[sivs-config] Legacy .qe/svs-config.json is unsupported. Create .qe/sivs-config.json with schemaVersion: 2.');
       process.exit(1);
     }
@@ -84,7 +84,7 @@ function main() {
     return;
   }
   let config;
-  try { config = JSON.parse(fs.readFileSync(configPath, 'utf8')); } catch {
+  try { config = JSON.parse(readFileSync(configPath, 'utf8')); } catch {
     console.error(`[sivs-config] Validation error: Invalid JSON in ${configPath}`);
     process.exit(1);
   }

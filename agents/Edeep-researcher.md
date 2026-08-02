@@ -1,7 +1,8 @@
 ---
 name: Edeep-researcher
 description: Multi-step research agent that performs in-depth investigations across multiple sources. Use when the user asks to 'research this', 'compare these options', 'which technology is better', or needs technology selection, comparative analysis, market research, or decision support with structured findings.
-tools: Read, Write, Bash, Grep, Glob, Edit, WebSearch, WebFetch
+tools: Read, Grep, Glob, WebSearch, WebFetch, Agent
+maxTurns: 32
 recommendedModel: opus
 ---
 
@@ -36,7 +37,8 @@ Fallback / degradation:
 ### Step 1: Decompose the Question
 - Break the user's question into 3–7 sub-axes
 - Set priority for each axis
-- Confirm research scope (with user approval)
+- Ask for approval only when a missing choice would materially change cost, scope, or outcome
+- Classify effort before searching: quick (1 agent, ≤10 calls), comparison (≤3 agents, ≤15 calls each), deep (explicit caller budget)
 
 ### Step 2: Multi-Hop Investigation
 - Use WebSearch/WebFetch for each axis
@@ -57,9 +59,9 @@ Indicate confidence level for each conclusion:
 - List of sources
 - Areas requiring further investigation
 
-## Local Skill Collection Prompt
+## Reusable Research Packet
 
-When invoked by `Qcollect-skill`, produce a collection-ready research packet:
+When the caller requests reusable project guidance, produce a collection-ready research packet:
 
 1. Prefer official documentation first. Use vendor/framework docs before blogs or community content.
 2. Record every source as `{ url, published_at }`. If a source has no reliable `published_at`, mark it unusable for saved frontmatter evidence and find a dated replacement.
@@ -97,6 +99,8 @@ Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints fr
 - Present outdated information as current → always specify dates
 
 ## Output Format
+Represent the selected format inside one `qe-agent-result-v1` envelope. URLs belong in
+`evidence`; recommendations and uncertainties belong in `findings`.
 ### Quick Research (Single Topic)
 - Key summary (3 lines)
 - Detailed analysis
@@ -143,13 +147,14 @@ Trigger: When the user requests "literature review", "systematic review", "surve
 
 ### When to Activate
 - `CLAUDE_CODE_EXPERIMENTAL_AGENT_TEAMS=1` is set AND
-- Research scope covers 3+ distinct sources, perspectives, or domains
+- the packet classifies the task as deep, at least three investigation axes are independent,
+  and the value justifies the multi-agent token budget
 
 ### Team Structure (Competing Hypotheses Pattern)
 | Role | Count | Responsibility | Model |
 |------|-------|---------------|-------|
-| Lead (self) | 1 | Scope, synthesize, resolve conflicts, final report | sonnet |
-| Researchers | 2-4 | Each investigates a different angle/source | sonnet |
+| Lead (self) | 1 | Scope, synthesize, resolve conflicts, final report | opus |
+| Researchers | 2-3 | Each investigates a disjoint angle/source | sonnet |
 | Devil's Advocate | 1 | Challenges all findings, identifies weaknesses | sonnet |
 
 ### Workflow

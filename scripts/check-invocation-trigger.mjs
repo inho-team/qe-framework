@@ -10,10 +10,7 @@
  * since been fixed or relocated; this guard keeps the template string from
  * silently reappearing on a live skill.
  *
- * NFR4 (no false signals): `Qinit` legitimately uses this phrasing — its purpose
- * *is* framework initialization, and Phase 1 of the audit judged it PASS. It is
- * carried on an explicit baseline allowlist, not a blanket exception. Add a skill
- * to BASELINE only with a documented reason.
+ * No shipped skill is exempt. Add a skill to BASELINE only with a documented reason.
  *
  * Env override: QE_SKILLS_DIR points the scan at a fixture dir (red-green test);
  * defaults to the repo `skills/` directory.
@@ -30,8 +27,7 @@ const SKILLS_DIR = process.env.QE_SKILLS_DIR || join(ROOT, 'skills');
 const FORBIDDEN = 'when framework initialization, maintenance, or audit is required';
 
 // Baseline allowlist: skills for which this phrasing is genuinely correct.
-// Qinit — its purpose is framework initialization (audit Phase 1: PASS).
-const BASELINE = new Set(['Qinit']);
+const BASELINE = new Set();
 
 /** Recursively collect every SKILL.md path under a directory. */
 function findSkillFiles(dir) {

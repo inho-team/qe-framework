@@ -52,9 +52,9 @@ let mutatedInput = null;
 const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
 const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 const RELEASE_VERSION_CAPABILITY = 'qe-release-version';
-const RELEASE_VERSION_ACTION = `Use ${skillCommand('Qrelease')} instead.`;
+const RELEASE_VERSION_ACTION = 'Run `npm run qe:release -- bump <version>`.';
 
-// Version-owned manifests whose `version` field only Qrelease may change:
+// Version-owned manifests whose `version` field only the release/admin workflow may change:
 // package.json plus the two .claude-plugin manifests. marketplace.json carries
 // plugins[0].version (not a top-level key), so callers still match on the
 // `"version"` token in the payload rather than the file name alone.
@@ -108,7 +108,7 @@ function readStandaloneUtopiaState(root) {
 // skill names exist, so folding adds zero false positives).
 // Qplan is the public Plan controller. The remaining PSE units are internal
 // capabilities and retain goal-pipeline admission.
-const PSE_SKILLS = new Set(['qgs', 'qgenerate-spec', 'qexecute', 'qrt']);
+const PSE_SKILLS = new Set(['qgenerate-spec', 'qexecute']);
 const TASK_CONTINUITY_DIRS = ['pending', 'in-progress', 'on-hold'];
 
 /** Fresh read of the goalRuntime namespace right before PSE admission; null on any failure. */
@@ -261,7 +261,7 @@ if (['Write', 'Edit'].includes(toolName)) {
             ? `SIVS loop state for ${remUuid} is corrupt — refusing a new remediation round (fail-closed).`
             : `SIVS remediation limit reached for ${remUuid}: ${verdict.count - 1} of ${verdict.limit} rounds already used.`,
           action: isCorrupt
-            ? `Run ${skillCommand('Qdoctor')} to repair .qe/state, then retry. Do not restart Stage 1 blindly.`
+            ? 'Repair the corrupt .qe/state through the repository recovery procedure, then retry. Do not restart Stage 1 blindly.'
             : `${verdict.limit} remediation rounds are exhausted. Stop restarting Stage 1 — escalate to the user with the unresolved findings and a recommendation.`,
           bypass: 'QE_SIVS_DEPTH_LIMIT / resetLoop after user decision',
         });
@@ -397,23 +397,6 @@ if (toolName === 'Skill') {
       };
     }
 
-    // Qrelease needs the same hook-owned trust path (defect 4 / FIX1a). The old
-    // flow had Qrelease WRITE .qe/state/skill-bypass.json before each of its four
-    // release stages — but that same file is now forgery-blocked below, which
-    // would deadlock a legitimate release. Instead the hook itself issues the
-    // release-version capability here, in unified-state (never the blocked file),
-    // scoped by the 120s TTL and retained across the release stages
-    // (keepReleaseSessionFlag). Because it is hook-issued only on a genuine
-    // Qrelease skill entry, it cannot be forged.
-    if (normalizedSkillName === 'Qrelease') {
-      state.skill_bypass = {
-        active: true,
-        skill: RELEASE_VERSION_CAPABILITY,
-        ts: Date.now(),
-        source: 'skill-entry-hook',
-      };
-    }
-
     // SIVS is single-AI: the active client owns all stages. Stage role details
     // are supplied by the invoked skill, never by a cross-client routing hint.
   }
@@ -506,22 +489,9 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     //    "any command". Presence is detected by the key, not by truthiness.
     const hasCommandField = bypass.command !== undefined && bypass.command !== null;
     const requiresCommandBinding = bypass.skill === RELEASE_VERSION_CAPABILITY;
-    // Hook-owned release bootstrap (FIX1a): issued only on a genuine Qrelease skill
-    // entry, so it cannot be forged (the standalone flag file is blocked). It
-    // authorizes the release-version capability for the release stages within the
-    // 120s TTL without a per-stage command binding, replacing the old
-    // rewrite-the-file-before-each-stage flow.
-    // SECURITY (FIX4 audit FAIL-2): trust the unbound hook-owned release capability
-    // ONLY when it came from hook-written unified-state — never from the standalone
-    // file. `acceptedBypassFile` is non-null exactly when `bypass` was loaded from a
-    // file, which is attacker-forgeable; a forged file therefore falls through to the
-    // exact-command binding path (its pre-FIX4 blast radius), not to unbound release.
-    const hookOwnedRelease = acceptedBypassFile === null
-      && bypass.source === 'skill-entry-hook'
-      && bypass.skill === RELEASE_VERSION_CAPABILITY;
-    if (hookOwnedRelease) {
-      bypassSkill = bypass.skill || null;
-    } else if (!hasCommandField && !requiresCommandBinding) {
+    // Release/admin capability always requires an exact command binding. No skill
+    // entry can issue an unbound release capability.
+    if (!hasCommandField && !requiresCommandBinding) {
       bypassSkill = bypass.skill || null;
     } else {
       const boundCommand = typeof bypass.command === 'string' ? bypass.command.trim() : '';
@@ -556,10 +526,8 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (matchesExecutable(cmd, /(?:^|[;&|(\n`])\s*git\s+commit(?![-\w])/)) {
       overrideRules.push({
         skill: 'Qcommit',
-        // Qrelease cuts the version-bump commit under an active internal
-        // release-version bypass. Honor that capability for
-        // the commit too, so the release train does not have to swap the flag
-        // to Qcommit mid-run. TTL on the flag (120s) keeps this bounded.
+        // Administrative release automation may carry the internal release-version
+        // capability. Honor it for the corresponding release commit.
         also: [RELEASE_VERSION_CAPABILITY],
         msg: `Raw git commit is blocked. Use ${skillCommand('Qcommit')} instead.`
       });
@@ -574,7 +542,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     // file trivially evaded. The payload of a redirect cannot be recovered by
     // the hook, so it is impossible to verify the write leaves `version`
     // unchanged — the only sound option is to block any sink into a version
-    // manifest and require Qrelease's release-version capability. Qrelease's
+    // manifest and require the internal release-version capability. Administrative
     // bound version stages carry that capability and pass; a legitimate
     // non-version manifest overwrite is vanishingly rare and can use the Edit
     // tool. (Deliberately more conservative than the spec's "allow unchanged
@@ -643,7 +611,7 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (sinkHitsBypass) {
       overrideRules.push({
         skill: '_skill_bypass_forge',
-        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qrelease/Qcommit receive a hook-owned bypass on skill entry; this file must never be written by a command.'
+        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qcommit receives a hook-owned bypass on skill entry; this file must never be written by a command.'
       });
     }
 
@@ -665,11 +633,11 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (isSkillBypassFile(filePath)) {
       overrideRules.push({
         skill: '_skill_bypass_forge',
-        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qrelease/Qcommit receive a hook-owned bypass on skill entry; this file must never be tool-written.'
+        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qcommit receives a hook-owned bypass on skill entry; this file must never be tool-written.'
       });
     }
 
-    // Editing a version-owned manifest's version field → Qrelease version workflow
+    // Editing a version-owned manifest's version field requires release/admin workflow.
     if (isVersionOwnedManifest(filePath) && /"version"/.test(newStr)) {
       overrideRules.push({
         skill: RELEASE_VERSION_CAPABILITY,
@@ -687,13 +655,13 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
     if (isSkillBypassFile(filePath)) {
       overrideRules.push({
         skill: '_skill_bypass_forge',
-        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qrelease/Qcommit receive a hook-owned bypass on skill entry; this file must never be tool-written.'
+        msg: 'Writing .qe/state/skill-bypass.json is blocked. Qcommit receives a hook-owned bypass on skill entry; this file must never be tool-written.'
       });
     }
 
     // Write-tool parity with the Edit gate (defect 1): a full-file write to a
     // version-owned manifest carrying a "version" token is a direct version
-    // edit and must route through Qrelease. Like Edit, the mandatory command
+    // edit and must route through the release/admin workflow. Like Edit, the mandatory command
     // binding on qe-release-version can never match a non-Bash payload, so this
     // is effectively hard-closed — the release train writes versions via bound
     // Bash stages, never via the Write tool.
@@ -744,9 +712,8 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
   }
 
   // One-shot by default: a standalone flag file that actually granted a bypass
-  // is deleted after use. Qrelease is the narrow exception: its executor rebinds
-  // the exact `command` before each of the four release stages, while the original
-  // timestamp keeps the whole sequence inside one 120s window. A missing, malformed,
+  // is deleted after use. An administrative release sequence may retain its exact
+  // command-bound capability within the original 120s window. A missing, malformed,
   // mismatched, or expired command binding remains fail-closed.
   const keepReleaseSessionFlag = bypassSkill === RELEASE_VERSION_CAPABILITY;
   if (bypassUsed && acceptedBypassFile && !keepReleaseSessionFlag) {

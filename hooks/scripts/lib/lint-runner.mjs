@@ -103,7 +103,7 @@ function parseErrorPatterns(output) {
 
 /**
  * Update unified-state.json with lint error patterns and, if a rule triggers
- * 3+ times, append it to .qe/MISTAKE.md (Qmistake integration).
+ * 3+ times, append it to the internal `.qe/MISTAKE.md` failure registry.
  * @param {string} cwd
  * @param {string[]} patterns
  * @param {string} tool
@@ -128,7 +128,7 @@ function trackErrorPatterns(cwd, patterns, tool, filePath) {
 
     writeUnifiedState(cwd, state);
 
-    // Qmistake integration: rules that hit 3+ times go to .qe/MISTAKE.md
+    // Rules that hit 3+ times go to the internal failure registry.
     const mistakePath = join(cwd, '.qe', 'MISTAKE.md');
     for (const rule of patterns) {
       const entry = state.lint_error_patterns[rule];

@@ -16,11 +16,30 @@ The route payload is advisory: `{ detected, source, goalText, route, reason, ins
 
 ## Execution Procedure
 
-Step 1 — Resolve the route payload. If UserPromptSubmit already injected a `[QE GOAL]` hint, consume its route; otherwise apply the same router contract to the given goal text. Any router or state failure is fail-open: continue normal handling with no goal behavior.
+Step 1 — Ensure the shared `QE.md` and active-client instruction pointer exist. The explicit
+`/Qgoal` or `$Qgoal` entry bootstrap creates missing files without overwriting user instructions.
+Then resolve the route payload. If UserPromptSubmit already injected a `[QE GOAL]` hint, consume
+its route; otherwise apply the same router contract to the given goal text. Any router or state
+failure is fail-open: continue normal handling with no goal behavior.
 
-Step 2 — Resolve the target Plan. A direct route becomes a one-Goal Micro Plan; a pipeline route becomes a multi-Goal Plan. If an active Plan explicitly accepts the goal as in-scope, add it as a pending Goal rather than creating an unrelated workflow.
+Step 2 — Resolve the target Plan. A direct route becomes a one-Goal Micro Plan; a pipeline route becomes a multi-Goal Plan. If an active Plan explicitly accepts the goal as in-scope, add it as a pending Goal rather than creating an unrelated workflow. A Goal is atomic: one user-visible outcome, bounded file scope, explicit non-goals, and dependencies. Split broad requests (for example UI + API + migration + deployment) into ordered Goals before execution.
 
-Step 3 — Enter `Qplan`. Qplan owns the sequential Goal loop: knowledge preflight → spec → execute → verify → verified knowledge write-back. Do not render or require `Qgs`, `Qexecute`, or Qwiki commands.
+Step 3 — Enter `Qplan` and run the selected Goal's internal pipeline. `Qgoal` must
+carry the Goal through this sequence before reporting it complete:
+
+```text
+Qplan knowledge preflight
+  → Qgenerate-spec (TASK_REQUEST + VERIFY_CHECKLIST)
+  → Qexecute {UUID} (implementation)
+  → Qexecute -verify {UUID} (test, review, fix, retest)
+  → Qplan completion evidence and verified knowledge write-back
+```
+
+`Qgenerate-spec` and both `Qexecute` stages are internal components of the Qgoal path;
+they are not separate user commands or optional handoffs. Preserve the active
+Plan/Goal and generated UUID across the stages. If spec generation, execution,
+or verification fails, keep the Goal active or blocked with its evidence rather
+than continuing to another Goal.
 
 Step 4 — Marker handling: a `goalRuntime` marker is advisory observability only. Never treat it as authorization; a missing marker (absent session id, write failure) changes nothing in Steps 2–3.
 

@@ -7,7 +7,7 @@ import { buildDelegationContext, loadSivsConfig } from './codex_bridge.mjs';
 export { buildDelegationContext, loadSivsConfig };
 
 // Reverse-path parity note: artifact context is shared via codex_bridge.mjs.
-// Codex->Claude execution is owned here/Qclaude-rescue. Use argv-style
+// Codex-to-Claude fallback execution is owned here. Use argv-style
 // execution for prompts; command strings are display metadata only.
 
 /**

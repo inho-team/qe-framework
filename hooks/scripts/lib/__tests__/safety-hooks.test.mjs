@@ -1310,18 +1310,18 @@ test('FIX4: Bash sink into skill-bypass.json is hard-blocked', () => {
   assert.strictEqual(res.status, 2);
 });
 
-test('FIX4: Qrelease skill entry arms release bypass without a standalone flag', () => {
+test('FIX4: removed Qrelease skill entry does not authorize version writes', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-qrel-'));
   const entry = runHookPayload(dir, { tool_name: 'Skill', tool_input: { skill: 'Qrelease' } });
   assert.strictEqual(entry.status, 0);
   assert.ok(!fs.existsSync(path.join(dir, '.qe/state/skill-bypass.json')));
-  // A release-stage version-manifest sink should now pass on the hook-owned bypass.
+  // A removed skill name cannot grant the internal release capability.
   const stage = runHookPayload(dir, {
     tool_name: 'Bash',
     tool_input: { command: 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null' },
   });
   fs.rmSync(dir, { recursive: true, force: true });
-  assert.notStrictEqual(stage.status, 2);
+  assert.strictEqual(stage.status, 2);
 });
 
 test('FIX4: without a Qrelease entry, a version-manifest sink stays blocked (no widening)', () => {
@@ -1387,14 +1387,12 @@ test('FIX4 audit (FAIL-2): a forged FILE flag does NOT grant unbound release', (
   assert.strictEqual(stage.status, 2, 'forged file must not grant unbound release');
 });
 
-test('FIX4 audit (WARN-2): hook-owned release flag survives the git commit stage', () => {
+test('FIX4 audit: removed Qrelease entry does not authorize commits or version writes', () => {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-fix4-survive-'));
   runHookPayload(dir, { tool_name: 'Skill', tool_input: { skill: 'Qrelease' } });
-  // commit stage (matches Qcommit rule via `also`) must NOT consume the release flag
   const commit = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'git commit -m "chore(release): v9.9.9"' } });
-  assert.notStrictEqual(commit.status, 2);
-  // a subsequent release-stage version write must still be authorized
+  assert.strictEqual(commit.status, 2);
   const after = runHookPayload(dir, { tool_name: 'Bash', tool_input: { command: 'tee .claude-plugin/plugin.json < .qe/state/qrelease.lock/plugin.json.next >/dev/null' } });
   fs.rmSync(dir, { recursive: true, force: true });
-  assert.notStrictEqual(after.status, 2, 'release flag must survive the commit stage');
+  assert.strictEqual(after.status, 2, 'removed skill must not authorize release writes');
 });

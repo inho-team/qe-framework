@@ -28,7 +28,7 @@ All skills, agents, and documents in this framework MUST use these standard term
 | Quality gate | **SIVS Loop** | ~~SVS Loop~~ | Inner quality gate within Execute/Verify steps |
 | Parallel execution group | **Wave** | ~~Swarm~~ | Independent items grouped for concurrent execution |
 | Parallel agent | **Teammate** | ~~Subagent~~ (internal only) | Haiku Teammate = Haiku-model agent in a Wave |
-| Spec generation skill | **Qgs** | Qgenerate-spec (internal full name) | Router-owned internal alias; handoffs render the active prefix |
+| Spec generation skill | **Qgenerate-spec** | — | Router-owned internal PSE unit |
 | Skill internal stages | **Step** | — | Step 1, Step 2, ... inside a skill |
 | Project roadmap stages | **Phase** | — | Phase 1, Phase 2, ... in `.qe/planning/` |
 | Parallel batch within Phase | **Wave** | — | Wave 1.1, Wave 1.2, ... within a Phase |
@@ -42,11 +42,11 @@ All skills, agents, and documents in this framework MUST use these standard term
 
 ```
 User: $Qplan {의도} / /Qplan {의도} (or $Qgoal / /Qgoal) → Plan intake
-Internal: Plan-owned Goal loop → knowledge → Qgs → Qexecute → Qexecute -verify / Qrt
+Internal: Plan-owned Goal loop → knowledge → Qgenerate-spec → Qexecute → Qexecute -verify
 ```
 
 - **Plan**: Define roadmap, phases, requirements, and an ordered Goal queue (`Qplan`)
-- **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgs`)
+- **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgenerate-spec`)
 - **Execute**: Implement checklist items via Wave execution (`Qexecute`)
 - **Verify**: Test → review → fix quality loop (`Qexecute -verify`)
 
@@ -55,7 +55,10 @@ Internal: Plan-owned Goal loop → knowledge → Qgs → Qexecute → Qexecute -
 A Goal may become `complete` only after its pre-execution acceptance contract is
 matched by recorded evidence: every requirement criterion and user scenario
 passes, the applicable regression command passes, an independent verifier passes,
-and any required human acceptance is recorded. A bare implementation report,
+that verifier confirms the evidence still proves the verbatim Goal objective, and
+any required human acceptance is recorded. Goals with authentication, authorization,
+payment, deployment, data-migration, destructive-data, external-integration, or
+security risk require human acceptance. A bare implementation report,
 test claim, or self-verification is not Goal completion. See
 [`core/GOAL_ACCEPTANCE_CONTRACT.md`](core/GOAL_ACCEPTANCE_CONTRACT.md).
 
@@ -74,8 +77,8 @@ PSE Chain (Plan-owned internal workflow)
 ├── Entry ────────── $Qplan {의도} / /Qplan {의도}
 ├── Plan ─────────── Qplan creates ordered Goals
 ├── Goal loop ────── retrieve knowledge → Spec → Execute → Verify
-├── Spec ─────────── Qgs (Qgenerate-spec)
-├── Execute ──────── Qexecute / Qrt
+├── Spec ─────────── Qgenerate-spec
+├── Execute ──────── Qexecute
 │     └── SIVS Loop (quality gate)
 │           ├── Spec: TASK_REQUEST defines the contract
 │           ├── Implement: Actual coding and file changes
@@ -92,12 +95,12 @@ PSE Chain (Plan-owned internal workflow)
 | PSE Step | Skill | Role |
 |----------|-------|------|
 | Plan | `Qplan` | Roadmap, phases, requirements, sequential Goal control |
-| Spec | `Qgs` | TASK_REQUEST + VERIFY_CHECKLIST generation |
+| Spec | `Qgenerate-spec` | TASK_REQUEST + VERIFY_CHECKLIST generation |
 | Execute | `Qexecute` | Wave execution with Haiku Teammates (default) |
 | Execute | `Qexecute` | Sequential execution (fallback for non-atomic tasks) |
 | Verify | `Qexecute -verify` | Test → review → fix quality loop |
 
-`Qplan` is the public Plan controller. `Qgs`, `Qgenerate-spec`, `Qexecute`, and `Qrt` are internal PSE units, not normal user entry points. Start new work with `$Qplan {의도}` in Codex or `/Qplan {의도}` in Claude; `$Qgoal`/`/Qgoal` remain accepted intake aliases. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
+`Qplan` is the public Plan controller. `Qgenerate-spec` and `Qexecute` are internal PSE units, not normal user entry points. Start new work with `$Qplan {의도}` in Codex or `/Qplan {의도}` in Claude; `$Qgoal`/`/Qgoal` remain accepted intake aliases. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
 
 ---
 
@@ -133,7 +136,7 @@ Internal PSE units MUST report their state back to Qplan. Qplan reports Plan and
 1. **Phase context + Roadmap progress** — Display current Phase and overall progress at a glance
 2. **PSE Chain status, one line** — Show current completion/progress status
 3. **Current Goal** — State the active Goal, its completion criterion, and whether it is progressing, blocked, or verified.
-4. **No command choreography** — Do not ask users to invoke `Qgs`, `Qexecute`, `Qwiki-*`, or ledger commands. A new Plan may be started with active-prefix `Qplan {의도}`.
+4. **No command choreography** — Do not ask users to invoke internal PSE, derived-wiki, or ledger commands. A new Plan may be started with active-prefix `Qplan {의도}`.
 5. **No explanations after a required decision** — If a material decision is needed, present only the decision and its consequences.
 6. **Task type branching** — Internal code tasks may enter `Qexecute -verify`; Qplan remains responsible for the user-facing status.
 7. **Short alias only** — Use the short phase label (e.g., `Phase 2: Codex Bridge`), not a copy of the full phase description. Max ~6 words.
@@ -162,7 +165,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [>] Verify
 
 구현 코드의 테스트 및 품질 검증
-Next: {adapter.commandPrefix}Qexecute -verify a1b2c3d4
+Qplan continues with internal verification for Goal a1b2c3d4.
 ```
 
 ### Non-code Task Complete Example
@@ -177,7 +180,7 @@ Roadmap
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
 Codex CLI 브릿지 연동 및 fallback 로직 구현
-다음: {adapter.commandPrefix}Qgs sivs-migration: Codex Bridge
+Qplan advances the active Goal internally to Codex Bridge.
 ```
 (Note 1: the `{slug} · ` prefix identifies which plan this belongs to, enabling multi-terminal parallelism. Legacy flat-file projects omit the prefix and use `Phase N: …` as the address.)
 (Note 2: `Next:` label above is shown in Korean as `다음:` because the task description is in Korean. Always localize the label to match user input language.)
@@ -193,7 +196,7 @@ Roadmap
 
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
-All phases done. Finalize with {adapter.commandPrefix}Qcommit
+All phases done. The user may finalize with the active-client `Qcommit` command.
 ```
 
 Codex finalization example:
@@ -210,7 +213,7 @@ Roadmap
 
 PSE: [x] Plan [x] Spec [x] Execute [x] Complete
 
-All phases done. Finalize with $Qcommit
+All phases done. The user may finalize with `$Qcommit`.
 ```
 
 ---
@@ -230,7 +233,7 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 - `.sessions/{session_id}.json` — per-session `{ activePlanSlug, updatedAt }` binding.
 
 **Plan resolution order** (used by consumer skills):
-1. Router-owned explicit slug handoff (e.g., `/Qgs auth-refactor: 인증 모듈`).
+1. Qplan controller context carrying an explicit plan slug.
 2. `.qe/state/current-session.json` → `session_id` → `.qe/planning/.sessions/{session_id}.json` → `activePlanSlug`.
 3. `.qe/planning/ACTIVE_PLAN`.
 4. Legacy flat `.qe/planning/ROADMAP.md` / `STATE.md` (pre-Named-Plan projects).
@@ -245,7 +248,7 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 All skills MUST respond in the same language the user used in their most recent message. If the user writes in Korean, all output — section titles, descriptions, summaries, handoff messages, **and handoff labels (e.g., `Next:` → `다음:`)** — must be in Korean. Only the following are exempt and stay in English:
 - File names and paths (e.g., `TASK_REQUEST_abc123.md`)
 - Code and code blocks
-- Skill/command names (e.g., `/Qgs`, `/Qexecute`)
+- Skill names and internal stage identifiers (e.g., `Qplan`, `Qexecute`)
 - Status markers (`[x]`, `[>]`, `PSE:`)
 
 ---
@@ -278,7 +281,7 @@ guard enforces it; `scripts/lib/doc-index.mjs` rebuilds the index after any doc 
 
 ### Memory Boundaries
 - **auto-memory** (`~/.claude/.../memory/`): AI 행동 교정, 사용자 선호, cross-project reference를 저장한다.
-- **Qlearn** (`.qe/learnings.md`): 프로젝트 특정 기술 교훈(mistake/gotcha/decision/convention)을 우선 기록한다. 같은 교훈을 auto-memory와 이중 저장하지 않는다.
+- Project-specific decisions and lessons belong in reviewed Plan evidence or project documentation; do not duplicate them in auto-memory.
 
 ### Single-AI SIVS Runtime Policy
 
@@ -324,7 +327,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 - **Token Fallback**: If real-time metrics are missing, use `Characters / 4` for estimation.
 
 ### 3. Persistent Mode Protection
-- **Active pipelines are shielded from premature stopping.** When a multi-step pipeline (SIVS loop, Wave execution, Qexecute) is running, persistent mode blocks the Stop hook and injects reinforcement via the Notification hook. Skills enter persistent mode at execution start and exit at their Handoff step. See `hooks/scripts/lib/persistent-mode.mjs` and `core/CONTEXT_BUDGET.md` for details.
+- **Active pipelines are shielded from premature stopping.** When a multi-step pipeline (SIVS loop, Wave execution, Qexecute) is running, persistent mode blocks the Stop hook with a bounded reinforcement counter stored in `unified-state.json`. Skills enter persistent mode at execution start and exit at their Handoff step. See `hooks/scripts/lib/persistent-mode.mjs` and `core/CONTEXT_BUDGET.md` for details.
 
 ### 4. Optimized Model Tiering
 - **Haiku (LOW)**: Default for pattern matching, structural verification (S1-S5), file I/O, and simple text transforms.
@@ -345,118 +348,52 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 
 ## Preferred Skill Map
 
-These skills are optimized for common workflows and consistently outperform generic approaches.
-
-| Action | Preferred Skill | Why it's better |
-|--------|----------------|-----------------|
-| git commit | `Qcommit` | Human-style messages, no Co-Authored-By traces, reads staged diff intelligently |
-| version/release mutation | `Qrelease` | Bumps versions, rewrites changelog, commits, tags, and optionally publishes the push and GitHub Release |
-| read-only version lookup | `Qversion` | Reports the single source of truth across plugin.json / package.json without mutation |
-| health check / repair | `Qdoctor` | Verifies framework, MCP companion, and `.qe/` consistency before repair |
-| context save / handoff | `Qcompact` | Structured snapshot, recoverable in future sessions |
-| context restore | `Qresume` | Reconstructs working state from snapshot |
-| archive tasks | `Qgc archive` | Moves files into versioned archive with index |
-| project refresh | `Qrefresh` | Re-analyzes all four analysis files in one pass |
-| "what is still open / what failed before" | `npm run qe:query` | Answers from a derived index instead of pulling ~20k tokens of `TASK_LOG.md` into context; read-only, works the same from Claude and Codex |
-
----
-
-## When to use X vs Y
-
-Complements the `Preferred Skill Map` above. That map names the canonical skill per
-action; this matrix disambiguates the cases where two similar skills (or tools) both
-apply and the choice depends on the situation. Only skills confirmed present in
-`skills/` are listed; browser entries are tool routes, not skills.
-
-| 상황 | 1순위 | 대안 | 판단 기준 |
-|------|-------|------|-----------|
-| 작업 실행 방식 | `Qexecute` (무플래그) | `Qexecute -verify` · `Qexecute -utopia` | 단순·저위험이면 무플래그 자기분류(순차/wave); 코드 품질 루프 게이트가 필요하면 `-verify`; 무인 자율 반복이면 `-utopia` |
-| 세션 연속성 | `Qcompact` → `Qresume` | `Qmemory` · `Qcontext` · `Qlearn` | 진행 상태를 통째로 다음 세션에 넘길 땐 compact/resume; 재사용할 규칙·결정은 `Qmemory`; 폴더 국소 컨텍스트는 `Qcontext`; 실패에서 얻은 교훈은 `Qlearn` |
-| 정리 vs 스냅샷 | `Qgc` | `Qshadow` | 드리프트·데드코드·규칙 위반 스캔/정리는 `Qgc`; 작업트리 체크포인트·되돌리기(실제 git 무영향)는 `Qshadow` |
-| 계획 vs 스펙 | `Qplan` | `Qgs` | 로드맵·페이즈 관리는 `Qplan`; 특정 작업의 TASK_REQUEST+VERIFY_CHECKLIST 생성은 `Qgs`(= `Qgenerate-spec`) |
-| 품질 검증 | `Qcritical-review` | `Qqa` | SIVS 스테이지 적대적 검증(spec/impl/merge)은 `Qcritical-review`; 실행 중인 웹앱 대상 탐색·회귀 QA는 `Qqa` |
-| 브라우저 자동화 (도구) | Playwright MCP | claude-in-chrome · 스크린샷 CLI | 접근성 트리 기반 안정 조작은 Playwright MCP(우선); 확장 연동 시나리오는 claude-in-chrome; 단순 캡처만이면 `npx playwright screenshot` CLI |
-
----
+| Action | Preferred Skill |
+|--------|-----------------|
+| start or re-plan work | `Qplan` |
+| add an explicit Goal | `Qgoal` |
+| generate task specifications | `Qgenerate-spec` (internal) |
+| execute or verify a task | `Qexecute` (internal) |
+| adversarial stage review | `Qcritical-review` |
+| git commit or push | `Qcommit` |
+| save or restore session context | `Qcompact` / `Qresume` |
+| update installed framework assets | `Qupdate` |
+| read the installed version | `Qversion` |
 
 ## Skills (Q-prefix)
 
-### Framework Core
 | Skill | Purpose |
 |-------|---------|
-| `Qhelp` | Show QE Framework usage overview |
-| `Qversion` | Show current plugin version |
-| `Qupdate` | Update QE framework body, Codex assets, and codex-plugin-cc bridge |
-| `Qdoctor` | Diagnose and repair QE dependency and `.qe/` project-state health |
-| `Qinit` | Initial setup and directory structure |
-| `Qplan` | Strategic roadmap and phase management (.qe/planning/) |
-| `Qrefresh` | Refresh project analysis data; use `Qrefresh --sync` to sync source files with a reference/standard project |
-| `Qcompact` | Save context / session handoff |
-| `Qresume` | Restore saved context |
-| `Qgc archive` | Archive completed tasks |
-| `Qcommit` | Human-style git commit (no AI traces) |
-| `Qcontext` | Folder-aware context memory manager (.qe/context/) |
-| `Qlearn` | Cross-session learning memory (.qe/learnings.md) |
-| `Qshadow` | Shadow-git snapshot store (checkpoint/diff/restore, no real git impact) |
-| `Qsecret` | OS-backed secret storage with secure env injection |
-| `Qsivs-config` | View/change SIVS engine routing (.qe/sivs-config.json) |
-| `Qcollect-skill` | Collect project-local stack guidance into `.claude/skills/` |
-| `Qissue` | File GitHub issues against the qe-framework repo |
-| `Qhelp find` | Find/install skills from skills.sh |
-| `Qmcp setup` | MCP server setup, configuration, and custom server building guide |
-| `Qmcp sync` | Preview and guide MCP client config synchronization |
-| `Qmemory` | Manage project memory (conventions, gotchas, decisions with TTL) |
-| `Qexecute -utopia` | Fully autonomous execution mode |
-| `Qmistake` | Record mistakes to prevent repetition (.qe/MISTAKE.md) |
-| `Qgc` | Code garbage collection (drift, violations, dead code) |
-
-### Task Execution
-| Skill | Purpose |
-|-------|---------|
-| `Qgenerate-spec` | Generate CLAUDE.md + TASK_REQUEST + VERIFY_CHECKLIST |
-| `Qexecute` | Execute spec-based tasks |
-| `Qexecute -verify` | Test > review > fix quality loop |
-| `Qqa` | Unified QA: `plan` (test docs) · `run` (single-pass scenarios) · `council` (multi-agent QA loop) |
-| `Qautoresearch` | Autonomous experiment loop (modify > run > evaluate) |
-| `Qcritical-review` | SIVS stage-aware adversarial verification; hosts `--debate` and `--risk` modes |
-| `Qverify-contract` | Verify implementation/tests against business-logic contracts (.qe/contracts/) |
-| `Qclaude-rescue` | Hand SIVS claude-stages from a Codex session to the local Claude CLI |
-
-### Expert & Domain Skills (external)
-
-Domain expert skills (language/framework experts, PM & product docs, design/frontend,
-infrastructure & DevOps, data analysis, academic writing, etc.) are no longer part of
-the framework payload. They live in the external `@inho-team/qe-mcp` companion package
-so framework installs stay small and client-neutral. Use `Qmcp setup` to connect the
-companion, `Qcollect-skill` for project-local stack guidance, or `Qhelp find` to
-discover installable skills.
-
----
+| `Qplan` | Plan-owned Goal controller and minimal project bootstrap |
+| `Qgoal` | Goal intake router |
+| `Qgenerate-spec` | TASK_REQUEST and VERIFY_CHECKLIST generation |
+| `Qexecute` | Spec execution and `-verify` quality loop |
+| `Qcritical-review` | SIVS adversarial verification, debate, and risk modes |
+| `Qcommit` | Human-style Git commit and optional push |
+| `Qcompact` | Context snapshot and handoff |
+| `Qresume` | Saved-context restoration |
+| `Qupdate` | Framework and client-asset update |
+| `Qversion` | Read-only framework version |
 
 ## Agents (E-prefix: background/sub-agents)
 
 | Agent | Purpose |
 |-------|---------|
-| `Earchive-executor` | Archive tasks to .qe/.archive/ |
 | `Ecode-debugger` | Bug root cause analysis |
-| `Ecode-reviewer` | Code review (quality/security/perf) |
+| `Ecode-reviewer` | Read-only correctness and maintainability review |
 | `Ecode-test-engineer` | Test writing and coverage |
 | `Ecommit-executor` | Git commit operations (used by Qcommit) |
-| `Ecompact-executor` | Context save/restore |
-| `Econtract-judge` | Business-logic contract PASS/FAIL verdict (used by Qverify-contract) |
+| `Ecompact-executor` | Context snapshots, handoffs, and restore support |
 | `Edeep-researcher` | Multi-source research |
 | `Edoc-writer` | Technical documentation writing and batch document generation |
-| `Egrad-writer` | Academic paper chapter writing |
-| `Ehandoff-executor` | Session handoff documents |
-| `Eperformance-profiler` | Build/bundle/runtime performance profiling |
-| `Epm-planner` | PRD/roadmap/story planning |
 | `Eqa-orchestrator` | Test > review > fix loop |
-| `Eqa-explorer` | Black-box exploratory UI tester (browser-only, no source access) |
-| `Erefresh-executor` | Project change detection |
 | `Erisk-proof-auditor` | Adversarial risk-proof audit (used by Qcritical-review --risk) |
 | `Esecurity-officer` | Security vulnerability scanning |
 | `Esupervision-orchestrator` | Expert-level quality assessment |
 | `Etask-executor` | Complex task implementation (5+ items) |
+
+The authoritative fleet, callers, models, budgets, and tool grants live in
+`core/agent-registry.json`. All calls use `core/AGENT_DELEGATION_CONTRACT.md`.
 
 ---
 
@@ -477,7 +414,7 @@ The framework uses a **release train** pattern. Every commit that changes user-v
 
 1. **Every commit** that ships user-visible behavior → add entry to `CHANGELOG.md [Unreleased]` under `Added` / `Changed` / `Fixed` / `Removed` / `Security`.
 2. **Do NOT bump version** on the fix/feature commit. `plugin.json` / `package.json` stay at the last released version.
-3. **When a batch is ready** → run `/Qrelease` with an optional `major|minor|patch` override. `Qrelease` reads `[Unreleased]`, bumps, rewrites changelog, commits, tags, and—after explicit confirmation—optionally pushes and creates the GitHub Release. Use `/Qversion` only to look up the current version.
+3. **When a batch is ready** → a maintainer performs the reviewed release/admin workflow: read `[Unreleased]`, choose the SemVer bump, keep `package.json` and `.claude-plugin/plugin.json` aligned, commit, tag, and optionally publish. Use `/Qversion` only to look up the current version.
 4. **Between releases**, `main` may be "ahead" of the latest tag — that's expected. Users who want bleeding edge can track the tip; most pin a tag.
 
 ### Manual audit and migration procedure
@@ -490,9 +427,9 @@ Do not infer an automated tool or modify unrelated files.
 
 ### Anti-patterns
 
-- Bumping version in the same commit as a fix → **use `/Qrelease` later instead**
-- Using `Qversion` to mutate release state → `Qversion` is read-only; use `/Qrelease`
-- Releasing with empty `[Unreleased]` → `Qrelease` aborts
+- Bumping version in the same commit as a fix → defer it to the reviewed release/admin workflow
+- Using `Qversion` to mutate release state → `Qversion` is read-only
+- Releasing with empty `[Unreleased]` → do not cut a release
 - Per-edge-case patch release → batch it; only security / data loss / framework-unusable bugs get immediate hotfix
 
 ### Rationale

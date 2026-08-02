@@ -8,7 +8,7 @@ Optimizes cost while maintaining quality.
 
 | Tier | Model | Use Case | Examples |
 |------|-------|----------|---------|
-| **LOW** | haiku | Simple lookups, file copy, format conversion | Earchive-executor, Ecommit-executor |
+| **LOW** | haiku | Bounded state and commit operations | Ecommit-executor, Ecompact-executor |
 | **MEDIUM** | sonnet | Standard implementation, code writing, review | Etask-executor, Ecode-reviewer, Ecode-test-engineer, Edoc-writer |
 | **HIGH** | opus | Complex analysis, architecture design, deep research | Edeep-researcher, Eqa-orchestrator (judgment phase) |
 
@@ -70,25 +70,19 @@ tier=HIGH + effort=max   → Opus at full power (maximum quality)
 
 | Agent | Default Tier | Escalation |
 |-------|-------------|------------|
-| Earchive-executor | LOW | — |
 | Ecommit-executor | LOW | — |
 | Etask-executor | MEDIUM | HIGH (complex checklists) |
 | Ecode-debugger | MEDIUM | HIGH (unknown root cause, competing-hypotheses/disconfirmation tracing) |
 | Ecode-reviewer | MEDIUM | — |
 | Ecode-test-engineer | MEDIUM | — |
 | Edoc-writer | MEDIUM | HIGH (batch multi-format docs) |
-| Egrad-writer | MEDIUM | HIGH (Discussion section) |
-| Epm-planner | MEDIUM | HIGH (complex PRD) |
 | Edeep-researcher | HIGH | — |
 | Eqa-orchestrator | MEDIUM | HIGH (after 3 failures) |
-| Erefresh-executor | LOW | — |
 | Ecompact-executor | LOW | — |
-| Ehandoff-executor | LOW | — |
-| Esecurity-officer | LOW | HIGH (vulnerability audit, dependency/CVE analysis) |
-| Esupervision-orchestrator | LOW | HIGH (quality audit) |
+| Erisk-proof-auditor | MEDIUM | HIGH (critical production risk) |
+| Esecurity-officer | MEDIUM | HIGH (critical vulnerability analysis) |
+| Esupervision-orchestrator | HIGH | — |
 | Qplan | HIGH | — |
-| Econtract-judge | MEDIUM | — |
-| Eperformance-profiler | MEDIUM | HIGH (complex profiling) |
 
 ## Escalation Rules
 - 2 failures at MEDIUM → auto-escalate to HIGH

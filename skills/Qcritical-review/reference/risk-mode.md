@@ -2,8 +2,8 @@
 
 ## Role
 
-`Qcritical-review --risk {UUID}` preserves the `Qrisk-proof` gate inside
-Qcritical-review. It turns a code task's Risk Register into a proof-oriented
+`Qcritical-review --risk {UUID}` is the canonical risk-proof gate. It turns a
+code task's Risk Register into a proof-oriented
 gate. It does not ask whether the report sounds careful. It asks whether each
 meaningful risk was challenged with a probe, evidence, and a clear status before
 Supervise.
@@ -68,8 +68,7 @@ such as "reviewed" or "looks safe" do not count.
 3. Confirm the task is `type: code`; for docs/analysis, report `SKIPPED`.
 4. Confirm TASK_REQUEST contains a non-empty `## Risk Register`. Missing,
    placeholder-only, or materially empty Risk Register is an immediate FAIL for
-   `type: code`, even when `Qrisk-proof` is invoked directly outside
-   Qexecute -verify.
+   `type: code`, even when risk mode is invoked directly outside Qexecute -verify.
 5. Collect changed files using `git diff --name-only`, `git diff --cached
    --name-only`, and untracked files when available.
 

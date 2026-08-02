@@ -26,13 +26,14 @@
  * Exit codes: 0 success, 1 usage error, 2 query error.
  */
 
-import { existsSync } from 'fs';
+import { existsSync } from '../hooks/scripts/lib/qe-fs.mjs';
 import { dirname, join, resolve } from 'path';
 import { fileURLToPath } from 'url';
 
 import { openStore } from '../hooks/scripts/lib/store.mjs';
 import { reindex } from '../hooks/scripts/lib/store-indexer.mjs';
 import { getDbPath, openSqlite, closeSqlite } from '../hooks/scripts/lib/store-sqlite.mjs';
+import { queryQeState } from '../hooks/scripts/lib/qe-access.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 
@@ -396,7 +397,7 @@ async function main() {
       throw new Error(`--limit must be a number, got "${args.limit}"`);
     }
 
-    const rows = entry.run(store, normalized);
+    const rows = queryQeState(store, command, normalized);
     if (rows === null) {
       process.stderr.write(
         `"${command}" needs the derived index, which the file backend does not have.\n`

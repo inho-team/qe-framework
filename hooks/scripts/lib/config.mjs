@@ -18,26 +18,6 @@ const DEFAULTS = {
   // may reflect a different codebase state after overnight changes.
   analysis_freshness_ms: 24 * 60 * 60 * 1000,  // 24 hours — .qe/analysis/ freshness
 
-  // [why default true]: local collected skill expiry hints are read-only and
-  // perform no network I/O, writes, or background execution. They only tell the
-  // user when generated local skill frontmatter has passed its TTL.
-  skill_expiry_hint_enabled: true,
-
-  // [why default true]: when .qe/analysis/ is stale, the session-start hook spawns a
-  // detached headless `claude -p /Qrefresh` on the Haiku model so analysis self-heals
-  // without the user running /Qrefresh manually. Permissions are NOT bypassed — the
-  // spawn uses --permission-mode dontAsk + an allowlist scoped to .qe/ (Edit/Write
-  // never touch project source). Opt-out via .qe/config.json { "hooks": { "auto_refresh_enabled": false } }.
-  auto_refresh_enabled: true,                  // spawn background Haiku /Qrefresh when analysis is stale
-  auto_refresh_model: 'haiku',                 // model alias for the background refresh run
-  // [why 6h]: shorter than the 24h staleness window so a long-lived machine refreshes
-  // a few times a day; long enough that the periodic tmux job is not chatty.
-  auto_refresh_interval_ms: 6 * 60 * 60 * 1000, // periodic (qcron) refresh cadence
-  // [why 10 min]: dedupes concurrent spawns when several terminals start a session at
-  // once. A refresh normally finishes inside this window; once it does, analysis mtime
-  // is fresh so the next session skips spawning anyway.
-  auto_refresh_lock_ttl_ms: 10 * 60 * 1000,    // lock TTL to dedupe concurrent session spawns
-
   // post-tool-use.mjs
   // [why this value]: 90 seconds is the typical latency window for a burst of tool
   // calls caused by a single agent action (e.g. multi-file edits). Errors that cluster
@@ -65,18 +45,13 @@ const DEFAULTS = {
   // ultraqa=80) override this via their own max_reinforcements setting.
   max_reinforcements: 20,              // max stop blocks in work modes
 
-  // [why this value]: 20 session logs gives enough history for trend analysis
-  // (failure patterns, satisfaction trends) without accumulating unbounded storage.
-  // Each log is small (<5 KB), so 20 logs ≈ 100 KB maximum on disk.
-  session_log_max: 20,                 // keep last N session logs
-
   satisfaction_enabled: false,         // opt-in: prompt user for 1-5 rating at session end
 
   // [why default true]: stuck-completed files accumulate silently if sweep is manual-only.
   // Auto-apply on Stop hook uses deterministic signals (completed/ folders, fully-checked
   // pairs, filename-embedded dates) and moves to .archive/ (recoverable). Opt-out via
   // .qe/config.json { "hooks": { "sweep_auto": false } } for users who prefer manual control.
-  sweep_auto: true,                    // auto-apply Qgc sweep archive moves on Stop hook
+  sweep_auto: true,                    // auto-apply deterministic archive moves on Stop hook
 
   // [why default true]: the OUTPUT_STYLE response gate (ADR-025 R3) is cost-0 on
   // non-operational clean turns and fail-open without credentials. Stage-2 Haiku

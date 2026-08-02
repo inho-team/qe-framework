@@ -12,25 +12,23 @@ The framework exists to force explicit handoffs between these stages.
 
 ## The PSE Chain
 
-QE uses the Plan -> Spec -> Execute loop as the default path:
+QE uses a Plan-owned Goal loop as the default path:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qexecute
-Codex:  $Qplan -> $Qgs -> $Qexecute
+User: Qplan
+Internal: Plan -> Spec -> Execute
 ```
 
 That is followed by the quality gate:
 
 ```text
-Claude: /Qexecute -verify
-Codex:  $Qexecute -verify
+Internal: Verify -> Supervise
 ```
 
 Together, the canonical flow is:
 
 ```text
-Claude: /Qplan -> /Qgs -> /Qexecute -> /Qexecute -verify
-Codex:  $Qplan -> $Qgs -> $Qexecute -> $Qexecute -verify
+Qplan controller -> knowledge -> spec -> execute -> verify -> supervise
 ```
 
 ## Design Principles
@@ -53,15 +51,15 @@ QE treats these as distinct responsibilities:
 In `single-model`, one runner may own every role.
 In `hybrid`, `multi-model`, or `tiered-model`, these roles can be split across different runners or model tiers.
 
-## Why `/Qexecute` Exists
+## Why Qexecute Exists
 
-`/Qexecute` is not just “parallel execution”.
-It is the default implementer-stage entry point in the canonical QE workflow.
+`Qexecute` is not just “parallel execution”.
+It is the internal implementer-stage contract in the canonical QE workflow.
 
 - In `single-model`, it uses the Haiku Wave execution path.
 - In `hybrid`, `multi-model`, or `tiered-model`, it should prefer the configured implementer runner.
 
-That makes `/Qexecute` the bridge between the original single-client system and the newer role-based orchestration model.
+That makes `Qexecute` the internal bridge between the original single-client system and the newer role-based orchestration model.
 
 ## Why Multi-Model Exists
 

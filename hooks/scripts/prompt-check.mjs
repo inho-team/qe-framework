@@ -1,18 +1,16 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from './lib/qe-fs.mjs';
+import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
-import { createHash } from 'crypto';
-import { spawn } from 'child_process';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import { parseHelpFlag } from './lib/help-flag-parser.mjs';
-import { readClaudeOAuthToken } from './lib/claude-token.mjs';
-import { readCurrentSid, readCurrentSessionId, readSessionName } from './lib/session-resolver.mjs';
+import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs';
 import { resolvePseStateHint } from './lib/pse-state-router.mjs';
 import { renderSkillCommand } from '../../scripts/lib/interaction_adapter.mjs';
+import { ensureQeProjectInstructions, isQeInstructionBootstrapCommand } from './lib/project-instructions.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -43,13 +41,25 @@ const cfg = loadConfig(cwd);
 const client = data.client || process.env.QE_CLIENT || 'claude';
 const skillCommand = (skillName, args = '') => renderSkillCommand(skillName, args, { client });
 
-const cachePath = join(cwd, '.qe', 'planning', 'cache', 'cjk-translations.json');
-
 // --- Load Unified State ---
 const state = readUnifiedState(cwd);
 
 const hints = [];
 const msgLower = userMessage.toLowerCase();
+
+// Explicit QE entry commands establish the project instruction contract before
+// the skill body runs. This is deliberately narrow: ordinary goal-like prose
+// keeps the existing fail-open, no-new-file behavior.
+if (isQeInstructionBootstrapCommand(userMessage)) {
+  try {
+    const bootstrapped = ensureQeProjectInstructions(cwd, client);
+    if (bootstrapped.errors.length > 0) {
+      hints.push(`[QE] Instruction bootstrap incomplete: ${bootstrapped.errors.join(', ')}.`);
+    }
+  } catch {
+    // A filesystem failure must never block the user's goal routing.
+  }
+}
 
 // --- Goal Router (isolated fail-open adapter) ---
 // Keep this entire route in one boundary: an import, resolver, state, or writer
@@ -75,7 +85,7 @@ try {
 // --- Help Flag Detection (early, before other classifications) ---
 const helpFlag = parseHelpFlag(userMessage);
 if (helpFlag.matched) {
-  hints.push(`[HELP] SKILL REQUIRED: Invoke ${skillCommand('Qhelp', helpFlag.skillName)} BEFORE generating any response. Do NOT answer without the skill.`);
+  hints.push(`[HELP] Invoke ${skillCommand(helpFlag.skillName)} and summarize that skill's own usage contract.`);
 }
 
 // --- QE Conventions Memory Check ---
@@ -138,44 +148,6 @@ if (!isAmbiguous && words.length > 5) {
   }
 }
 
-// --- Language Detection (save to .qe/profile/language.md) ---
-try {
-  const profileDir = join(cwd, '.qe', 'profile');
-  const languagePath = join(profileDir, 'language.md');
-
-  // Only detect if language.md doesn't exist yet (first detection per project)
-  if (!existsSync(languagePath)) {
-    const detected = detectLanguage(userMessage);
-    if (detected) {
-      if (!existsSync(profileDir)) mkdirSync(profileDir, { recursive: true });
-
-      const langNames = {
-        ko: 'Korean', en: 'English', ja: 'Japanese', zh: 'Chinese',
-        fr: 'French', de: 'German', es: 'Spanish', pt: 'Portuguese',
-        it: 'Italian', ru: 'Russian', ar: 'Arabic', vi: 'Vietnamese',
-        th: 'Thai', hi: 'Hindi',
-      };
-      const langName = langNames[detected] || detected;
-      const now = new Date().toISOString().split('T')[0];
-
-      const content = `# Language Profile
-
-## Settings
-- Primary language: ${detected} (${langName})
-- Response language: ${detected} + English for technical terms (no other scripts; no Chinese/Japanese unless that is the user's language)
-- Internal processing language: en (always English)
-
-## Detection History
-- ${now}: ${langName} detected
-`;
-      writeFileSync(languagePath, content, 'utf8');
-      hints.push(`[LANG] Detected: ${detected} (${langName}). Saved to .qe/profile/language.md`);
-    }
-  }
-} catch {
-  // Fault-tolerant: skip language detection on error
-}
-
 // --- Strategic Planning Hint ---
 if (!isAmbiguous) {
   const planKeywords = /\b(new project|start project|roadmap|milestone|planning|plan phase|architecture|overall|전략|계획|로드맵|마일스톤)\b/i;
@@ -229,16 +201,9 @@ if (!isAmbiguous && !helpFlag.matched) try {
 
   const hasCJK = /[\u3131-\u318E\uAC00-\uD7A3\u4E00-\u9FFF\u3040-\u30FF]/.test(userMessage);
 
-  // --- i18n: translate non-English input to English keywords via Haiku ---
-  let translatedTerms = '';
-  if (hasCJK) {
-    try {
-      const routeKeys = Object.keys(routesConfig.routes).join(', ');
-      translatedTerms = await translateToKeywords(userMessage, routeKeys, cachePath);
-    } catch {}
-  }
-
-  const matchMsg = msgLower + (translatedTerms ? ' ' + translatedTerms.toLowerCase() : '');
+  // Routing is deliberately local and deterministic. CJK terms live in the
+  // route table; prompt admission never sends user text to a network service.
+  const matchMsg = msgLower;
   const msgWords = matchMsg
     .replace(/[^a-z0-9\u3131-\u318e\uac00-\ud7a3\u4e00-\u9fff\u3040-\u30ff]+/g, ' ')
     .split(/\s+/)
@@ -371,65 +336,6 @@ try {
   // fail-open: state hints are advisory and must never block prompt handling
 }
 
-// --- Session auto-naming (AI-driven) + topic-change refresh ---
-// The hook is not an LLM and must not block, so it can't read the work or wait
-// on a model itself. Instead it spawns a fully detached worker (session-namer.mjs)
-// that reads recent transcript turns, asks Haiku for a Korean name, and writes it
-// via writeSessionName — which the active-session registry surfaces so other
-// terminals recognize each other by name. Two phases keyed off the per-session
-// binding:
-//   1. No name yet  → spawn mode=name every turn; the worker's 60s file lock
-//      throttles actual Haiku calls to ~once/min, so this is cheap.
-//   2. Already named → count prompts; every NAME_REFRESH_EVERY prompts spawn
-//      mode=rename, which renames ONLY on a clear topic shift (worker returns
-//      KEEP otherwise) to avoid flicker across terminals.
-// State lives in unified-state under session_name_meta, scoped to the sid so a
-// new terminal starts its own counter. Fully fail-open: spawn is detached+unref,
-// errors are swallowed, naming never blocks the prompt.
-const NAME_REFRESH_EVERY = 5;
-try {
-  // Opt-out: set `session_naming_disabled: true` in QE config to stop sending
-  // transcript prose to the Haiku naming call entirely.
-  const sid = cfg.session_naming_disabled ? null : readCurrentSid(cwd);
-  if (sid) {
-    const sessionRef = readCurrentSessionId(cwd) || sid;
-    const currentName = readSessionName(cwd, sessionRef);
-    const transcriptPath = data.transcript_path || '';
-    const namerPath = join(__dirname, 'lib', 'session-namer.mjs');
-    const meta = (state.session_name_meta && state.session_name_meta.sid === sid)
-      ? state.session_name_meta
-      : { sid, promptsSinceNamed: 0 };
-
-    const spawnNamer = (mode) => {
-      try {
-        const child = spawn(
-          process.execPath,
-          [namerPath, cwd, sessionRef, mode, transcriptPath, currentName || ''],
-          { detached: true, stdio: 'ignore' },
-        );
-        child.unref();
-      } catch {
-        // fail-open: a failed spawn just means no auto-name this turn
-      }
-    };
-
-    if (!currentName) {
-      spawnNamer('name');
-      meta.promptsSinceNamed = 0;
-    } else {
-      meta.promptsSinceNamed = (meta.promptsSinceNamed || 0) + 1;
-      if (meta.promptsSinceNamed >= NAME_REFRESH_EVERY) {
-        spawnNamer('rename');
-        meta.promptsSinceNamed = 0;
-      }
-    }
-    state.session_name_meta = meta;
-    writeUnifiedState(cwd, state);
-  }
-} catch {
-  // fail-open: session auto-naming is advisory, never block the hook
-}
-
 if (hints.length > 0) {
   console.log(JSON.stringify({
     continue: true,
@@ -440,192 +346,6 @@ if (hints.length > 0) {
   }));
 } else {
   console.log(JSON.stringify({ continue: true }));
-}
-
-/**
- * Translate non-English user message to English keywords via claude CLI (Haiku).
- * Returns space-separated English keywords for intent matching.
- *
- * Privacy note: this sends the raw prompt to the Anthropic Messages API (the same
- * endpoint the conversation already uses) so that non-English prompts can be routed
- * to intents. Set QE_NO_TRANSLATE=1 to disable this network call entirely; intent
- * routing then falls back to literal English-keyword matching only.
- */
-async function translateToKeywords(message, routeKeys, cachePath) {
-  // Opt-out kill switch: when disabled, do not read the token or make any network call.
-  if (process.env.QE_NO_TRANSLATE === '1') return '';
-
-  // --- Cache Check ---
-  const hash = createHash('md5').update(message).digest('hex');
-  let cache = {};
-  try {
-    if (existsSync(cachePath)) {
-      cache = JSON.parse(readFileSync(cachePath, 'utf8'));
-      if (cache[hash]) return cache[hash];
-    }
-  } catch {}
-
-  // Read Claude Code OAuth token (file → macOS Keychain). See lib/claude-token.mjs.
-  // The token is sk-ant-oat01-*: Bearer auth (x-api-key 401s) + current model ids
-  // (legacy claude-3-5-haiku-* 404s on this auth path).
-  const token = readClaudeOAuthToken();
-  if (!token) return '';
-
-  try {
-    const resp = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'authorization': `Bearer ${token}`,
-        'anthropic-version': '2023-06-01',
-        'content-type': 'application/json',
-      },
-      body: JSON.stringify({
-        model: 'claude-haiku-4-5-20251001',
-        max_tokens: 50,
-        messages: [{
-          role: 'user',
-          content: `TASK: keyword extraction. Output ONLY space-separated English keywords. No sentences.\nAvailable: ${routeKeys}\nMessage: "${message}"\nKeywords:`
-        }]
-      }),
-      signal: AbortSignal.timeout(800),
-    });
-
-    if (!resp.ok) return '';
-    const body = await resp.json();
-    const keywords = (body.content?.[0]?.text || '').trim().toLowerCase();
-
-    // --- Update Cache ---
-    if (keywords) {
-      try {
-        const cacheDir = dirname(cachePath);
-        if (!existsSync(cacheDir)) mkdirSync(cacheDir, { recursive: true });
-        cache[hash] = keywords;
-        // Limit cache size to ~100 entries (LRU-ish)
-        const keys = Object.keys(cache);
-        if (keys.length > 100) delete cache[keys[0]];
-        writeFileSync(cachePath, JSON.stringify(cache, null, 2));
-      } catch {}
-    }
-
-    return keywords;
-  } catch {
-    return '';
-  }
-}
-
-/**
- * Detect language from message text using Unicode range analysis.
- * Returns ISO 639-1 code or null if undetectable.
- */
-function detectLanguage(text) {
-  if (!text || text.trim().length === 0) return null;
-
-  // Count characters by script
-  const counts = { ko: 0, ja: 0, zh: 0, latin: 0, cyrillic: 0, arabic: 0, thai: 0, devanagari: 0 };
-
-  for (const ch of text) {
-    const cp = ch.codePointAt(0);
-    // Korean: Hangul Jamo + Hangul Syllables + Hangul Compatibility Jamo
-    if ((cp >= 0x1100 && cp <= 0x11FF) || (cp >= 0x3131 && cp <= 0x318E) || (cp >= 0xAC00 && cp <= 0xD7A3)) {
-      counts.ko++;
-    }
-    // Japanese: Hiragana + Katakana (but not CJK Unified — shared with Chinese)
-    else if ((cp >= 0x3040 && cp <= 0x309F) || (cp >= 0x30A0 && cp <= 0x30FF)) {
-      counts.ja++;
-    }
-    // CJK Unified Ideographs (shared by Chinese/Japanese/Korean)
-    else if (cp >= 0x4E00 && cp <= 0x9FFF) {
-      counts.zh++; // default to Chinese; Japanese disambiguated by kana presence
-    }
-    // Latin
-    else if ((cp >= 0x0041 && cp <= 0x024F)) {
-      counts.latin++;
-    }
-    // Cyrillic
-    else if (cp >= 0x0400 && cp <= 0x04FF) {
-      counts.cyrillic++;
-    }
-    // Arabic
-    else if (cp >= 0x0600 && cp <= 0x06FF) {
-      counts.arabic++;
-    }
-    // Thai
-    else if (cp >= 0x0E00 && cp <= 0x0E7F) {
-      counts.thai++;
-    }
-    // Devanagari (Hindi)
-    else if (cp >= 0x0900 && cp <= 0x097F) {
-      counts.devanagari++;
-    }
-  }
-
-  // If Japanese kana is present, CJK chars are likely Japanese too
-  if (counts.ja > 0) {
-    counts.ja += counts.zh;
-    counts.zh = 0;
-  }
-
-  // Find dominant script
-  const entries = Object.entries(counts).filter(([, v]) => v > 0);
-  if (entries.length === 0) return null;
-
-  entries.sort((a, b) => b[1] - a[1]);
-  const [dominant, count] = entries[0];
-
-  if (count === 0) return null;
-
-  // Map script to language
-  const scriptToLang = {
-    ko: 'ko', ja: 'ja', zh: 'zh', cyrillic: 'ru', arabic: 'ar', thai: 'th', devanagari: 'hi',
-  };
-
-  if (scriptToLang[dominant]) return scriptToLang[dominant];
-
-  // Latin script — detect specific language by common words/patterns
-  if (dominant === 'latin') {
-    const lower = text.toLowerCase();
-
-    // Detect by unique diacritics/characters first (strong signal, no word counting needed)
-    if (/[àâçéèêëîïôùûüÿœæ]/i.test(text) && /\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|très|mais|qui|que)\b/.test(lower)) return 'fr';
-    if (/[äöüß]/i.test(text) && /\b(der|die|das|ein|eine?|ist|sind|für|mit|und|oder|nicht|über|Sie)\b/.test(lower)) return 'de';
-    if (/[áéíóúñ¿¡]/i.test(text) && /\b(el|la|los|las|una?|es|son|para|con|del|por|más|pero)\b/.test(lower)) return 'es';
-    if (/[ãõçáéíóú]/i.test(text) && /\b(não|também|é|são|uma?|essa?|pelo|para|com)\b/.test(lower)) return 'pt';
-    if (/[àèéìíòóùú]/i.test(text) && /\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della)\b/.test(lower)) return 'it';
-
-    // Vietnamese: unique diacritics (ơ, ư, ă, đ) + tonal marks
-    if (/[ơưăđ]/i.test(text) && /\b(của|và|không|có|được|này|là|một|những|các)\b/.test(lower)) return 'vi';
-
-    // Fallback: function word counting for text without clear diacritics
-    const langScores = [];
-
-    const frWords = (lower.match(/\b(le|la|les|des|une?|est|sont|dans|pour|avec|cette?|très|aussi|mais|qui|que|dont|nous|vous)\b/g) || []).length;
-    if (frWords >= 1) langScores.push(['fr', frWords]);
-
-    const deWords = (lower.match(/\b(der|die|das|ein|eine|ist|sind|für|mit|und|oder|aber|nicht|diese[rnms]?|über|können)\b/g) || []).length;
-    if (deWords >= 1) langScores.push(['de', deWords]);
-
-    const esWords = (lower.match(/\b(el|la|los|las|una?|es|son|para|con|del|por|como|más|pero)\b/g) || []).length;
-    if (esWords >= 1) langScores.push(['es', esWords]);
-
-    const ptWords = (lower.match(/\b(não|também|é|são|uma?|essa?|pelo|para|com)\b/g) || []).length;
-    if (ptWords >= 1) langScores.push(['pt', ptWords]);
-
-    const itWords = (lower.match(/\b(il|lo|gli|è|sono|non|questo|questa|anche|può|della|delle)\b/g) || []).length;
-    if (itWords >= 1) langScores.push(['it', itWords]);
-
-    // Pick the language with most function word matches (if any beat English default)
-    if (langScores.length > 0) {
-      langScores.sort((a, b) => b[1] - a[1]);
-      // Require 3+ function word matches to override English (prevents false positives
-      // from single common words like "la" or "le" appearing in English text)
-      if (langScores[0][1] >= 3) return langScores[0][0];
-    }
-
-    // Default Latin → English
-    return 'en';
-  }
-
-  return null;
 }
 
 /**

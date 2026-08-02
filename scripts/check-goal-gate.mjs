@@ -63,9 +63,9 @@ function expectBlock(root, skill = 'Qexecute', { client = 'claude', extra = {} }
 
 ok('direct internal PSE call blocks with Claude prefix', () => expectBlock(fixtureRoot()));
 ok('Qplan is the public controller and passes without a goal marker', () => expectPass(fixtureRoot(), 'Qplan'));
-ok('qe-framework namespace and Qrt exact-match block', () => expectBlock(fixtureRoot(), 'qe-framework:Qrt'));
+ok('qe-framework namespace exact-match blocks internal stage', () => expectBlock(fixtureRoot(), 'qe-framework:Qexecute'));
 ok('normalization variants (space/case/doubled prefix) still block', () => {
-  for (const skill of ['qe-framework:qe-framework:Qexecute', 'Qgs', 'Qgenerate-spec', 'Qrt']) {
+  for (const skill of ['qe-framework:qe-framework:Qexecute', 'Qgenerate-spec']) {
     const result = invoke(fixtureRoot(), { tool_name: 'Skill', tool_input: { skill } });
     assert.equal(result.status, 2, `bypass variant not blocked: [${skill}] status=${result.status}`);
   }
@@ -80,7 +80,7 @@ ok('Qcommit skill-entry-hook bypass survives PSE-gate normalization', () => {
 ok('valid same-session pipeline marker passes', () => {
   const root = fixtureRoot();
   writeJson(root, '.qe/state/unified-state.json', { goalRuntime: { version: 1, entries: [marker('fixture-session')] } });
-  expectPass(root, 'Qgs');
+  expectPass(root, 'Qgenerate-spec');
 });
 ok('latest valid same-session entry passes despite older entry', () => {
   const root = fixtureRoot();

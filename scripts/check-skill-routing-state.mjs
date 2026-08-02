@@ -206,7 +206,8 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: [] } });
     expect(hint.kind === 'active-plan-no-pending-spec', `[active-plan] expected active-plan-no-pending-spec, got ${hint.kind}`);
-    expect(hint.target === 'Qgs', `[active-plan] expected Qgs, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[active-plan] expected public Qplan controller, got ${hint.target}`);
+    expect(!/Qgenerate-spec|Qexecute|Next Command/.test(hint.message), `[active-plan] exposed internal choreography: ${hint.message}`);
   } finally {
     cleanup(root);
   }
@@ -220,7 +221,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: [] } });
     expect(hint.kind === 'exactly-one-pending-spec', `[pending-one] expected exactly-one-pending-spec, got ${hint.kind}`);
-    expect(hint.target === 'Qexecute', `[pending-one] expected Qexecute, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[pending-one] expected public Qplan controller, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -235,7 +236,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: [] } });
     expect(hint.kind === 'multiple-pending-specs', `[pending-many] expected multiple-pending-specs, got ${hint.kind}`);
-    expect(hint.target === null, `[pending-many] expected no target, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[pending-many] expected public Qplan controller, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -249,7 +250,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: [] } });
     expect(hint.kind === 'active-plan-no-pending-spec', `[missing-plan-line] expected active-plan-no-pending-spec, got ${hint.kind}`);
-    expect(hint.target === 'Qgs', `[missing-plan-line] expected Qgs, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[missing-plan-line] expected public Qplan controller, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -262,7 +263,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: ['src/app.js'], gitAvailable: true } });
     expect(hint.kind === 'uncommitted-code', `[dirty] expected uncommitted-code, got ${hint.kind}`);
-    expect(hint.target === 'Qexecute -verify', `[dirty] expected Qexecute -verify, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[dirty] expected public Qplan controller, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -284,7 +285,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     clearPlanResolverCache();
     const hint = resolvePseStateHint(root, { changedFiles: { all: ['src/app.js'], gitAvailable: true } });
     expect(hint.kind === 'uncommitted-code', `[task-log-pending] expected uncommitted-code, got ${hint.kind}`);
-    expect(hint.target === 'Qexecute -verify', `[task-log-pending] expected Qexecute -verify, got ${hint.target}`);
+    expect(hint.target === 'Qplan', `[task-log-pending] expected public Qplan controller, got ${hint.target}`);
   } finally {
     cleanup(root);
   }
@@ -299,7 +300,7 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     const hint = resolvePseStateHint(root, { changedFiles: { all: ['src/app.js'], gitAvailable: true } });
     expect(hint.kind === 'completed-phase', `[completed] expected completed-phase, got ${hint.kind}`);
     expect(hint.target === 'Qplan', `[completed] expected Qplan, got ${hint.target}`);
-    expect(hint.message.includes('Next Command:'), `[completed] expected Next Command hint, got ${hint.message}`);
+    expect(!hint.message.includes('Next Command:'), `[completed] must not expose copied handoff, got ${hint.message}`);
     expect(hint.message.includes('Phase 4 - Release Polish'), `[completed] expected next roadmap phase, got ${hint.message}`);
   } finally {
     cleanup(root);
@@ -328,8 +329,8 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
     const context = additionalContext(result.json);
     expect(result.status === 0, `[prompt-subprocess] expected exit 0, got ${result.status}`);
     expect(context.includes('[PSE]'), `[prompt-subprocess] expected PSE context, got ${context}`);
-    expect(context.includes('Qgs'), `[prompt-subprocess] expected Qgs hint, got ${context}`);
-    expect(context.includes('Next Command:'), `[prompt-subprocess] expected Next Command hint, got ${context}`);
+    expect(context.includes('Qplan'), `[prompt-subprocess] expected Qplan controller hint, got ${context}`);
+    expect(!/Qgenerate-spec|Qexecute|Next Command/.test(context), `[prompt-subprocess] exposed internal choreography, got ${context}`);
     expect(!context.includes('SKILL REQUIRED'), `[prompt-subprocess] state hint must not be hard required, got ${context}`);
   } finally {
     cleanup(root);
@@ -374,7 +375,8 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
       latencySamples.push(result.elapsedMs);
       expect(result.status === 0, `[cjk-latency] expected exit 0 for ${message}, got ${result.status}`);
       expect(context.includes('[PSE]'), `[cjk-next] expected PSE hint for ${message}, got ${context}`);
-      expect(context.includes('Next Command:'), `[cjk-next] expected Next Command hint for ${message}, got ${context}`);
+      expect(context.includes('Qplan'), `[cjk-next] expected Qplan controller hint for ${message}, got ${context}`);
+      expect(!/Qgenerate-spec|Qexecute|Next Command/.test(context), `[cjk-next] exposed internal choreography for ${message}: ${context}`);
     }
   } finally {
     cleanup(root);
@@ -387,6 +389,9 @@ expect(Array.isArray(fixture.cases), '[fixture] cases must be an array');
   expect(Boolean(deepRoute), '[wrapper-policy] expected deep-research route entry');
   expect(deepRoute?.[1] === 'Edeep-researcher', `[wrapper-policy] expected direct Edeep-researcher, got ${deepRoute?.[1]}`);
   expect(!Object.values(routes.routes).includes('Qdeepresearch'), '[wrapper-policy] Qdeepresearch wrapper route must not be forced in Phase 3');
+  for (const internal of ['Qgenerate-spec', 'Qexecute', 'Qexecute -verify', 'Qexecute -utopia']) {
+    expect(!Object.values(routes.routes).includes(internal), `[pse-surface] intent routes must not expose ${internal}`);
+  }
 }
 
 if (latencySamples.length > 0) {

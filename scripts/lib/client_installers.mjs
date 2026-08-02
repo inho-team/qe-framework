@@ -1,6 +1,7 @@
 #!/usr/bin/env node
 
 import { copyFileSync, existsSync, lstatSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync } from 'fs';
+import { createHash } from 'crypto';
 import { homedir } from 'os';
 import { dirname, isAbsolute, join, relative, resolve, sep } from 'path';
 import { fileURLToPath } from 'url';
@@ -13,6 +14,55 @@ const QE_CODEX_CONFIG_BEGIN = '# QE Framework Agent Configuration — managed by
 const QE_CODEX_CONFIG_END = '# End QE Framework Agent Configuration';
 const QE_CODEX_HOOKS_BEGIN = '# QE Framework Hook Configuration — managed by qe-framework installer';
 const QE_CODEX_HOOKS_END = '# End QE Framework Hook Configuration';
+const CODEX_OWNERSHIP_FILE = '.qe-owned-assets.json';
+
+function sha256File(file) {
+  return createHash('sha256').update(readFileSync(file)).digest('hex');
+}
+
+function readCodexOwnership(codexDir, log = () => {}) {
+  const file = join(codexDir, CODEX_OWNERSHIP_FILE);
+  if (!existsSync(file)) return new Map();
+  try {
+    const parsed = JSON.parse(readFileSync(file, 'utf8'));
+    if (parsed?.schema !== 1 || !Array.isArray(parsed.files)) return new Map();
+    return new Map(parsed.files
+      .filter((item) => item && typeof item.path === 'string' && /^[^/].*/.test(item.path) && !item.path.split('/').includes('..') && /^[a-f0-9]{64}$/.test(item.sha256 || ''))
+      .map((item) => [item.path, item.sha256]));
+  } catch (e) {
+    log(`[WARN] Codex ownership receipt is unreadable; preserving installed assets: ${e.message}`);
+    return new Map();
+  }
+}
+
+function writeCodexOwnership(codexDir, files) {
+  const entries = [...files.entries()]
+    .map(([path, sha256]) => ({ path, sha256 }))
+    .sort((a, b) => a.path.localeCompare(b.path));
+  writeFileSync(join(codexDir, CODEX_OWNERSHIP_FILE), `${JSON.stringify({ schema: 1, files: entries }, null, 2)}\n`, 'utf8');
+}
+
+function recordOwnedFiles(codexDir, root, owned) {
+  for (const { to } of collectCopyPairs(root, root)) {
+    if (!existsSync(to)) continue;
+    const rel = relative(codexDir, to).split(sep).join('/');
+    if (!rel.startsWith('../') && rel !== CODEX_OWNERSHIP_FILE) owned.set(rel, sha256File(to));
+  }
+}
+
+function removeEmptyOwnedParents(file, codexDir) {
+  const roots = new Set(['skills', 'agents', 'scripts', 'hooks'].map((name) => resolve(join(codexDir, name))));
+  let current = resolve(dirname(file));
+  const boundary = resolve(codexDir) + sep;
+  while (current.startsWith(boundary)) {
+    try {
+      if (readdirSync(current).length !== 0) break;
+      rmSync(current, { recursive: false, force: true });
+    } catch { break; }
+    if (roots.has(current)) break;
+    current = resolve(dirname(current));
+  }
+}
 
 /** Recursively create a directory (no-op if it exists). */
 function ensureDir(path) {
@@ -63,6 +113,35 @@ function pruneDestinationToSource(src, dest, log = () => {}) {
       log(`[plugin-sync] removed stale asset: ${stalePath}`);
     } catch (e) {
       log(`[WARN] installClaudeAssets: could not remove stale asset ${stalePath}: ${e.message}`);
+    }
+  }
+  return removed;
+}
+
+/** Remove only manifest-owned retired skills from a standalone commands dir. */
+function pruneStandaloneLegacySkills(repoRoot, commandsDir, log = () => {}) {
+  if (!existsSync(commandsDir)) return 0;
+  const sourceRoot = join(repoRoot, 'skills');
+  const current = new Set(
+    collectCopyPairs(sourceRoot, commandsDir)
+      .filter(({ from }) => from.endsWith(`${sep}SKILL.md`))
+      .map(({ from }) => relative(sourceRoot, dirname(from)).split(sep).join('/')),
+  );
+  let removed = 0;
+  for (const name of loadCleanupSkillNames(log)) {
+    if (current.has(name)) continue;
+    const parts = String(name).split('/').filter(Boolean);
+    if (parts.length === 0 || parts.some((part) => part === '..')) continue;
+    const target = join(commandsDir, ...parts);
+    if (!resolve(target).startsWith(resolve(commandsDir) + sep)) continue;
+    try {
+      const stat = lstatSync(target);
+      if (!stat.isDirectory() || stat.isSymbolicLink() || !existsSync(join(target, 'SKILL.md'))) continue;
+      rmSync(target, { recursive: true, force: true });
+      removed += 1;
+      log(`[standalone-sync] removed retired QE skill: ${target}`);
+    } catch {
+      // Missing or unreadable entries are left untouched.
     }
   }
   return removed;
@@ -245,6 +324,9 @@ export function installClaudeAssets({ repoRoot = REPO_ROOT, homeDir = homedir(),
       if (!resolve(dest).startsWith(pluginRoot)) continue;
       pruned += pruneDestinationToSource(srcDir, dest, log);
     }
+  } else if (mode === 'standalone') {
+    const skillTarget = targets.find(({ src }) => src === 'skills');
+    if (skillTarget) pruned += pruneStandaloneLegacySkills(repoRoot, skillTarget.dest, log);
   }
   log(`Installed ${creates} new, ${overwrites.length} overwritten, ${pruned} stale removed (mode=${mode}).`);
   if (backupDir) log(`Rollback available: qe-framework-uninstall --restore`);
@@ -583,58 +665,36 @@ export function cleanupCodexAssets({
 
   const effectiveDryRun = purge !== true; // purge===true -> real deletion
 
-  // ----- Skills: manifest match + SKILL.md presence -----
-  const knownSkillNames = loadCleanupSkillNames(log);
+  // ----- Per-file ownership receipt -----
+  // A path/name match is not ownership. Only remove a file that a prior QE
+  // install recorded and whose bytes still match the recorded hash.
+  const ownership = readCodexOwnership(codexDir, log);
   const skillsDir = join(codexDir, 'skills');
   const skillsToRemove = [];
   const scriptsDir = join(codexDir, 'scripts');
   const scriptsToRemove = [];
   const hooksDir = join(codexDir, 'hooks');
   const hooksToRemove = [];
-
-  if (existsSync(skillsDir)) {
-    for (const entry of knownSkillNames) {
-      if (typeof entry !== 'string' || entry.trim() === '') continue;
-      // Must be in the known manifest AND contain SKILL.md. Entries may be
-      // top-level names from the historical QE skill manifest.
-      const parts = entry.split('/').filter(Boolean);
-      if (parts.length === 0 || parts.some((part) => part === '..')) continue;
-      const entryPath = join(skillsDir, ...parts);
-      if (!resolve(entryPath).startsWith(resolve(skillsDir) + sep)) continue;
-      let stat;
-      try { stat = lstatSync(entryPath); } catch { continue; }
-      if (!stat.isDirectory()) continue;
-      if (!existsSync(join(entryPath, 'SKILL.md'))) continue;
-      skillsToRemove.push(entryPath);
+  const metadataToRemove = [];
+  const agentFilesToRemove = [];
+  const codexPrefix = resolve(codexDir) + sep;
+  for (const [rel, expectedHash] of ownership) {
+    const target = resolve(join(codexDir, ...rel.split('/')));
+    if (!target.startsWith(codexPrefix) || !existsSync(target)) continue;
+    let stat;
+    try { stat = lstatSync(target); } catch { continue; }
+    if (!stat.isFile() || stat.isSymbolicLink()) continue;
+    let matches = false;
+    try { matches = sha256File(target) === expectedHash; } catch {}
+    if (!matches) {
+      log(`[codex-cleanup] preserve modified owned file: ${target}`);
+      continue;
     }
-  }
-
-  // ----- Scripts: explicit installed subtree only -----
-  if (existsSync(scriptsDir)) {
-    try {
-      const stat = lstatSync(scriptsDir);
-      if (stat.isDirectory() && !stat.isSymbolicLink()) {
-        scriptsToRemove.push(scriptsDir);
-      } else if (stat.isSymbolicLink()) {
-        log(`[WARN] cleanupCodexAssets: skipping symlink scripts dir: ${scriptsDir}`);
-      }
-    } catch (e) {
-      log(`[WARN] cleanupCodexAssets: could not inspect scripts dir: ${e.message}`);
-    }
-  }
-
-  // ----- Hooks: explicit installed subtree only -----
-  if (existsSync(hooksDir)) {
-    try {
-      const stat = lstatSync(hooksDir);
-      if (stat.isDirectory() && !stat.isSymbolicLink()) {
-        hooksToRemove.push(hooksDir);
-      } else if (stat.isSymbolicLink()) {
-        log(`[WARN] cleanupCodexAssets: skipping symlink hooks dir: ${hooksDir}`);
-      }
-    } catch (e) {
-      log(`[WARN] cleanupCodexAssets: could not inspect hooks dir: ${e.message}`);
-    }
+    if (rel.startsWith('skills/')) skillsToRemove.push(target);
+    else if (rel.startsWith('agents/')) agentFilesToRemove.push(target);
+    else if (rel.startsWith('scripts/')) scriptsToRemove.push(target);
+    else if (rel.startsWith('hooks/')) hooksToRemove.push(target);
+    else if (rel === '.qe-codex-version') metadataToRemove.push(target);
   }
 
   // ----- Agents: fence-driven authoritative list -----
@@ -656,31 +716,13 @@ export function cleanupCodexAssets({
     }
   }
 
-  const agentsDir = join(codexDir, 'agents');
-  const agentFilesToRemove = []; // absolute paths
-  // Boundary guard: a tampered/relocated fence config_file could point outside
-  // ~/.codex; never let purge delete an arbitrary path. Mirrors the confinement
-  // pattern in restoreLatestBackup() / installClaudeAssets() backup logic.
-  const codexPrefix = resolve(codexDir) + sep;
-
-  for (const { name, configFile } of qeAgents) {
-    // Use the config_file path from the fence (absolute); derive .md sibling.
-    const tomlPath = configFile || join(agentsDir, `${name}.toml`);
-    const mdPath = tomlPath.replace(/\.toml$/, '.md');
-    if (!resolve(tomlPath).startsWith(codexPrefix)) {
-      log(`[WARN] cleanupCodexAssets: skipping out-of-tree agent path: ${tomlPath}`);
-      continue;
-    }
-    if (existsSync(tomlPath)) agentFilesToRemove.push(tomlPath);
-    if (existsSync(mdPath) && resolve(mdPath).startsWith(codexPrefix)) agentFilesToRemove.push(mdPath);
-  }
-
   // ----- Log plan -----
-  log(`[codex-cleanup] mode=${effectiveDryRun ? 'dry-run' : 'PURGE'} | skills=${skillsToRemove.length} | agents=${agentFilesToRemove.length} | scripts=${scriptsToRemove.length} | hooks=${hooksToRemove.length} | configFence=${fencePresent}`);
+  log(`[codex-cleanup] mode=${effectiveDryRun ? 'dry-run' : 'PURGE'} | skills=${skillsToRemove.length} | agents=${agentFilesToRemove.length} | scripts=${scriptsToRemove.length} | hooks=${hooksToRemove.length} | metadata=${metadataToRemove.length} | configFence=${fencePresent}`);
   for (const p of skillsToRemove) log(`  [skill] ${p}`);
   for (const p of agentFilesToRemove) log(`  [agent] ${p}`);
   for (const p of scriptsToRemove) log(`  [script] ${p}`);
   for (const p of hooksToRemove) log(`  [hook] ${p}`);
+  for (const p of metadataToRemove) log(`  [metadata] ${p}`);
   if (fencePresent) log(`  [config] strip QE fence from ${configPath}`);
   if (hooksFencePresent) log(`  [config] strip QE hooks fence from ${configPath}`);
 
@@ -695,6 +737,7 @@ export function cleanupCodexAssets({
     agents: agentFilesToRemove,
     scripts: scriptsToRemove,
     hooks: hooksToRemove,
+    metadata: metadataToRemove,
     configFenceStripped: false,
     configBackup: null,
   };
@@ -708,7 +751,7 @@ export function cleanupCodexAssets({
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not write receipt: ${e.message}`);
     }
-    return { skills: skillsToRemove, agents: agentFilesToRemove, scripts: scriptsToRemove, hooks: hooksToRemove, configEdited: false, dryRun: true, receiptPath };
+    return { skills: skillsToRemove, agents: agentFilesToRemove, scripts: scriptsToRemove, hooks: hooksToRemove, metadata: metadataToRemove, configEdited: false, dryRun: true, receiptPath };
   }
 
   // ----- Purge mode: backup config.toml, strip fence, remove files -----
@@ -733,45 +776,50 @@ export function cleanupCodexAssets({
   for (const p of agentFilesToRemove) {
     try {
       rmSync(p, { force: true });
+      removeEmptyOwnedParents(p, codexDir);
       log(`[codex-cleanup] removed agent file: ${p}`);
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
     }
   }
 
-  // Remove skill directories one by one (never blanket).
+  // Remove byte-identical owned skill files one by one (never blanket).
   for (const p of skillsToRemove) {
     try {
-      rmSync(p, { recursive: true, force: true });
-      log(`[codex-cleanup] removed skill dir: ${p}`);
+      rmSync(p, { force: true });
+      removeEmptyOwnedParents(p, codexDir);
+      log(`[codex-cleanup] removed skill file: ${p}`);
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
     }
   }
 
-  // Remove installed scripts subtree explicitly (never broader than ~/.codex/scripts).
+  // Remove byte-identical owned script files individually.
   for (const p of scriptsToRemove) {
     try {
-      if (resolve(p) !== resolve(scriptsDir)) {
-        log(`[WARN] cleanupCodexAssets: skipping unexpected scripts path: ${p}`);
-        continue;
-      }
-      rmSync(p, { recursive: true, force: true });
-      log(`[codex-cleanup] removed scripts dir: ${p}`);
+      rmSync(p, { force: true });
+      removeEmptyOwnedParents(p, codexDir);
+      log(`[codex-cleanup] removed script file: ${p}`);
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
     }
   }
 
-  // Remove installed hooks subtree explicitly (never broader than ~/.codex/hooks).
+  // Remove byte-identical owned hook files individually.
   for (const p of hooksToRemove) {
     try {
-      if (resolve(p) !== resolve(hooksDir)) {
-        log(`[WARN] cleanupCodexAssets: skipping unexpected hooks path: ${p}`);
-        continue;
-      }
-      rmSync(p, { recursive: true, force: true });
-      log(`[codex-cleanup] removed hooks dir: ${p}`);
+      rmSync(p, { force: true });
+      removeEmptyOwnedParents(p, codexDir);
+      log(`[codex-cleanup] removed hook file: ${p}`);
+    } catch (e) {
+      log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
+    }
+  }
+
+  for (const p of metadataToRemove) {
+    try {
+      rmSync(p, { force: true });
+      log(`[codex-cleanup] removed metadata file: ${p}`);
     } catch (e) {
       log(`[WARN] cleanupCodexAssets: could not remove ${p}: ${e.message}`);
     }
@@ -780,6 +828,7 @@ export function cleanupCodexAssets({
   // Write purge receipt.
   receipt.configFenceStripped = configEdited;
   receipt.configBackup = backupPath;
+  try { rmSync(join(codexDir, CODEX_OWNERSHIP_FILE), { force: true }); } catch {}
   try {
     mkdirSync(receiptDir, { recursive: true });
     writeFileSync(receiptPath, JSON.stringify(receipt, null, 2));
@@ -793,6 +842,7 @@ export function cleanupCodexAssets({
     agents: agentFilesToRemove,
     scripts: scriptsToRemove,
     hooks: hooksToRemove,
+    metadata: metadataToRemove,
     configEdited,
     dryRun: false,
     receiptPath,
@@ -898,6 +948,11 @@ function resolveCodexModelRouting(modelHint, reasoningEffortHint = '') {
   return { model: '', effort: explicitEffort };
 }
 
+function inferCodexSandboxMode(toolsHint) {
+  const tools = String(toolsHint || '').split(',').map((value) => value.trim());
+  return tools.includes('Write') || tools.includes('Edit') ? 'workspace-write' : 'read-only';
+}
+
 function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint, codexModel, codexReasoningEffort }) {
   const lines = [
     '# Codex Native Agent Compatibility',
@@ -930,7 +985,7 @@ function renderCodexAgentToml({ name, description, instructions, metadata = {} }
     || inferReasoningEffort(modelHint);
   const codexRouting = resolveCodexModelRouting(modelHint, reasoningEffortHint);
   const toolsHint = metadata.tools || metadata.mcp || metadata.MCP || '';
-  const sandboxMode = metadata.sandbox_mode || metadata.sandboxMode || 'workspace-write';
+  const sandboxMode = metadata.sandbox_mode || metadata.sandboxMode || inferCodexSandboxMode(toolsHint);
   const compatibilityNote = renderCodexCompatibilityNote({
     modelHint,
     reasoningEffortHint,
@@ -984,15 +1039,11 @@ function renderCodexAgentConfigBlock(agentsDir, entries) {
 }
 
 const CODEX_LIFECYCLE_HOOKS = [
-  { event: 'SessionStart', script: 'scripts/session-start.mjs', timeout: 10, statusMessage: 'QE session bootstrap' },
-  { event: 'PreToolUse', matcher: '*', script: 'scripts/pre-tool-use.mjs', timeout: 5, statusMessage: 'QE safety guard' },
-  { event: 'PreCompact', script: 'scripts/pre-compact.mjs', timeout: 10, statusMessage: 'QE compaction guard' },
-  { event: 'PostToolUse', matcher: '^(Write|Edit|Bash|Shell|shell|exec_command)$', script: 'scripts/post-tool-use.mjs', timeout: 15, statusMessage: 'QE post-tool checks' },
+  { event: 'SessionStart', script: 'scripts/session-start.mjs', timeout: 5, statusMessage: 'QE session bootstrap' },
+  { event: 'PreToolUse', matcher: '*', script: 'scripts/pre-tool-use.mjs', timeout: 3, statusMessage: 'QE safety guard' },
+  { event: 'PostToolUse', matcher: '^(Write|Edit|Bash|Shell|shell|exec_command)$', script: 'scripts/post-tool-use.mjs', timeout: 5, statusMessage: 'QE post-tool checks' },
   { event: 'Stop', script: 'scripts/stop-handler.mjs', timeout: 5, statusMessage: 'QE stop guard' },
-  { event: 'UserPromptSubmit', script: 'scripts/prompt-check.mjs', timeout: 8, statusMessage: 'QE prompt router' },
-  { event: 'Notification', script: 'scripts/notification.mjs', timeout: 5, statusMessage: 'QE notification handler' },
-  { event: 'TeammateIdle', script: 'scripts/teammate-idle.mjs', timeout: 10, statusMessage: 'QE teammate idle handler' },
-  { event: 'TaskCompleted', script: 'scripts/task-completed.mjs', timeout: 10, statusMessage: 'QE task completion handler' },
+  { event: 'UserPromptSubmit', script: 'scripts/prompt-check.mjs', timeout: 3, statusMessage: 'QE prompt router' },
 ];
 
 function resolveInstalledCodexHookPath(homeDir, log = () => {}) {
@@ -1236,6 +1287,7 @@ export function installCodexAssets({
   }
 
   cleanupCodexAssets({ homeDir, purge: true, log });
+  const ownedFiles = new Map();
 
   // ----- Skills -----
   let skillCount = 0;
@@ -1244,7 +1296,12 @@ export function installCodexAssets({
     ensureDir(codexSkillsDir);
     for (const { src, rel } of collectSkillSourceDirs(skillsSrcDir)) {
       const dest = join(codexSkillsDir, ...rel.split('/'));
+      if (existsSync(dest)) {
+        log(`[WARN] codex-install: preserving unowned or modified skill path: ${dest}`);
+        continue;
+      }
       compactedSkillDescriptions += copyCodexSkillDirectory(src, dest);
+      recordOwnedFiles(codexDir, dest, ownedFiles);
       log(`[codex-install] skill: ${rel} -> ${codexSkillsDir}`);
       skillCount++;
     }
@@ -1274,7 +1331,12 @@ export function installCodexAssets({
       const description = metadata.description || `${name} agent installed by QE Framework.`;
       const tomlContent = renderCodexAgentToml({ name, description, instructions: body, metadata });
       const tomlDest = join(codexAgentsDir, `${name}.toml`);
+      if (existsSync(tomlDest)) {
+        log(`[WARN] codex-install: preserving unowned or modified agent file: ${tomlDest}`);
+        continue;
+      }
       writeFileSync(tomlDest, tomlContent, 'utf8');
+      ownedFiles.set(relative(codexDir, tomlDest).split(sep).join('/'), sha256File(tomlDest));
       agentEntries.push({ name, description });
       log(`[codex-install] agent: ${entry} -> ${tomlDest}`);
     }
@@ -1286,7 +1348,7 @@ export function installCodexAssets({
   // ----- Scripts -----
   if (existsSync(scriptsSrcDir)) {
     ensureDir(codexScriptsDir);
-    copyRecursive(scriptsSrcDir, codexScriptsDir);
+    copyCodexOwnedTree(scriptsSrcDir, codexScriptsDir, codexDir, ownedFiles, log);
     log(`[codex-install] scripts/ copied -> ${codexScriptsDir}`);
   } else {
     log('[codex-install] scripts/ not found — skipping Codex scripts.');
@@ -1295,7 +1357,7 @@ export function installCodexAssets({
   // ----- Hooks -----
   if (existsSync(hooksSrcDir)) {
     ensureDir(codexHooksDir);
-    copyRecursive(hooksSrcDir, codexHooksDir);
+    copyCodexOwnedTree(hooksSrcDir, codexHooksDir, codexDir, ownedFiles, log);
     log(`[codex-install] hooks/ copied -> ${codexHooksDir}`);
   } else {
     log('[codex-install] hooks/ not found — skipping Codex hooks.');
@@ -1312,6 +1374,8 @@ export function installCodexAssets({
     log(`[codex-install] config.toml backed up -> ${backupPath}`);
   }
   const installedHookPath = resolveInstalledCodexHookPath(homeDir, log);
+  const installedHookRel = relative(codexDir, installedHookPath).split(sep).join('/');
+  const installedHookOwned = ownedFiles.has(installedHookRel);
   const migratedHookFeature = migrateDeprecatedCodexHookFeature(currentConfig);
   if (migratedHookFeature.changed) {
     log('[codex-install] migrated deprecated [features].codex_hooks to [features].hooks.');
@@ -1322,7 +1386,11 @@ export function installCodexAssets({
   if (agentEntries.length > 0) {
     blocks.push(renderCodexAgentConfigBlock(codexAgentsDir, agentEntries));
   }
-  blocks.push(renderCodexHooksConfigBlock(installedHookPath));
+  if (installedHookOwned) {
+    blocks.push(renderCodexHooksConfigBlock(installedHookPath));
+  } else {
+    log(`[WARN] codex-install: managed hook entry was not installed; preserving the existing path without enabling it: ${installedHookPath}`);
+  }
   const nextConfig = blocks
     .filter(Boolean)
     .join('\n\n')
@@ -1332,7 +1400,7 @@ export function installCodexAssets({
   if (agentEntries.length > 0) {
     log(`[codex-install] config.toml fence upserted (${agentEntries.length} agent entries).`);
   }
-  log('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.');
+  if (installedHookOwned) log('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.');
 
   // Record the installed version so SessionStart drift-detection can tell when
   // the plugin has been updated but Codex assets weren't re-synced yet. The
@@ -1347,8 +1415,12 @@ export function installCodexAssets({
       `${JSON.stringify({ version, ts: new Date().toISOString() })}\n`,
       'utf8',
     );
+    const versionFile = join(codexDir, '.qe-codex-version');
+    ownedFiles.set(relative(codexDir, versionFile).split(sep).join('/'), sha256File(versionFile));
     log(`[codex-install] version stamp written: ${version}`);
   } catch { /* stamp is best-effort — never fail the install on it */ }
+
+  writeCodexOwnership(codexDir, ownedFiles);
 
   return { skipped: false, skills: skillCount, agents: agentEntries.length, dryRun: false };
 }
@@ -1358,6 +1430,26 @@ export function installCodexAssets({
  * @param {string} src
  * @param {string} dest
  */
+function copyCodexOwnedTree(src, dest, codexDir, owned, log = () => {}) {
+  let stat;
+  try { stat = lstatSync(src); } catch { return; }
+  if (stat.isSymbolicLink()) return;
+  if (stat.isDirectory()) {
+    ensureDir(dest);
+    for (const entry of readdirSync(src)) {
+      copyCodexOwnedTree(join(src, entry), join(dest, entry), codexDir, owned, log);
+    }
+    return;
+  }
+  if (existsSync(dest)) {
+    log(`[WARN] codex-install: preserving unowned or modified file: ${dest}`);
+    return;
+  }
+  ensureDir(dirname(dest));
+  copyFileSync(src, dest);
+  owned.set(relative(codexDir, dest).split(sep).join('/'), sha256File(dest));
+}
+
 function copyRecursive(src, dest) {
   let stat;
   try { stat = lstatSync(src); } catch { return; }

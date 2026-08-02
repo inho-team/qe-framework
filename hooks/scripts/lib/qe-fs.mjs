@@ -108,7 +108,9 @@ export function writeFileSync(p, data, opts) {
 export function existsSync(p) {
   const rel = qeRel(p);
   if (rel == null) return realFs.existsSync(p);
-  return !!getRow(rel) || realFs.existsSync(p);
+  if (getRow(rel) || realFs.existsSync(p)) return true;
+  const prefix = rel.endsWith('/') ? rel : rel + '/';
+  return !!db().prepare('SELECT 1 FROM qe_files WHERE path LIKE ? LIMIT 1').get(prefix + '%');
 }
 
 export function mkdirSync(p, opts) {
@@ -160,11 +162,17 @@ export function statSync(p, opts) {
   const rel = qeRel(p);
   if (rel == null) return realFs.statSync(p, opts);
   const row = getRow(rel);
-  if (!row) return realFs.statSync(p, opts);
-  return {
+  if (row) return {
     size: row.size, mode: row.mode, mtimeMs: row.mtime_ms,
     mtime: new Date(row.mtime_ms), isFile: () => true, isDirectory: () => false, isSymbolicLink: () => false,
   };
+  const prefix = rel.endsWith('/') ? rel : rel + '/';
+  const child = db().prepare('SELECT mtime_ms FROM qe_files WHERE path LIKE ? LIMIT 1').get(prefix + '%');
+  if (child) return {
+    size: 0, mode: 0o755, mtimeMs: child.mtime_ms,
+    mtime: new Date(child.mtime_ms), isFile: () => false, isDirectory: () => true, isSymbolicLink: () => false,
+  };
+  return realFs.statSync(p, opts);
 }
 
 export function rmSync(p, opts) {

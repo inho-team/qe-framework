@@ -27,6 +27,8 @@ import { fileURLToPath } from 'node:url';
 import {
   isCompletionClaim,
   isAllowlistCommand,
+  evidenceCommandKind,
+  isBehavioralEvidenceCommand,
   agentResultContainsTrace,
   hasVerificationEvidence,
   parseSameTurnEvents,
@@ -126,6 +128,15 @@ test('isCompletionClaim: empty / non-string → false', () => {
 test('isAllowlistCommand: exact matches', () => {
   assert.equal(isAllowlistCommand('npm run qe:validate'), true);
   assert.equal(isAllowlistCommand('node scripts/check-all.mjs'), true);
+});
+
+test('evidence commands distinguish structural checks from behavioral tests', () => {
+  assert.equal(evidenceCommandKind('npm run qe:validate'), 'structural');
+  assert.equal(evidenceCommandKind('node scripts/check-all.mjs'), 'structural');
+  assert.equal(evidenceCommandKind('node --test hooks/foo.test.mjs'), 'behavioral');
+  assert.equal(evidenceCommandKind('npm test'), null);
+  assert.equal(isBehavioralEvidenceCommand('node --test hooks/foo.test.mjs'), true);
+  assert.equal(isBehavioralEvidenceCommand('node scripts/check-all.mjs'), false);
 });
 
 test('isAllowlistCommand: node --test with a path', () => {
@@ -492,6 +503,19 @@ test('hasVerificationEvidence: real-shape toolUseResult success (no interrupted)
     'real-shape success (toolUseResult.interrupted=false) must be accepted as evidence');
 });
 
+test('hasVerificationEvidence: behavioral mode rejects structural-only success', () => {
+  const structural = [
+    makeToolUseEvent('structural-tid', 'npm run qe:validate'),
+    makeToolResultEvent('structural-tid', { text: 'All checks passed.' }),
+  ];
+  const behavioral = [
+    makeToolUseEvent('behavioral-tid', 'node --test hooks/foo.test.mjs'),
+    makeToolResultEvent('behavioral-tid', { text: '3 tests passed.' }),
+  ];
+  assert.equal(hasVerificationEvidence(structural, { requireBehavioral: true }), false);
+  assert.equal(hasVerificationEvidence(behavioral, { requireBehavioral: true }), true);
+});
+
 // ============================================================================
 // evaluateEvidenceGate — top-level integration
 // ============================================================================
@@ -593,7 +617,7 @@ test('evaluateEvidenceGate: completion claim + code diff + no evidence → fire=
   assert.equal(result.reason, 'verification-evidence-missing');
 });
 
-test('evaluateEvidenceGate: allowlist Bash success in same turn → fire=false (not blocked)', (t) => {
+test('evaluateEvidenceGate: structural-only Bash success does not prove changed code', (t) => {
   const cwd = makeTmpCwd(t);
   const transcriptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-evgate-tr-'));
   t.after(() => fs.rmSync(transcriptDir, { recursive: true, force: true }));
@@ -601,10 +625,10 @@ test('evaluateEvidenceGate: allowlist Bash success in same turn → fire=false (
   const transcriptPath = makeFixtureTranscript(transcriptDir, { withAllowlistBash: true });
   const text = '구현 완료했습니다.';
   const result = evaluateEvidenceGate(cwd, text, transcriptPath);
-  assert.equal(result.fire, false);
+  assert.equal(result.fire, true);
 });
 
-test('evaluateEvidenceGate: Agent result with trace + PASS → fire=false', (t) => {
+test('evaluateEvidenceGate: structural-only Agent trace does not prove changed code', (t) => {
   const cwd = makeTmpCwd(t);
   const transcriptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-evgate-tr-'));
   t.after(() => fs.rmSync(transcriptDir, { recursive: true, force: true }));
@@ -614,6 +638,19 @@ test('evaluateEvidenceGate: Agent result with trace + PASS → fire=false', (t) 
   });
   const text = '구현 완료했습니다.';
   const result = evaluateEvidenceGate(cwd, text, transcriptPath);
+  assert.equal(result.fire, true);
+});
+
+test('evaluateEvidenceGate: focused behavioral Bash success proves changed code', (t) => {
+  const cwd = makeTmpCwd(t);
+  const transcriptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-evgate-tr-'));
+  t.after(() => fs.rmSync(transcriptDir, { recursive: true, force: true }));
+
+  const transcriptPath = makeFixtureTranscript(transcriptDir, {
+    withAllowlistBash: true,
+    command: 'node --test hooks/foo.test.mjs',
+  });
+  const result = evaluateEvidenceGate(cwd, '구현 완료했습니다.', transcriptPath);
   assert.equal(result.fire, false);
 });
 

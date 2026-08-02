@@ -2,12 +2,9 @@
   "version": "1.0.0",
   "description": "Deterministic benchmark fixture for qe-framework skill routing. Covers core PSE flow, lifecycle commands, git/version, research, PM, docs, testing, ambiguous disambiguation, and explicit no-route negatives with mixed English and Korean prompts.",
   "aliases": {
-    "Qgs": "Qgenerate-spec",
-    "/Qgs": "Qgenerate-spec",
-    "$Qgs": "Qgenerate-spec",
-    "Qrt": "Qexecute",
-    "/Qrt": "Qexecute",
-    "$Qrt": "Qexecute"
+    "Qplan": "Qplan",
+    "/Qplan": "Qplan",
+    "$Qplan": "Qplan"
   },
   "cases": [
     {
@@ -35,50 +32,50 @@
       "prompt": "TASK_REQUEST랑 VERIFY_CHECKLIST 만들어줘. 로그인 버그 수정 작업이야.",
       "locale": "ko",
       "category": "pse",
-      "expected": "Qgenerate-spec",
-      "aliases": ["Qgenerate-spec", "Qgs"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.99,
-      "reason": "The user asks for TASK_REQUEST and VERIFY_CHECKLIST generation, which is the spec-writing stage."
+      "reason": "The user asks for spec artifacts, which routes to the public Qplan controller and its internal spec stage."
     },
     {
       "id": "pse-spec-punctuation-en",
       "prompt": "Spec: login bug TASK_REQUEST.",
       "locale": "en",
       "category": "pse",
-      "expected": "Qgenerate-spec",
-      "aliases": ["Qgenerate-spec", "Qgs"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.95,
-      "reason": "Punctuation next to spec/task-request terms should still route to the spec generation stage."
+      "reason": "Punctuation next to spec/task-request terms should still route to the public Qplan controller."
     },
     {
       "id": "pse-run-en",
       "prompt": "Execute this TASK_REQUEST sequentially because the checklist items depend on each other.",
       "locale": "en",
       "category": "pse",
-      "expected": "Qexecute",
-      "aliases": ["Qexecute", "Qrt"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.98,
-      "reason": "The task is an execution request for an ordered checklist, which fits the sequential executor."
+      "reason": "Execution requests route to Qplan, which selects the internal execution strategy."
     },
     {
       "id": "pse-run-punctuation-en",
       "prompt": "Run task: execute this checklist.",
       "locale": "en",
       "category": "pse",
-      "expected": "Qexecute",
-      "aliases": ["Qexecute", "Qrt"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.95,
-      "reason": "Punctuation next to run-task phrasing should still route to the sequential executor."
+      "reason": "Punctuation next to run-task phrasing should still route to Qplan."
     },
     {
       "id": "pse-verify-ko",
       "prompt": "코드 수정은 끝났어. 이제 테스트하고 리뷰하고 다시 고쳐서 검증 루프 돌려줘.",
       "locale": "ko",
       "category": "pse",
-      "expected": "Qexecute -verify",
-      "aliases": ["Qexecute -verify"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.98,
-      "reason": "The prompt asks for the post-implementation test-review-fix verification loop."
+      "reason": "The prompt asks Qplan to continue the active Goal through internal verification."
     },
     {
       "id": "lifecycle-compact-ko",
@@ -105,8 +102,8 @@
       "prompt": ".qe/analysis 스냅샷이 낡았으니 분석 데이터만 새로 갱신해줘.",
       "locale": "ko",
       "category": "lifecycle",
-      "expected": "Qrefresh",
-      "aliases": ["Qrefresh"],
+      "expected": null,
+      "aliases": [],
       "confidence": 0.98,
       "reason": "The request targets analysis refresh rather than code synchronization or implementation."
     },
@@ -145,8 +142,8 @@
       "prompt": "Start an autoresearch loop to optimize build time with one benchmark metric.",
       "locale": "en",
       "category": "research",
-      "expected": "Qautoresearch",
-      "aliases": ["Qautoresearch"],
+      "expected": "Edeep-researcher",
+      "aliases": ["Edeep-researcher"],
       "confidence": 0.97,
       "reason": "This is an explicit request for the autonomous experiment loop rather than general web research."
     },
@@ -155,10 +152,10 @@
       "prompt": "PRD 쓰는 데 맞는 스킬 좀 찾아줘.",
       "locale": "ko",
       "category": "research",
-      "expected": "Qhelp",
-      "aliases": ["Qhelp"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.95,
-      "reason": "The user is asking to discover a suitable skill, not to produce the PRD directly."
+      "reason": "Qplan owns product-document planning after the PM-specific agent was removed."
     },
     {
       "id": "research-deep-direct-agent-en",
@@ -195,18 +192,18 @@
       "prompt": "이 Phase를 실행 가능한 task spec으로 쪼개줘.",
       "locale": "ko",
       "category": "pm",
-      "expected": "Qgenerate-spec",
-      "aliases": ["Qgenerate-spec", "Qgs"],
+      "expected": "Qplan",
+      "aliases": ["Qplan"],
       "confidence": 0.95,
-      "reason": "The request moves from plan/phase context into executable task specification generation."
+      "reason": "The request stays on the public Qplan controller, which invokes spec generation internally."
     },
     {
       "id": "docs-help-en",
       "prompt": "Show the QE command catalog and explain what Qcommit does.",
       "locale": "en",
       "category": "docs",
-      "expected": "Qhelp",
-      "aliases": ["Qhelp"],
+      "expected": "Qcommit",
+      "aliases": ["Qcommit"],
       "confidence": 0.97,
       "reason": "The prompt asks for command overview and skill explanation rather than code or docs editing."
     },
@@ -215,8 +212,8 @@
       "prompt": "Show commands: Qcommit.",
       "locale": "en",
       "category": "docs",
-      "expected": "Qhelp",
-      "aliases": ["Qhelp"],
+      "expected": "Qcommit",
+      "aliases": ["Qcommit"],
       "confidence": 0.95,
       "reason": "Punctuation next to command-catalog phrasing should still route to Qhelp."
     },
@@ -225,8 +222,8 @@
       "prompt": "Create a regression test plan for the checkout flow.",
       "locale": "en",
       "category": "testing",
-      "expected": "Qqa",
-      "aliases": ["Qqa"],
+      "expected": "Ecode-test-engineer",
+      "aliases": ["Ecode-test-engineer"],
       "confidence": 0.99,
       "reason": "This is a direct QA planning request for a regression suite."
     },
@@ -235,8 +232,8 @@
       "prompt": "폼 검증 버그에 대한 QA용 버그 리포트 템플릿 작성해줘.",
       "locale": "ko",
       "category": "testing",
-      "expected": "Qqa",
-      "aliases": ["Qqa"],
+      "expected": "Edoc-writer",
+      "aliases": ["Edoc-writer"],
       "confidence": 0.97,
       "reason": "The prompt targets QA documentation output, specifically a bug report template."
     },
@@ -265,8 +262,8 @@
       "prompt": "Refresh project analysis only; do not sync or rewrite code.",
       "locale": "en",
       "category": "ambiguous",
-      "expected": "Qrefresh",
-      "aliases": ["Qrefresh"],
+      "expected": null,
+      "aliases": [],
       "confidence": 0.92,
       "reason": "The prompt disambiguates toward analysis refresh and away from source synchronization or implementation."
     },

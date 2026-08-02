@@ -2,10 +2,10 @@
 common:
   grade_rules:
     PASS: "Zero findings."
-    PARTIAL: "Only WARN or INFO findings; no FAIL findings."
+    WARN: "Only WARN or INFO findings; no FAIL findings."
     FAIL: "One or more FAIL findings."
   return_format:
-    - "Grade: PASS | PARTIAL | FAIL"
+    - "Grade: PASS | WARN | FAIL"
     - "Findings: N items"
     - "Details:"
     - "- [SEVERITY] {category}: {issue} -> {rework instruction}"

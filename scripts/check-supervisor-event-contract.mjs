@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 
-import { existsSync, readFileSync } from 'fs';
+import { existsSync, readFileSync } from '../hooks/scripts/lib/qe-fs.mjs';
 import { join } from 'path';
 
 const root = process.cwd();
@@ -33,7 +33,7 @@ function event(overrides = {}) {
     details: 'bounded detail',
     evidence_path: '.qe/state/supervisor/logs/framework-health-check.log',
     evidence_fingerprint: 'sha256:a',
-    remediation_hint: 'Run Qmcp ensure',
+    remediation_hint: 'Inspect the supervisor configuration and retry',
     ...overrides,
   };
 }
@@ -115,8 +115,6 @@ try {
     'secret or raw environment',
     'runner delegation',
     'recursive agent/tool invocation',
-    'auto-refresh',
-    'qcron',
     'QE MCP Maintenance Parity Matrix',
     'workspace + monitor_id + dedupe_key',
     'duplicate after ack stays hidden',

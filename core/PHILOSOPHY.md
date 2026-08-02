@@ -31,7 +31,7 @@ cannot claim a stronger-than-WARN QA result without later delegated evidence.
 
 ## Position in the PSE Chain
 
-The SIVS Loop is the **quality gate** that runs inside the Execute and Verify steps of the PSE Chain (`/Qplan → /Qgs → /Qexecute → /Qexecute -verify` on Claude; `$Qplan → $Qgs → $Qexecute → $Qexecute -verify` on Codex). The PSE Chain is the user-facing workflow; the SIVS Loop is the internal quality mechanism that ensures each task meets its spec.
+The SIVS Loop is the **quality gate** inside the Plan-owned PSE Chain (`Qplan` controller → knowledge → spec → execute → verify). Only `Qplan` is user-facing workflow control; the remaining stages are internal quality mechanisms.
 
 ---
 
@@ -201,19 +201,17 @@ These three documents are the backbone of the framework. Every other component e
 
 ---
 
-## Hook Lifecycle Events (9)
+## Hook Lifecycle Events (7)
 
-The QE Framework hooks into 9 Claude Code plugin-supported lifecycle events.
+The QE Framework registers seven lifecycle events with concrete QE outcomes.
 
 | Event | Handler | Purpose |
 |-------|---------|---------|
-| SessionStart | session-start.mjs | Session init, legacy migration, memory load, skill budget check |
+| SessionStart | session-start.mjs | Session identity, migration, memory and resume context |
 | PreToolUse | pre-tool-use.mjs | ContextMemo validation, SIVS routing, block emitter |
 | PostToolUse | post-tool-use.mjs | ContextMemo update, lint, error detection |
-| PreCompact | pre-compact.mjs | Pre-compaction snapshot, handoff save |
 | Stop | stop-handler.mjs | Session end, sweep, failure capture, rating |
 | UserPromptSubmit | prompt-check.mjs | Help flag parsing, intent routing |
-| Notification | notification.mjs | Agent completion chaining, persistent mode |
 | TeammateIdle | teammate-idle.mjs | Teammate task assignment on idle |
 | TaskCompleted | task-completed.mjs | VERIFY_CHECKLIST check, TASK_LOG update, archival |
 
@@ -243,7 +241,7 @@ Every skill, agent, and hook in this framework must uphold the following:
 
 ## Adaptive Harness Principle
 
-PSE chain (Qplan → Qgs → Qexecute → Qexecute -verify) is the structured default path. However, when Claude Code provides native features that are more suitable, prefer native over PSE:
+PSE chain (Qplan → Qgenerate-spec → Qexecute → Qexecute -verify) is the structured default path. However, when Claude Code provides native features that are more suitable, prefer native over PSE:
 
 1. **Verification** → `/goal` sets a completion condition evaluated by a **separate model**, breaking self-preferential bias. Use when the pass criteria are mechanically verifiable (tests pass, build succeeds, lint clean).
 2. **Large-scale orchestration** → `/workflows` writes a JS orchestration script for up to 1,000 subagents. Use when the task has 10+ independent items or requires adversarial multi-agent coordination.
@@ -273,13 +271,7 @@ Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may e
 
 **Rationale**: Requiring a full spec for a one-line fix would add overhead that exceeds the risk of the change itself.
 
-### 2. Qautoresearch Experimental Loop
-
-Experimental optimization loops (Qautoresearch) use metric convergence as verification instead of VERIFY_CHECKLIST. The loop evaluates a single metric per iteration (keep/discard) rather than a document-based checklist.
-
-**Rationale**: In the experimental domain, hypothesis-metric feedback is the natural verification mechanism. Forcing VERIFY_CHECKLIST onto iterative experiments would break the tight feedback loop that makes experimentation effective.
-
-### 3. Qexecute -utopia Retry Loop
+### 2. Qexecute -utopia Retry Loop
 
 Retry loops in Qexecute -utopia modes (`-utopia` / `-utopia -verify`) may re-execute failed items up to 3 (work) or 5 (qa) times without generating a REMEDIATION_REQUEST. Full remediation spec generation is required only when retry limits are exceeded and the system escalates to the user.
 

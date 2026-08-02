@@ -31,7 +31,7 @@ const scenarios = [
   [
     join(PROJECT_ROOT, 'hooks', 'scripts', 'prompt-check.mjs'),
     'prompt-check / slash',
-    { user_message: '/Qhelp Qcommit', cwd: PROJECT_ROOT }
+    { user_message: '/Qcommit --help', cwd: PROJECT_ROOT }
   ],
   [
     join(PROJECT_ROOT, 'hooks', 'scripts', 'prompt-check.mjs'),

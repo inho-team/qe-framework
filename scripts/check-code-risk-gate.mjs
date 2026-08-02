@@ -52,7 +52,7 @@ const checks = [
     file: 'skills/Qcritical-review/SKILL.md',
     terms: [
       'final **Code Risk Gate**',
-      'Qrisk-proof',
+      'Qcritical-review --risk',
       '.qe/agent-results/risk-proof-{UUID}.md',
       'low-probability high-impact failures',
       'unknown` HIGH/CRITICAL risk is a FAIL',
@@ -82,7 +82,7 @@ const checks = [
   {
     file: 'skills/Qcritical-review/reference/risk-mode.md',
     terms: [
-      'Qrisk-proof',
+      'Qcritical-review --risk',
       'Erisk-proof-auditor',
       'Risk Proof Matrix',
       'Missing/placeholder `## Risk Register`',

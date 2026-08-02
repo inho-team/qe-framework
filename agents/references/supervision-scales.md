@@ -8,7 +8,7 @@ recommendedModel: sonnet
 | Grade | Meaning | Action |
 |-------|---------|--------|
 | **PASS** | All quality criteria met — no issues found | Task accepted as-is |
-| **PARTIAL** | Minor issues or suggestions — does not block acceptance | Conditional acceptance; issues logged for future improvement |
+| **WARN** | Non-blocking issues or residual risk remain | Conditional acceptance; issues remain visible |
 | **FAIL** | Significant quality gaps — must be remediated before acceptance | Immediate remediation required via REMEDIATION_REQUEST |
 
 ## Task Type Routing Table
@@ -34,7 +34,7 @@ Each domain supervision agent must return:
 ## Domain Supervision Result
 **Domain:** {domain name}
 **Agent:** {agent name}
-**Grade:** PASS|PARTIAL|FAIL
+**Grade:** PASS|WARN|FAIL
 **Date:** YYYY-MM-DD HH:MM:SS
 
 ### Findings
@@ -43,7 +43,7 @@ Each domain supervision agent must return:
 - **Issue:** {description}
 - **Remediation:** {specific fix direction}
 
-#### [PARTIAL] {title}
+#### [WARN] {title}
 - **Location:** {file path, line range}
 - **Issue:** {description}
 - **Suggestion:** {improvement suggestion}

@@ -24,7 +24,7 @@ would be misleading.
    would load. Use a tokenizer (e.g. `tiktoken` / the Anthropic token-count endpoint),
    not character count.
 3. **QE:** count the tokens of `root.md` + every `.qe/context/*.md` whose glob matches
-   that directory (the set `/Qcontext status <dir>` reports).
+   that directory (the set reported by the context index).
 4. **Savings** = `1 - (QE_tokens / vanilla_tokens)`, reported **per working directory**
    with the directory named. Repeat across 3–5 representative directories and report the
    range, not a single rounded figure.

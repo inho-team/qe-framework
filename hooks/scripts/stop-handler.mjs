@@ -1,9 +1,9 @@
 #!/usr/bin/env node
 'use strict';
 
-import { readFileSync, writeFileSync, existsSync, mkdirSync } from './lib/qe-fs.mjs';
+import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join } from 'path';
-import { execSync } from 'child_process';
+import { spawnSync } from 'child_process';
 import { readState, readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import {
@@ -11,18 +11,15 @@ import {
   captureFailureQuietly,
   findAbnormalWorkerExit,
 } from './lib/failure-capture.mjs';
-import { notify } from './lib/notify.mjs';
-import { appendRating } from './lib/rating-capture.mjs';
 import { isPersistentModeActiveFromState } from './lib/persistent-mode.mjs';
 import {
   readRalphState,
   cleanupRalphState,
   checkRateLimit,
-  recordCircuitBreaker,
   formatProgressMessage,
   generateReport,
 } from './lib/ralph-state.mjs';
-import { isAllComplete, parseChecklist } from './lib/checklist-parser.mjs';
+import { parseChecklist } from './lib/checklist-parser.mjs';
 import { analyze as sweepAnalyze } from './lib/sweep-analyzer.mjs';
 import { execute as sweepExecute, executeVolatileOnly as sweepVolatileOnly } from './lib/sweep-executor.mjs';
 import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
@@ -156,8 +153,6 @@ const modes = [
   { name: 'ultrawork', label: 'Ultra Work — autonomous parallel execution in progress' },
   { name: 'ultraqa', label: 'Ultra QA — autonomous quality verification in progress' },
   { name: 'qexecute', label: 'Qexecute executing' },
-  { name: 'qrefresh', label: 'Erefresh-executor updating analysis' },
-  { name: 'qarchive', label: 'Earchive-executor archiving' },
 ];
 
 let activeMode = null;
@@ -319,17 +314,6 @@ if (!activeMode) {
   }
 }
 
-// --- Completion webhook (opt-in, D022) — best-effort, never blocks the hook ---
-// Fires only when stop is actually being allowed (no active mode). No-op unless
-// QE_NOTIFY_WEBHOOK is set; failures are swallowed inside notify().
-if (!activeMode) {
-  try {
-    await notify({ event: 'stop', summary: sweepAnnouncement || 'Session stopped.', cwd });
-  } catch {
-    // Fault tolerance — a notification must never crash the stop handler
-  }
-}
-
 // --- Satisfaction Signal (opt-in) ---
 // Only prompts when satisfaction_enabled is true in .qe/config.json
 // appendRating(cwd, score) is called by /Qrating skill to persist to ratings.jsonl
@@ -352,96 +336,22 @@ if (!activeMode && cfg.satisfaction_enabled) {
   }
 }
 
-// --- Session Log Recording ---
-if (!activeMode) {
-  try {
-    // Collect session stats
-    const statsPath = join(cwd, '.qe', 'state', 'session-stats.json');
-    let toolCalls = 0;
-    let sessionStart = Date.now();
-    if (existsSync(statsPath)) {
-      try {
-        const stats = JSON.parse(readFileSync(statsPath, 'utf8'));
-        toolCalls = stats.tool_calls || 0;
-        sessionStart = stats.session_start || Date.now();
-      } catch {}
-    }
-
-    // Collect recent commits
-    let commits = [];
-    try {
-      const log = execSync('git log --oneline -5', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
-      if (log) commits = log.split('\n');
-    } catch {}
-
-    // Write session log
-    const contextDir = join(cwd, '.qe', 'context');
-    mkdirSync(contextDir, { recursive: true });
-    const logPath = join(contextDir, 'session-log.json');
-
-    let sessionLog = { sessions: [] };
-    if (existsSync(logPath)) {
-      try {
-        sessionLog = JSON.parse(readFileSync(logPath, 'utf8'));
-        if (!Array.isArray(sessionLog.sessions)) sessionLog.sessions = [];
-      } catch {}
-    }
-
-    // Read skills_used from session stats
-    let skillsUsed = [];
-    if (existsSync(statsPath)) {
-      try {
-        const stats = JSON.parse(readFileSync(statsPath, 'utf8'));
-        skillsUsed = stats.skills_used || [];
-      } catch {}
-    }
-
-    sessionLog.sessions.unshift({
-      date: new Date().toISOString(),
-      tool_calls: toolCalls,
-      commits: commits,
-      skills_used: skillsUsed,
-      duration_ms: Date.now() - sessionStart
-    });
-
-    sessionLog.sessions = sessionLog.sessions.slice(0, cfg.session_log_max);
-
-    writeFileSync(logPath, JSON.stringify(sessionLog, null, 2), 'utf8');
-
-    // --- Skill Usage Warnings ---
-    const warnings = [];
-    // Check if code changes exist but Qcommit was not called
-    try {
-      const diffStat = execSync('git diff --stat 2>/dev/null', { cwd, encoding: 'utf8', timeout: 3000 }).trim();
-      if (diffStat && !skillsUsed.some(s => s.includes('Qcommit') || s.includes('commit'))) {
-        warnings.push('Code changes exist but Qcommit was not called this session.');
-      }
-    } catch {}
-    // Long session without Qcompact
-    if (toolCalls > 100 && !skillsUsed.some(s => s.includes('Qcompact') || s.includes('compact'))) {
-      warnings.push('Long session (100+ tool calls) without Qcompact — context may have been lost.');
-    }
-    if (warnings.length > 0) {
-      process.stderr.write(`[QE Session Summary] ${warnings.join(' ')}\n`);
-    }
-  } catch {
-    // Fault tolerance — ignore session log errors
-  }
-}
-
 // --- Shared last-assistant-text extraction (F2: shared text for all three gates) ---
-// extractLastAssistantText is called exactly once here.  All three downstream gates
+// Claude and Codex provide the final assistant message directly. Use that hot-path
+// field first and retain transcript extraction only as a compatibility fallback.
 // (code-risk, style, evidence) consume `lastText` from this single call.
 // The evidence gate additionally needs the raw same-turn events; those are parsed once
 // from `data.transcript_path` inside the evidence gate block via parseSameTurnEvents.
-// Total transcript reads per stop: 2 — extractLastAssistantText (full pass for text)
+// Total transcript reads per stop: at most 2 — extractLastAssistantText (fallback)
 // and parseSameTurnEvents (full pass for event objects).  Unifying to a single pass is
 // a deferred optimization; style-gate.mjs's extractLastAssistantText is path-based and
 // not trivially composable with parseSameTurnEvents without a shared JSONL reader.
 let lastText = null;
 if (!activeMode && (cfg.code_risk_stop_gate !== false || cfg.style_gate !== false || cfg.verification_evidence_gate !== false)) {
   try {
-    lastText = extractLastAssistantText(data.transcript_path);
+    lastText = typeof data.last_assistant_message === 'string'
+      ? data.last_assistant_message
+      : extractLastAssistantText(data.transcript_path);
   } catch {
     // Fail-open — a read failure must never crash the stop handler.
   }
@@ -695,7 +605,8 @@ function changedCodeFiles(cwd) {
   const names = new Set();
   for (const [cmd, args] of commands) {
     try {
-      const out = execSync([cmd, ...args].join(' '), { cwd, encoding: 'utf8', timeout: 3000 });
+      const result = spawnSync(cmd, args, { cwd, encoding: 'utf8', timeout: 3000 });
+      const out = result.stdout || '';
       for (const line of out.split('\n')) {
         const name = line.trim();
         if (name) names.add(name);

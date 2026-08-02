@@ -21,13 +21,9 @@ QE uses a layered memory architecture. Each layer has different scope and lifeti
 
 ### Saving Context (Qcompact)
 
-When context pressure is detected (PreCompact hook) or user requests `/Qcompact`:
+When context pressure is detected or the user requests `/Qcompact`:
 
-1. **PreCompact hook** fires → writes `compact-trigger.json` with:
-   - Modified files list
-   - Active task UUIDs
-   - Unchecked checklist items
-   - Compaction strategy (from sivs-config)
+1. **Qcompact** resolves the active session and delegates bounded context capture.
 
 2. **Ecompact-executor** agent saves:
    - Current task state snapshot
@@ -35,7 +31,7 @@ When context pressure is detected (PreCompact hook) or user requests `/Qcompact`
    - File modification summary
    - Next steps / TODO items
 
-3. **Ehandoff-executor** generates structured handoff document:
+3. In manual handoff mode, the same **Ecompact-executor** generates:
    - Session summary (what was done)
    - Active context (what's in progress)
    - Restoration instructions (how to resume)
@@ -45,7 +41,8 @@ When context pressure is detected (PreCompact hook) or user requests `/Qcompact`
 When starting a new session after compaction:
 
 1. SessionStart may show `[Session State] ...` with the active plan, resume
-   source, and Codex background job status.
+   source, and Codex background job status. The compaction path is now
+   SessionStart-driven; there is no separate PreCompact dependency.
 2. `/Qresume` reads the resolver output from both domains:
    `.qe/context/sessions/{sid}/` and `.qe/handoffs/sessions/{sid}/`.
 3. If the active sid is empty, Qresume falls back to the newest other bucket
@@ -92,5 +89,5 @@ Claude Code's built-in auto memory at `~/.claude/projects/{path}/memory/`:
 
 1. Review `.qe/state/` periodically — remove stale session dirs
 2. Keep Auto Memory `MEMORY.md` under 200 lines
-3. Archive completed handoff docs (Qgc sweep handles this)
+3. Let the deterministic Stop sweep archive completed handoff docs
 4. Prune unified-state of obsolete keys on session start

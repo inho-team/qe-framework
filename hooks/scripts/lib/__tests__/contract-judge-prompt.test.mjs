@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { buildJudgePrompt } from '../contract-judge-prompt.mjs';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 
 // ============================================================================
@@ -16,6 +16,8 @@ function loadRealContract() {
   );
   return readFileSync(contractPath, 'utf8');
 }
+const REAL_CONTRACT_PATH = resolve(process.cwd(), '.qe/contracts/active/sivs-enforcer.md');
+const REAL_CONTRACT_SKIP = !existsSync(REAL_CONTRACT_PATH);
 
 // ============================================================================
 // PURITY TESTS
@@ -258,7 +260,7 @@ test('Empty handling: empty testText notes MAJOR finding (not auto-FAIL)', () =>
 // REAL INTEGRATION TEST
 // ============================================================================
 
-test('Integration: buildJudgePrompt with real contract produces substantial prompt', () => {
+test('Integration: buildJudgePrompt with real contract produces substantial prompt', { skip: REAL_CONTRACT_SKIP }, () => {
   const realContract = loadRealContract();
   const input = {
     contractName: 'sivs-enforcer',
@@ -276,7 +278,7 @@ test('Integration: buildJudgePrompt with real contract produces substantial prom
   );
 });
 
-test('Integration: real contract Signature section appears in output', () => {
+test('Integration: real contract Signature section appears in output', { skip: REAL_CONTRACT_SKIP }, () => {
   const realContract = loadRealContract();
   const input = {
     contractName: 'sivs-enforcer',
@@ -292,7 +294,7 @@ test('Integration: real contract Signature section appears in output', () => {
   assert.match(result, /interface RoutingDecision/, 'Should contain Signature content');
 });
 
-test('Integration: contract name matches expected identifier', () => {
+test('Integration: contract name matches expected identifier', { skip: REAL_CONTRACT_SKIP }, () => {
   const realContract = loadRealContract();
   const input = {
     contractName: 'sivs-enforcer',

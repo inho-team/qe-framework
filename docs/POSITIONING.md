@@ -2,15 +2,15 @@
 
 Where QE fits, and why it is not the same thing as the tools it is often compared to.
 All counts below are the current, measured framework footprint (2026-07):
-**31 skills** and **20 agents** in the standalone QE Framework package.
+**10 skills** and **12 agents** in the standalone QE Framework package.
 Optional MCP servers and local skill packs are configured separately per user or
 project.
 
 ## Why not gstack?
 
 gstack gives an agent "eyes" (real browser control). QE is **not** trying to replace
-that — QE Phase 6 *adopts* real-browser QA (`scripts/lib/browser-driver.mjs`, an
-optional-Playwright driver behind `Qqa run --browser`). The difference is scope:
+that. When browser tooling is available, Qexecute can use it as explicit Verify evidence;
+QE no longer ships a separate always-on browser agent. The difference is scope:
 
 - **gstack** = a capability (drive a browser).
 - **QE** = a **quality gate** around the whole coding loop (spec → implement →

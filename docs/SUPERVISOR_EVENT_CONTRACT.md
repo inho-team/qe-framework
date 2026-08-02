@@ -8,7 +8,7 @@ The supervisor event contract is a control/status API. OS-native schedulers own
 timed execution, process restart semantics, heartbeat production, and monitor
 command invocation — EXCEPT for the single opt-in resident event producer
 sanctioned in "Resident Event Producer (D032)" below. `qe-framework` owns
-SessionStart/Notification rendering and user-facing guidance.
+SessionStart/Stop rendering and user-facing guidance.
 
 Phase 1 and later supervisor surfaces must not introduce silent
 remediation, source writes, client config writes, secret or raw environment
@@ -43,9 +43,8 @@ in-process supervisor event producer, under ALL of the following invariants
 This is the ONLY sanctioned resident loop. Any other internal timer or hidden
 daemon start remains forbidden.
 
-Existing `auto-refresh` and `qcron` paths are framework-owned housekeeping for
-`.qe/analysis`. The supervisor contract does not reuse that hidden scheduler
-pattern. Convergence requires a later ADR and phase.
+Analysis refresh is explicit framework work. The supervisor contract does not
+reuse hidden scheduler patterns; any future convergence requires an ADR.
 
 ## QE MCP Maintenance Parity Matrix
 

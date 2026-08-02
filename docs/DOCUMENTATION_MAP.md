@@ -24,20 +24,21 @@ Use this file to find the right document quickly.
 - Claude/Codex public-doc parity report: [../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md](../.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md)
 - Hook lifecycle and safety policy: [HOOKS.md](HOOKS.md)
 - Execution-document convention (frontmatter, `[[link]]`, derived index): [../core/DOC_CONVENTIONS.md](../core/DOC_CONVENTIONS.md)
+- Shared QE.md and client instruction-pointer model: [IMPORT_SYSTEM.md](IMPORT_SYSTEM.md)
+- QE document-store ERD: [../core/store/erd/v4.md](../core/store/erd/v4.md)
+- Store schema compatibility and migration guide: [STORE_SCHEMA.md](STORE_SCHEMA.md)
 - Goal completion contract (acceptance, regression, independent verification): [../core/GOAL_ACCEPTANCE_CONTRACT.md](../core/GOAL_ACCEPTANCE_CONTRACT.md)
+- User-facing response style and Stop-hook enforcement: [../core/OUTPUT_STYLE.md](../core/OUTPUT_STYLE.md)
 
 ## Usage
 
-- User-facing response style and Stop-hook enforcement: [../core/OUTPUT_STYLE.md](../core/OUTPUT_STYLE.md)
 - General usage guide: [USAGE_GUIDE.md](USAGE_GUIDE.md)
 - Single-AI SIVS settings: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
-- Global MCP setup: [MCP_GLOBAL_SETUP.md](MCP_GLOBAL_SETUP.md)
-- Secret management: [SECRETS.md](SECRETS.md)
-- Multi-model user guide: [USER_GUIDE_MULTI_MODEL.md](USER_GUIDE_MULTI_MODEL.md)
+- Skill catalog: [../skills/CATALOG.md](../skills/CATALOG.md)
+- Routing contract: [QE_SKILL_ROUTING.md](QE_SKILL_ROUTING.md)
 
 ## Release / Change Context
 
-- Multi-model PR summary: [PR_SUMMARY_MULTI_MODEL.md](PR_SUMMARY_MULTI_MODEL.md)
 - Phase 4 localized docs status: [../.qe/planning/plans/claude-codex-generalization/phases/4/LOCALIZED_DOCS_STATUS.md](../.qe/planning/plans/claude-codex-generalization/phases/4/LOCALIZED_DOCS_STATUS.md)
 - Phase 4 generated docs status: [../.qe/planning/plans/claude-codex-generalization/phases/4/GENERATED_DOCS_STATUS.md](../.qe/planning/plans/claude-codex-generalization/phases/4/GENERATED_DOCS_STATUS.md)
 

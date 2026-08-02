@@ -1,6 +1,6 @@
 ---
 name: Qexecute
-description: "Use when a routed pipeline or an active task artifact (TASK_REQUEST UUID) needs execution or the -verify quality loop — router-owned internal PSE unit. Use Qgoal to enter; use Qautoresearch for optimization loops."
+description: "Use when a routed pipeline or an active task artifact (TASK_REQUEST UUID) needs execution or the -verify quality loop — router-owned internal PSE unit. Use Qgoal to enter."
 user_invocable: false
 recommendedModel: haiku
 tier: core
@@ -30,13 +30,9 @@ skill. It reads the actual `TASK_REQUEST` — not the user's phrasing — to dec
 | `Qexecute {UUID}` | **default** | Read the spec → classify → **sequential** or **parallel wave** |
 | `Qexecute -verify {UUID}` | **verify** | test → review → fix → retest quality loop on already-changed code |
 | `Qexecute -utopia …` | **modifier** | Fully autonomous: no-confirmation / auto-approve, combines with default or `-verify`. Sub-flags `-ralph`, `off`, `status`. See “-utopia — Fully Autonomous Execution”. |
-| `-loop` | *not owned* | Redirect to `{adapter.commandPrefix}Qautoresearch` (code-modify-evaluate loop) |
-| `-scenario` | *not owned* | Redirect to `{adapter.commandPrefix}Qscenario-test` (scenario/E2E) |
 
 - Flags use a **single dash**. `-utopia` is a modifier (combinable); `-verify` and default
   are mutually exclusive execution axes.
-- `Qexecute -loop` / `Qexecute -scenario` are **not** handled here — Qexecute emits a one-line
-  redirect to the owning skill (not an error).
 
 ## Client Adapter Compatibility
 - **Claude**: approvals/next-task prompts use `AskUserQuestion`; delegation uses the Agent tool.
@@ -99,7 +95,7 @@ Before any implementation worker starts, enforce:
   risk evaluation, unverified-assumption/residual-risk reporting, and high-risk
   mitigation/defer rationale.
 - Empty fields, placeholder text, or missing paired checks → route back to
-  `{adapter.commandPrefix}Qgs` or amend the spec. Do not start execution.
+  `{adapter.commandPrefix}Qgenerate-spec` or amend the spec. Do not start execution.
 
 ## Step 3: Execute
 
@@ -179,6 +175,10 @@ TOML maps `haiku → gpt-5.3-codex-spark` (low), `sonnet → gpt-5.4-mini` (medi
 `opus → gpt-5.4` (high). For `type: code`, first inject changed target files, adjacent
 conventions, and `.qe/analysis/` findings into the worker prompt.
 
+Every delegation MUST use `core/AGENT_DELEGATION_CONTRACT.md`. Generate a unique `run_id`,
+pass item-specific allowed/forbidden paths and stop conditions, and cap the packet budget at
+the agent frontmatter ceiling. Reject unparseable or mismatched result envelopes.
+
 ### Sequential path
 Execute checklist items in order. Report `✅ [i/N] desc - done`; record `- [x] item ✅ (HH:MM)`.
 Intermediate verification every 3 items (or per `<!-- verify-interval: N -->`).
@@ -186,10 +186,12 @@ Intermediate verification every 3 items (or per `<!-- verify-interval: N -->`).
 ### Wave path
 - Cap active workers at `min(cpuCount - 2, 3)` (clamp ≥ 1); queue extra items FIFO.
 - No two workers write the same file within a wave (Lead partitions first).
+- Every parallel writer runs with `isolation=worktree`; the Lead reviews and merges each
+  result before deleting the worktree. If isolation is unavailable, fall back to sequential.
 - Workers MUST NOT run raw `git commit` (route commits through `{adapter.commandPrefix}Qcommit`)
   and MUST NOT run project build/test verification themselves (Lead runs exactly one after synthesis).
-- Each worker writes `SUMMARY_{Item#}.md` under the active plan phase dir.
-- **Synthesis**: Lead reads all `SUMMARY_*.md`, aggregates, then `wait_agent`/`close_agent`
+- Each worker returns `qe-agent-result-v1`; the Lead persists it under the run-scoped result path.
+- **Synthesis**: Lead validates all result envelopes, aggregates, then `wait_agent`/`close_agent`
   each handle. Record each worker `completed|failed|timed-out|stale`. Confirm `open handles: 0`
   before the final report, or list each stale warning (handle id, role, item, timeout reason).
 
@@ -254,10 +256,11 @@ Skip only if ALL: `type: docs`/`analysis` with < 5 items, single-item, MD-only.
 **Never skip for `type: code`.** Track `supervision_iteration` in
 `.qe/state/session-stats.json`.
 1. Invoke `Esupervision-orchestrator` with task context + verification results.
-2. PASS → Step 5; PARTIAL → apply improvements, re-verify; FAIL → save REMEDIATION_REQUEST,
+2. PASS → Step 5; WARN → apply improvements, re-verify; FAIL → save a request using
+   `core/REMEDIATION_REQUEST_FORMAT.md`,
    re-execute failed items via `Etask-executor`.
-3. **Agent Trigger Check**: glob `.qe/agent-triggers/*.trigger.md`, spawn targets, delete
-   processed files; append findings.
+3. Validate `handoffs[]` from returned envelopes against `core/agent-registry.json`; invoke
+   only task-relevant handoffs and record the decision.
 
 **Supervise call budget (Phase 2 / R002).** Adversarial merge-readiness has a
 single owner — `Qcritical-review --stage supervise` (3 agents); the orchestrator
@@ -279,9 +282,11 @@ sub-agent spawn or the orchestrator's aggregation inference.
 
 ## Step 5: Completion
 1. Mark all items `[x]` in both files. 2. Move to `completed/`.
-3. `updateClaudeStatus(cwd, uuid, "✅")`. 4. `type: code` → `Ecode-doc-writer`;
-`type: docs` → `Edoc-generator`. 5. Auto-run `{adapter.commandPrefix}Qarchive` in background.
-6. Clean up stale `.qe/agent-results/`. Report UUID, items, verification, changed files, then
+3. `updateClaudeStatus(cwd, uuid, "✅")`. 4. When completion documentation is required,
+delegate to the shipped `Edoc-writer` agent. 5. Leave completed TASK_REQUEST/checklist pairs
+in `completed/`; the deterministic Stop-hook sweep owns recoverable archival.
+6. Clean up only this run's temporary results after durable evidence is recorded; never delete
+another run's artifacts. Report UUID, items, verification, changed files, then
 the **Next Task Prompt** (remaining pending tasks).
 7. **Clear the SIVS loop counters** for this UUID — call `resetLoop(cwd, uuid)` from
 `hooks/scripts/lib/loop-guard.mjs` (Phase 3 / R005-R006). A cleanly completed task
@@ -300,6 +305,7 @@ default-mode Step 4.5 for `type: code`.
 coordinates `Ecode-test-engineer` + `Ecode-reviewer` + `Ecode-debugger`, escalates MEDIUM→HIGH).
 Pass changed files (`git diff --name-only`), TASK_REQUEST, VERIFY_CHECKLIST, test patterns. Lead
 owns the handle lifecycle (`wait_agent`/`close_agent`, report `open handles: 0`).
+The test and review first passes receive the same source evidence but not each other's verdict.
 
 **Loop limit: 3 iterations** (confirm continuation via the interaction adapter each round).
 
@@ -313,8 +319,6 @@ Mandatory gates before completion (full protocols unchanged):
   per `root_cause_stage`. Always mandatory for `type:code`/`type:other`.
 - **4.10 Risk Proof Gate** — `{adapter.commandPrefix}Qcritical-review --risk {UUID}`; persisted
   report at `.qe/agent-results/risk-proof-{UUID}.md`. HIGH/CRITICAL unknown/no-evidence hard-blocks.
-- **4.11 Contract Conformance Gate** — `{adapter.commandPrefix}Qverify-contract --all` when
-  `.qe/contracts/active/*.md` exist.
 
 **Review Readiness dashboard** (before review): `reviewReadiness(getChangedFiles(cwd))` from
 `hooks/scripts/lib/changed-files.mjs` — routes each domain (security/test/analysis/docs/config/
@@ -370,7 +374,7 @@ inert in normal sessions. Escape hatch `allowUnsafe:true` disables all rails —
   no formal TASK_REQUEST) vs COMPLEX (any of: >3 files / new feature / arch / ≥3 items → spec pipeline).
   Auto-select work vs `-verify`: `type:code`+tests or +auth/crypto/payment → `-verify`; else → work.
 - **Pre-execution gate**: no anchor (file path / symbol / issue# / error / code block / numbered steps)
-  AND ≤20 words → redirect to `{adapter.commandPrefix}Qgs` for scoping. `force:`/`!` prefix bypasses.
+  AND ≤20 words → redirect to `{adapter.commandPrefix}Qgenerate-spec` for scoping. `force:`/`!` prefix bypasses.
 
 ## Retry loop (work + `-verify`)
 On verification failure: diagnose (implementation gap / error / spec conflict / environment) → strategy
@@ -398,8 +402,8 @@ verify test execution, so "all tests pass" is not a valid goal condition (see
 with `-utopia` / `-utopia -verify` as normal.
 
 ## Common rules
-Skill priority holds (autonomous still routes git commit through `{adapter.commandPrefix}Qcommit`;
-release mutation via `{adapter.commandPrefix}Qrelease` and read-only lookup via
+Skill priority holds (autonomous still routes git commit through `{adapter.commandPrefix}Qcommit`
+and keeps release-state mutation outside Qexecute; read-only version lookup uses
 `{adapter.commandPrefix}Qversion`; QE_CONVENTIONS override map always applies). No intermediate user
 prompts after activation. After a run: print `git diff --stat <pre-run-sha>..HEAD` and the rollback
 command `git reset --hard <pre-run-sha>` (+ `git branch -D utopia/<ts>`). `-utopia off` restores
@@ -408,7 +412,7 @@ confirmations and removes only Qexecute-added permissions.
 ---
 
 ## Multiple UUID Execution
-Parallel by default. Read all TASK_REQUESTs → detect inter-dependencies (`depends: {UUID}`, or
+Parallel only with worktree isolation. Read all TASK_REQUESTs → detect inter-dependencies (`depends: {UUID}`, or
 task A's output path referenced in task B). No deps → spawn one `Etask-executor` per UUID
 concurrently (single tool-call block). Deps → topological waves. File ownership: no two agents
 write the same file; shared files (i18n/config/barrels/manifests) are Lead-merged after workers
@@ -421,21 +425,20 @@ resolved ROADMAP, and render the standard handoff (`QE_CONVENTIONS.md`: vertical
 
 - **`type: code`** → `Next: {adapter.commandPrefix}Qexecute -verify {UUID}`
 - **`type: docs`/`analysis`/deletion-heavy** → SIVS verify inline, then
-  `{adapter.commandPrefix}Qgs {slug}: {alias}` for the next phase.
+  `{adapter.commandPrefix}Qgenerate-spec {slug}: {alias}` for the next phase.
 - All phases done → `All phases done. Finalize with {adapter.commandPrefix}Qcommit`.
 
 ## Special Situations
 | Situation | Action |
 |-----------|--------|
-| No documents | Suggest `{adapter.commandPrefix}Qgs` |
+| No documents | Suggest `{adapter.commandPrefix}Qgenerate-spec` |
 | Interrupted | Save progress with timestamps, leave in `in-progress/` |
 | On hold | Move to `on-hold/`, set ⏸️ |
 | Resume | Move to `in-progress/`, continue from last unchecked item |
 | Etask-executor crash | Offer Resume / Retry / Abort |
-| `-loop` / `-scenario` passed | Redirect to `Qautoresearch` / `Qscenario-test` |
 
 ## Role Constraints
-- Only executes existing spec documents; use `{adapter.commandPrefix}Qgs` to create specs.
+- Only executes existing spec documents; use `{adapter.commandPrefix}Qgenerate-spec` to create specs.
 - Do not modify spec content except checking off items.
 - Do not let implementer-stage execution mutate planner-owned artifacts except approved revisions.
 - Verify mode adds no features; fix scope is limited to discovered issues.

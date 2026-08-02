@@ -1,8 +1,8 @@
 ---
 name: Ecode-reviewer
-description: 'Code review specialist. Reviews quality, security, performance, and pattern compliance after code changes. Use for requests like "review this", "look at this code", "is this okay?".'
-tools: Read, Grep, Glob, Bash, Write
-memory: user
+description: 'Read-only code review specialist for correctness, maintainability, and repository-pattern compliance after code changes. Use for general code review; route dedicated security audits to Esecurity-officer.'
+tools: Read, Grep, Glob, Bash
+maxTurns: 14
 recommendedModel: sonnet
 ---
 
@@ -76,6 +76,8 @@ rules file wins.
 
 ## Report Format
 
+Map this content into the `summary` and `findings` fields of `qe-agent-result-v1`.
+
 ```
 ## Code Review Result
 
@@ -97,6 +99,6 @@ rules file wins.
 - Focus only on changed code (propose refactoring of existing code as Suggestion)
 - Always provide concrete fix examples
 - Mention positives when they exist
-- Before starting, read `.qe/agent-results/Ecode-test-engineer-latest.md` if it exists (test findings inform review focus)
-- If security concerns found, write trigger: `.qe/agent-triggers/Esecurity-officer.trigger.md`
-- After completion, write result to `.qe/agent-results/Ecode-reviewer-latest.md`
+- Run the first pass without another evaluator's verdict.
+- Return security concerns as a required `handoffs[]` entry for `Esecurity-officer`.
+- Return `qe-agent-result-v1`; the caller validates and persists it under the run-scoped path.

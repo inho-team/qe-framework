@@ -234,7 +234,7 @@ if (isError) {
   if (recentCount >= cfg.error_delegate_count) {
     hints.push(`${toolName} tool failed ${recentCount}+ times in error window. Delegate to Ecode-debugger agent for root cause analysis, or try a completely different approach.`);
   } else if (recentCount >= cfg.error_escalate_count) {
-    hints.push(`${toolName} tool failed ${recentCount} times in error window. Consider using ${skillCommand('Qsystematic-debugging')} to find the root cause before retrying.`);
+    hints.push(`${toolName} tool failed ${recentCount} times in error window. Delegate to Ecode-debugger for root-cause analysis before retrying.`);
   }
 } else if (state.tool_errors) {
   // Success - clear error tracking for this tool
@@ -261,7 +261,7 @@ if (['Write', 'Edit'].includes(toolName)) {
       hints.push('Style file changed. Check for visual regression.');
     }
 
-    // Agentation hint for .tsx files (once per session)
+    // Frontend verification hint for .tsx files (once per session)
     if (/\.tsx$/.test(filePath) && !isError) {
       if (!state.session_stats) {
         state.session_stats = { tool_calls: 0, session_start: Date.now(), context_loaded: [] };
@@ -269,7 +269,7 @@ if (['Write', 'Edit'].includes(toolName)) {
       const s = state.session_stats;
 
       if (!s._agentation_hinted) {
-        hints.push(`Frontend file modified. Use ${skillCommand('Qagentation')} or ${skillCommand('Qvisual-qa')} for visual verification.`);
+        hints.push('Frontend file modified. Capture browser-backed functional and visual evidence during Qexecute verification when browser tooling is available.');
         s._agentation_hinted = true;
       }
     }

@@ -1,0 +1,73 @@
+{
+  "schema": 1,
+  "reviewedAt": "2026-08-02",
+  "principles": [
+    {"id": "P1", "rule": "Register only events with a concrete user outcome and filter before process spawn.", "source": "https://code.claude.com/docs/en/hooks"},
+    {"id": "P2", "rule": "Use explicit short timeouts; lifecycle hook timeout values are seconds.", "source": "https://code.claude.com/docs/en/hooks"},
+    {"id": "P3", "rule": "Keep hot paths deterministic and move non-controlling long work out of the synchronous path.", "source": "https://nodejs.org/api/child_process.html"},
+    {"id": "P4", "rule": "Treat lifecycle delivery as replayable and make side effects idempotent.", "source": "https://docs.github.com/en/webhooks/using-webhooks/best-practices-for-using-webhooks"},
+    {"id": "P5", "rule": "Emit bounded logs and metrics that correlate event, handler, duration and outcome.", "source": "https://opentelemetry.io/docs/concepts/instrumentation/"},
+    {"id": "P6", "rule": "Use only lifecycle events and output fields supported by each client.", "source": "https://developers.openai.com/codex/hooks"}
+  ],
+  "hooks": [
+    {
+      "event": "SessionStart", "entrypoint": "hooks/scripts/session-start.mjs", "cadence": "session", "clients": ["claude", "codex"],
+      "observedTimeout": {"claude": 5, "codex": 5}, "targetTimeoutSeconds": 5, "verdict": "keep", "blocking": false,
+      "userOutcome": "Restore minimal QE session identity, plan binding and post-compaction context.",
+      "findings": ["bounded timeout", "synchronous git and advisory scan work removed from startup hot path"]
+    },
+    {
+      "event": "PreToolUse", "entrypoint": "hooks/scripts/pre-tool-use.mjs", "cadence": "tool", "clients": ["claude", "codex"],
+      "observedTimeout": {"claude": 3, "codex": 3}, "targetTimeoutSeconds": 3, "verdict": "keep", "blocking": true,
+      "userOutcome": "Block a small set of destructive or contract-breaking operations before execution.",
+      "findings": ["match-all retained for Read memo, Agent and AskUserQuestion policy coverage", "bounded timeout"]
+    },
+    {
+      "event": "PostToolUse", "entrypoint": "hooks/scripts/post-tool-use.mjs", "cadence": "tool", "clients": ["claude", "codex"],
+      "observedTimeout": {"claude": 5, "codex": 5}, "targetTimeoutSeconds": 5, "verdict": "keep", "blocking": false,
+      "userOutcome": "Release build admission, update read memo and emit bounded quality feedback after supported local tools.",
+      "findings": ["event matcher bounds supported local tools", "bounded timeout"]
+    },
+    {
+      "event": "Stop", "entrypoint": "hooks/scripts/stop-handler.mjs", "cadence": "turn", "clients": ["claude", "codex"],
+      "observedTimeout": {"claude": 5, "codex": 5}, "targetTimeoutSeconds": 5, "verdict": "keep", "blocking": true,
+      "userOutcome": "Prevent false completion when an active Plan, verification gate or bounded continuation remains.",
+      "findings": ["uses direct last_assistant_message with transcript fallback", "network notification and advisory git subprocesses removed"]
+    },
+    {
+      "event": "UserPromptSubmit", "entrypoint": "hooks/scripts/prompt-check.mjs", "cadence": "turn", "clients": ["claude", "codex"],
+      "observedTimeout": {"claude": 3, "codex": 3}, "targetTimeoutSeconds": 3, "verdict": "keep", "blocking": false,
+      "userOutcome": "Apply deterministic QE intent routing and minimal plan bootstrap context.",
+      "findings": ["local deterministic CJK routing", "no network or profile writes", "bounded timeout"]
+    },
+    {
+      "event": "TeammateIdle", "entrypoint": "hooks/scripts/teammate-idle.mjs", "cadence": "team", "clients": ["claude"],
+      "observedTimeout": {"claude": 3}, "targetTimeoutSeconds": 3, "verdict": "keep", "blocking": true,
+      "userOutcome": "Keep a Claude team member active only when a concrete assigned verification item remains.",
+      "findings": ["blocking reason emitted through stderr per Claude hook protocol"]
+    },
+    {
+      "event": "TaskCompleted", "entrypoint": "hooks/scripts/task-completed.mjs", "cadence": "team", "clients": ["claude"],
+      "observedTimeout": {"claude": 3}, "targetTimeoutSeconds": 3, "verdict": "keep", "blocking": true,
+      "userOutcome": "Prevent a Claude team task from closing while its paired verification checklist remains incomplete.",
+      "findings": ["checklist admission is isolated from advisory output"]
+    }
+  ],
+  "removedHooks": [
+    {"event": "PreCompact", "entrypoint": "hooks/scripts/pre-compact.mjs", "reason": "Compact-source SessionStart already resets memo and re-injects context."},
+    {"event": "Notification", "entrypoint": "hooks/scripts/notification.mjs", "reason": "Notification is not a subagent-completion event and caller-owned handoffs make the chain redundant."}
+  ],
+  "unregisteredEntrypoints": [
+    {"entrypoint": "hooks/scripts/context-monitor.mjs", "verdict": "keep", "reason": "Dynamically imported by PreToolUse and covered by context-limit tests."},
+    {"entrypoint": "hooks/scripts/codex/lifecycle-codex.mjs", "verdict": "keep", "reason": "Required Codex compatibility adapter with a bounded 4.5 second child timeout."}
+  ],
+  "removedEntrypoints": [
+    {"entrypoint": "hooks/scripts/context-guard.mjs", "reason": "No manifest or runtime caller."},
+    {"entrypoint": "hooks/scripts/codex/pre-tool-use-codex.mjs", "reason": "Unregistered and superseded by the shared adapter."},
+    {"entrypoint": "hooks/scripts/lib/session-namer.mjs", "reason": "No runtime caller after deterministic prompt admission replaced background naming."},
+    {"entrypoint": "hooks/scripts/lib/codex-poll-watcher.mjs", "reason": "Notification-owned watcher lost its only runtime caller when the unsupported hook chain was removed."},
+    {"entrypoint": "hooks/scripts/lib/codex-result-handler.mjs", "reason": "Notification-owned result materialization had no runtime caller after the hook chain was removed."},
+    {"entrypoint": "hooks/scripts/lib/notify.mjs", "reason": "Stop-time webhook network I/O is outside the blocking lifecycle path; use an external observer instead."}
+  ],
+  "baseline": {"command": "node scripts/perf_hooks.mjs", "iterations": 50, "promptPlainP95Ms": 91, "preToolP95Ms": 40, "measuredAt": "2026-08-02T10:38:21.042Z", "node": "v23.6.0", "platform": "darwin/arm64"}
+}

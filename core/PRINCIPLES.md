@@ -5,9 +5,9 @@
 
 ## Pre-Check (Required Before Every Skill Execution)
 
-If no initialized project instruction artifact exists at the project root (for example `CLAUDE.md`, `AGENTS.md`, or the expected QE instruction file), the QE framework is not initialized.
-- **Halt the currently invoked skill** and instruct the user to run the active-client `Qinit` command first.
-- Qinit itself skips this check.
+If no project instruction artifact exists at the project root, continue with the installed
+QE conventions. `Qplan` owns minimal `.qe/` state bootstrap when a new Plan starts; there is
+no separate initialization command.
 
 ## Git Operations (Absolute Rule)
 
@@ -44,7 +44,7 @@ This ensures the user knows exactly what will happen before approving.
 When supervision returns **FAIL**, the REMEDIATION flow runs automatically:
 - Create REMEDIATION_REQUEST → delegate to Etask-executor → re-execute → re-verify → re-supervise
 - Maximum 3 iterations, **no interaction prompt between iterations**
-- User is contacted only upon PASS/PARTIAL (completion) or after 3 failed iterations (escalation)
+- User is contacted only upon PASS/WARN completion or after 3 failed iterations (escalation)
 
 ### 4. Minimal User Contact Points
 The user is contacted at exactly these points — everything else is automatic:
@@ -63,7 +63,7 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 
 ## Skill Scope Enforcement
 
-- **Guide skills are not execution tools.** A skill that explains how to set up or configure something (e.g., Qmcp setup) must NOT attempt to execute the operations it describes. If the user requests an action that requires external tools (MCP tools, CLI commands), check if those tools are available first.
+- **Guide skills are not execution tools.** A skill that explains how to set up or configure something must NOT attempt to execute the operations it describes. If the user requests an action that requires external tools (MCP tools, CLI commands), check if those tools are available first.
 - **Pre-check before action.** Before invoking external tools (MCP, API, CLI), verify they are actually connected/available. Do not call tools that are not registered — this produces errors and confuses the user.
 - **Exit when out of scope.** If a user's request falls outside the skill's defined role, say so clearly and redirect to the correct tool or skill. Do not improvise functionality.
 
@@ -161,7 +161,7 @@ Agent invocation should consider model complexity and availability within Claude
 
 | Model | Complexity | Use Cases | Examples |
 |-------|-----------|-----------|----------|
-| **haiku** | Low | Simple, repetitive, background tasks | Archiving, data refresh, profile collection, basic formatting |
+| **haiku** | Low | Simple, repetitive, background tasks | Commit metadata, context snapshots, basic formatting |
 | **sonnet** | Medium | Standard development work | Code implementation, debugging, testing, code review |
 | **opus** | High | Complex analysis, design, research | Architecture design, deep system analysis, strategic planning |
 
@@ -169,14 +169,15 @@ Agent invocation should consider model complexity and availability within Claude
 
 | Agent | Recommended Model | Rationale |
 |-------|------------------|-----------|
-| Earchive-executor | haiku | Archival = simple metadata collection & storage |
-| Erefresh-executor | haiku | Refresh = straightforward data update loops |
 | Ecode-debugger | sonnet | Debugging = intermediate complexity analysis & tracing |
 | Ecode-reviewer | sonnet | Code review = pattern matching & quality assessment |
 | Ecode-test-engineer | sonnet | Testing = standard engineering (test design, implementation) |
 | Etask-executor | sonnet | Task execution = multi-step implementation work |
-| Epm-planner | opus | Planning = architecture & strategic decisions |
+| Ecommit-executor | haiku | Bounded commit execution |
+| Ecompact-executor | haiku | Bounded context persistence |
+| Esecurity-officer | sonnet | Security evidence and dependency audit |
 | Edeep-researcher | opus | Research = deep analysis & synthesis across domains |
+| Esupervision-orchestrator | opus | Final cross-domain judgment |
 
 **Implementation:**
 - Agents declare `recommendedModel:` in YAML frontmatter (e.g., `recommendedModel: sonnet`)

@@ -21,7 +21,7 @@
  * malformed) fails CLOSED (blocked, kind 'corrupt') for that uuid's remediation
  * only. A whole-file-unparseable unified-state is NOT this lib's deadlock —
  * readUnifiedState returns {} → treated as fresh (self-heals on write-back);
- * session health is Qdoctor's concern, never wedge the session here.
+ * session health belongs to diagnostics, never wedge the session here.
  */
 
 import { readUnifiedState, writeUnifiedState } from './state.mjs';

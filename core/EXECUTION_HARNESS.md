@@ -174,7 +174,7 @@ path.
 | Evidence status is `degraded` or `unsupported` | Verify cannot pass; record degraded or unsupported evidence. |
 | Artifact paths or evidence refs are unresolved | Verify cannot pass; record missing evidence and rerun after repair. |
 | Lane is stale or ownership conflicts | Return to Implement/runtime remediation, then re-enter Verify. |
-| Supervise-only quality concern | Use existing Supervise `PARTIAL` or `FAIL` outcomes. |
+| Supervise-only quality concern | Use existing Supervise `WARN` or `FAIL` outcomes. |
 
 Backward routing follows the existing SIVS documents:
 

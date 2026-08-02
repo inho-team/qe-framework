@@ -64,15 +64,9 @@ try {
 } catch {}
 
 if (hints.length > 0) {
-  // Exit code 2 = send feedback and keep teammate working
-  console.log(JSON.stringify({
-    continue: true,
-    hookSpecificOutput: {
-      additionalContext: `[QE Agent Teams] Teammate "${teammateName}": ${hints.join(' | ')}`
-    }
-  }));
+  // TeammateIdle consumes exit-2 feedback from stderr; stdout JSON is ignored.
+  console.error(`[QE Agent Teams] Teammate "${teammateName}": ${hints.join(' | ')}`);
   process.exit(2);
 } else {
-  console.log(JSON.stringify({ continue: true }));
   process.exit(0);
 }

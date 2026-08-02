@@ -3,9 +3,8 @@
 /**
  * task-completed.test.mjs
  *
- * Covers the auto-archive gap fix: ensures the task-completed action
- * helpers append a TASK_LOG row, move pending→completed file pairs, and
- * write the archive flag only when thresholds are met — idempotently.
+ * Ensures the task-completed helpers append a TASK_LOG row and move
+ * pending→completed file pairs idempotently.
  *
  * Run with: node --test hooks/scripts/lib/__tests__/task-completed.test.mjs
  */
@@ -20,9 +19,6 @@ import {
   runTaskCompletedActions,
   appendTaskLogRow,
   movePendingToCompleted,
-  maybeFlagArchive,
-  countCompletedTasks,
-  ARCHIVE_THRESHOLD,
 } from '../task-completed-actions.mjs';
 
 /**
@@ -177,57 +173,6 @@ test('task-completed: unknown uuid does not crash and does not move phantom file
   const empty = runTaskCompletedActions(root, { uuid: '' });
   assert.equal(empty.logAppended, false);
   assert.equal(empty.taskMoved, false);
-  assert.equal(empty.archiveFlagged, false);
-});
-
-// ---------------------------------------------------------------------------
-// Archive-threshold guards — flag file only appears at / above the boundary.
-// ---------------------------------------------------------------------------
-
-test('task-completed: archive flag not written below threshold', (t) => {
-  const root = mkproject();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-
-  // Seed THRESHOLD - 1 completed markers.
-  for (let i = 0; i < ARCHIVE_THRESHOLD - 1; i++) {
-    writeFileSync(
-      join(root, '.qe', 'tasks', 'completed', `TASK_REQUEST_seed${i}.md`),
-      '# seed\n',
-      'utf8'
-    );
-  }
-
-  const flagPath = join(root, '.qe', 'state', 'archive-needed.flag');
-  const result = maybeFlagArchive(root);
-
-  assert.equal(result.flagged, false);
-  assert.equal(result.count, ARCHIVE_THRESHOLD - 1);
-  assert.equal(existsSync(flagPath), false);
-});
-
-test('task-completed: archive flag written at threshold', (t) => {
-  const root = mkproject();
-  t.after(() => rmSync(root, { recursive: true, force: true }));
-
-  for (let i = 0; i < ARCHIVE_THRESHOLD; i++) {
-    writeFileSync(
-      join(root, '.qe', 'tasks', 'completed', `TASK_REQUEST_seed${i}.md`),
-      '# seed\n',
-      'utf8'
-    );
-  }
-  assert.equal(countCompletedTasks(root), ARCHIVE_THRESHOLD);
-
-  const result = maybeFlagArchive(root);
-  assert.equal(result.flagged, true);
-  assert.equal(result.count, ARCHIVE_THRESHOLD);
-
-  const flagPath = join(root, '.qe', 'state', 'archive-needed.flag');
-  assert.equal(existsSync(flagPath), true);
-  const payload = JSON.parse(readFileSync(flagPath, 'utf8'));
-  assert.equal(payload.completed_count, ARCHIVE_THRESHOLD);
-  assert.equal(payload.threshold, ARCHIVE_THRESHOLD);
-  assert.equal(payload.reason, 'task-completed-hook');
 });
 
 // ---------------------------------------------------------------------------

@@ -3,6 +3,7 @@ name: Qgenerate-spec
 description: "Use when a routed goal or plan handoff needs TASK_REQUEST and VERIFY_CHECKLIST documents — router-owned internal PSE unit. Use Qgoal to enter; use Qplan for roadmap work."
 user_invocable: false
 recommendedModel: haiku
+tier: core
 ---
 
 > **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
@@ -13,6 +14,9 @@ recommendedModel: haiku
 
 ## Role
 You are a specialist document writer acting as a **sub-component of the `Qplan` ecosystem**. Your primary goal is to transform a high-level roadmap Phase into **Haiku-Ready Atomic Tasks**.
+
+Before generating a spec internally, ensure the shared `QE.md` and active-client instruction pointer exist.
+The supported public intake is `Qgoal` or `Qplan`; this stage is not directly invocable.
 
 ## Role Constraints (Absolute Rules)
 - When this skill is invoked, focus exclusively on writing the 3 spec documents.
@@ -35,7 +39,7 @@ Command rendering rules:
 
 | # | Filename | Path | Description |
 |---|----------|------|-------------|
-| 1 | Project instruction artifact | Project root | Client-specific project context when needed. Claude adapter writes `CLAUDE.md`; Codex-capable projects may use `AGENTS.md` or an existing instruction artifact. Must reference `QE_CONVENTIONS.md` for QE rules. Task history is in `.qe/TASK_LOG.md`. |
+| 1 | Project instruction artifact | Project root | Shared QE context is `QE.md`; the Claude adapter points from `CLAUDE.md` and Codex from `AGENTS.md`. Must reference `QE_CONVENTIONS.md` for QE rules. Task history is in `.qe/TASK_LOG.md`. |
 | 2 | `TASK_REQUEST_{UUID}.md` | `.qe/tasks/pending/` | Task request — what, how, checklist, notes |
 | 3 | `VERIFY_CHECKLIST_{UUID}.md` | `.qe/checklists/pending/` | Verification checklist — validation criteria, additional notes |
 
@@ -53,17 +57,6 @@ passes and record `mode=degraded-inline`.
 
 `.qe/sivs-config.json` may set an active-client model or effort, but it cannot
 route this stage to Claude or Codex. See `core/SIVS_SINGLE_AI_MODEL.md`.
-
-## Optional MCP Preflight
-
-If spec generation depends on a user-requested MCP server, invoke
-`{adapter.commandPrefix}Qmcp ensure` to check local client configuration before
-using that server.
-
-- `PASS` → the requested MCP server may be used.
-- `WARN` → continue with local-only spec generation and record the degraded MCP path.
-- `FAIL` → stop only when the requested spec explicitly depends on that MCP server;
-  otherwise continue without claiming MCP coverage.
 
 ## Workflow
 
@@ -337,7 +330,9 @@ After draft creation (Step 2) and before handing off, check whether the TASK_REQ
      - Omit `Flow` (optional section) unless the user fills it.
    - Write to `.qe/contracts/pending/${name}.md`.
 4. **Do not write to `.qe/contracts/active/`** — user must review and promote manually. This preserves the opt-in, user-in-the-loop principle (D011).
-5. Report to the user: a bulleted list of newly created pending drafts with their paths, and a note that they can be promoted via `{adapter.commandPrefix}Qcontract approve` after review.
+5. Report the new pending draft paths. After explicit human review, promote a draft with
+   `node scripts/qe-contract.mjs approve {name} --reason "{review rationale}"`; this is the
+   retained non-skill administration path and records the approval hash.
 
 **Skip conditions**:
 - Marker absent → skip silently.

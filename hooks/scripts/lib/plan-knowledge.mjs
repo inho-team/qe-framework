@@ -4,7 +4,7 @@
 /**
  * Plan-owned knowledge operations.
  *
- * This is deliberately an internal library, not a user-facing Qwiki skill.
+ * This is deliberately an internal library, not a user-facing skill.
  * It treats QE documents as the source of truth, qe.db/the store as a lookup
  * index, and `.qe/wiki/` as a derived, reviewable knowledge layer.
  */

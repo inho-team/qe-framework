@@ -14,10 +14,8 @@ only lifecycle surface.
 | `SessionStart` | Inject initialization, routing, memory, profile, and resume context. | no |
 | `PreToolUse` | Block unsafe actions and inject execution hints before a tool runs. | yes |
 | `PostToolUse` | Record follow-up state after file, shell, or tool activity. | partial |
-| `PreCompact` | Preserve handoff context before compaction. | partial |
 | `Stop` | Prevent premature session exit while required work remains. | yes |
 | `UserPromptSubmit` | Route user intent and prompt-level checks. | partial |
-| `Notification` | React to agent completion, Codex materialization, and persistent-mode signals. | partial |
 | `TeammateIdle` | Maintain team-worker progress signals where supported. | no |
 | `TaskCompleted` | Archive or summarize task completion state. | partial |
 | `StatusProjected` | Render compact runtime state for the active session through session context or hook output. | no |
@@ -39,7 +37,7 @@ only lifecycle surface.
 2. Hook commands execute scripts under `hooks/scripts/`.
 3. `PreToolUse` can hard-block by exiting with code 2.
 4. Status guidance is projected through SessionStart context and hook output.
-5. Claude user-facing QE commands render as `/Q...`; release mutation uses `/Qrelease`, while read-only version lookup uses `/Qversion`.
+5. Claude user-facing QE commands render as `/Q...`; release mutation uses the repository release workflow, while read-only version lookup uses `/Qversion`.
 
 ## Codex Adapter
 
@@ -47,7 +45,8 @@ only lifecycle surface.
 2. Codex hook entries point at `hooks/scripts/codex/lifecycle-codex.mjs`, which forwards payloads to the shared QE hook scripts with `QE_CLIENT=codex` and `QE_COMMAND_PREFIX=$`.
 3. Codex `PreToolUse` is the safety-critical parity surface for raw commit, PR creation, version edit, and related hard blocks.
 4. Status guidance is projected through SessionStart context and hook output.
-5. Codex user-facing QE commands render as `$Q...`; release mutation uses `$Qrelease`, while read-only version lookup uses `$Qversion`.
+5. `TeammateIdle` and `TaskCompleted` are Claude-only; Codex must label them `unsupported` rather than pretending parity.
+6. Codex user-facing QE commands render as `$Q...`; release mutation uses the repository release workflow, while read-only version lookup uses `$Qversion`.
 
 ## Fallback Labels
 
@@ -68,12 +67,12 @@ new completion authority.
 
 | Harness label | Meaning | Generic rendering path |
 | --- | --- | --- |
-| `HarnessModeSelected` | A SIVS stage selected an execution mode. | `PostToolUse`, `Notification`, or command output |
-| `DurableLaneStarted` | A resumable lane was created or resumed. | `PostToolUse`, `Notification`, or session context |
+| `HarnessModeSelected` | A SIVS stage selected an execution mode. | `PostToolUse` or command output |
+| `DurableLaneStarted` | A resumable lane was created or resumed. | `PostToolUse` or session context |
 | `LaneProgressRecorded` | The lane recorded a new runtime observation. | `PostToolUse` or command output |
-| `EvidenceCollected` | The lane recorded inspectable evidence for Verify or Supervise. | `PostToolUse`, `Notification`, or command output |
-| `LaneBlocked` | The lane cannot continue without remediation, ownership resolution, or missing evidence. | `Stop`, `Notification`, or session context |
-| `LaneCompleted` | The lane finished operational work. | `Notification`, `TaskCompleted`, or command output |
+| `EvidenceCollected` | The lane recorded inspectable evidence for Verify or Supervise. | `PostToolUse` or command output |
+| `LaneBlocked` | The lane cannot continue without remediation, ownership resolution, or missing evidence. | `Stop` or session context |
+| `LaneCompleted` | The lane finished operational work. | `TaskCompleted` or command output |
 | `StatusProjected` | QE rendered a read-only view of PSE/SIVS/harness state. | Session context or hook output |
 
 Harness label payloads should point back to `core/STATE_SPEC.md` lane records

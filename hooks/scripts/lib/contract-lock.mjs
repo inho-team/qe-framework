@@ -70,7 +70,7 @@ export function updateLockEntry(name, hash, reason, baseDir) {
 }
 
 /**
- * Remove an entry from the lock (used by /Qcontract edit to invalidate).
+ * Remove an entry from the lock when an admin revision invalidates approval.
  * @param {string} name
  * @param {string} [baseDir]
  * @returns {boolean} — true if removed, false if not present

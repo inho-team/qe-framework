@@ -16,7 +16,7 @@
  * @module store-sqlite
  */
 
-import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from './qe-fs.mjs';
 import { dirname, join, relative } from 'path';
 
 import {

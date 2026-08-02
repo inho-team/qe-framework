@@ -12,10 +12,9 @@
  * This encodes the Ecode-reviewer under-grant defect found by the critical
  * skill/hook audit (L2 TOOL-MISMATCH) so it cannot silently regress.
  *
- * Scope: only the WRITE-side under-grant is enforced (a false negative is safe;
- * a false positive would violate NFR4). Over-grant (declaring an unused tool)
- * is a hygiene concern, not a runtime failure, so it is intentionally NOT
- * flagged here.
+ * Scope: this legacy guard checks WRITE-side under-grants in free-form bodies.
+ * `check-agent-registry.mjs` is the authoritative least-privilege gate and rejects
+ * Write/Edit grants on read-only agent classes.
  *
  * Env override: set QE_AGENTS_DIR to point the scan at a fixture directory
  * (used by the red-green test); defaults to the repo `agents/` directory.

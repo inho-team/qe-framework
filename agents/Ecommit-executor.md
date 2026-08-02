@@ -1,7 +1,8 @@
 ---
 name: Ecommit-executor
-description: A background sub-agent that analyzes diffs, generates commit messages, and stages files. Invoke when Qcommit needs to perform the actual git operations. Leaves no AI traces.
-tools: Read, Write, Edit, Grep, Glob, Bash
+description: A bounded git specialist that analyzes diffs, stages only task-owned files, and creates an AI-trace-free commit when Qcommit explicitly delegates the operation.
+tools: Read, Write, Grep, Glob, Bash
+maxTurns: 12
 recommendedModel: haiku
 ---
 
@@ -13,7 +14,7 @@ Never leaves AI traces (e.g., Co-Authored-By).
 
 ## Invocation Conditions
 - **Manual**: When delegated by the Qcommit skill
-- **Automatic**: For auto-commit after Qexecute completion
+- Never auto-commit from Qexecute completion or a generic agent handoff
 
 ## Execution Steps
 1. Identify changes with `git status`, `git diff`

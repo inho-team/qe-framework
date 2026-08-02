@@ -159,15 +159,16 @@ for (const [cmd, expected, label] of EXEC_ORACLE) {
     let ctx = '';
     try { ctx = (JSON.parse(r.stdout).hookSpecificOutput || {}).additionalContext || ''; } catch {}
     expect(/Qcommit/.test(ctx), '[R1 O017] injected context lost the Qcommit routing cue');
-    expect(/\/Qrelease/.test(ctx), '[R1 O018] injected context lost the Qrelease routing cue');
+    expect(!/\/Qrelease/.test(ctx), '[R1 O018] injected context still routes to removed Qrelease');
+    expect(/\/Qversion/.test(ctx), '[R1 O018] injected context lost the Qversion routing cue');
     expect(/→/.test(ctx), '[R1 O019] injected context lost the mapping verb');
     expect(/OUTPUT STYLE/.test(ctx), '[R1 O016] OUTPUT_STYLE contract dropped when doc missing (no fallback)');
-    expect(/\[Session State\]/.test(ctx) === false, '[R1 O028] empty session summary should not add token noise');
     expect(/next action/i.test(ctx), '[R1 O029] injected style contract lost the next-action cue');
     expect(/current state/i.test(ctx), '[R1 O030] injected style contract lost the current-state cue');
     expect(/integer minutes/i.test(ctx), '[R1 O031] injected style contract lost the minute-estimate cue');
     expect(/5 items/i.test(ctx), '[R1 O032] injected style contract lost the list-cap cue');
     expect(/one concrete next step/i.test(ctx), '[R1 O033] injected style contract lost the concrete-next-step cue');
+    expect(/\[Session State\]/.test(ctx) === false, '[R1 O028] empty session summary should not add token noise');
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

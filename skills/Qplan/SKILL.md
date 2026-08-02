@@ -32,20 +32,30 @@ Plan → Goal 1 → Goal 2 → … → Goal N
   derived project knowledge layer. Do not treat a DB row or LLM summary as the source of truth.
 - Only a verified Goal with explicit evidence may write back to the wiki.
 
-## Entry and initialization
+## Entry and bootstrap
 
-1. Check for `CLAUDE.md` or `AGENTS.md` and `.qe/`. If either is absent, run the
-   internal Qinit bootstrap before continuing; do not ask the user to invoke it.
+1. Ensure the shared `QE.md` and active-client instruction pointer exist before planning.
+   The explicit `/Qplan` or `$Qplan` entry bootstrap creates them without overwriting user
+   instructions. Then check `.qe/`; if it is absent, bootstrap the minimal
+   Plan state (`.qe/state/`, `.qe/planning/`, and `.qe/tasks/`) through the existing QE
+   state/store utilities before continuing. Initialization is part of Qplan; there is no
+   separate initialization skill or user command.
 2. Derive a unique slug from the intent (2–4 salient Latin keywords, lowercase
    `[a-z0-9-]`, max 40 chars; append `-2`, `-3` on collision).
 3. Create or update `.qe/planning/plans/{slug}/` with `ROADMAP.md`,
    `REQUIREMENTS.md`, and `STATE.md`. Full Plans must divide work into ordered,
-   independently verifiable Wave bullets; these become Goals.
+   independently verifiable Wave bullets; these become Goals. Split until every
+   Goal has one user-visible outcome, 1–5 allowed paths, at most three criteria,
+   at most two journeys, explicit dependencies, and explicit non-goals. A broad
+   feature area is a Phase, never a Goal.
 4. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` to assign
    stable Goal IDs.
 5. For every Goal, define a pre-execution acceptance contract from
-   `core/GOAL_ACCEPTANCE_CONTRACT.md`: requirement criteria, at least one user
-   scenario with a runnable command, a regression command, and whether human acceptance is required.
+   `core/GOAL_ACCEPTANCE_CONTRACT.md`: verbatim Goal alignment, requirement criteria,
+   at least one runnable user-journey scenario, a regression command, risk assessment,
+   and whether human acceptance is required. High-impact risk categories (authentication,
+   authorization, payment, deployment, data migration, destructive data changes, external
+   integrations, or security) require human acceptance.
    Save it as `evidence/{goalId}.acceptance.json`, then run
    `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
    Do not let tests or implementation retrospectively define what success means.
@@ -56,7 +66,7 @@ Plan → Goal 1 → Goal 2 → … → Goal N
 ## Internal Goal loop
 
 Run this loop until the Plan is complete, blocked, or needs a material user decision.
-Do not expose `Qgs`, `Qexecute`, `Qwiki-*`, or a copied next-command handoff.
+Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied next-command handoff.
 
 1. **Select:** Run `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action next`.
    It starts only the first pending Goal; an active or blocked Goal prevents skipping.
@@ -67,8 +77,9 @@ Do not expose `Qgs`, `Qexecute`, `Qwiki-*`, or a copied next-command handoff.
    then run the SIVS verification loop. These are internal units, not user commands.
 4. **Completion evidence:** Before completion, record `evidence/{goalId}.completion.json`
    against the immutable acceptance contract. It must show every requirement and
-   user scenario passing, a passing regression result, machine re-execution by a
-   named verifier, known limitations, and required human acceptance. Run every
+   user-journey scenario passing, a passing regression result, machine re-execution by a
+   named verifier, that verifier's Goal-to-evidence alignment verdict, known limitations,
+   and required human acceptance. Run every
    locked contract command via `ledger.mjs run-evidence` first for `implementation`
    and again from a distinct QE session for `verification --verifier {identity}`;
    then run `record-evidence`.
@@ -87,7 +98,7 @@ Do not expose `Qgs`, `Qexecute`, `Qwiki-*`, or a copied next-command handoff.
 ## Goal quality rules
 
 - One active Goal at a time unless the Plan explicitly models a safe parallel Wave.
-- A Goal must state an objective, requirement criteria, user scenario, regression scope, dependencies, and evidence before work starts.
+- A Goal must state its verbatim objective alignment, one primary outcome, bounded file scope, explicit non-goals, dependencies, at most three requirement criteria, at most two user-journey scenarios, regression scope, risk assessment, and evidence before work starts.
 - Draft plans, model hypotheses, and unverified research never become reviewed project knowledge.
 - Use source-backed contracts, tests, verification reports, and decisions as first-class evidence.
 - Preserve an append-only ledger. Do not rewrite prior Goal events or fabricate completion.
@@ -106,7 +117,7 @@ commands. On completion, provide the evidence-backed Plan result.
 
 ## Will Not
 
-- Ask the user to invoke `Qgs`, `Qexecute`, `Qwiki-*`, or a raw ledger command.
+- Ask the user to invoke internal PSE stages, derived-wiki internals, or a raw ledger command.
 - Skip an active or blocked Goal.
 - Mark a Goal complete from a bare test claim, implementation report, or self-verification.
 - Promote LLM-generated text to reviewed knowledge without verification evidence.

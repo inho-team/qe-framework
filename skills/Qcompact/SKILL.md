@@ -1,6 +1,6 @@
 ---
 name: Qcompact
-user_invocable: false
+user_invocable: true
 description: Context preservation and session handoff. Use when the user wants to save state, handoff, save context, end session, or continue later.
 invocation_trigger: When the context window is full or under pressure (Orange/Red zone).
 recommendedModel: haiku
@@ -32,7 +32,7 @@ Ecompact-executor detects context pressure and runs automatically in the backgro
 
 ### Manual Mode (User Invocation)
 Calling `{adapter.commandPrefix}Qcompact` directly generates a detailed handoff document.
-- Delegates to Ehandoff-executor sub-agent
+- Delegates `mode=handoff` to Ecompact-executor
 - Creates `.qe/handoffs/sessions/{sid}/HANDOFF_{date}_{time}.md`
 - Displays saved context + handoff summary to the user
 
@@ -88,8 +88,8 @@ Accumulated per session (reverse order, newest first):
 
 ### CREATE Workflow
 
-#### Step 1: Delegate to Ehandoff-executor
-Call the Ehandoff-executor sub-agent to generate the handoff document.
+#### Step 1: Delegate to Ecompact-executor
+Call Ecompact-executor with a complete delegation packet and `mode=handoff`.
 - Create `.qe/handoffs/` directory (if not present)
 - Create `HANDOFF_{date}_{time}.md` file
 - Auto-collect current task state, git changes, and decisions
@@ -152,7 +152,7 @@ HANDOFF_1.md → HANDOFF_2.md → HANDOFF_3.md
 - Automatic: save context snapshot, accumulate decisions
 - Manual: generate detailed handoff document, verify, chain
 - Delegate to Ecompact-executor (automatic)
-- Delegate to Ehandoff-executor (manual)
+- Delegate to Ecompact-executor (manual handoff)
 
 ## Will Not
 - Save entire conversation (extract key points only)

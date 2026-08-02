@@ -1,5 +1,11 @@
 # Skill Eval Harness
 
+QE also ships an agent-contract suite in `evals/agent-cases.json`. Run
+`npm run check:agents` to verify that every registered agent has a positive routing case,
+a boundary case, and tool-denial expectations aligned with `core/agent-registry.json`.
+The registry check additionally validates frontmatter model, tools, `maxTurns`, caller
+ownership, and plugin manifest membership.
+
 Behavior-regression harness for QE skills. It keeps the structural validator
 deterministic and emits a manifest for manual behavioral review when needed.
 
@@ -31,12 +37,14 @@ skill: Qplan
 prompt: "인증 모듈 리팩터링 계획 세워줘"
 must_include:
   - "Plan:"
-  - "Next Command"
 must_not_include:
+  - "Qgenerate-spec"
+  - "Qexecute"
+  - "Next Command"
   - "I'll write the code"
 rubric: |
-  PASS if the response produces a plan slug, a phased roadmap, and ends with a
-  Next Command handoff to /Qgs — without writing or modifying any source code.
+  PASS if the response produces a plan slug and phased roadmap, then continues the
+  PSE loop internally without exposing internal stage commands or modifying source code.
 ---
 
 (Optional free-form notes about why this case exists / what regression it guards.)

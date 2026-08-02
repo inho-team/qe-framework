@@ -14,6 +14,7 @@
 import { readdirSync, readFileSync, existsSync, writeFileSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createHash } from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -87,11 +88,13 @@ collectSkillNames();
 
 const cases = [];
 const errors = [];
+const sourceInputs = [];
 
 if (existsSync(CASES_DIR)) {
   for (const f of readdirSync(CASES_DIR).sort()) {
     if (!f.endsWith('.eval.md')) continue;
-    const fm = parseFrontmatter(readFileSync(join(CASES_DIR, f), 'utf8'));
+    const caseRaw = readFileSync(join(CASES_DIR, f), 'utf8');
+    const fm = parseFrontmatter(caseRaw);
     if (!fm) { errors.push(`${f}: no frontmatter`); continue; }
     let ok = true;
     for (const field of REQUIRED) {
@@ -111,6 +114,7 @@ if (existsSync(CASES_DIR)) {
     }
     if (typeof fm.skill === 'string' && !skillNames.has(fm.skill)) { errors.push(`${f}: skill '${fm.skill}' not found`); ok = false; }
     if (!ok) continue;
+    sourceInputs.push(`${f}\0${caseRaw}\0${readFileSync(join(SKILLS_DIR, fm.skill, 'SKILL.md'), 'utf8')}`);
     const caseObj = {
       file: `evals/cases/${f}`,
       skill: fm.skill,
@@ -135,6 +139,7 @@ if (errors.length > 0) {
 
 const manifest = {
   generatedAt: new Date().toISOString(),
+  sourceDigest: createHash('sha256').update(sourceInputs.join('\0')).digest('hex'),
   note: 'Deterministic manifest only: discover cases, validate schema, and emit evals/.manifest.json. No model calls are made here; use /Qcritical-review manually for behavioral review when needed.',
   caseCount: cases.length,
   cases,

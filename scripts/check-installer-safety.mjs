@@ -129,7 +129,20 @@ try {
       'plain uninstall DELETED a user-edited installed file');
   }
 
-  // 9. Plugin-mode update prunes stale assets inside the plugin cache.
+  // 9. Standalone update removes only manifest-owned retired skill directories.
+  {
+    const h = home();
+    const commands = join(h, '.claude', 'commands');
+    mkdirSync(join(commands, 'Qinit'), { recursive: true });
+    writeFileSync(join(commands, 'Qinit', 'SKILL.md'), 'RETIRED-QE-SKILL');
+    mkdirSync(join(commands, 'UserSkill'), { recursive: true });
+    writeFileSync(join(commands, 'UserSkill', 'SKILL.md'), 'USER-SKILL');
+    installClaudeAssets({ repoRoot, homeDir: h, log: silent });
+    expect(!existsSync(join(commands, 'Qinit')), 'standalone install left retired Qinit behind');
+    expect(existsSync(join(commands, 'UserSkill', 'SKILL.md')), 'standalone install deleted an unrelated user skill');
+  }
+
+  // 10. Plugin-mode update prunes stale assets inside the plugin cache.
   {
     const h = home();
     const pluginPath = join(h, '.claude', 'plugins', 'cache', 'inho-team-qe-framework', 'qe-framework', 'test');
@@ -159,4 +172,4 @@ if (failures.length) {
   for (const f of failures) console.error(`  ✗ ${f}`);
   process.exit(1);
 }
-console.log('check-installer-safety: PASS (9 scenarios, temp HOME only — real ~/.claude untouched)');
+console.log('check-installer-safety: PASS (10 scenarios, temp HOME only — real ~/.claude untouched)');

@@ -1,4 +1,4 @@
-# CLAUDE.md Import System & Pointer Pattern
+# Project Instruction Import System & Pointer Pattern
 
 > How to structure CLAUDE.md as a navigation document, not a knowledge base.
 
@@ -6,7 +6,13 @@
 
 ## The Pointer Document Pattern
 
-CLAUDE.md should act as a **router** — telling Claude where to look, not what to know.
+`CLAUDE.md` and `AGENTS.md` should act as **routers** — telling the active client where to look,
+not duplicating framework knowledge. QE entry commands automatically create a shared `QE.md` and
+add a managed pointer to the active client's root instruction file when either is absent.
+
+`QE.md` is the client-neutral QE contract; `CLAUDE.md` and `AGENTS.md` retain only their
+client-specific instructions. The managed pointer is fenced with `qe-framework:begin/end`, so
+QE may refresh that small block without replacing user-authored content.
 
 ### Budget
 - **Target: 150-200 lines** (current: ~65 lines)

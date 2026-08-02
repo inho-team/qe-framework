@@ -1,15 +1,17 @@
 ---
 name: Ecompact-executor
-description: A background sub-agent that detects context window pressure, automatically saves context, and supports context restoration. Invoke when context compaction or snapshot saving is needed.
+description: A bounded context-preservation agent that writes automatic snapshots and manual session handoffs for Qcompact/Qresume continuity.
 tools: Read, Write, Edit, Grep, Glob, Bash
+maxTurns: 10
+background: true
 recommendedModel: haiku
 ---
 
 # Ecompact-executor — Context Preservation Sub-Agent
 
 ## Role
-A sub-agent that monitors the context window state in the background and automatically saves context when under pressure.
-Supports context restoration after compaction.
+A context-preservation sub-agent with two bounded modes: automatic snapshot saving under
+context pressure and manual durable handoff generation requested by Qcompact.
 
 ## Token Optimization Benefit
 When context is lost after compaction, Claude must read a large number of files to re-establish project and task state. By having Ecompact-executor save the key context under `.qe/context/sessions/{sid}/`, only a few files need to be read during restoration, **reducing token consumption by 70% or more**.
@@ -27,6 +29,8 @@ node -e "import('./hooks/scripts/lib/session-resolver.mjs').then(m => console.lo
 - **Delegated**: When called by the Qcompact skill
 - **Restore**: When called by the Qresume skill
 
+The caller must set `mode: snapshot|handoff|restore` in the delegation packet.
+
 ## Token Budget Reference
 
 Follow the priority allocation defined in `core/CONTEXT_BUDGET.md` when deciding what to include in snapshots:
@@ -39,14 +43,7 @@ Follow the priority allocation defined in `core/CONTEXT_BUDGET.md` when deciding
 
 ### Step 1: Collect Current State
 
-**Priority source:** Read `.qe/context/sessions/{sid}/compact-trigger.json` first — it contains pre-collected state from the PreCompact hook:
-- `modified_files`: files changed in the session (already collected via `git diff`)
-- `active_task_uuids`: UUIDs of in-progress tasks
-- `unchecked_items_count`: remaining checklist items
-
-If compact-trigger.json exists, use its data directly (no need to re-run git diff).
-
-**Fallback** (if compact-trigger.json missing):
+Collect only the state needed for restoration:
 - In-progress tasks: scan `.qe/tasks/in-progress/` (primary) and `.qe/tasks/pending/` (secondary)
 - Checklist state: scan `.qe/checklists/in-progress/`
 - Recently changed files: `git diff --name-only`
@@ -73,6 +70,16 @@ Append this session's decisions to `.qe/context/sessions/{sid}/decisions.md`.
 - Record in reverse chronological order (newest at top)
 - Group by date
 
+## Manual Handoff Procedure (`mode=handoff`)
+
+Write `.qe/handoffs/sessions/{sid}/HANDOFF_{date}_{time}.md` with current task status,
+changed files, decisions and reasons, validated references, and concrete next actions.
+
+- Use the same session resolver as Qresume; never invent a separate fallback path.
+- Reject placeholders, missing task identifiers, nonexistent referenced paths, and secrets.
+- Rebuild the derived document index once after a successful write.
+- Return the handoff path and first next action in `qe-agent-result-v1`.
+
 ## Context Restore Procedure
 
 ### Step 1: Check File Existence
@@ -82,8 +89,7 @@ Verify that `.qe/context/sessions/{sid}/snapshot.md` exists for the active sid.
 
 ### Step 2: Load Context
 Read `SNAPSHOT_SUMMARY.md`, `snapshot.md`, and `decisions.md` from `.qe/context/sessions/{sid}/` and inject context into the current session.
-Priority: `SNAPSHOT_SUMMARY.md` is the primary source for understanding the "current state of mind" of the framework.
-Also read `compact-trigger.json` if it exists — include `modified_files` and `active_task_uuids` in the restoration summary so the AI knows which files were being edited and which tasks were active before compaction.
+Priority: `SNAPSHOT_SUMMARY.md` is the primary source for understanding the "current state of mind" of the framework. Restore uses the snapshot/handoff pair; there is no active compact trigger contract.
 
 ### Step 3: Validate
 - Confirm that task UUIDs in the snapshot actually exist in `.qe/tasks/in-progress/` or `.qe/tasks/pending/`
@@ -105,6 +111,7 @@ Before performing any file I/O (Read, Grep, Glob), check for [MEMO HIT] hints fr
 - Detect context pressure
 - Auto-save to .qe/context/sessions/{sid}/snapshot.md
 - Accumulate records in .qe/context/sessions/{sid}/decisions.md
+- Generate validated manual handoffs under `.qe/handoffs/sessions/{sid}/`
 - Support context restoration after compaction
 
 ## Will Not

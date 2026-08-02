@@ -19,6 +19,7 @@
 import { readdirSync, readFileSync, existsSync } from 'fs';
 import { join, dirname } from 'path';
 import { fileURLToPath } from 'url';
+import { createHash } from 'node:crypto';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const ROOT = join(__dirname, '..');
@@ -115,6 +116,7 @@ const warns = [];
 
 console.log('\n=== CHECK (a): eval-case schema ===');
 let caseCount = 0;
+const sourceInputs = [];
 if (existsSync(CASES_DIR)) {
   for (const f of readdirSync(CASES_DIR).sort()) {
     if (!f.endsWith('.eval.md')) continue;
@@ -150,7 +152,24 @@ if (existsSync(CASES_DIR)) {
     }
     if (typeof fm.skill === 'string' && !skillNames.has(fm.skill)) {
       fails.push(`FAIL [eval-schema] ${f}: skill '${fm.skill}' does not exist under skills/`);
+    } else if (typeof fm.skill === 'string') {
+      sourceInputs.push(`${f}\0${content}\0${readFileSync(join(SKILLS_DIR, fm.skill, 'SKILL.md'), 'utf8')}`);
     }
+  }
+}
+
+const manifestPath = join(ROOT, 'evals', '.manifest.json');
+if (!existsSync(manifestPath)) {
+  fails.push('FAIL [eval-manifest] evals/.manifest.json is missing; run npm run eval:skills');
+} else {
+  try {
+    const manifest = JSON.parse(readFileSync(manifestPath, 'utf8'));
+    const digest = createHash('sha256').update(sourceInputs.join('\0')).digest('hex');
+    if (manifest.caseCount !== caseCount || manifest.sourceDigest !== digest) {
+      fails.push('FAIL [eval-manifest] manifest is stale; run npm run eval:skills');
+    }
+  } catch {
+    fails.push('FAIL [eval-manifest] manifest is malformed; run npm run eval:skills');
   }
 }
 if (fails.length === 0) {

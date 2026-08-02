@@ -26,7 +26,7 @@ const sivsQuestion = {
 test('command rendering uses client-specific prefixes', () => {
   assert.equal(getCommandPrefix('claude'), '/');
   assert.equal(getCommandPrefix('codex'), '$');
-  assert.equal(renderSkillCommand('/Qgs', 'qa-virtual-association: QA 가상 협회', { client: 'codex' }), '$Qgs qa-virtual-association: QA 가상 협회');
+  assert.equal(renderSkillCommand('/Qgenerate-spec', 'qa-virtual-association: QA 가상 협회', { client: 'codex' }), '$Qgenerate-spec qa-virtual-association: QA 가상 협회');
   assert.equal(renderSkillCommand('Qexecute -verify', 'a1b2c3d4', { client: 'claude' }), '/Qexecute -verify a1b2c3d4');
 });
 

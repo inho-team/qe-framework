@@ -45,7 +45,7 @@ test('install writes the full Codex lifecycle hook fence with trust guidance and
 
   assert.ok(config.includes(QE_HOOKS_FENCE_BEGIN), 'hooks fence begin present');
   assert.ok(config.includes(QE_HOOKS_FENCE_END), 'hooks fence end present');
-  for (const event of ['SessionStart', 'PreToolUse', 'PreCompact', 'PostToolUse', 'Stop', 'UserPromptSubmit', 'Notification', 'TeammateIdle', 'TaskCompleted']) {
+  for (const event of ['SessionStart', 'PreToolUse', 'PostToolUse', 'Stop', 'UserPromptSubmit']) {
     assert.ok(config.includes(`[[hooks.${event}]]`), `${event} table present`);
     assert.ok(config.includes(`[[hooks.${event}.hooks]]`), `${event} nested hook command table present`);
     assert.ok(config.includes(`\\\"${event}\\\"`) || config.includes(`"${event}"`), `${event} command argument present`);
@@ -53,12 +53,12 @@ test('install writes the full Codex lifecycle hook fence with trust guidance and
   assert.ok(config.includes('matcher = "*"'), 'PreToolUse wildcard matcher present');
   assert.ok(config.includes('matcher = "^(Write|Edit|Bash|Shell|shell|exec_command)$"'), 'PostToolUse matcher variants present');
   assert.ok(config.includes('type = "command"'), 'command hook type present');
-  assert.ok(config.includes('timeout = 15'), 'PostToolUse timeout present');
+  assert.ok(config.includes('timeout = 5'), 'bounded lifecycle timeout present');
   assert.ok(config.includes('statusMessage = "QE safety guard"'), 'PreToolUse status message present');
   assert.ok(config.includes(`node \\\"${expectedEntry}\\\"`), 'command references installed standalone hook path');
   assert.ok(fs.existsSync(expectedEntry), 'standalone Codex lifecycle hook wrapper is installed under ~/.codex/hooks');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'exactly one PreToolUse block');
-  assert.equal(countNeedle(config, '[[hooks.'), 18, 'nine hook events and nine nested hook command tables');
+  assert.equal(countNeedle(config, '[[hooks.'), 10, 'five hook events and five nested hook command tables');
   assert.ok(logs.includes('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.'), 'trust guidance log emitted');
   assert.ok(!config.includes('--dangerously-bypass-hook-trust'), 'does not bypass hook trust');
 });
@@ -73,7 +73,7 @@ test('repeated install keeps exactly one hooks fence and one lifecycle block per
   assert.equal(countNeedle(config, QE_HOOKS_FENCE_BEGIN), 1, 'one hooks fence after reinstall twice');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse]]'), 1, 'one PreToolUse block after reinstall twice');
   assert.equal(countNeedle(config, '[[hooks.PreToolUse.hooks]]'), 1, 'one nested PreToolUse hook block after reinstall twice');
-  assert.equal(countNeedle(config, '[[hooks.TaskCompleted]]'), 1, 'one TaskCompleted block after reinstall twice');
+  assert.equal(countNeedle(config, '[[hooks.Stop]]'), 1, 'one Stop block after reinstall twice');
 });
 
 test('install migrates deprecated codex_hooks feature flag', (t) => {

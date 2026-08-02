@@ -14,8 +14,6 @@ import { resolveActivePlanSlug, resolveRoadmapPath, resolveStatePath } from './p
 const PLAN_LINE_PREFIX = '관련 계획:';
 const PENDING_TASK_DIR = '.qe/tasks/pending';
 const PENDING_CHECKLIST_DIR = '.qe/checklists/pending';
-const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
-const skillCommand = (name, args = '') => `${COMMAND_PREFIX}${name}${args ? ` ${args}` : ''}`;
 
 /**
  * Reads JSON from disk and returns null when the file is absent or malformed.
@@ -67,7 +65,7 @@ function parseActivePhase(content) {
 }
 
 /**
- * Produces a short phase alias for copy-pasteable Qgs commands.
+ * Produces a short phase alias for concise controller hints.
  * @param {string|null} phaseLabel - Active phase label.
  * @returns {string}
  */
@@ -240,28 +238,28 @@ export function collectPseState(cwd, options = {}) {
 
   if (activePlanSlug) {
     kind = 'active-plan-no-pending-spec';
-    hintTarget = 'Qgs';
-    hintMessage = `Active plan "${activePlanSlug}" has no current pending spec pair for ${activePhase || 'the active phase'}; end the response with Next Command: ${skillCommand('Qgs', `${activePlanSlug}: ${shortPhaseAlias(activePhase)}`)}.`;
+    hintTarget = 'Qplan';
+    hintMessage = `Active plan "${activePlanSlug}" has no current pending spec pair for ${activePhase || 'the active phase'}; Qplan should continue the PSE loop internally by generating the required spec artifacts.`;
   }
 
   if (completedPhase) {
     kind = 'completed-phase';
     hintTarget = 'Qplan';
     hintMessage = nextRoadmapPhase
-      ? `Active phase "${activePhase}" is complete and the roadmap has "${nextRoadmapPhase}"; end the response with Next Command: ${skillCommand('Qplan', `${activePlanSlug}: move to ${shortPhaseAlias(nextRoadmapPhase)}`)}.`
-      : `Active phase "${activePhase}" is complete; end the response with Next Command: ${skillCommand('Qplan', `${activePlanSlug}: review phase transition`)}.`;
+      ? `Active phase "${activePhase}" is complete and the roadmap has "${nextRoadmapPhase}"; Qplan should advance the active Goal to ${shortPhaseAlias(nextRoadmapPhase)}.`
+      : `Active phase "${activePhase}" is complete; Qplan should review the phase transition for the active Goal.`;
   } else if (pendingPairs.length === 1) {
     kind = 'exactly-one-pending-spec';
-    hintTarget = 'Qexecute';
-    hintMessage = `Pending spec ${basename(pendingPairs[0].taskPath)} belongs to active plan "${activePlanSlug}"; use Qexecute ${pendingPairs[0].uuid}.`;
+    hintTarget = 'Qplan';
+    hintMessage = `Pending spec ${basename(pendingPairs[0].taskPath)} belongs to active plan "${activePlanSlug}"; Qplan should continue the PSE loop internally with UUID ${pendingPairs[0].uuid}.`;
   } else if (pendingPairs.length > 1) {
     kind = 'multiple-pending-specs';
-    hintTarget = null;
-    hintMessage = `Multiple pending specs belong to active plan "${activePlanSlug}"; choose an explicit Qexecute UUID.`;
+    hintTarget = 'Qplan';
+    hintMessage = `Multiple pending specs belong to active plan "${activePlanSlug}"; Qplan should resolve the spec associated with the active Goal before continuing.`;
   } else if (hasUncommittedCode) {
     kind = 'uncommitted-code';
-    hintTarget = 'Qexecute -verify';
-    hintMessage = 'Uncommitted code changes are present; use Qexecute -verify when implementation is ready for verification.';
+    hintTarget = 'Qplan';
+    hintMessage = 'Uncommitted code changes are present; Qplan should continue the active Goal through its internal verification stage.';
   }
 
   return {

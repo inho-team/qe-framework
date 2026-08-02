@@ -5,13 +5,11 @@ import { readFileSync, existsSync, statSync, unlinkSync, writeFileSync, mkdirSyn
 import { join } from 'path';
 import { homedir } from 'os';
 import { pathToFileURL } from 'url';
-import { execSync, spawn } from 'child_process';
+import { spawn } from 'child_process';
 import { loadConfig } from './lib/config.mjs';
 import { readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { getLatestCodexJobStatus, reapStaleCodexJobs } from '../../scripts/lib/codex_bridge.mjs';
 import { pruneExpired, formatMemoryContext } from './lib/project-memory.mjs';
-import { topLearnings } from './lib/learnings.mjs';
-import { analyze as sweepAnalyze, formatSummary as sweepFormatSummary } from './lib/sweep-analyzer.mjs';
 import {
   shortenSid,
   getSessionContextDir,
@@ -24,10 +22,7 @@ import { cleanupStaleSessions, upsertSession, filterActiveSessions, SESSION_STAL
 import { openStore } from './lib/store.mjs';
 import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
-import { calculateSkillBudget, checkBudgetOverflow } from './lib/skill-budget.mjs';
-import { maybeSpawnRefresh, ensurePeriodicRefresh } from './lib/auto-refresh.mjs';
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
-import { collectExpiredSkillHints, formatExpiredSkillHint } from './lib/skill-expiry-hint.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 // Read fd 0 directly. `/dev/stdin` re-opens the pipe and can read empty on Linux CI
@@ -209,63 +204,25 @@ try {
   // Fault tolerance — session awareness must never block SessionStart.
 }
 
-// Surface a one-line summary when auto-migration moved anything, so the
-// user sees what changed and can run the active-client migration skill for the full report.
+// Surface a one-line summary when deterministic auto-migration moved anything.
 if (migrationSummary) {
-  messages.push(`${migrationSummary} Run ${skillCommand('Qmigrate-legacy')} for details.`);
+  messages.push(`${migrationSummary} Legacy layout migration completed automatically.`);
 }
 
-// Check 1: project instruction artifact existence (Qinit check)
+// Check 1: project instruction artifact existence.
 const instructionCandidates = [
   join(cwd, 'CLAUDE.md'),
   join(cwd, 'AGENTS.md')
 ];
 const hasInstructionArtifact = instructionCandidates.some(filePath => existsSync(filePath));
 if (!hasInstructionArtifact) {
-  messages.push(`QE framework not initialized. Run \`${skillCommand('Qinit')}\` first.`);
+  messages.push('QE project instructions are missing. Add CLAUDE.md or AGENTS.md before running a workflow.');
 }
 
 // --- STALE-CHECK TIER ---
 // Freshness / snapshot checks that are cheap to run and always relevant.
 
-// Check 2: .qe/analysis/ freshness
-const analysisDir = join(cwd, '.qe', 'analysis');
-if (existsSync(analysisDir)) {
-  const analysisFiles = ['project-structure.md', 'tech-stack.md', 'entry-points.md', 'architecture.md'];
-  const staleThreshold = cfg.analysis_freshness_ms;
-  const now = Date.now();
-
-  let staleCount = 0;
-  for (const file of analysisFiles) {
-    const filePath = join(analysisDir, file);
-    if (existsSync(filePath)) {
-      const stat = statSync(filePath);
-      if (now - stat.mtimeMs > staleThreshold) {
-        staleCount++;
-      }
-    } else {
-      staleCount++;
-    }
-  }
-
-  if (staleCount >= 1) {
-    // Self-heal: spawn a detached Haiku refresh (one-shot, lock-guarded) and start a
-    // periodic refresh job. Never block session start if any of this fails.
-    let launched = false;
-    try {
-      launched = maybeSpawnRefresh(cwd, cfg);
-      ensurePeriodicRefresh(cwd, cfg, process.env.CLAUDE_PLUGIN_ROOT);
-    } catch { /* auto-refresh is best-effort housekeeping */ }
-
-    if (launched) {
-      messages.push('[QE] 분석이 오래됨 — Haiku로 백그라운드 갱신 시작 (.qe/analysis/). 완료 후 자동 반영.');
-    } else {
-      messages.push(`[QE] Project analysis looks stale — ${skillCommand('Qrefresh')} would give you fresher context to work from.`);
-    }
-  }
-}
-
-// Check 3: per-session snapshot.md existence (resume hint).
+// Check 2: per-session snapshot.md existence (resume hint).
 // Each terminal has its own .qe/context/sessions/{sid}/snapshot.md, so we
 // only surface a "restore" hint when *this* session's snapshot exists.
 if (currentSid) {
@@ -277,16 +234,6 @@ if (currentSid) {
       messages.push(`Previous session context saved. Restore with \`${skillCommand('Qresume')}\`.`);
     }
   }
-}
-
-// Check 4: collected local skill expiry hint. Read-only and fail-open: this
-// inspects only .claude/skills/*/SKILL.md scalar frontmatter, never tech-stack.md,
-// and does not spawn, write, or perform network I/O.
-try {
-  const hint = formatExpiredSkillHint(collectExpiredSkillHints(cwd, cfg), COMMAND_PREFIX);
-  if (hint) messages.push(hint);
-} catch {
-  // Fault tolerance — local skill expiry hints must never block SessionStart.
 }
 
 // --- ALWAYS TIER (continued) ---
@@ -304,10 +251,10 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
   const fullMapPointer = existsSync(conventionsPath) ? ' Full map: QE_CONVENTIONS.md.' : '';
   messages.push(
     '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
-    `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · version/release → /Qrelease · ` +
+    `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · framework update/release → ${skillCommand('Qupdate')} · ` +
     `show version → ${skillCommand('Qversion')} · context save → ${skillCommand('Qcompact')} · restore → ${skillCommand('Qresume')} · ` +
-    `archive tasks → ${skillCommand('Qgc')} archive · refresh analysis → ${skillCommand('Qrefresh')}. ` +
-    `${skillCommand('Qgoal')} {목표} or a clear natural-language goal is the default goal entry.` + fullMapPointer
+    `spec → ${skillCommand('Qgenerate-spec')} · plan → ${skillCommand('Qplan')} · execute → ${skillCommand('Qexecute')} · ` +
+    `critical review → ${skillCommand('Qcritical-review')}. ${skillCommand('Qgoal')} {목표} or a clear natural-language goal is the default goal entry.` + fullMapPointer
   );
 }
 
@@ -406,30 +353,6 @@ if (existsSync(languagePath)) {
   }
 }
 
-// Check 5: Git branch and uncommitted changes
-try {
-  const gitParts = [];
-
-  try {
-    const branch = execSync('git branch --show-current', { cwd, encoding: 'utf8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-    if (branch) gitParts.push(`Branch: ${branch}`);
-  } catch {}
-
-  try {
-    const diffStat = execSync('git diff --stat', { cwd, encoding: 'utf8', timeout: 3000, stdio: ['pipe', 'pipe', 'pipe'] }).trim();
-    if (diffStat) {
-      const changedFiles = diffStat.split('\n').length - 1; // last line is summary
-      if (changedFiles > 0) gitParts.push(`${changedFiles} uncommitted change${changedFiles > 1 ? 's' : ''}`);
-    }
-  } catch {}
-
-  if (gitParts.length > 0) {
-    messages.push(`[Git] ${gitParts.join(', ')}`);
-  }
-} catch {
-  // Fault tolerance — ignore git detection errors
-}
-
 // --- Project Memory: prune expired and inject active memories ---
 try {
   const pruned = pruneExpired(cwd);
@@ -442,51 +365,6 @@ try {
   }
 } catch {
   // Fault tolerance — ignore project memory errors
-}
-
-// --- .qe Sweep dry-run summary ---
-try {
-  const plan = sweepAnalyze(cwd);
-  const line = sweepFormatSummary(plan);
-  if (line) messages.push(line);
-} catch {
-  // Fault tolerance — sweep is advisory, never block session start
-}
-
-// --- GC (Garbage Collection) Freshness Check ---
-try {
-  const gcHistoryPath = join(cwd, '.qe', 'gc', 'gc-history.jsonl');
-  if (existsSync(gcHistoryPath)) {
-    const lines = readFileSync(gcHistoryPath, 'utf8').trim().split('\n').filter(Boolean);
-    if (lines.length > 0) {
-      const lastEntry = JSON.parse(lines[lines.length - 1]);
-      const lastDate = new Date(lastEntry.timestamp);
-      const daysSince = Math.floor((Date.now() - lastDate.getTime()) / (1000 * 60 * 60 * 24));
-    if (daysSince >= 14) {
-      messages.push(`[GC] Last garbage collection was ${daysSince} days ago. Run ${skillCommand('Qgc')} to scan for code quality issues.`);
-    }
-    }
-  } else {
-    // Only suggest if project has source files (not a fresh init)
-    const hasSources = existsSync(join(cwd, 'package.json')) || existsSync(join(cwd, 'go.mod')) || existsSync(join(cwd, 'Cargo.toml')) || existsSync(join(cwd, 'pyproject.toml'));
-  if (hasSources) {
-    messages.push(`[GC] No garbage collection history found. Run ${skillCommand('Qgc')} to scan for code quality debt.`);
-  }
-  }
-} catch {
-  // Fault tolerance
-}
-
-// --- Skill Budget Check ---
-try {
-  const skillsDir = join(cwd, 'skills');
-  const budget = calculateSkillBudget(skillsDir);
-  const check = checkBudgetOverflow(budget.estimatedTokens);
-  if (check.overflow) {
-    messages.push(`[QE] Skill budget overflow: ${budget.count} skills (~${budget.estimatedTokens} tokens estimated, ${check.pct}% of context). Consider merging low-use skills.`);
-  }
-} catch {
-  // Fault tolerance — skill budget check is advisory, never block session start
 }
 
 // --- Mistake Registry: inject recorded mistakes so they are not repeated ---
@@ -526,23 +404,6 @@ try {
   }
 } catch {
   // Fault tolerance — ignore mistake registry errors
-}
-
-// --- Learning Registry: inject the decay-ranked top-N learnings (Qlearn) ---
-try {
-  const learningsPath = join(cwd, '.qe', 'learnings.md');
-  if (existsSync(learningsPath)) {
-    const top = topLearnings(readFileSync(learningsPath, 'utf8'), 5);
-    if (top.length > 0) {
-      const clip = (s) => (s && s.length > 140 ? s.slice(0, 139) + '…' : s || '');
-      const lines = top.map((l, i) => `  ${i + 1}. [${l.type}/${l.severity}] ${clip(l.learning)}`).join('\n');
-      messages.push(
-        `[LEARNINGS] Top ${top.length} by relevance (decay-ranked). Apply these:\n${lines}\n  Full list: .qe/learnings.md (manage via /Qlearn)`,
-      );
-    }
-  }
-} catch {
-  // Fault tolerance — ignore learning registry errors
 }
 
 // Cleanup: Remove stale intent-route.json for clean session start
@@ -708,10 +569,11 @@ function buildMinimalBootstrap(cwdPath, cmdPrefix) {
   // 1. OVERRIDE MAP summary
   parts.push(
     '[QE OVERRIDE MAP] Use the QE skill — PreToolUse HARD-BLOCKS direct git commit / version edits. ' +
-    `manual commit → ${skillCmd('Qcommit')} · version/release → /Qrelease · ` +
+    `manual commit → ${skillCmd('Qcommit')} · framework update/release → ${skillCmd('Qupdate')} · ` +
     `context save → ${skillCmd('Qcompact')} · restore → ${skillCmd('Qresume')} · ` +
-    `refresh → ${skillCmd('Qrefresh')} · show version → ${skillCmd('Qversion')} · ` +
-    `archive tasks → ${skillCmd('Qgc')} archive. ${skillCmd('Qgoal')} {목표} or a clear natural-language goal is the default goal entry. Full map: QE_CONVENTIONS.md.`
+    `show version → ${skillCmd('Qversion')} · spec → ${skillCmd('Qgenerate-spec')} · plan → ${skillCmd('Qplan')} · ` +
+    `execute → ${skillCmd('Qexecute')} · critical review → ${skillCmd('Qcritical-review')}. ` +
+    `${skillCmd('Qgoal')} {목표} or a clear natural-language goal is the default goal entry. Full map: QE_CONVENTIONS.md.`
   );
 
   // 2. Output style (1 line)

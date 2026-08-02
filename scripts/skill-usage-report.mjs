@@ -24,13 +24,8 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 const __dirname = dirname(fileURLToPath(import.meta.url));
 const REPO_ROOT = join(__dirname, '..');
 
-// Known aliases → canonical skill name. A USED alias marks its canonical target
-// used; the non-canonical alias name itself is never counted as a distinct skill.
-// Sourced from skills/CATALOG.md and QE_CONVENTIONS.md (Qgs/Qrt pass-throughs).
-export const ALIAS_MAP = {
-  Qgs: 'Qgenerate-spec',
-  Qrt: 'Qexecute',
-};
+// Retained for forward-compatible normalization; no public aliases are shipped.
+export const ALIAS_MAP = {};
 
 /**
  * Normalize a raw observed skill name: strip the `qe-framework:` plugin prefix,

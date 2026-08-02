@@ -90,89 +90,11 @@ The execution engine that runs inside Execute and Verify steps:
 | **Verify** | Validation (no coding) | `VERIFY_CHECKLIST.md` |
 | **Supervise** | Quality gate + approval | `SUPERVISION_REPORT.md` |
 
-**Engine Routing** — each stage independently routes to Claude or Codex. Without
-Codex, all stages use Claude. When Codex is available, Implement and Verify
-prefer Codex by default while Spec and Supervise stay Claude-led:
-
-```json
-{
-  "spec":      { "engine": "claude" },
-  "implement": { "engine": "codex", "model": "gpt-5.4", "effort": "high" },
-  "verify":    { "engine": "codex", "background": true },
-  "supervise": { "engine": "claude" }
-}
-```
-
-Managed via `/Qsivs-config` on Claude or `$Qsivs-config` on Codex. Claude-base
-sessions delegate Codex stages through `codex_bridge.mjs` / `codex-plugin-cc`;
-Codex-base sessions delegate Claude stages through `claude_bridge.mjs` /
-`Qclaude-rescue` when available. MCP server tools are not the default execution
-path.
+**Single-AI role separation** — one active client owns every SIVS stage. Spec and
+Implement remain main-thread-led; Verify and Supervise use high-reasoning critical
+leads with isolated same-client subagents. No stage invokes a second AI client.
 
 ---
-
-## Folder-Aware Context Memory
-
-The context memory system optimizes Claude's context window by loading only relevant knowledge for the current working directory.
-
-### How It Works
-
-```
-.qe/context/
-├── _registry.json     # glob pattern → context file mapping
-├── root.md            # always loaded
-├── frontend.md        # loaded in src/frontend/**
-├── backend.md         # loaded in src/backend/**
-└── scripts.md         # loaded in scripts/**
-```
-
-### Loading Rules
-
-1. **Always load** `root.md` — project-wide conventions
-2. **Glob match** — load contexts whose pattern matches the working directory
-3. **Multiple matches OK** — `src/frontend/api/` can match both `frontend.md` and `api.md`
-4. **Staleness detection** — warns if context is >7 days old, suggests the active-client `Qcontext refresh` command
-
-### Token Savings
-
-```
-Traditional:  Load one monolithic project instruction artifact → 100% tokens
-QE Context:   Load root.md + matched folder context            → only the matched subset
-
-Savings: fewer context tokens per session — the magnitude depends on project size and
-how domain rules split across folders. Measure it for your repo: see docs/BENCHMARK.md.
-```
-
-### Management
-
-| Claude | Codex | Action |
-|--------|-------|--------|
-| `/Qcontext init` | `$Qcontext init` | Initialize with root.md |
-| `/Qcontext add <name> <pattern>` | `$Qcontext add <name> <pattern>` | Add folder context |
-| `/Qcontext show` | `$Qcontext show` | List all contexts + staleness |
-| `/Qcontext refresh` | `$Qcontext refresh` | Update stale contexts |
-| `/Qcontext status <path>` | `$Qcontext status <path>` | Preview matches for a path |
-
-Auto-refreshed when the active-client `Qrefresh` command runs.
-
----
-
-## Provider Routing
-
-### Defaults
-- Without Codex: all SIVS stages use Claude.
-- With Codex: Spec/Supervise stay Claude-led; Implement/Verify prefer Codex.
-- Explicit `.qe/sivs-config.json` entries override the environment-aware defaults.
-
-### Codex Paths
-- Claude base -> Codex engine uses the `codex-plugin-cc` bridge.
-- Codex base -> Codex engine uses native Codex skills, generated native agents,
-  and the Codex `PreToolUse` hook fence.
-- Codex base -> Claude engine uses the reverse bridge surface
-  (`Qclaude-rescue` / `claude_bridge.mjs`) when available.
-- Agent delegation is normalized through the QE client adapter: Claude uses the
-  Agent tool, while Codex uses generated native subagents and role-separated
-  inline execution only when a runtime lacks the required primitive.
 
 ## Lifecycle Adapter
 
@@ -186,7 +108,7 @@ active client adapter. See `core/LIFECYCLE_ADAPTER.md` and
 | PreToolUse | Claude plugin hard-block hook | Codex hook fence + lifecycle wrapper |
 | PostToolUse | Claude plugin hook | Codex wrapper/shim when available |
 | Stop | Claude plugin hook | Codex wrapper/shim when available |
-| Notification | Claude plugin hook | Codex wrapper/shim when available |
+| Team completion | `TaskCompleted` (Claude only) | unsupported; caller-owned handoff |
 | Status guidance | Session context and hook messages | Session context and hook messages |
 
 Safety-critical behavior, especially raw commit/version guards and autonomous
@@ -234,18 +156,18 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->32<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->10<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
-| Core PSE | 5 | Qplan, Qgs, Qexecute, Qexecute -verify, Qinit |
-| Context & Config | 5 | Qcontext, Qsivs-config, Qrefresh, Qmemory, Qcompact |
-| Research | 1 | Qautoresearch |
-| Other | 18 | `Qhelp find` or `Qhelp` to discover |
+| Plan and PSE | 4 | Qplan, Qgoal, Qgenerate-spec, Qexecute |
+| Quality | 1 | Qcritical-review |
+| Project | 3 | Qcommit, Qupdate, Qversion |
+| Session | 2 | Qcompact, Qresume |
 
 ---
 
-## Agent Fleet (<!--qe:agents-->20<!--/qe:agents--> agents)
+## Agent Fleet (<!--qe:agents-->12<!--/qe:agents--> agents)
 
 | Agent | Responsibility |
 |-------|---------------|
@@ -255,11 +177,11 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 | Ecode-reviewer | Post-change code review |
 | Ecode-test-engineer | Test writing + coverage |
 | Ecommit-executor | AI-trace-free git commits |
-| Erefresh-executor | Project analysis + context refresh |
 | Edeep-researcher | Multi-source research |
 | Esecurity-officer | Security audit on diffs |
 | Ecompact-executor | Context window management |
-| Epm-planner | PRD, roadmap, document generation |
+| Erisk-proof-auditor | Fresh-context risk proof audit |
+| Edoc-writer | Technical documentation generation |
 
 ---
 
@@ -275,12 +197,12 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## v6.x Changes
+## Historical v6.x Changes
 
-- **Folder-aware context memory** (`Qcontext`) — partition and optimize context loading
-- **SIVS config CLI** (`Qsivs-config`) — quick engine routing changes
+- **Folder-aware context memory** — partitioned context loading (the former public wrapper has since been retired)
+- **SIVS config CLI** — engine routing configuration (the former public wrapper has since been retired)
 - **165 skills** (was 93 in v5.0) — 71 coding expert skills added
-- **Auto-refresh integration** — `Qrefresh` keeps context files up to date
+- **Auto-refresh integration** — background context refresh support
 - **Dual-client simplicity** — Claude and Codex assets install from the same package
 
 ---

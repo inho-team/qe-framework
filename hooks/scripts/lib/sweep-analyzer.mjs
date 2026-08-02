@@ -268,5 +268,5 @@ export function formatSummary(plan) {
   if (plan.stats.deleteCount > 0) parts.push(`${plan.stats.deleteCount} volatile to purge`);
   if (plan.stats.staleCount > 0) parts.push(`${plan.stats.staleCount} stale pending`);
   if (parts.length === 0) return null;
-  return `[QE Sweep] .qe cleanup available: ${parts.join(', ')}. Run /Qgc sweep for detail, /Qgc sweep --apply to execute.`;
+  return `[QE Sweep] .qe cleanup available: ${parts.join(', ')}. The Stop hook applies recoverable archive moves when sweep_auto is enabled.`;
 }

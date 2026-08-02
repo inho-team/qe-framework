@@ -41,6 +41,19 @@ limit. It is the packaging root. The runtime contract is defined by
 adapter contract under
 `.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md`.
 
+## Supported package entrypoints
+
+External automation should use `qe-framework-install`,
+`qe-framework-uninstall`, or a command declared in `package.json`. The package
+also contains `scripts/`, `hooks/`, and `core/` as installer payloads; their
+undeclared deep paths are internal and unsupported as module or CLI APIs.
+
+If older automation invoked retired audit scripts, replace that call with
+`npm run check:all` for repository validation or
+`npm run qe:query -- analysis` for stored analysis. Do not invoke the removed
+`scripts/preuninstall.mjs`: `npm uninstall` uses the declared lifecycle cleanup,
+and `qe-framework-uninstall` is the supported explicit removal command.
+
 ## Preview before you install — `--dry-run`
 
 ```bash
@@ -110,14 +123,15 @@ After install or update, the source skill files and the Codex cache should agree
 on client-neutral initialization behavior. A quick read-only check:
 
 ```bash
-grep -n "CLAUDE.md.*AGENTS.md\\|AGENTS.md.*CLAUDE.md" \
+grep -n "QE.md.*CLAUDE.md\\|QE.md.*AGENTS.md" \
   ~/.codex/skills/Qplan/SKILL.md
 ```
 
-The `Qplan` pre-check should accept a project instruction artifact such as
-`CLAUDE.md` or `AGENTS.md` together with `.qe/`. If the installed Codex skill
-still requires only `CLAUDE.md`, rerun `qe-framework-install` from the updated
-framework package and restart the Codex session.
+The `Qplan` pre-check recognizes the shared `QE.md` and the client instruction
+artifacts (`CLAUDE.md` or `AGENTS.md`) together with `.qe/`. An explicit QE entry
+creates a missing `QE.md` and the active client's managed pointer. If the installed
+Codex skill does not describe this behavior, rerun `qe-framework-install` from the
+updated framework package and restart the Codex session.
 
 ## Not yet: `--profile minimal|full`
 

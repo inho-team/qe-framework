@@ -11,11 +11,15 @@ The hard-block set (authoritative source: `PSE_SKILLS` in
 
 | v8 direct call | Blocked in v9? | v9 replacement |
 |---|---|---|
-| `/Qgs {목표}` | **Yes** | `/Qgoal {목표}` (router auto-runs spec) |
+| `/Qgs {목표}` | **Yes** | `/Qgoal {목표}` (legacy alias removed; router auto-runs spec) |
 | `/Qgenerate-spec {목표}` | **Yes** | `/Qgoal {목표}` |
 | `/Qexecute {uuid}` | **Yes** (new call) | `/Qgoal {목표}`; an existing `pending`/`in-progress`/`on-hold` task artifact lets a continuation through |
 | `/Qrt` (legacy alias of Qexecute) | **Yes** | `/Qgoal {목표}` |
 | `/Qplan …` | **No** (unblocked in v9) | Qplan now **owns** the goal-driven workflow; use it directly for roadmap/phase work |
+
+An explicit `/Qplan`, `/Qgoal`, or legacy `/Qgs` entry also creates missing `QE.md`
+and the active client's managed instruction pointer. This compatibility bootstrap does
+not restore `Qgs` as a supported public workflow; use `/Qgoal` for new work.
 
 > Note: the block is a **workflow-discipline gate**, not an authorization
 > boundary — a process with the same filesystem write permission can forge
@@ -61,4 +65,4 @@ onto the convention in Phase 4 (`scripts/migrate-qe-docs.mjs`).
 ## What did NOT change
 
 - Non-goal prompts and non-PSE skills behave identically (regression 0).
-- Commit / release / version discipline: `/Qcommit`, `/Qrelease`, `/Qversion`.
+- Commit / release / version discipline: `/Qcommit`, the repository release workflow, and `/Qversion`.

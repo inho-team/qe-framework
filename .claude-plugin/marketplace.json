@@ -22,8 +22,8 @@
         "minClaudeCodeVersion": "2.0.0"
       },
       "features": [
-        "27 lifecycle hooks",
-        "180+ skills",
+        "Claude and Codex lifecycle hooks",
+        "10 focused skills",
         "SIVS quality loop",
         "multi-agent orchestration"
       ],

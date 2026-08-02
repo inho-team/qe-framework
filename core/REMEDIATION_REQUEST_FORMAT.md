@@ -41,7 +41,7 @@
 
 | Domain | Agent | Grade | Findings |
 |--------|-------|-------|----------|
-| {domain} | {agent name} | FAIL/PARTIAL/PASS | {N} issues |
+| {domain} | {agent name} | FAIL/WARN/PASS | {N} issues |
 | ... | ... | ... | ... |
 
 ---
@@ -107,7 +107,7 @@
 ## Rules
 
 - REMEDIATION_REQUEST is generated only when the supervision grade is **FAIL**
-- PARTIAL grade is a conditional pass — REMEDIATION_REQUEST is not generated
+- WARN grade is a conditional pass — REMEDIATION_REQUEST is not generated
 - Each round's REMEDIATION_REQUEST is saved as an independent file and does not overwrite previous rounds
-- The Remediation Checklist includes only FAIL items (PASS/PARTIAL items are excluded)
+- The Remediation Checklist includes only FAIL items (PASS/WARN items are excluded)
 - If FAIL persists after round 3, Esupervision-orchestrator escalates to the user

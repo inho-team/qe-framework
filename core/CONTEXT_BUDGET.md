@@ -98,11 +98,9 @@ This is not advisory — the hook hard-blocks the tool call. Agents cannot overr
 
 ## Persistent Mode
 
-Active multi-step pipelines (SIVS loops, Wave execution, Qexecute, Qexecute) are protected from premature stopping via **Persistent Mode**. When a pipeline enters persistent mode, two hook-level mechanisms prevent context waste:
+Active multi-step pipelines (SIVS loops, Wave execution, Qexecute) are protected from premature stopping via **Persistent Mode**:
 
-1. **Stop hook (`stop-handler.mjs`)**: Blocks the stop and forces continuation, identical to the existing mode-state mechanism. The persistent mode state lives in `unified-state.json` under `persistentMode` so it works alongside (not instead of) dedicated mode-state files.
-
-2. **Notification hook (`notification.mjs`)**: When a notification contains completion-like patterns ("completed", "finished", "done") while persistent mode is active, a reinforcement message is injected reminding Claude to continue the pipeline.
+1. **Stop hook (`stop-handler.mjs`)**: Blocks the stop and forces continuation while `persistentMode` is active. The state lives in `unified-state.json` under `persistentMode`; no separate mode-state file is required for the persistent-mode path.
 
 ### Safety valves
 - **Max reinforcements**: After a configurable number of reinforcements (default: 5 in stop handler, 10 in the module), persistent mode auto-exits to prevent infinite loops.

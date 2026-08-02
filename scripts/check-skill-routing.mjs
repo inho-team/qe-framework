@@ -278,7 +278,6 @@ const descriptionGuardStart = fails.length;
 const coreAutoSkills = [
   'Qplan',
   'Qgenerate-spec',
-  'Qgs',
   'Qexecute',
 ];
 const crowdedPseSkills = new Set(coreAutoSkills);

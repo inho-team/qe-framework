@@ -1,0 +1,114 @@
+{
+  "schemaVersion": 1,
+  "resultSchema": "qe-agent-result-v1",
+  "agents": {
+    "Ecode-debugger": {
+      "class": "diagnostic",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 20,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "callers": ["Qexecute", "intent-router"]
+    },
+    "Ecode-reviewer": {
+      "class": "reviewer",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 14,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "callers": ["Qexecute", "Qcritical-review", "Eqa-orchestrator", "Esupervision-orchestrator", "intent-router"]
+    },
+    "Ecode-test-engineer": {
+      "class": "test-writer",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 24,
+      "mutatesProject": true,
+      "tools": ["Read", "Grep", "Glob", "Bash", "Edit", "Write"],
+      "callers": ["Qexecute", "Eqa-orchestrator", "Esupervision-orchestrator", "intent-router"]
+    },
+    "Ecommit-executor": {
+      "class": "git-mutator",
+      "tier": "LOW",
+      "model": "haiku",
+      "maxTurns": 12,
+      "mutatesProject": true,
+      "tools": ["Read", "Write", "Grep", "Glob", "Bash"],
+      "callers": ["Qcommit"]
+    },
+    "Ecompact-executor": {
+      "class": "state-writer",
+      "tier": "LOW",
+      "model": "haiku",
+      "maxTurns": 10,
+      "mutatesProject": true,
+      "tools": ["Read", "Write", "Edit", "Grep", "Glob", "Bash"],
+      "callers": ["Qcompact", "Qresume", "context-monitor"]
+    },
+    "Edeep-researcher": {
+      "class": "researcher",
+      "tier": "HIGH",
+      "model": "opus",
+      "maxTurns": 32,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "WebSearch", "WebFetch", "Agent"],
+      "callers": ["intent-router"]
+    },
+    "Edoc-writer": {
+      "class": "document-writer",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 30,
+      "mutatesProject": true,
+      "tools": ["Read", "Write", "Edit", "Grep", "Glob", "Bash"],
+      "callers": ["Qexecute", "intent-router"]
+    },
+    "Eqa-orchestrator": {
+      "class": "orchestrator",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 30,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "Bash", "Agent"],
+      "callers": ["Qexecute"]
+    },
+    "Erisk-proof-auditor": {
+      "class": "reviewer",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 16,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "callers": ["Qcritical-review"]
+    },
+    "Esecurity-officer": {
+      "class": "reviewer",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 20,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "Bash"],
+      "callers": ["Qexecute", "Qcritical-review", "Esupervision-orchestrator"]
+    },
+    "Esupervision-orchestrator": {
+      "class": "orchestrator",
+      "tier": "HIGH",
+      "model": "opus",
+      "maxTurns": 28,
+      "mutatesProject": false,
+      "tools": ["Read", "Grep", "Glob", "Bash", "Agent"],
+      "callers": ["Qexecute", "Qcritical-review"]
+    },
+    "Etask-executor": {
+      "class": "implementation-worker",
+      "tier": "MEDIUM",
+      "model": "sonnet",
+      "maxTurns": 36,
+      "mutatesProject": true,
+      "tools": ["Read", "Write", "Edit", "Grep", "Glob", "Bash", "Agent"],
+      "callers": ["Qexecute", "Eqa-orchestrator", "Esupervision-orchestrator"]
+    }
+  }
+}

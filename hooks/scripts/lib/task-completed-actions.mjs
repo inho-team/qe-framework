@@ -12,9 +12,8 @@
  *  1. Append a row to `.qe/TASK_LOG.md` for the finished UUID (idempotent).
  *  2. Move `TASK_REQUEST_{uuid}.md` and `VERIFY_CHECKLIST_{uuid}.md`
  *     from `pending/` to `completed/` (idempotent).
- *  3. When completed/ count >= ARCHIVE_THRESHOLD, write
- *     `.qe/state/archive-needed.flag` so a future session can dispatch
- *     `Earchive-executor` without blocking the hook.
+ * Archival is intentionally not scheduled here. The deterministic Stop sweep
+ * owns completed-pair archival and requires no cross-session flag consumer.
  *
  * All functions are safe to call with missing inputs; they return a summary
  * object describing what happened so the caller and tests can assert.
@@ -24,13 +23,10 @@ import {
   existsSync,
   readFileSync,
   writeFileSync,
-  readdirSync,
   renameSync,
   mkdirSync,
-} from 'node:fs';
+} from './qe-fs.mjs';
 import { join } from 'node:path';
-
-export const ARCHIVE_THRESHOLD = 10;
 
 const TASK_LOG_HEADER = [
   '# Task Log',
@@ -166,51 +162,7 @@ export function movePendingToCompleted(cwd, uuid) {
 }
 
 /**
- * Count `TASK_REQUEST_*.md` files in `.qe/tasks/completed/`. Non-matching
- * entries are ignored so stray notes never trip the archive threshold.
- */
-export function countCompletedTasks(cwd) {
-  const dir = join(cwd, '.qe', 'tasks', 'completed');
-  if (!existsSync(dir)) return 0;
-  try {
-    return readdirSync(dir).filter((name) =>
-      /^TASK_REQUEST_.*\.md$/.test(name)
-    ).length;
-  } catch {
-    return 0;
-  }
-}
-
-/**
- * When the completed-task backlog crosses ARCHIVE_THRESHOLD, drop a flag
- * file that SessionStart can pick up to trigger Earchive-executor. Writing
- * a flag (instead of invoking archive inline) keeps the hook fast.
- *
- * @returns {{flagged: boolean, count: number}}
- */
-export function maybeFlagArchive(cwd) {
-  const count = countCompletedTasks(cwd);
-  if (count < ARCHIVE_THRESHOLD) return { flagged: false, count };
-
-  const stateDir = join(cwd, '.qe', 'state');
-  ensureDir(stateDir);
-  const flagPath = join(stateDir, 'archive-needed.flag');
-  const payload = JSON.stringify(
-    {
-      created_at: new Date().toISOString(),
-      completed_count: count,
-      threshold: ARCHIVE_THRESHOLD,
-      reason: 'task-completed-hook',
-    },
-    null,
-    2
-  );
-  writeFileSync(flagPath, payload + '\n', 'utf8');
-  return { flagged: true, count };
-}
-
-/**
- * Top-level orchestrator used by `task-completed.mjs`. Runs all three
+ * Top-level orchestrator used by `task-completed.mjs`. Runs both
  * side effects in order, tolerating missing inputs.
  *
  * @param {string} cwd  Project root.
@@ -226,8 +178,6 @@ export function runTaskCompletedActions(cwd, event) {
       logAppended: false,
       taskMoved: false,
       checklistMoved: false,
-      archiveFlagged: false,
-      completedCount: 0,
     };
   }
 
@@ -247,15 +197,11 @@ export function runTaskCompletedActions(cwd, event) {
   });
 
   const moved = movePendingToCompleted(cwd, uuid);
-  const archive = maybeFlagArchive(cwd);
-
   return {
     uuid,
     logAppended: log.appended,
     logReason: log.reason,
     taskMoved: moved.taskMoved,
     checklistMoved: moved.checklistMoved,
-    archiveFlagged: archive.flagged,
-    completedCount: archive.count,
   };
 }

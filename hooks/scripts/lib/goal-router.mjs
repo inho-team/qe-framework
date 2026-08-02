@@ -62,7 +62,7 @@ function overrideTokens(message) {
   const main = headWindow(message);
   const words = maskedMarkdown(main).split(/\s+/).filter(Boolean); const tokens = new Set();
   let i = 0;
-  if (words[i] && /^\/Qgoal$/i.test(words[i])) i += 1;
+  if (words[i] && /^[$/]Qgoal$/i.test(words[i])) i += 1;
   while (i < words.length && OVERRIDE_TOKENS.has(words[i])) { tokens.add(words[i]); i += 1; }
   const promptEndsInMain = !exceedsCodePoints(message, GOAL_SCAN_LIMIT);
   if (promptEndsInMain) {
@@ -149,15 +149,16 @@ function fileMentions(text, windowComplete) {
 export function detectGoalIntent(message) {
   try {
     if (typeof message !== 'string') return { detected: false };
-    const scan = headWindow(message); const command = /^\s*\/Qgoal(?=$|\s)/i.exec(scan);
+    const scan = headWindow(message); const command = /^\s*[$\/]Qgoal(?=$|\s)/i.exec(scan);
     if (command) {
       const goalText = scan.slice(command[0].length).trim();
-      return goalText ? { detected: true, source: 'command', goalText, scan } : { detected: false, source: 'command', goalText: '', usage: '/Qgoal {목표}' };
+      const commandName = command[0].trim();
+      return goalText ? { detected: true, source: 'command', goalText, scan } : { detected: false, source: 'command', goalText: '', usage: `${commandName} {목표}` };
     }
-    // A slash-command-shaped first token that is not /Qgoal is an attempted
-    // command (e.g. /Qgoals typo), never a natural-language goal.
+    // A command-shaped first token that is not Qgoal is an attempted command,
+    // never a natural-language goal.
     const firstToken = scan.trimStart().split(/\s+/, 1)[0] || '';
-    if (/^\/[A-Za-z][\w-]*$/.test(firstToken)) return { detected: false };
+    if (/^[$\/][A-Za-z][\w-]*$/.test(firstToken)) return { detected: false };
     const visible = maskedMarkdown(scan);
     const words = visible.match(/[가-힣A-Za-z0-9][가-힣A-Za-z0-9._/-]*/g) || [];
     const hasAction = words.some((word) => ACTION_WORDS.has(word.toLowerCase())) || verbGroups(visible) > 0;
@@ -172,7 +173,7 @@ export function detectGoalIntent(message) {
 /** Deterministically classifies a detected goal. */
 export function triageGoal(message, options = {}) {
   const intent = detectGoalIntent(message);
-  if (!intent.detected) return { ...intent, route: 'direct', reason: intent.usage ? 'usage' : 'not-goal', instruction: intent.usage ? '/Qgoal {목표}' : '' };
+  if (!intent.detected) return { ...intent, route: 'direct', reason: intent.usage ? 'usage' : 'not-goal', instruction: intent.usage || '' };
   const override = overrideTokens(message);
   const goalText = stripBoundaryOverrides(intent.goalText);
   const visible = maskedMarkdown(goalText); const files = fileMentions(maskedForFiles(goalText), !exceedsCodePoints(message, GOAL_SCAN_LIMIT));

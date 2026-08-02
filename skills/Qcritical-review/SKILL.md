@@ -1,6 +1,6 @@
 ---
 name: Qcritical-review
-user_invocable: false
+user_invocable: true
 description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qexecute -verify, Esupervision."
 invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review, structured debate, or code risk proof.
 recommendedModel: opus
@@ -127,7 +127,7 @@ These agents implement the mandatory Supervise gate: [./reference/supervise-gate
 
 For `type: code`, the Supervise-stage review is the final **Code Risk Gate** owner. Merge Blocker must assume the worst credible production outcome and attempt to block merge on any unhandled HIGH/CRITICAL risk, missing rollback story, hidden residual risk, or unverified assumption. Merge Advocate may accept only risks that are explicitly mitigated, tested, or deferred with a named rationale. Impartial Judge must distinguish `verified`, `mitigated`, `deferred`, and `unknown`; `unknown` HIGH/CRITICAL risk is a FAIL.
 
-Supervise-stage agents MUST read the `Qrisk-proof` report for `type: code` tasks. Missing `.qe/agent-results/risk-proof-{UUID}.md` is a FAIL unless the task is docs/analysis or no code changed. The report is the authoritative Risk Proof input; final-report wording is not accepted as evidence.
+Supervise-stage agents MUST read the `Qcritical-review --risk` report for `type: code` tasks. Missing `.qe/agent-results/risk-proof-{UUID}.md` is a FAIL unless the task is docs/analysis or no code changed. The report is the authoritative risk input; final-report wording is not accepted as evidence.
 
 ### Step 3: Each Agent Output Format
 
@@ -201,11 +201,9 @@ When a change touches `Qcritical-review` or its `reference/*-gate-protocol.md` f
 
 | Caller Skill | When | Stage / Mode |
 |-------------|------|--------------|
-| `Qgenerate-spec` / `Qgs` | After spec generation | `spec` |
+| `Qgenerate-spec` | After spec generation | `spec` |
 | `Qexecute -verify` | After verify loop passes | `verify` |
 | `Qexecute -verify` | After Verify and before Supervise for code risk evidence | `--risk {UUID}` |
-| `Qrisk-proof` | Compatibility caller for risk proof while shim exists | `--risk {UUID}` |
-| `Qdebate` | Compatibility caller for structured debates while shim exists | `--debate <topic>` |
 | `Esupervision-orchestrator` | Before final verdict | `supervise` |
 
 Callers invoke stage review via: `{adapter.commandPrefix}Qcritical-review --stage <stage>`

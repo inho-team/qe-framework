@@ -8,7 +8,7 @@
 
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
+import { existsSync, readFileSync } from 'node:fs';
 import { extractMarkers, resolveImplPath, resolveTestPath } from '../contract-file-resolver.mjs';
 
 // Test: extractMarkers
@@ -131,7 +131,7 @@ test('resolveTestPath rejects marker with parent traversal', () => {
 });
 
 // Integration test: real contract
-test('integration: real contract sivs-enforcer resolves valid paths', () => {
+test('integration: real contract sivs-enforcer resolves valid paths', { skip: !existsSync('.qe/contracts/active/sivs-enforcer.md') }, () => {
   // Read the actual sivs-enforcer.md contract
   const contractPath = '.qe/contracts/active/sivs-enforcer.md';
   let contractText;

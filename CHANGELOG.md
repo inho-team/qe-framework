@@ -11,7 +11,7 @@ Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](ht
 - **MAJOR** — breaking changes. Rare.
 - **Hotfix patch release** (between batches) — only for security / data loss / framework-unusable regressions.
 
-All entries should land in `[Unreleased]` until `/Qrelease` cuts a version.
+All entries should land in `[Unreleased]` until the repository release workflow cuts a version.
 
 ## [Unreleased]
 
@@ -19,7 +19,7 @@ All entries should land in `[Unreleased]` until `/Qrelease` cuts a version.
 
 - **Goal is the single entry point (goal-runtime).** Direct calls to the PSE
   skills are now hard-blocked by the `PreToolUse` gate — the block set is
-  `Qgs`, `Qgenerate-spec`, `Qexecute`, and the `Qrt` alias — and redirected to
+  `Qgenerate-spec`, `Qexecute`, and the `Qrt` alias — and redirected to
   `/Qgoal {목표}` (or a clear natural-language goal detected on prompt submit).
   `Qplan` is **not** blocked: it now owns the goal-driven workflow. Existing
   `pending`/`in-progress`/`on-hold` task artifacts still admit a continuation,
@@ -37,9 +37,9 @@ All entries should land in `[Unreleased]` until `/Qrelease` cuts a version.
   screening plus semantic review for operational responses.
 
 - **Local release ownership replaces `qe-admin-mcp`.** The external admin MCP is
-  deprecated and removed from current workflow guidance; the new `Qrelease` skill
-  owns version bump, changelog update, release commit, tag, optional push, and
-  GitHub Release publication, while `Qversion` remains read-only. The hook now
+  deprecated and removed from current workflow guidance; the repository release
+  workflow owns version bump, changelog update, release commit, tag, optional push,
+  and GitHub Release publication, while `Qversion` remains read-only. The hook now
   authorizes protected release mutations through the command-bound
   `qe-release-version` capability, and orphaned `mtest` runner/cache code was
   deleted.

@@ -1,5 +1,7 @@
 # QE Framework — Hooks Reference & Safety Policy
 
+The source-backed audit, measured baseline, and keep/improve/remove decisions are in [Hook Runtime Deep Research and Audit](research/hook-runtime-audit.md). The machine-readable source of truth is `hooks/hook-inventory.json`; validate it with `node scripts/check-hook-architecture.mjs`.
+
 QE registers lifecycle behavior through the active client adapter. Claude uses
 Claude Code plugin hooks; Codex uses installed hook fences, wrapper scripts, and
 command proxies where the Codex runtime exposes an equivalent surface. The
@@ -10,23 +12,18 @@ public-doc parity evidence is recorded in
 
 ## Claude Adapter: Registered Hooks
 
-| Event | Matcher | Script | Timeout | Can block? |
+| Event | Matcher | Script | Intended budget | Can block? |
 |-------|---------|--------|--------:|-----------|
-| SessionStart | — | `session-start.mjs` | 10s | no |
-| PreToolUse | `*` | `pre-tool-use.mjs` | 5s | **yes** (exit 2) |
-| PreCompact | — | `pre-compact.mjs` | 10s | no |
-| PostToolUse | `Write\|Edit\|Bash` | `post-tool-use.mjs` | 15s | no (hints only) |
+| SessionStart | — | `session-start.mjs` | 5s | no |
+| PreToolUse | `*` | `pre-tool-use.mjs` | 3s | **yes** (exit 2) |
+| PostToolUse | `Read\|Write\|Edit\|Bash` | `post-tool-use.mjs` | 5s | no (hints only) |
 | Stop | — | `stop-handler.mjs` | 5s | yes (reinforcement) |
-| UserPromptSubmit | — | `prompt-check.mjs` | 8s | no |
-| Notification | — | `notification.mjs` | 5s | no |
-| TeammateIdle | — | `teammate-idle.mjs` | 10s | no |
-| TaskCompleted | — | `task-completed.mjs` | 10s | no |
+| UserPromptSubmit | — | `prompt-check.mjs` | 3s | no |
+| TeammateIdle | — | `teammate-idle.mjs` | 3s | **yes** (exit 2 + stderr) |
+| TaskCompleted | — | `task-completed.mjs` | 3s | **yes** (exit 2 + stderr) |
 
-## Environment variables
-
-| Variable | Effect |
-|----------|--------|
-| `QE_NO_TRANSLATE=1` | Disables the non-English prompt translation call in `prompt-check.mjs`. By default, a non-English (CJK) prompt is sent to the Anthropic Messages API (Haiku) to extract English routing keywords, using the same OAuth token and endpoint the conversation already uses. Set this to opt out of that extra network call; intent routing then falls back to literal English-keyword matching only. |
+Prompt routing is local and deterministic. User prompt text is never sent to a
+network service by a lifecycle admission hook.
 
 ## Codex Adapter: Compatibility Contract
 
@@ -35,6 +32,13 @@ same QE safety and routing contract through Codex-native assets installed under
 `~/.codex`: skills in `~/.codex/skills`, agents in `~/.codex/agents`, scripts in
 `~/.codex/scripts`, plus managed native hook entries in `~/.codex/config.toml`
 pointing at the installed QE hook bundle.
+
+Codex installation records every installed asset and its SHA-256 in
+`~/.codex/.qe-owned-assets.json`. Reinstall and uninstall remove only paths in
+that receipt whose current bytes still match the recorded hash. Unowned files,
+legacy-name collisions, and files edited after installation are preserved. If
+the managed lifecycle entrypoint collides with an unowned file, the installer
+preserves it and does not activate the QE hook fence.
 
 After installing or refreshing the Codex assets, run `/hooks` in Codex once and
 explicitly trust the QE hook bundle. Do not rely on hook-trust bypass as a normal
@@ -46,15 +50,15 @@ workflow; the supported path is explicit trust review.
 | SessionStart | native hook + Codex wrapper | Runs QE bootstrap context and client-prefix reminders when Codex emits the event. |
 | UserPromptSubmit | native hook + interaction adapter | Runs prompt routing when Codex emits the event; skills still use the interaction adapter for client-neutral choices. |
 | PostToolUse | native hook + Codex wrapper | Runs memo/lint/build-lock/security follow-up checks for tool outputs. |
-| PreCompact | native hook + Codex wrapper | Runs QE compaction handoff rules where Codex exposes the event. |
 | Stop | native hook + Codex wrapper | Runs stop-time verification, sweep, style, and persistence checks. |
-| Notification | native hook + Codex wrapper | Runs configured notification handling where available. |
-| TeammateIdle | native hook + Codex wrapper | Runs teammate idle handling where available. |
-| TaskCompleted | native hook + Codex wrapper | Runs completion-state maintenance where available. |
+
+`TeammateIdle` and `TaskCompleted` remain Claude-only because the Codex hook
+runtime does not expose those events. `PreCompact` was removed because compact-
+source `SessionStart` already performs the required reset and context injection.
 
 Codex hook block messages render Codex-native skill commands with the `$`
-prefix, for example `$Qcommit`. Version/release mutation blocks route to
-`$Qrelease`; read-only version lookup routes to `$Qversion`. Claude hook block
+prefix, for example `$Qcommit`. Version/release mutation blocks point to the
+repository release/admin workflow; read-only version lookup routes to `$Qversion`. Claude hook block
 messages keep the Claude slash-command prefix for core skills.
 
 The Codex lifecycle wrapper forwards the original hook payload to the shared QE
@@ -72,7 +76,7 @@ hook messages, so Claude and Codex share the same visible guidance path.
 The following behavior must stay equivalent across Claude and Codex:
 
 1. Raw commit and raw PR creation are routed to QE skills.
-2. Direct version edits are routed to the client-native `Qrelease` command.
+2. Direct version edits are blocked for the reviewed release/admin workflow.
 3. Dangerous autonomous-mode actions are blocked before execution.
 4. Hook failures fail open unless an intentional policy block is emitted.
 5. User-facing QE command hints render with the active client prefix.
@@ -114,12 +118,12 @@ thrown error and therefore bypasses the safety net by design.
 | Trigger | Routed to | Notes |
 |---------|-----------|-------|
 | `git commit ...` (Bash) | Claude `/Qcommit`, Codex `$Qcommit` | raw commit blocked |
-| **write sink** into `plugin.json` + `version` (Bash) | Claude `/Qrelease`, Codex `$Qrelease` | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
+| **write sink** into `plugin.json` + `version` (Bash) | release/admin workflow | redirect (`> plugin.json`), `tee`, or `dd of=` — not reads like `grep version plugin.json`. cp/mv and interpreter writes are not shell-detectable; the Edit rule below covers the normal path |
 | `sed`/`perl`/`ruby -i` / `--in-place` (Bash) | Edit tool | use the Edit tool |
-| Edit of `plugin.json` whose new text has `"version"` | Claude `/Qrelease`, Codex `$Qrelease` | version mutation is release-owned; use `Qversion` only for read-only lookup |
+| Edit of `plugin.json` whose new text has `"version"` | release/admin workflow | version mutation is release-owned; use `Qversion` only for read-only lookup |
 
-Before each protected release stage, `Qrelease` rewrites `.qe/state/skill-bypass.json` with
-the exact next Bash input bound in `command`:
+Administrative release automation must bind the exact next Bash input in `command`
+before a protected release stage:
 
 ```json
 {"active":true,"skill":"qe-release-version","ts":ISSUED_AT_NUMBER,"command":"EXACT_NEXT_BASH_TOOL_INPUT"}
@@ -150,7 +154,7 @@ a single rule, prefer `.qe/state/skill-bypass.json` instead.
 
 ## Utopia safety rails
 
-When autonomous mode (`/Qexecute -utopia` on Claude, `$Qexecute -utopia` on Codex) is active (`.qe/state/utopia-state.json` →
+When the internal autonomous execution mode is active (`.qe/state/utopia-state.json` →
 `enabled: true`), the PreToolUse hook calls `hooks/scripts/lib/utopia-guard.mjs` and
 **hard-blocks** irreversible / high-blast-radius actions before they run:
 
@@ -167,7 +171,7 @@ When autonomous mode (`/Qexecute -utopia` on Claude, `$Qexecute -utopia` on Code
 The rail call is wrapped in try/catch, so a guard error fails open.
 
 **Escape hatch:** `allowUnsafe: true` in `.qe/state/utopia-state.json` disables every
-rail. Dangerous — never use in a shared/company repo. The Qexecute -utopia Enable flow also
+rail. Dangerous — never use in a shared/company repo. The internal enable flow also
 requires a clean tree, refuses protected branches (auto-creates a `utopia/<ts>` sandbox
 branch), prints a scope summary up front, and a diff report + rollback command after.
 

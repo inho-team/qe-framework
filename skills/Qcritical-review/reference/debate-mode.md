@@ -3,8 +3,8 @@
 ## Role
 
 `Qcritical-review --debate <topic>` facilitates a structured debate between
-multiple perspectives on a topic. Unlike Qthe-fool (one-shot critique), debate
-mode runs multi-round back-and-forth with independent agents arguing each side.
+multiple perspectives on a topic. Unlike a one-shot critique, debate mode runs
+multi-round back-and-forth with independent agents arguing each side.
 
 ## CLI
 
@@ -144,4 +144,4 @@ These five rules are enforced on all agents:
 - Declare a "winner" (the user decides).
 - Force a conclusion the user did not reach.
 - Run more than 10 rounds (diminishing returns).
-- Replace Qthe-fool for one-shot critical analysis.
+- Replace the normal one-shot critical-review mode.

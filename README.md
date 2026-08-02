@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->32<!--/qe:skills--> skills | <!--qe:agents-->20<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->10<!--/qe:skills--> skills | <!--qe:agents-->12<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 **A transparent, auditable, single-AI quality gate for coding agents.** Three things set QE apart:
 
@@ -11,17 +11,6 @@
 3. **Transparent** — the whole loop is plain files and skills you can read: `Plan → Spec → Execute → Verify`, no hidden orchestration.
 
 **See it work:** run `/Qplan` on a real task. QE creates a Plan with ordered Goals, then internally performs knowledge preflight, spec, execution, and verification for each Goal. Role contract: [`core/SIVS_SINGLE_AI_MODEL.md`](core/SIVS_SINGLE_AI_MODEL.md).
-
----
-
-### 📖 Try it in your browser — 5-minute tour
-
-**English** · [**Intro →**](https://inho-team.github.io/qe-framework/qe_framework_intro.en.html) · [**Reference →**](https://inho-team.github.io/qe-framework/qe_framework_diagram.en.html)
-**한국어** · [**Intro →**](https://inho-team.github.io/qe-framework/qe_framework_intro.ko.html) · [**Reference →**](https://inho-team.github.io/qe-framework/qe_framework_diagram.ko.html)
-**日本語** · [**Intro →**](https://inho-team.github.io/qe-framework/qe_framework_intro.ja.html) · [**Reference →**](https://inho-team.github.io/qe-framework/qe_framework_diagram.ja.html)
-**中文** · [**Intro →**](https://inho-team.github.io/qe-framework/qe_framework_intro.zh.html) · [**Reference →**](https://inho-team.github.io/qe-framework/qe_framework_diagram.zh.html)
-
-Rendered guides — view in any browser, no install needed.
 
 ---
 
@@ -58,9 +47,9 @@ You only say **what you want**. How to ask the right question, how to verify the
 │                  QE Framework                   │
 │                                                 │
 │  ┌───────────┐  ┌───────────┐  ┌─────────────┐ │
-│  │  Context   │  │   SIVS    │  │   178+      │ │
+│  │  Context   │  │   SIVS    │  │   10        │ │
 │  │  Memory    │  │   Loop    │  │   Skills    │ │
-│  │  Manager   │  │   Engine  │  │   Library   │ │
+│  │  Manager   │  │   Engine  │  │   Focused   │ │
 │  └─────┬─────┘  └─────┬─────┘  └──────┬──────┘ │
 │        │              │               │         │
 │        └──────────────┼───────────────┘         │
@@ -125,22 +114,13 @@ claude plugin list
 # Should show: qe-framework@inho-team-qe-framework ✔ enabled
 ```
 
-### Optional MCP setup
-
-QE Framework works standalone. Connect MCP servers only when a workflow needs
-external tools, and use `Qmcp setup`, `Qmcp ensure`, or `Qmcp sync` to inspect
-and manage client configuration. Restart Claude Code or Codex after changing
-MCP config.
-
-Maintainers use `/Qrelease` for version bump, changelog update, release commit,
-tag, optional push, and optional GitHub Release. `/Qversion` is the read-only
-version lookup path. Skill manifests remain deterministic via `npm run eval:skills`;
+Skill manifests remain deterministic via `npm run eval:skills`;
 behavioral review can be delegated manually to `/Qcritical-review` when needed.
 
 Audit and migration work follows a documented manual procedure: define scope and
 preconditions, identify exact files and a rollback point, record ordered steps,
 review the diff, run existing targeted validators, and preserve the evidence and
-rollback instructions. See [`docs/MCP_GLOBAL_SETUP.md`](docs/MCP_GLOBAL_SETUP.md).
+rollback instructions in the relevant task artifact.
 
 **Update:**
 ```bash
@@ -151,6 +131,25 @@ claude plugin update qe-framework@inho-team-qe-framework
 ```bash
 claude plugin uninstall qe-framework@inho-team-qe-framework
 ```
+
+### Supported package command surface
+
+The supported npm package entrypoints are the `qe-framework-install` and
+`qe-framework-uninstall` binaries, the commands declared in `package.json`
+(for example `npm run check:all` and `npm run qe:query -- analysis`), and the
+documented QE skills. Although the package ships `scripts/`, `hooks/`, and
+`core/` so the installer can copy runtime assets, direct imports or execution
+of undeclared deep paths are internal and unsupported; those paths may be
+removed between releases.
+
+For retired maintenance paths, use the supported command surface:
+
+- old audit runners (`audit_io`, `audit_skills`, `run_audit`, `verify-memo`) →
+  `npm run check:all` for repository guards and
+  `npm run qe:query -- analysis` for stored analysis;
+- the former `scripts/preuninstall.mjs` path → normal `npm uninstall` lifecycle
+  cleanup or `qe-framework-uninstall` for an explicit removal;
+- retired internal library modules have no public import replacement.
 
 ### Alternative: Local development mode
 
@@ -172,7 +171,7 @@ In Claude, you only need to remember the Plan entry point:
 /Qplan "what you want to achieve"    # Initializes when needed, then runs the Plan-owned Goal loop
 ```
 
-`/Qplan` initializes QE when needed, owns the Plan, and advances verified Goals internally. A Goal completes only when its pre-defined acceptance criteria, user scenarios, regression evidence, independent verification, and required human acceptance are recorded. You review material decisions rather than run stage commands.
+`/Qplan` initializes QE when needed, owns the Plan, and advances verified Goals internally. A Goal completes only when its pre-defined acceptance criteria, user-journey scenarios, regression evidence, independent Goal-alignment verification, and required human acceptance are recorded. High-impact risk Goals require human acceptance. You review material decisions rather than run stage commands.
 
 In Codex, use the same skill names with the Codex skill prefix:
 
@@ -182,10 +181,11 @@ $Qplan "what you want to achieve"
 
 Use `/Qplan` or `$Qplan` to start or re-plan work. Internal QE stages do not require user commands.
 
-`Qinit` creates the active client's project instruction artifact. Claude uses
-`CLAUDE.md`; Codex-capable projects may use `AGENTS.md`. Shared QE state and
-task history live under `.qe/`, with `QE_CONVENTIONS.md` as the common rule
-reference.
+`Qplan` performs the minimal `.qe/` bootstrap when needed. On an explicit QE entry,
+it also creates the client-neutral `QE.md` when absent and adds a small managed pointer
+to `CLAUDE.md` (Claude) or `AGENTS.md` (Codex) without overwriting project instructions.
+Shared QE state and task history live under `.qe/`, with `QE_CONVENTIONS.md` as the
+common rule reference.
 
 ---
 
@@ -202,6 +202,21 @@ The Plan is the user workflow; Spec, Execute, and Verify are internal per-Goal s
 | **Spec / Execute / Verify** | internal | internal | Generate evidence, implement, test, review, and gate the active Goal |
 
 Only verified Goal outcomes are added to the derived project wiki; QE documents remain the source of truth and qe.db remains the lookup index.
+
+### Store schema and upgrades
+
+The QE document store has a versioned ERD and append-only SQLite migrations.
+Check or apply local compatibility work with:
+
+```bash
+npm run qe:schema -- status
+npm run qe:schema -- verify
+npm run qe:schema -- plan
+npm run qe:schema -- migrate
+```
+
+See [Store Schema and Migration Guide](docs/STORE_SCHEMA.md) for the ERD,
+framework-to-schema compatibility contract, and release procedure.
 
 Codex uses the same PSE skills with `$Q...`. The QE client adapter maps Claude
 Agent-tool workflows onto Codex native subagents and falls back to role-separated
@@ -235,49 +250,7 @@ QE uses one active client. Spec stays in the main thread; Implement is led by
 the main thread with bounded subagents; Verify and Supervise are high-reasoning
 critical QA roles that produce evidence and use isolated subagents.
 
-Pick a setup with the active client prefix:
-
-```
-Claude: /Qsivs-config set verify --effort high
-Codex:  $Qsivs-config set verify --effort high
-Claude: /Qsivs-config                                # see current setup
-Codex:  $Qsivs-config
-Claude: /Qsivs-config --help                         # full options
-Codex:  $Qsivs-config --help
-```
-
 Choose Claude or Codex for a session; SIVS does not invoke the other client.
-
-### Folder-Aware Context Memory
-
-**The key differentiator.** Instead of loading one massive project instruction artifact, QE partitions context by folder:
-
-```
-.qe/context/
-├── _registry.json       # folder ↔ context mapping
-├── root.md              # always loaded (project-wide rules)
-├── frontend.md          # loaded only in src/frontend/**
-├── backend.md           # loaded only in src/backend/**
-└── scripts.md           # loaded only in scripts/**
-```
-
-```
-Working in src/frontend/components/Button.tsx
-  → Loads: root.md + frontend.md
-  → Skips: backend.md, scripts.md, infra.md
-  → Result: loads only matched context — fewer tokens per turn
-            (savings vary by project; measure with docs/BENCHMARK.md)
-```
-
-| Claude | Codex | Description |
-|--------|-------|-------------|
-| `/Qcontext init` | `$Qcontext init` | Initialize context partitioning |
-| `/Qcontext add backend "src/backend/**"` | `$Qcontext add backend "src/backend/**"` | Add a folder context |
-| `/Qcontext show` | `$Qcontext show` | View all contexts + staleness status |
-| `/Qcontext refresh` | `$Qcontext refresh` | Auto-update stale contexts |
-| `/Qcontext status src/api/` | `$Qcontext status src/api/` | Preview which contexts would load |
-
-Auto-refreshed via the active-client `Qrefresh` integration.
 
 ### Model Tiering
 
@@ -301,19 +274,10 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->32<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->10<!--/qe:skills--> skills)
 
-> **Start here.** You only need **7 core skills** to use the framework end-to-end. The
-> the rest is intentionally smaller after hard-pruning broad PM/document/academic
-> helper families. New here? Learn these and ignore the rest until you need them:
->
-> Claude: `/Qinit` · `/Qcontext` · `/Qplan` · `/Qgs` · `/Qexecute` · `/Qexecute -verify` · `/Qsivs-config`
->
-> Codex: `$Qinit` · `$Qcontext` · `$Qplan` · `$Qgs` · `$Qexecute` · `$Qexecute -verify` · `$Qsivs-config`
->
-> *(these carry `tier: core` in their frontmatter; everything else is treated as `extended` — no tag needed. The shipped catalog is intentionally kept small enough to stay discoverable.)*
->
-> **v9 (Breaking):** goal is the single entry point. Calling `Qgs` / `Qgenerate-spec` / `Qexecute` directly is blocked — use `/Qgoal {목표}` (or just state a clear goal). `Qplan` now owns the goal-driven workflow. See [`docs/MIGRATION_v8_to_v9.md`](docs/MIGRATION_v8_to_v9.md).
+> **Start here.** Claude uses `/Qplan {intent}` and Codex uses `$Qplan {intent}`.
+> Spec and execution remain internal components of the Plan-owned Goal loop.
 
 Specialist guidance removed from the default catalog is no longer installed as
 part of the framework. Keep project-specific guidance in local docs, custom
@@ -324,36 +288,13 @@ install download optional guidance.
 
 | Category | Skills | Count |
 |----------|--------|-------|
-| **PSE Chain** *(workflow, ≠ `tier: core`)* | `Qplan` `Qgs` `Qexecute` `Qexecute -verify` `Qinit` | 5 |
-| **Autonomy** ⚠️ | `Qexecute -utopia` *(auto-approves everything — read warning below before using)* | 1 |
-| **Context & Config** | `Qcontext` `Qsivs-config` `Qrefresh` `Qmemory` `Qcompact` `Qdoctor` | 6 |
-| **Project** | `Qcommit` `Qrefresh --sync` | 2 |
-| **Quality** | `Qgc` `Qcritical-review` `Qverify-contract` `Qqa` | 4 |
-| **Research** | `Qautoresearch` | 1 |
-| **More** | `/Qhelp find` on Claude; `$Qhelp find` on Codex | Extended catalog |
+| **Workflow intake** | `Qplan` `Qgoal` | 2 |
+| **Internal PSE stages** | `Qgenerate-spec` `Qexecute` *(not user-invocable)* | 2 |
+| **Quality** | `Qcritical-review` | 1 |
+| **Project** | `Qcommit` `Qupdate` `Qversion` | 3 |
+| **Session** | `Qcompact` `Qresume` | 2 |
 
-#### ⚠️ Autonomous Mode (`/Qexecute -utopia` / `$Qexecute -utopia`) — Use With Caution
-
-`Qexecute -utopia` flips a session-level switch (`.qe/state/utopia-state.json`) that makes **every** subsequent skill:
-
-- **Skip interaction prompts** and auto-pick the first (recommended) option
-- **Auto-approve** `Qexecute` execution and `Qgenerate-spec` outputs
-- **Auto-commit** (and, with `-ralph`, loop until `VERIFY_CHECKLIST` is fully green)
-- On Claude, merge broad tool permissions (`Bash(*)`, `Agent(*)`, `WebFetch`, …) into `.claude/settings.json`; on Codex, keep autonomy in QE state and rely on Codex session policy plus QE hook rails
-
-**Why this is dangerous.** The "recommended" option is not always what *you* would pick. In an ambiguous spec or a mixed-scope commit, the default can silently commit wrong files, push to `main`, or chain into irreversible steps. Qexecute -utopia trades your oversight for wall-clock speed.
-
-**Only enable Qexecute -utopia when ALL of the following hold:**
-
-1. The task is well-defined and repetitive (e.g., applying a known fix across many files)
-2. Every step is reversible (no `push --force`, no schema migrations on prod, no destructive deletes)
-3. You accept that commits/pushes may happen without re-confirmation
-
-**Do NOT enable Qexecute -utopia for:** exploratory work, new project kick-offs, ambiguous requirements, first-time tools, or anything on a shared/production branch.
-
-**Recommended lifecycle:** Claude `/Qexecute -utopia status` -> `/Qexecute -utopia` (or `-utopia -verify`) -> `/Qexecute -utopia off`; Codex `$Qexecute -utopia status` -> `$Qexecute -utopia` -> `$Qexecute -utopia off`. Leaving it on across sessions is how accidents happen.
-
-## Agent Fleet (<!--qe:agents-->20<!--/qe:agents--> agents)
+## Agent Fleet (<!--qe:agents-->12<!--/qe:agents--> agents)
 
 | Agent | Role |
 |-------|------|
@@ -363,52 +304,12 @@ install download optional guidance.
 | **Ecode-reviewer** | Code review after changes |
 | **Ecode-test-engineer** | Test writing and coverage |
 | **Ecommit-executor** | AI-trace-free git commits |
-| **Erefresh-executor** | Project analysis + context refresh |
 | **Edeep-researcher** | Multi-source research |
 | **Esecurity-officer** | Security audit on diffs |
 | **Ecompact-executor** | Context window pressure management |
-| **Epm-planner** | PRD, roadmap, document generation |
-| +10 more | Archiving, profiling, handoff, doc generation... |
-
----
-
-## Configuration
-
-### SIVS Single-AI Role Settings
-
-```text
-Claude: /Qsivs-config                    # Show current routing
-Codex:  $Qsivs-config
-Claude: /Qsivs-config set verify --effort high
-Codex:  $Qsivs-config set verify --effort high
-Claude: /Qsivs-config --help             # Full usage guide
-Codex:  $Qsivs-config --help
-```
-
-Config file: `.qe/sivs-config.json`
-
-```json
-{
-  "schemaVersion": 2,
-  "verify": { "effort": "high" },
-  "supervise": { "effort": "high" }
-}
-```
-
-### Folder Context Memory
-
-```text
-Claude: /Qcontext init                              # Initialize
-Codex:  $Qcontext init
-Claude: /Qcontext add frontend "src/frontend/**"    # Add folder context
-Codex:  $Qcontext add frontend "src/frontend/**"
-Claude: /Qcontext show                              # View all + staleness
-Codex:  $Qcontext show
-Claude: /Qcontext refresh                           # Update stale contexts
-Codex:  $Qcontext refresh
-Claude: /Qcontext --help                            # Full usage guide
-Codex:  $Qcontext --help
-```
+| **Erisk-proof-auditor** | Fresh-context risk proof audit |
+| **Edoc-writer** | Technical and generated documentation |
+| +2 more | Debugging and bounded task execution |
 
 ---
 
@@ -416,10 +317,8 @@ Codex:  $Qcontext --help
 
 ```
 qe-framework/
-├── skills/                  # skill definitions
-│   ├── Q*/                  # user-facing skills
-│   └── M*/                  # maintenance skills
-├── agents/                  # 27 agent definitions
+├── skills/                  # 10 skill definitions (8 public, 2 internal)
+├── agents/                  # 20 agent definitions
 ├── core/                    # Principles, schemas, rules
 ├── scripts/                 # Runtime utilities + shared libs
 ├── hooks/                   # Git/session hooks
@@ -441,7 +340,6 @@ qe-framework/
 | Usage Guide | [docs/USAGE_GUIDE.md](docs/USAGE_GUIDE.md) |
 | Conventions | [QE_CONVENTIONS.md](QE_CONVENTIONS.md) |
 | Secret Management | [docs/SECRETS.md](docs/SECRETS.md) |
-| Multi-Model Setup | [docs/MULTI_MODEL_SETUP.md](docs/MULTI_MODEL_SETUP.md) |
 | Contract Layer | [docs/contract-layer.md](docs/contract-layer.md) |
 
 | Language | Path |
@@ -454,7 +352,7 @@ qe-framework/
 
 ## Version
 
-`6.3.0` — Plugin-based installation, Qdebate, Qplan micro-task support, 167 skills.
+`6.3.0` — Historical plugin installation and planning improvements (legacy catalog era).
 
 ## License
 

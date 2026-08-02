@@ -8,42 +8,39 @@ All skills and agents refer to this classification to determine whether a reques
 
 | Intent | Keywords / Patterns | Routing Target |
 |--------|---------------------|----------------|
-| **Initialization** | "init", "initialize", "setup", "start" | Qinit |
+| **Initialization** | "init", "initialize", "setup", "start" | Qplan (internal bootstrap) |
 | **Planning** | "plan", "planning", "roadmap", "milestone", "phase", "계획", "로드맵" | Qplan |
-| **Spec generation** | "spec", "task request", "verify checklist", "create task", "task spec", "명세" | Qgenerate-spec |
-| **Execution** | "run task", "execute task", "sequential", "ordered checklist", "실행" | Qexecute |
+| **Spec generation** | "spec", "task request", "verify checklist", "create task", "task spec", "명세" | Qplan (internal spec stage) |
+| **Execution** | "run task", "execute task", "sequential", "ordered checklist", "실행" | Qplan (internal execution stage) |
 | **Research** | "research", "compare", "which is better", "investigate" | Edeep-researcher |
 | **Debugging** | "bug", "error", "not working", "why doesn't this work" | Ecode-debugger |
 | **Review** | "review", "check", "look at this", "is this ok?" | Ecode-reviewer |
 | **Testing** | "test", "coverage" | Ecode-test-engineer |
 | **Documentation** | "docs", "explain", "README", "document" | Edoc-writer |
 | **Commit** | "commit", "push", "save changes", "커밋", "푸시" | Qcommit |
-| **Refresh** | "refresh analysis", "sync analysis", ".qe/analysis", "analysis snapshot", "분석 데이터 갱신" | Qrefresh |
 | **Plugin update** | "update plugin", "upgrade", "update qe", "update codex", "codex plugin" | Qupdate |
-| **Autonomous mode (Qexecute -utopia)** | "utopia", "autonomous", "no questions", "auto execute" | Qexecute |
-| **Help** | "help", "how to use", "show commands", "command catalog", "도움말" | Qhelp |
+| **Autonomous execution** | "utopia", "autonomous", "no questions", "auto execute" | Qplan |
 | **Resume** | "continue", "resume", "restore" | Qresume |
 | **Handoff** | "handoff", "save state", "save context", "end session", "컨텍스트 저장" | Qcompact |
-| **PM documents** | "PRD", "product requirements", "user story", "meeting notes", "create presentation" | Epm-planner |
-| **MCP server** | "MCP server", "Model Context Protocol", "FastMCP", "MCP SDK", "MCP integration" | Qmcp |
-| **QA test plan** | "test plan", "test cases", "regression suite", "QA testing", "bug report template" | Qqa |
-| **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Qgenerate-spec |
-| **Find skills** | "find a skill", "search skills.sh", "install skill", "skill marketplace" | Qhelp |
-| **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Qgenerate-spec |
-| **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Qgenerate-spec |
+| **PM documents** | "PRD", "product requirements", "user story", "meeting notes", "create presentation" | Qplan |
+| **Refactor instructions** | "refactor CLAUDE.md", "split AGENTS.md", "organize instruction files", "instruction bloat" | Qplan |
+| **Create skill** | "create a skill", "new skill", "modify skill", "skill performance", "benchmark skill" | Qplan |
+| **Migrate tasks** | "migrate tasks", "reorganize tasks", "move task files", "update task structure" | Qplan |
+| **Critical review** | "critical review", "adversarial review", "stress test", "risk proof" | Qcritical-review |
 | **Domain knowledge** | "domain docs", "domain knowledge", "domain rules", "business rules docs" | Refer to .qe/docs/ for existing domain knowledge documents |
 | **Agent team** | "create team", "spawn teammates", "parallel team", "team mode" | Refer to core/AGENT_TEAMS.md for team creation guidance |
 
-Refactor, skill-creation, audit, and migration specs must document a reviewed manual
+Refactor, skill-creation, and migration specs must document a reviewed manual
 procedure rather than assume an admin service. For skill work, use the repository
 template and `npm run eval:skills` for the deterministic manifest; delegate behavioral
-review to `Qcritical-review` when needed. Migration specs follow the manual procedure in
-`docs/MCP_GLOBAL_SETUP.md`.
+review to `Qcritical-review` when needed.
 
 ## Classification Rules
 
 ### 1. Explicit skill invocation takes priority
-If the user explicitly invokes a skill like `/Qgenerate-spec`, skip IntentGate.
+If the user explicitly invokes a public skill like `/Qplan`, skip IntentGate.
+`Qgenerate-spec` and `Qexecute` are internal PSE stages and must not be exposed
+as user-facing next commands.
 
 ### 2. Keyword matching
 When there is no explicit invocation, detect keywords in the user's message.
@@ -58,7 +55,7 @@ When intent cannot be determined, ask the user:
 When the same domain has both a skill and an agent:
 - "fix this bug" / "debug this error" / "not working" → Ecode-debugger (execution)
 - "write tests" / "test coverage" / "add unit tests" → Ecode-test-engineer (execution)
-- Quality loop is handled internally by Qexecute -verify → Eqa-orchestrator delegation
+- The quality loop is handled internally by Qplan → execution/verification stage → Eqa-orchestrator delegation
 
 ## Behavioral Contexts (core/contexts/)
 

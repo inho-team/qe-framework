@@ -1,7 +1,7 @@
 ---
 name: Qupdate
-user_invocable: false
-description: 'Updates QE marketplace metadata/cache, the QE Framework body, installed Codex assets, and the codex-plugin-cc bridge using the correct path for the current install. Use for "update plugin", "upgrade", "update qe", "update codex", or "codex plugin".'
+user_invocable: true
+description: 'Use for "update plugin", "upgrade", "update qe", "update codex", or "codex plugin". Updates marketplace metadata/cache, framework files, installed Codex assets, and the bridge for the current install.'
 allowed-tools: "Bash(claude plugin:*), Bash(npm:*), Bash(node:*), Bash(git fetch:*), Bash(git show:*), Bash(git pull:*), Bash(git -C:*)"
 invocation_trigger: When the framework, its Codex assets, or the codex-plugin-cc bridge need updating.
 recommendedModel: haiku
@@ -27,7 +27,7 @@ plugin managed through `claude plugin`. This skill runs A first, then B/C, then 
 
 ### Step 0: Pre-flight — is the latest release reachable on `origin`?
 The tarball path runs `git pull`, which only helps if the newest release was pushed to
-`origin`. The `Qrelease` workflow makes the push step **optional**, so a freshly cut release can live
+`origin`. Publishing a release may leave a freshly cut release
 only in the local checkout (commit + tag present, `origin` behind).
 
 ```bash
@@ -137,12 +137,7 @@ Choose exactly one path:
 - Otherwise → path 2 (tarball, covers B + C).
 - Do not recommend `npm update -g @inho-team/qe-framework` unless the package is published to npm.
 
-### Step 3: Check optional MCP config health
-`Qupdate` does not install or update external MCP server packages. If the user
-also asked about MCP availability, invoke `{adapter.commandPrefix}Qmcp ensure`
-and report any config warnings separately from the framework update result.
-
-### Step 4: Update the codex-plugin-cc bridge (target D)
+### Step 3: Update the codex-plugin-cc bridge (target D)
 The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of the QE body.
 
 1. Read current status with `getCodexPluginInfo()` from `scripts/lib/codex_bridge.mjs` (reads
@@ -166,7 +161,7 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
      reinstalls to latest) / Skip ("Staying on v{current}.").
    - **Up to date** → "No action needed."
 
-### Step 5: Verify
+### Step 4: Verify
 - Re-check QE marketplace metadata/cache version:
 
   ```bash
@@ -174,8 +169,6 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
   ```
 
 - If the Codex bridge changed, re-read `installed_plugins.json` to confirm the new version.
-- If MCP config health was requested, re-run `{adapter.commandPrefix}Qmcp ensure`
-  and report the resulting PASS/WARN/FAIL.
 - Optionally validate SIVS config from the plugin root (the `qe:validate` npm script lives
   only in the framework repo, not the target project):
 
@@ -183,13 +176,12 @@ The Codex bridge is a **separate** plugin (`codex@openai-codex`), not part of th
   node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');await import(pathToFileURL(join(base,'scripts','validate_svs_config.mjs')).href)})()"
   ```
 
-### Step 6: Report result
+### Step 5: Report result
 Report per target:
 - A — QE marketplace metadata/cache: updated / unchanged / mismatch (with version evidence)
 - B — Claude framework assets: updated / unchanged (which path)
 - C — Codex framework assets: updated / unchanged
 - D — codex-plugin-cc bridge: installed / updated / up-to-date / skipped
-- MCP config health: checked / skipped / warning
 - whether Claude/Codex should be restarted
 
 ## Will
@@ -200,8 +192,8 @@ Report per target:
 
 ## Will Not
 - Modify any project files
-- Modify SIVS engine configuration (use `/Qinit` for that)
-- Manually write marketplace/plugin version fields outside `Qrelease`
+- Modify SIVS engine configuration
+- Manually write marketplace/plugin version fields outside the release/admin workflow
 - Force-install the Codex bridge without user confirmation
 - Install or update unrelated MCP server packages
 - Run without user invocation

@@ -13,7 +13,6 @@ const DEFAULT_TARGETS = [
   'docs/SYSTEM_OVERVIEW.md',
   'hooks/scripts/session-start.mjs',
   'hooks/scripts/pre-tool-use.mjs',
-  'hooks/scripts/notification.mjs',
   'hooks/scripts/codex/lifecycle-codex.mjs',
 ];
 

@@ -15,7 +15,7 @@
  * @module store-file
  */
 
-import { existsSync, readFileSync, readdirSync } from 'fs';
+import { existsSync, readFileSync, readdirSync } from './qe-fs.mjs';
 import { join, relative } from 'path';
 
 import {

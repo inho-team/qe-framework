@@ -53,8 +53,8 @@ function codexifyJsonStrings(value) {
 
 /**
  * Normalise a hook script's raw stdout for Codex consumption.
- * Parses Claude-style JSON hook output, strips unsupported fields for
- * PreCompact events, and rewrites slash-command tokens via {@link codexifyJsonStrings}.
+ * Parses Claude-style JSON hook output and rewrites slash-command tokens via
+ * {@link codexifyJsonStrings}.
  * Falls back to plain codexify on non-JSON output.
  *
  * @param {string} stdout - Raw stdout captured from the delegated hook script.
@@ -65,12 +65,6 @@ function renderCodexStdout(stdout) {
 
   try {
     const parsed = JSON.parse(stdout);
-
-    // Codex PreCompact currently treats Claude-style hookSpecificOutput as an
-    // invalid hook result. Keep the hook side effects and return a minimal pass.
-    if (eventName === 'PreCompact') {
-      return `${JSON.stringify({ continue: parsed.continue !== false })}\n`;
-    }
 
     return `${JSON.stringify(codexifyJsonStrings(parsed))}\n`;
   } catch {
@@ -124,6 +118,9 @@ const result = spawnSync(process.execPath, [target], {
     QE_CLIENT: 'codex',
     QE_COMMAND_PREFIX: '$',
   },
+  timeout: 4_500,
+  killSignal: 'SIGTERM',
+  maxBuffer: 1024 * 1024,
 });
 
 if (result.stdout) process.stdout.write(renderCodexStdout(result.stdout));

@@ -3,7 +3,6 @@
 
 import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join } from 'path';
-import { execSync } from 'child_process';
 import { readStdinJson, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { runTaskCompletedActions } from './lib/task-completed-actions.mjs';
 import { initMetrics, recordTaskCompletion, appendTelemetry } from './lib/metrics.mjs';
@@ -31,21 +30,14 @@ if (taskId) {
     const content = readFileSync(checklistPath, 'utf8');
     const unchecked = (content.match(/- *\[ +\]/g) || []).length;
     if (unchecked > 0) {
-      hints.push(`Task ${taskId} has ${unchecked} unchecked verification items. Complete verification before marking done.`);
-      // Exit code 2 = prevent completion
-      console.log(JSON.stringify({
-        continue: true,
-        hookSpecificOutput: {
-          additionalContext: `[QE Agent Teams] ${hints.join(' ')}`
-        }
-      }));
+      // TaskCompleted consumes exit-2 feedback from stderr; stdout JSON is ignored.
+      console.error(`[QE Agent Teams] Task ${taskId} has ${unchecked} unchecked verification items. Complete verification before marking done.`);
       process.exit(2);
     }
   }
 }
 
-// Auto-archive gap fix: append TASK_LOG row, move pending→completed, and
-// flag Qgc archive when the completed backlog crosses ARCHIVE_THRESHOLD.
+// Append TASK_LOG row and move pending→completed. The Stop sweep owns archive.
 // Idempotent — safe to retry on duplicate TaskCompleted events.
 let actionSummary = null;
 try {
@@ -57,9 +49,6 @@ try {
   });
   if (actionSummary?.logAppended) {
     hints.push(`Logged task ${taskId} to .qe/TASK_LOG.md.`);
-  }
-  if (actionSummary?.archiveFlagged) {
-    hints.push(`Completed backlog has ${actionSummary.completedCount} tasks — archive flag written (.qe/state/archive-needed.flag). Next session will dispatch Earchive-executor.`);
   }
 } catch (err) {
   // Never let bookkeeping bugs block the hook's primary purpose.
@@ -89,29 +78,7 @@ try {
   // Never let metrics bugs block the hook's primary purpose.
 }
 
-// Trigger domain knowledge collection on task completion
-// Only trigger if the task involved code/config changes (domain knowledge likely present)
-try {
-  const diff = execSync('git diff HEAD~1 --name-only 2>/dev/null', { cwd, encoding: 'utf8', timeout: 3000 });
-  const changedFiles = diff.trim().split('\n').filter(Boolean);
-  const hasCodeChanges = changedFiles.some(f =>
-    /\.(js|mjs|ts|jsx|tsx|py|java|go|rs|rb|cs|json|yaml|yml|sql)$/.test(f)
-  );
-  if (hasCodeChanges) {
-    hints.push('Check .qe/docs/ for domain knowledge relevant to the completed task.');
-  }
-} catch {
-  // git diff failed — skip docs collection rather than triggering on error
-}
-
 if (hints.length > 0) {
-  console.log(JSON.stringify({
-    continue: true,
-    hookSpecificOutput: {
-      additionalContext: `[QE] ${hints.join(' ')}`
-    }
-  }));
-} else {
-  console.log(JSON.stringify({ continue: true }));
+  console.log(JSON.stringify({ systemMessage: `[QE] ${hints.join(' ')}` }));
 }
 process.exit(0);

@@ -35,7 +35,7 @@ HIGH/CRITICAL risk requires it. Its required decision dimensions are:
 3. change impact, rollback, data migration, and operational readiness;
 4. residual-risk ownership and release/merge decision.
 
-Supervise returns `PASS`, `PARTIAL`, or `FAIL` with an explicit release decision.
+Supervise returns `PASS`, `WARN`, or `FAIL` with an explicit release decision.
 Any unresolved HIGH/CRITICAL security or business-rule risk blocks PASS.
 
 ## Configuration

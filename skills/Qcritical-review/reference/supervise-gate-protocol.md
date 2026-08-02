@@ -42,7 +42,7 @@ For `type:code`, Supervise is the final owner of the **Code Risk Gate**:
 
 Supervise MUST read `.qe/agent-results/risk-proof-{UUID}.md` for `type:code`
 tasks. If the report is missing, stale for the UUID, or lacks the `Risk Proof matrix`,
-Supervise returns FAIL and routes back to Verify. If `Qrisk-proof` reports FAIL,
+Supervise returns FAIL and routes back to Verify. If `Qcritical-review --risk` reports FAIL,
 Supervise cannot override it with a PASS. WARN may be accepted only when no
 HIGH/CRITICAL unknown or evidence-free defer remains.
 
@@ -69,7 +69,7 @@ HIGH/CRITICAL risk is `verified-safe`, `mitigated`, or
 Reuse the spec-gate JSON schema and 3-agent verdict aggregation — see
 [spec-gate-protocol.md](./spec-gate-protocol.md). Each finding carries a
 `root_cause_stage` field. The orchestrator's existing grade mapping applies:
-Qcritical FAIL → supervision FAIL; WARN → PARTIAL; PASS → no impact.
+Qcritical FAIL → supervision FAIL; WARN → WARN; PASS → no impact.
 
 ## Single-AI execution
 

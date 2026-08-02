@@ -1,7 +1,7 @@
 ---
 name: Qresume
-user_invocable: false
-description: Restores saved context after compaction or session break. Use when resuming work, restoring context, continuing from where you left off, or loading a previous session.
+user_invocable: true
+description: Use when resuming work, restoring context, continuing from where you left off, or loading a previous session after compaction or a session break.
 invocation_trigger: When saved context must be restored after compaction or a session break.
 recommendedModel: haiku
 ---

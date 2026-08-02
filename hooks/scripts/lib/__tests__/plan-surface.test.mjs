@@ -7,11 +7,14 @@ import { fileURLToPath } from 'node:url';
 const here = dirname(fileURLToPath(import.meta.url));
 const skillsDir = resolve(here, '..', '..', '..', '..', 'skills');
 
-test('only Qgoal and Qplan are user-invocable QE skills', () => {
+test('public QE skill metadata matches the supported command surface', () => {
   const publicSkills = readdirSync(skillsDir, { withFileTypes: true })
     .filter((entry) => entry.isDirectory())
     .map((entry) => entry.name)
     .filter((name) => readFileSync(join(skillsDir, name, 'SKILL.md'), 'utf8').includes('user_invocable: true'))
     .sort();
-  assert.deepEqual(publicSkills, ['Qgoal', 'Qplan']);
+  assert.deepEqual(publicSkills, [
+    'Qcommit', 'Qcompact', 'Qcritical-review', 'Qgoal',
+    'Qplan', 'Qresume', 'Qupdate', 'Qversion',
+  ]);
 });

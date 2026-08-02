@@ -17,7 +17,7 @@
  * (b) Forbidden leading pattern: description starting with 3rd-person present
  *     action verbs (Creates, Generates, Analyzes, etc.) indicates workflow summary.
  * (c) Whitelist: sibling-boundary clauses ("Use Q...") required by CHECK(d) for
- *     core auto-routing skills (Qplan, Qgenerate-spec, Qgs, Qexecute).
+ *     core auto-routing skills (Qplan, Qgenerate-spec, Qexecute).
  *
  * Based on principles from obra/superpowers (MIT) and steipete/agent-scripts (MIT),
  * adapted to QE conventions and Phase 1 report-only posture.

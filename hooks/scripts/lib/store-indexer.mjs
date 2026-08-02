@@ -18,7 +18,7 @@
  */
 
 import { createHash } from 'crypto';
-import { existsSync, readFileSync, readdirSync, statSync } from 'fs';
+import { existsSync, readFileSync, readdirSync, statSync } from './qe-fs.mjs';
 import { join, relative } from 'path';
 
 import {

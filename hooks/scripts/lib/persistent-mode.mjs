@@ -8,8 +8,8 @@
  * ## How it works
  *
  * When a pipeline enters persistent mode, the Stop hook blocks early termination
- * and the Notification hook injects reinforcement messages whenever Claude appears
- * to be wrapping up. The mode is stored in `unified-state.json` under the
+ * whenever Claude appears to be wrapping up. The mode is stored in
+ * `unified-state.json` under the
  * `persistentMode` key so all hooks share the same truth.
  *
  * ## Integration pattern for skills
@@ -30,8 +30,8 @@
  *   // ... execute pipeline ...
  *   exitPersistentMode(cwd);
  *
- * The stop-handler.mjs and notification.mjs hooks read persistent mode state
- * automatically — no additional wiring is needed.
+ * The stop-handler.mjs hook reads persistent mode state automatically — no
+ * additional wiring is needed.
  *
  * @module persistent-mode
  */

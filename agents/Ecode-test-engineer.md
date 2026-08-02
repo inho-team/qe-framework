@@ -2,7 +2,7 @@
 name: Ecode-test-engineer
 description: 'Test engineer. Handles test writing, coverage analysis, and test strategy planning. Use for requests like "write tests", "test this", "coverage", "QA".'
 tools: Read, Grep, Glob, Bash, Edit, Write
-memory: user
+maxTurns: 24
 recommendedModel: sonnet
 ---
 
@@ -150,6 +150,6 @@ class UserServiceTest {
 - Ensure test independence (no shared state)
 - Always run tests after writing them to confirm they pass
 - Do not target unnecessarily high coverage (prioritize core logic)
-- Before starting, read `.qe/agent-results/Ecode-reviewer-latest.md` if it exists (review findings inform test targets)
-- If coverage below 50%, write trigger: `.qe/agent-triggers/Esupervision-orchestrator.trigger.md`
-- After completion, write result to `.qe/agent-results/Ecode-test-engineer-latest.md`
+- In independent verification mode, do not read another evaluator's verdict before the first pass.
+- Return low coverage as a `handoffs[]` request for `Esupervision-orchestrator`; do not write trigger files.
+- Return `qe-agent-result-v1`; the caller validates and persists it under the run-scoped path.

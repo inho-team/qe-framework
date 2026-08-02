@@ -112,8 +112,8 @@ orchestration; only `ultracode` sets the session workflow boolean.
 
 ## Plugin Hook Events
 
-### plugin.json (9 events — plugin validator whitelist)
-SessionStart, PreToolUse, PostToolUse, PreCompact, Stop, UserPromptSubmit, Notification, TeammateIdle, TaskCompleted
+### QE plugin.json (7 registered events)
+SessionStart, PreToolUse, PostToolUse, Stop, UserPromptSubmit, TeammateIdle, TaskCompleted
 
 ### settings.json (additional 3 confirmed working)
 PermissionRequest, SessionEnd, SubagentStop

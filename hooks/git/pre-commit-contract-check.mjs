@@ -94,11 +94,11 @@ async function main() {
           );
         } else {
           process.stderr.write(
-            `  - ${failure.name} [unapproved] — run \`/Qcontract approve ${failure.name} --reason "..."\` first\n`
+            `  - ${failure.name} [unapproved] — run \`npm run qe:contract -- approve ${failure.name} --reason "..."\` first\n`
           );
         }
       }
-      process.stderr.write('\nTo approve edits: /Qcontract approve <name>\n');
+      process.stderr.write('\nTo approve edits: npm run qe:contract -- approve <name> --reason "..."\n');
       process.stderr.write('To bypass (not recommended): git commit --no-verify\n\n');
       process.exit(1);
     }

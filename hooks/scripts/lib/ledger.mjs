@@ -35,7 +35,7 @@ import { atomicWriteJson } from './state.mjs';
 import { resolveActivePlanSlug } from './plan-resolver.mjs';
 import { readCurrentSessionId } from './session-resolver.mjs';
 import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
-import { isAllowlistCommand } from './verification-evidence-gate.mjs';
+import { isAllowlistCommand, isBehavioralEvidenceCommand } from './verification-evidence-gate.mjs';
 
 const PLANS_DIR = '.qe/planning/plans';
 const STATUS_ENUM = ['pending', 'active', 'complete', 'failed', 'blocked'];
@@ -176,7 +176,7 @@ export function createGoals(cwd, slug, explicitGoals = []) {
 
 /**
  * Append a lifecycle event and update only the affected goal's status/attempts.
- * Fail-closed enforcement (only-active-mutable) is Phase 2 (Qgs); Phase 1
+ * Fail-closed enforcement (only-active-mutable) is Phase 2 (Qgenerate-spec); Phase 1
  * keeps the primitive permissive but records every transition.
  */
 export function append(cwd, slug, { goalId, event, status, evidence = '', allowComplete = false }) {
@@ -203,9 +203,77 @@ function readJsonFile(file, label) {
 function nonEmpty(value) { return typeof value === 'string' && value.trim().length > 0; }
 function contractHash(contract) { return createHash('sha256').update(JSON.stringify(contract)).digest('hex'); }
 
+const RISK_CATEGORIES = new Set([
+  'none', 'authentication', 'authorization', 'payment', 'deployment',
+  'data-migration', 'destructive-data-change', 'external-integration', 'security',
+]);
+
+const RISK_SIGNALS = [
+  ['authentication', /\bauth(?:entication)?\b|로그인|인증/iu],
+  ['authorization', /\bauthori[sz]ation\b|\bpermission(?:s)?\b|권한/iu],
+  ['payment', /\bpayment(?:s)?\b|\bbilling\b|결제/iu],
+  ['deployment', /\bdeploy(?:ment)?\b|\brelease\b|배포|릴리스/iu],
+  ['data-migration', /\bmigrat(?:e|ion)\b|\bschema\b|\bdatabase\b|\bdb\b|마이그레이션|스키마|데이터베이스/iu],
+  ['destructive-data-change', /\bdelete\b|\bpurge\b|\bdrop\b|삭제|파기/iu],
+  ['external-integration', /\bexternal\s+api\b|\bthird[- ]party\b|외부\s*(?:api|연동)|서드파티/iu],
+  ['security', /\bsecurity\b|\bencrypt(?:ion)?\b|보안|암호화/iu],
+];
+
+const MAX_GOAL_REQUIREMENTS = 3;
+const MAX_GOAL_SCENARIOS = 2;
+const MAX_GOAL_PATHS = 5;
+const CODE_PATH_RE = /\.(?:mjs|cjs|js|jsx|ts|tsx|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|php|rb|sh|bash|zsh|sql|vue|svelte)$/iu;
+const MACHINE_SESSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
+const GOAL_COMMAND_TIMEOUT_MS = 120_000;
+
+function normalizedText(value) { return String(value ?? '').replace(/\s+/g, ' ').trim(); }
+
+function contractTouchesCode(contract) {
+  return contract.goalShape.allowedPaths.some(path => CODE_PATH_RE.test(path));
+}
+
+function contractHasBehavioralEvidence(contract) {
+  return [...contract.requirements, ...contract.scenarios, contract.regression]
+    .some(item => isBehavioralEvidenceCommand(item.command));
+}
+
+function requiredRiskCategories(goalObjective) {
+  return RISK_SIGNALS
+    .filter(([, pattern]) => pattern.test(String(goalObjective ?? '')))
+    .map(([category]) => category);
+}
+
 function idsAreUnique(items) {
   const ids = items.map(item => item?.id);
   return ids.every(nonEmpty) && new Set(ids).size === ids.length;
+}
+
+function isBoundedPath(value) {
+  return typeof value === 'string' && value.length <= 180 && value.trim() !== '' &&
+    !value.startsWith('/') && !value.includes('..') && !/[\\*]/.test(value);
+}
+
+/**
+ * A Goal is deliberately smaller than a Phase: one observable outcome, a
+ * bounded write surface, and explicit non-goals prevent a broad request from
+ * being certified by a shallow set of tests.
+ */
+function validateGoalShape(shape) {
+  if (!shape || typeof shape !== 'object' || Array.isArray(shape)) throw new Error('acceptance contract requires goalShape');
+  if (!nonEmpty(shape.primaryOutcome) || !nonEmpty(shape.completionMetric)) {
+    throw new Error('goalShape requires one primaryOutcome and one completionMetric');
+  }
+  if (!Array.isArray(shape.allowedPaths) || shape.allowedPaths.length === 0 || shape.allowedPaths.length > MAX_GOAL_PATHS ||
+      !shape.allowedPaths.every(isBoundedPath) || new Set(shape.allowedPaths).size !== shape.allowedPaths.length) {
+    throw new Error(`goalShape allowedPaths must contain 1-${MAX_GOAL_PATHS} unique relative paths without globs`);
+  }
+  if (!Array.isArray(shape.nonGoals) || shape.nonGoals.length === 0 || !shape.nonGoals.every(nonEmpty)) {
+    throw new Error('goalShape requires at least one explicit nonGoal');
+  }
+  if (!Array.isArray(shape.dependencies) || !shape.dependencies.every(nonEmpty)) {
+    throw new Error('goalShape dependencies must be an array of non-empty Goal IDs or []');
+  }
+  return shape;
 }
 
 /**
@@ -213,15 +281,37 @@ function idsAreUnique(items) {
  * scenarios and requirements separately: a passing test alone must not become
  * a retroactive definition of user value.
  */
-function validateAcceptanceContract(contract, goalId) {
+function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   if (!contract || typeof contract !== 'object' || Array.isArray(contract)) throw new Error('acceptance contract must be an object');
   if (contract.schema !== 1 || contract.goalId !== goalId) throw new Error(`acceptance contract must declare schema: 1 and goalId: ${goalId}`);
+  validateGoalShape(contract.goalShape);
   if (!Array.isArray(contract.requirements) || contract.requirements.length === 0 || !idsAreUnique(contract.requirements) ||
       !contract.requirements.every(item => nonEmpty(item.criterion) && isGoalRunnerCommand(item.command))) throw new Error('acceptance contract requires uniquely identified requirements with criteria and runnable commands');
+  if (contract.requirements.length > MAX_GOAL_REQUIREMENTS) throw new Error(`acceptance contract allows at most ${MAX_GOAL_REQUIREMENTS} requirements; split broad work into Goals`);
   if (!Array.isArray(contract.scenarios) || contract.scenarios.length === 0 || !idsAreUnique(contract.scenarios) ||
-      !contract.scenarios.every(item => nonEmpty(item.scenario) && nonEmpty(item.expected) && isGoalRunnerCommand(item.command))) throw new Error('acceptance contract requires uniquely identified user scenarios with expected results and runnable commands');
+      !contract.scenarios.every(item => item.kind === 'user-journey' && nonEmpty(item.scenario) && nonEmpty(item.expected) && isGoalRunnerCommand(item.command))) throw new Error('acceptance contract requires uniquely identified user-journey scenarios with expected results and runnable commands');
+  if (contract.scenarios.length > MAX_GOAL_SCENARIOS) throw new Error(`acceptance contract allows at most ${MAX_GOAL_SCENARIOS} user journeys; split broad work into Goals`);
   if (!contract.regression || !nonEmpty(contract.regression.scope) || !isGoalRunnerCommand(contract.regression.command)) throw new Error('acceptance contract requires regression scope and runnable command');
+  if (contractTouchesCode(contract) && !contractHasBehavioralEvidence(contract)) {
+    throw new Error('code-changing Goal acceptance requires at least one behavioral node --test command');
+  }
   if (!contract.humanAcceptance || typeof contract.humanAcceptance.required !== 'boolean') throw new Error('acceptance contract requires humanAcceptance.required');
+  if (!contract.goalAlignment || normalizedText(contract.goalAlignment.objective) !== normalizedText(goalObjective) || !nonEmpty(contract.goalAlignment.rationale)) {
+    throw new Error('acceptance contract must preserve the Goal objective verbatim and explain requirement/scenario coverage');
+  }
+  const risk = contract.riskAssessment;
+  if (!risk || !Array.isArray(risk.categories) || risk.categories.length === 0 || !new Set(risk.categories).size ||
+      !risk.categories.every(category => RISK_CATEGORIES.has(category)) ||
+      (risk.categories.includes('none') && risk.categories.length !== 1) || !nonEmpty(risk.rationale)) {
+    throw new Error('acceptance contract requires a valid risk assessment with categories and rationale');
+  }
+  const requiredRisks = requiredRiskCategories(goalObjective);
+  if (requiredRisks.some(category => !risk.categories.includes(category))) {
+    throw new Error(`acceptance contract risk assessment omits detected Goal risk: ${requiredRisks.filter(category => !risk.categories.includes(category)).join(', ')}`);
+  }
+  if (risk.categories.some(category => category !== 'none') && !contract.humanAcceptance.required) {
+    throw new Error('risk-bearing Goals require humanAcceptance.required: true');
+  }
   return contract;
 }
 
@@ -231,22 +321,23 @@ function isGoalRunnerCommand(command) {
 
 function commandResult(cwd, command) {
   const parts = command.trim().split(/\s+/);
-  const result = spawnSync(parts[0], parts.slice(1), { cwd, encoding: 'utf8', timeout: 60_000, maxBuffer: 64 * 1024 });
+  const result = spawnSync(parts[0], parts.slice(1), { cwd, encoding: 'utf8', timeout: GOAL_COMMAND_TIMEOUT_MS, maxBuffer: 64 * 1024 });
   const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
   return { command, exitCode: Number.isInteger(result.status) ? result.status : null, signal: result.signal || null,
     passed: !result.error && result.status === 0, outputHash: createHash('sha256').update(output).digest('hex'), executedAt: nowIso() };
 }
 
 /** Execute every locked Goal command and persist machine-collected evidence. */
-export function runGoalEvidence(cwd, slug, { goalId, role, verifier = '' }) {
+export function runGoalEvidence(cwd, slug, { goalId, role, verifier = '', sessionId: explicitSessionId = '' }) {
   if (!['implementation', 'verification'].includes(role)) throw new Error('run role must be implementation or verification');
   if (role === 'verification' && !nonEmpty(verifier)) throw new Error('verification run requires a verifier identity');
   const doc = readGoals(cwd, slug);
   const goal = doc?.goals?.find(item => item.id === goalId);
   if (!goal || goal.status !== 'active') throw new Error('evidence runs require the active Goal');
-  const sessionId = readCurrentSessionId(cwd);
+  const sessionId = explicitSessionId || readCurrentSessionId(cwd);
   if (!sessionId) throw new Error('machine evidence run requires a current QE session id');
-  const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, goalId), 'acceptance contract'), goalId);
+  if (!MACHINE_SESSION_RE.test(sessionId)) throw new Error('machine evidence run requires a valid full QE session id');
+  const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, goalId), 'acceptance contract'), goalId, goal.objective);
   if (!goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
   const commands = [...contract.requirements, ...contract.scenarios, contract.regression]
     .map(item => item.command).filter((value, index, values) => values.indexOf(value) === index);
@@ -282,7 +373,7 @@ function evidenceCovers(contractItems, evidenceItems, label) {
 }
 
 /** Validate a completion record against the pre-existing acceptance contract. */
-function validateCompletionEvidence(evidence, contract, goalId) {
+function validateCompletionEvidence(evidence, contract, goalId, goalObjective = '') {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) throw new Error('completion evidence must be an object');
   if (evidence.schema !== 1 || evidence.goalId !== goalId) throw new Error(`completion evidence must declare schema: 1 and goalId: ${goalId}`);
   evidenceCovers(contract.requirements, evidence.requirements, 'requirements');
@@ -291,6 +382,11 @@ function validateCompletionEvidence(evidence, contract, goalId) {
   const independent = evidence.independentVerification;
   if (!independent || !nonEmpty(independent.verifier) || independent.mode !== 'machine-reexecution' ||
       independent.outcome !== 'pass' || !nonEmpty(independent.evidence)) throw new Error('completion evidence requires passing independent verification');
+  const alignment = evidence.goalAlignment;
+  if (!alignment || alignment.outcome !== 'pass' || normalizedText(alignment.objective) !== normalizedText(goalObjective) ||
+      alignment.verifier !== independent.verifier || !nonEmpty(alignment.evidence)) {
+    throw new Error('completion evidence requires the independent verifier to pass Goal-to-evidence alignment');
+  }
   const human = evidence.humanAcceptance;
   if (!human || (contract.humanAcceptance.required ? human.status !== 'passed' || !nonEmpty(human.evidence) : human.status !== 'not-required' && human.status !== 'passed')) {
     throw new Error('completion evidence does not satisfy human acceptance requirement');
@@ -305,7 +401,7 @@ export function setGoalAcceptance(cwd, slug, { goalId, file }) {
   const goal = doc?.goals?.find(item => item.id === goalId);
   if (!goal) throw new Error(`unknown goalId: ${goalId}`);
   if (goal.status !== 'pending') throw new Error('acceptance contract can only be set before a Goal starts');
-  const contract = validateAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId);
+  const contract = validateAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId, goal.objective);
   if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
   atomicWriteJson(acceptancePath(cwd, slug, goalId), contract);
   goal.acceptance = { status: 'defined', file: join('evidence', `${goalId}.acceptance.json`), hash: contractHash(contract) };
@@ -322,9 +418,9 @@ export function recordGoalEvidence(cwd, slug, { goalId, file }) {
   if (goal.status !== 'active') throw new Error('completion evidence can only be recorded for the active Goal');
   const contractFile = acceptancePath(cwd, slug, goalId);
   if (!existsSync(contractFile)) throw new Error('Goal has no acceptance contract');
-  const contract = validateAcceptanceContract(readJsonFile(contractFile, 'acceptance contract'), goalId);
+  const contract = validateAcceptanceContract(readJsonFile(contractFile, 'acceptance contract'), goalId, goal.objective);
   if (!goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
-  const evidence = validateCompletionEvidence(readJsonFile(file, 'completion evidence'), contract, goalId);
+  const evidence = validateCompletionEvidence(readJsonFile(file, 'completion evidence'), contract, goalId, goal.objective);
   requirePassingRuns(cwd, slug, goal, goalId);
   if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
   atomicWriteJson(completionEvidencePath(cwd, slug, goalId), evidence);
@@ -355,7 +451,7 @@ export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) 
     if (!existsSync(acceptancePath(cwd, slug, next.id))) {
       return { action: 'needs-acceptance', goal: { id: next.id, title: next.title }, reason: 'Define user scenarios, requirement criteria, regression command, and human-acceptance need before starting.' };
     }
-    const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, next.id), 'acceptance contract'), next.id);
+    const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, next.id), 'acceptance contract'), next.id, next.objective);
     if (!next.acceptance?.hash || next.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
     const result = append(cwd, slug, { goalId: next.id, event: 'started', status: 'active' });
     renderState(cwd, slug);
@@ -366,9 +462,9 @@ export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) 
     if (!active) throw new Error('no active goal to complete');
     const evidenceFile = completionEvidencePath(cwd, slug, active.id);
     if (!existsSync(evidenceFile)) throw new Error('verified completion requires recorded acceptance, regression, and independent-verification evidence');
-    const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, active.id), 'acceptance contract'), active.id);
+    const contract = validateAcceptanceContract(readJsonFile(acceptancePath(cwd, slug, active.id), 'acceptance contract'), active.id, active.objective);
     if (!active.acceptance?.hash || active.acceptance.hash !== contractHash(contract)) throw new Error('acceptance contract changed after it was recorded');
-    const proof = validateCompletionEvidence(readJsonFile(evidenceFile, 'completion evidence'), contract, active.id);
+    const proof = validateCompletionEvidence(readJsonFile(evidenceFile, 'completion evidence'), contract, active.id, active.objective);
     requirePassingRuns(cwd, slug, active, active.id);
     append(cwd, slug, { goalId: active.id, event: 'verified', status: 'complete', evidence: `completion=${join('evidence', `${active.id}.completion.json`)}`, allowComplete: true });
     const knowledge = writeVerifiedGoalKnowledge(cwd, { slug, goal: active, evidence: JSON.stringify(proof) });
@@ -1100,7 +1196,7 @@ function main() {
     else if (cmd === 'append') res = append(cwd, slug, { goalId: args['goal-id'], event: args.event, status: args.status, evidence: args.evidence });
     else if (cmd === 'set-acceptance') res = setGoalAcceptance(cwd, slug, { goalId: args['goal-id'], file: args.file });
     else if (cmd === 'record-evidence') res = recordGoalEvidence(cwd, slug, { goalId: args['goal-id'], file: args.file });
-    else if (cmd === 'run-evidence') res = runGoalEvidence(cwd, slug, { goalId: args['goal-id'], role: args.role, verifier: args.verifier });
+    else if (cmd === 'run-evidence') res = runGoalEvidence(cwd, slug, { goalId: args['goal-id'], role: args.role, verifier: args.verifier, sessionId: args.session });
     else if (cmd === 'advance') res = advanceGoal(cwd, slug, { action: args.action, evidence: args.evidence });
     else if (cmd === 'render-state') res = renderState(cwd, slug);
     else if (cmd === 'status') res = status(cwd, slug);

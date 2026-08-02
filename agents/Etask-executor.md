@@ -1,11 +1,9 @@
 ---
 name: Etask-executor
 description: Sub-agent that implements complex checklists (5+ items) with sequential or wave-parallel execution. Invoke when Qexecute needs a checklist executed as delegated work.
-tools: Read, Write, Edit, Grep, Glob, Bash
+tools: Read, Write, Edit, Grep, Glob, Bash, Agent
 color: cyan
-memory: project
-maxTurns: 50
-permissionMode: acceptEdits
+maxTurns: 36
 recommendedModel: sonnet
 ---
 
@@ -21,7 +19,7 @@ Implementation-dedicated agent delegated from `Qexecute`. Executes specific `TAS
 - Report progress per item and escalation-worthy issues immediately.
 
 ## Will Not
-- Task planning or analysis (delegate to **Epm-planner**).
+- Task planning or analysis (route to **Qplan**).
 - Root cause debugging (delegate to **Ecode-debugger**).
 - Modify `TASK_REQUEST` or `VERIFY_CHECKLIST` status files.
 
@@ -35,7 +33,7 @@ Read `.qe/analysis/` and project memory to identify discovered patterns, frequen
 
 ### 2. Implementation Loop
 - **Standard**: Sequential execution with status reports: `✅ [N/M] desc - done`.
-- **Parallel**: Use the **Wave Execution Model** if checklist ≥ 5 items and dependencies allow.
+- **Parallel**: Use the **Wave Execution Model** only when each worker has disjoint allowed paths and `isolation=worktree`.
   > Full reference: `agents/references/wave-execution.md`
 
 ### 3. Quality & Integrity
@@ -43,14 +41,8 @@ Read `.qe/analysis/` and project memory to identify discovered patterns, frequen
 - **Checks**: After edits, verify line counts (alert if >20% loss). Atomic wave workers must not run project build/test verification in their own context.
 - **Build Admission**: Any Lead-owned or sequential build-capable command is subject to the PreToolUse build admission gate. This does not re-enable worker-side project build/test fan-out.
 - **Cheap Sanity**: Atomic wave workers may run cheap local sanity checks that do not invoke project builds, then report changed files and risk notes for the Lead session.
-- **Shared Files**: `package.json`, i18n, and config files are owned by the **Lead** session. Subagents write additions to `.qe/agent-results/` for Lead to merge.
+- **Shared Files**: `package.json`, i18n, and config files are owned by the **Lead** session. Workers return patches/results for Lead reconciliation and never communicate through shared `latest` files.
 
 ## Output Format
-Upon completion, provide a concise summary:
-```markdown
-## Implementation Result
-**Completed Items:** N/N
-**Task Type:** [code / docs / analysis]
-**Changed Files:** [list + brief summary]
-**Findings:** [patterns or build quirks discovered]
-```
+Return `qe-agent-result-v1`. `changed_files` must contain only packet-owned paths, and every
+entry must include the verification command or observation that supports completion.

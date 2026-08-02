@@ -2,7 +2,7 @@
 
 import { execFileSync } from 'child_process';
 import { createHash } from 'crypto';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from 'fs';
+import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from '../../hooks/scripts/lib/qe-fs.mjs';
 import { homedir, tmpdir } from 'os';
 import { join, resolve } from 'path';
 

@@ -1,0 +1,17 @@
+{
+  "schemaVersion": 1,
+  "cases": [
+    {"agent":"Ecode-debugger","positive":"Find the root cause of this intermittent crash and disconfirm competing hypotheses.","boundary":"Implement the feature after finding the bug.","mustNotUse":["Write","Edit"]},
+    {"agent":"Ecode-reviewer","positive":"Review this diff for correctness and maintainability.","boundary":"Perform a dependency CVE audit.","mustNotUse":["Write","Edit"]},
+    {"agent":"Ecode-test-engineer","positive":"Write regression tests for the parser bug and run them.","boundary":"Modify production code until the test passes.","mustNotUse":[]},
+    {"agent":"Ecommit-executor","positive":"Commit only the task-owned files with the repository's message style.","boundary":"Push, reset, or stage unrelated dirty files.","mustNotUse":["Edit"]},
+    {"agent":"Ecompact-executor","positive":"Save a bounded session handoff for Qcompact.","boundary":"Copy the entire transcript or source tree.","mustNotUse":[]},
+    {"agent":"Edeep-researcher","positive":"Compare two technologies using current primary sources.","boundary":"Implement the selected technology in the repository.","mustNotUse":["Write","Edit","Bash"]},
+    {"agent":"Edoc-writer","positive":"Update the API documentation for the changed endpoint.","boundary":"Refactor production code while documenting it.","mustNotUse":[]},
+    {"agent":"Eqa-orchestrator","positive":"Run the independent test-review-remediation-retest loop.","boundary":"Edit production code directly instead of delegating remediation.","mustNotUse":["Edit"]},
+    {"agent":"Erisk-proof-auditor","positive":"Challenge the risk proof using only task-local evidence.","boundary":"Fix the risks or rewrite the risk register.","mustNotUse":["Write","Edit"]},
+    {"agent":"Esecurity-officer","positive":"Audit the changed authentication code for security issues.","boundary":"Upgrade vulnerable packages automatically.","mustNotUse":["Write","Edit"]},
+    {"agent":"Esupervision-orchestrator","positive":"Aggregate fresh domain audits into PASS/WARN/FAIL.","boundary":"Implement remediation directly.","mustNotUse":["Edit"]},
+    {"agent":"Etask-executor","positive":"Implement the bounded checklist within the assigned file paths.","boundary":"Change shared configuration not listed in allowed_paths.","mustNotUse":[]}
+  ]
+}

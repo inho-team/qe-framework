@@ -56,7 +56,7 @@ const displayName = user.name.charAt(0).toUpperCase() + user.name.slice(1);
 
 **원칙**: Simplicity First
 **감지**: 간단한 기능에 환경변수, 설정 파일, feature flag 추가
-**qe-framework 방어**: `/Qcritical-review`, `/Qdesign-audit`
+**qe-framework 방어**: `/Qcritical-review` adversarial and visual-review modes
 
 **Bad:**
 ```typescript
@@ -158,7 +158,7 @@ if (!user) return res.status(404).json({ error: 'User not found' });
 
 **원칙**: Surgical Changes
 **감지**: 요청하지 않은 기능을 "있으면 좋을 것 같아서" 추가
-**qe-framework 방어**: SIVS Spec 단계 (스펙에 없으면 구현 안 함), `/Qrequirements-clarity`
+**qe-framework 방어**: `Qplan` 요구사항 명확화와 SIVS Spec 단계 (스펙에 없으면 구현 안 함)
 
 **Bad:**
 ```typescript
@@ -235,7 +235,7 @@ function calculateTotal(items: Item[]): number {
 
 **원칙**: Think Before Coding
 **감지**: 요구사항에 없는 기술 결정을 확인 없이 진행
-**qe-framework 방어**: `/Qrequirements-clarity`, `/Qgenerate-spec` Step 2 (정보 수집)
+**qe-framework 방어**: `Qplan` 정보 수집과 내부 Spec 단계
 
 **Bad:**
 ```typescript
@@ -318,5 +318,4 @@ function LoginForm() {
 - [andrej-karpathy-skills](https://github.com/forrestchang/andrej-karpathy-skills) — EXAMPLES.md format
 - qe-framework `QE_CONVENTIONS.md` — PSE Chain, SIVS loop
 - `/Qcritical-review` — adversarial review skill
-- `/Qtest-driven-development` — test-first development
-- `/Qrequirements-clarity` — ambiguity detection before coding
+- `Qplan` — ambiguity detection, planning, and internal spec control

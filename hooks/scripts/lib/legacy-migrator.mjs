@@ -4,7 +4,7 @@
  * Registry-driven engine that detects and relocates artifacts from previous
  * QE structures. Two callers:
  *   - session-start hook    → `runAutoMigrations`, silent + idempotent
- *   - /Qmigrate-legacy skill → `dryRunAll`, `applyById`, user-facing
+ *   - maintenance callers → `dryRunAll`, `applyById`, explicit/admin use
  *
  * Adding a new legacy pattern is a single registry entry — see MIGRATIONS at
  * the bottom of the file. Each entry owns its own scan/apply pair so the
@@ -63,8 +63,7 @@ export function summarizeReport(report) {
 }
 
 /**
- * Scan every registered migration without applying. Used by /Qmigrate-legacy
- * for the default dry-run report so the user can review before opting in.
+ * Scan every registered migration without applying for an admin dry-run report.
  *
  * @param {string} projectRoot
  * @returns {Array<{ id: string, description: string, autoEligible: boolean, candidates: Array<{src: string, dst: string}> }>}
@@ -80,8 +79,7 @@ export function dryRunAll(projectRoot) {
 }
 
 /**
- * Apply a specific migration by id. Used by /Qmigrate-legacy for
- * `--apply <id>` after the user reviews the dry-run output.
+ * Apply a specific migration by id after the user reviews a dry-run output.
  *
  * @param {string} projectRoot
  * @param {string} id migration id from MIGRATIONS
@@ -239,7 +237,7 @@ const MIGRATIONS = [
     scan: scanLegacyHandoffs,
   },
   // Add future legacy patterns here. Set autoEligible to false until proven
-  // safe across real projects; surface them via /Qmigrate-legacy first.
+  // safe across real projects; keep them manual until separately reviewed.
 ];
 
 // Test helper — exposed only for unit tests, not part of the public API.

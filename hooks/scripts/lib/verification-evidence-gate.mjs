@@ -100,6 +100,32 @@ const ALLOWLIST_EXACT = [
 const ALLOWLIST_PREFIX_RE = /^node\s+--test\s+\S/;
 
 /**
+ * Classify a command by the kind of assurance it provides.
+ *
+ * `qe:validate` and `check-all` prove repository/configuration structure. A
+ * focused `node --test` run exercises behavior and is therefore the minimum
+ * evidence accepted for a completion claim when code files changed.
+ *
+ * @param {string} input
+ * @returns {'structural'|'behavioral'|null}
+ */
+export function evidenceCommandKind(input) {
+  if (!input || typeof input !== 'string') return null;
+  const cmd = stripCdPrefix(input).trim();
+  if (ALLOWLIST_EXACT.includes(cmd)) return 'structural';
+  if (ALLOWLIST_PREFIX_RE.test(cmd) &&
+      !TRAILING_COMPOUND_RE.test(cmd) && !TRAILING_SEMICOLON_RE.test(cmd)) {
+    return 'behavioral';
+  }
+  return null;
+}
+
+/** @param {string} input @returns {boolean} */
+export function isBehavioralEvidenceCommand(input) {
+  return evidenceCommandKind(input) === 'behavioral';
+}
+
+/**
  * Strip a single leading `cd <dir> &&` prefix from a command string.
  * Only matches exactly one `cd X &&` at the start; anything more complex is left as-is.
  *
@@ -132,16 +158,7 @@ const TRAILING_SEMICOLON_RE = /;/;
  * @returns {boolean}
  */
 export function isAllowlistCommand(input) {
-  if (!input || typeof input !== 'string') return false;
-  const cmd = stripCdPrefix(input).trim();
-  // Exact allowlist — full-string match guarantees no trailing compound operator.
-  if (ALLOWLIST_EXACT.includes(cmd)) return true;
-  // Prefix allowlist — must not have a trailing compound operator (F3).
-  if (ALLOWLIST_PREFIX_RE.test(cmd)) {
-    if (TRAILING_COMPOUND_RE.test(cmd) || TRAILING_SEMICOLON_RE.test(cmd)) return false;
-    return true;
-  }
-  return false;
+  return evidenceCommandKind(input) !== null;
 }
 
 /**
@@ -153,14 +170,15 @@ export function isAllowlistCommand(input) {
  * @param {string} text
  * @returns {boolean}
  */
-export function agentResultContainsTrace(text) {
+export function agentResultContainsTrace(text, { requireBehavioral = false } = {}) {
   if (!text || typeof text !== 'string') return false;
 
   // Check that at least one allowlist command name appears in the text
-  const hasCmd =
+  const hasStructuralCmd =
     /npm\s+run\s+qe:validate/.test(text) ||
-    /node\s+scripts\/check-all\.mjs/.test(text) ||
-    /node\s+--test\s+\S/.test(text);
+    /node\s+scripts\/check-all\.mjs/.test(text);
+  const hasBehavioralCmd = /node\s+--test\s+\S/.test(text);
+  const hasCmd = requireBehavioral ? hasBehavioralCmd : hasStructuralCmd || hasBehavioralCmd;
 
   if (!hasCmd) return false;
 
@@ -247,7 +265,7 @@ export function parseSameTurnEvents(transcriptPath) {
  * @param {object[]} events - Same-turn transcript events.
  * @returns {boolean}
  */
-export function hasVerificationEvidence(events) {
+export function hasVerificationEvidence(events, { requireBehavioral = false } = {}) {
   if (!Array.isArray(events) || events.length === 0) return false;
 
   // Build a map from tool_use_id → tool_use name so we can gate trace-based evidence
@@ -282,12 +300,12 @@ export function hasVerificationEvidence(events) {
       const resultText = Array.isArray(block.content)
         ? block.content.filter(b => b?.type === 'text').map(b => b.text || '').join('\n')
         : typeof block.content === 'string' ? block.content : '';
-      if (agentResultContainsTrace(resultText)) return true;
+      if (agentResultContainsTrace(resultText, { requireBehavioral })) return true;
     }
   }
 
   // Pass: correlate Bash tool_use → tool_result pairs via allowlist + success check.
-  return _hasBashAllowlistSuccess(events);
+  return _hasBashAllowlistSuccess(events, { requireBehavioral });
 }
 
 /**
@@ -309,7 +327,7 @@ export function hasVerificationEvidence(events) {
  * @param {object[]} events
  * @returns {boolean}
  */
-function _hasBashAllowlistSuccess(events) {
+function _hasBashAllowlistSuccess(events, { requireBehavioral = false } = {}) {
   // Collect tool_use_id → command for Bash allowlist calls
   const allowlistIds = new Set();
 
@@ -320,7 +338,7 @@ function _hasBashAllowlistSuccess(events) {
     for (const block of content) {
       if (block?.type === 'tool_use' && block?.name === 'Bash') {
         const cmd = block?.input?.command || block?.input?.cmd || '';
-        if (isAllowlistCommand(cmd)) {
+        if (isAllowlistCommand(cmd) && (!requireBehavioral || isBehavioralEvidenceCommand(cmd))) {
           const id = block.id || block.tool_use_id;
           if (id) allowlistIds.add(id);
         }
@@ -386,7 +404,7 @@ export function evaluateEvidenceGate(cwd, text, transcriptPath, changedCodeFiles
     const events = Array.isArray(parsedEvents)
       ? parsedEvents
       : parseSameTurnEvents(transcriptPath);
-    if (hasVerificationEvidence(events)) return { fire: false, reason: '' };
+    if (hasVerificationEvidence(events, { requireBehavioral: true })) return { fire: false, reason: '' };
 
     return {
       fire: true,

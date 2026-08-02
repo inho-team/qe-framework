@@ -13,7 +13,7 @@
  *   node scripts/qe-cat.mjs --exists .qe/foo.md              # print 1/0
  */
 
-import { readFileSync, existsSync, readdirSync } from '../hooks/scripts/lib/qe-fs.mjs';
+import { readQeDocument, qeDocumentExists, listQeDocuments } from '../hooks/scripts/lib/qe-access.mjs';
 
 const args = process.argv.slice(2);
 const flag = args[0] && args[0].startsWith('--') ? args.shift() : null;
@@ -26,11 +26,11 @@ if (!target) {
 
 try {
   if (flag === '--exists') {
-    process.stdout.write(existsSync(target) ? '1\n' : '0\n');
+    process.stdout.write(qeDocumentExists(target) ? '1\n' : '0\n');
   } else if (flag === '--ls') {
-    for (const name of readdirSync(target).sort()) process.stdout.write(name + '\n');
+    for (const name of listQeDocuments(target)) process.stdout.write(name + '\n');
   } else {
-    process.stdout.write(readFileSync(target, 'utf8'));
+    process.stdout.write(readQeDocument(target, 'utf8'));
   }
 } catch (e) {
   console.error(`qe-cat: ${e.code || 'ERROR'} — ${target}`);

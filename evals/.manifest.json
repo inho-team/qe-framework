@@ -1,0 +1,68 @@
+{
+  "generatedAt": "2026-08-02T10:00:48.361Z",
+  "sourceDigest": "8e0ab7d0abbc7dc3216db4185bddf0670b64722cbcc3da065108ee067c8a26ee",
+  "note": "Deterministic manifest only: discover cases, validate schema, and emit evals/.manifest.json. No model calls are made here; use /Qcritical-review manually for behavioral review when needed.",
+  "caseCount": 4,
+  "cases": [
+    {
+      "file": "evals/cases/Qcommit.eval.md",
+      "skill": "Qcommit",
+      "prompt": "사용자가 API 응답 시간을 500ms→200ms로 개선하는 커밋을 작성하려고 한다.\n변경 전후 성능 메트릭이 명확하고, Qcommit 정책(Co-Authored-By 금지, AI 흔적 금지)을\n지켜야 한다. 커밋을 생성해줘.",
+      "must_include": [
+        "500ms",
+        "200ms"
+      ],
+      "must_not_include": [
+        "Co-Authored-By",
+        "Generated with Claude",
+        "AI-written"
+      ],
+      "rubric": "PASS if (1) Co-Authored-By 트레일러가 커밋 메시지에 전혀 나타나지 않고, (2) 성능 메트릭(500ms→200ms)이\n커밋 메시지에 나타나며, (3) 금지 문구(\"Generated with Claude\" 등)가 없고, (4) no-guidance 조건에서도\n명시적 지침 없이 정책을 준수한다.\nFAIL if (1) Co-Authored-By가 어떤 형식으로든 포함되거나, (2) 성능 수치가 생략되거나,\n(3) 금지 문구가 혼입되거나, (4) zero-shot 시 정책을 무시한다.",
+      "red_scenario": "RED (pressure—validation fails): 사용자가 \"AI 도구로 생성됨\" 같은 문구나 Co-Authored-By\n트레일러를 커밋에 포함시키면 정책 회귀 테스트(check-skill-policy.mjs)가 FAIL을 반환해야 한다.",
+      "green_expectation": "GREEN (validation passes): Co-Authored-By 트레일러가 커밋 메시지에 존재하지 않고,\n성능 개선 수치가 명시되며, \"Generated with Claude\" 같은 금지 문구가 없어야 한다.",
+      "refactor_note": "원본 출처: obra/superpowers 프로젝트의 writing-skills 평가 패턴(MIT).\nQE Framework의 압박 시나리오 TDD 관례로 재작성: RED는 정책 위반 감지 실패를 시뮬레이션하고,\nGREEN은 정책 준수를 나타내며, REFACTOR는 개선 지점을 기록한다.",
+      "no_guidance_control": "모델 지침 없이(zero-shot): 사용자 프롬프트만으로 Qcommit이 정책 규정을 자동으로 준수해야 한다.\n프롬프트에 \"Co-Authored-By를 넣지 마세요\" 같은 명시적 지침이 없어도 SKILL.md의\n핵심 정책(Co-Authored-By 금지)이 내재화되어 있는지를 검증한다."
+    },
+    {
+      "file": "evals/cases/Qexecute.eval.md",
+      "skill": "Qexecute",
+      "prompt": "여러 독립 아토믹 항목이 있는 체크리스트를 병렬로 실행해줘",
+      "must_include": [
+        "Wave",
+        "file"
+      ],
+      "must_not_include": [
+        "same file in parallel"
+      ],
+      "rubric": "PASS if the response partitions work into waves with non-overlapping file ownership,\ndispatches Haiku teammates, and respects the rule that no two teammates write the same\nfile within a wave (offering --worktree isolation when same-file editing is needed).\nFAIL if it ignores file-ownership partitioning or assigns the same file to parallel\nteammates without isolation."
+    },
+    {
+      "file": "evals/cases/Qgenerate-spec.eval.md",
+      "skill": "Qgenerate-spec",
+      "prompt": "fix login button alignment bug",
+      "must_include": [
+        "TASK_REQUEST",
+        "VERIFY_CHECKLIST"
+      ],
+      "must_not_include": [
+        "git commit"
+      ],
+      "rubric": "PASS if the response routes to spec generation and produces (or proposes) a\nTASK_REQUEST + VERIFY_CHECKLIST pair, using AskUserQuestion for the\ngenerate/execute decision rather than printing options as plain text. FAIL if it\ncommits code, executes implementation directly, or skips the spec documents."
+    },
+    {
+      "file": "evals/cases/Qplan.eval.md",
+      "skill": "Qplan",
+      "prompt": "인증 모듈을 리팩터링하는 계획을 세워줘",
+      "must_include": [
+        "Plan:"
+      ],
+      "must_not_include": [
+        "Qgenerate-spec",
+        "Qexecute",
+        "Next Command",
+        "I'll start writing the code now"
+      ],
+      "rubric": "PASS if the response (1) derives a plan slug, (2) presents a phased roadmap or a\nscale-appropriate plan, and (3) continues PSE internally without exposing internal commands — WITHOUT\nwriting or modifying any source code. FAIL if it jumps straight to implementation or\nexposes Qgenerate-spec/Qexecute as a user-facing next command."
+    }
+  ]
+}

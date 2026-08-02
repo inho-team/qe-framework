@@ -23,76 +23,49 @@ Every response or report that can reach a user follows `core/OUTPUT_STYLE.md`, i
 
 ## Agent Collaboration Protocol
 
-### 1. Context Memoization Protocol (Minimal I/O Rule)
-To minimize redundant file reads and save token budget, agents must use the **ContextMemo** pattern:
+The machine-readable contract is `core/AGENT_DELEGATION_CONTRACT.md`. Every caller and
+agent must follow it. The short rules below are non-optional.
 
-- **Definition**: A `ContextMemo` is a shared in-memory or state-based object containing the results of expensive operations (e.g., `Read`, `Grep`, `Glob`, `Analysis`).
-- **Standard Procedure**:
-  1. Before performing any file I/O, check if the required information exists in the `memo` field of the input or the `unified-state.json`.
-  2. If a hit occurs, use the memoized data immediately.
-  3. If a miss occurs, perform the I/O and **update the memo** for subsequent steps or agents.
-- **Payload Constraint**: Keep memoized objects under 2KB. Store only the essential "semantic signal" (e.g., a function signature instead of the whole file).
+### 1. Complete, bounded delegation
 
-### 2. Shared Analysis Pool (Required)
-After completing work, write a result summary to `.qe/agent-results/{agent-name}-latest.md`:
+- A non-fork agent starts from fresh context. The caller supplies `run_id`, objective,
+  allowed/forbidden paths, evidence, output schema, and stop conditions.
+- Missing task identity, scope, or expected output is `status=blocked`; do not infer a
+  broader scope.
+- Respect the frontmatter `maxTurns` ceiling and the packet's smaller tool/iteration budget.
+- Only the caller may expand scope, persist returned reports, or launch a follow-up agent.
 
-```markdown
----
-agent: {agent-name}
-timestamp: {ISO 8601}
-task_uuid: {UUID if applicable}
----
-## Result
-{1-3 line summary}
+### 2. Least privilege and artifact ownership
 
-## Key Findings
-- {finding 1}
-- {finding 2}
+- Read-only reviewers return data; they never receive `Write` or `Edit` merely to save a report.
+- The caller persists results under
+  `.qe/agent-results/runs/{run_id}/{agent-name}.json`. Never use a shared `*-latest.md` file.
+- Workflow-owned canonical artifacts such as `risk-proof-{UUID}.md` remain valid, but the
+  owning skill writes them after validating the returned result.
+- Mutating workers may touch only `allowed_paths`. Shared files belong to the lead unless
+  the packet explicitly transfers ownership.
 
-## Changed Files
-- {file list}
-```
+### 3. Independent first pass
 
-**Rules:**
-- Only keep the latest result per agent (overwrite previous)
-- Max 30 lines per result file
-- Omit sections with no content
+- Test, code-review, security, and risk roles run a blind first pass from task-local evidence.
+- Do not inject another evaluator's conclusion into the first pass. The orchestrator may
+  request a second reconciliation pass after all independent results have returned.
+- ContextMemo may cache immutable source facts, hashes, and command output. It must not cache
+  a prior verdict as if it were evidence.
 
-### 3. Pre-built Context Injection
-When spawning another agent, **check `.qe/agent-results/` for relevant prior results** and include them in the prompt. Relevance map:
+### 4. Explicit chaining
 
-| Spawning Agent | Include Results From |
-|----------------|---------------------|
-| Ecode-test-engineer | Ecode-reviewer (review findings inform test targets) |
-| Ecode-reviewer | Ecode-test-engineer (test coverage gaps inform review focus) |
-| Ecode-debugger | Ecode-test-engineer (test failures), Ecode-reviewer (code smells) |
-| Etask-executor | Erefresh-executor (project state) |
-| Esecurity-officer | Ecode-reviewer (architecture findings) |
+- Agents return `handoffs[]` in their result; they do not write trigger files.
+- The caller validates every requested handoff against `core/agent-registry.json`, records
+  why it is needed, and decides whether to invoke it.
+- Parallel calls are allowed only when their path ownership and evidence dependencies are
+  disjoint. Otherwise run sequentially.
 
-Format: append `## Prior Agent Context\n{result content}` to the delegation prompt.
+### 5. Result envelope
 
-### 4. Proactive Agent Chaining
-When an agent detects a condition that another agent should handle, it writes a trigger file to `.qe/agent-triggers/{target-agent}.trigger.md`:
-
-```markdown
----
-from: {source-agent}
-trigger: {reason}
-timestamp: {ISO 8601}
----
-{context for the target agent}
-```
-
-Trigger conditions:
-
-| Source Agent | Condition | Triggers |
-|-------------|-----------|----------|
-| Erefresh-executor | Architecture change detected | Esupervision-orchestrator |
-| Erefresh-executor | New dependency added | Esecurity-officer |
-| Ecode-reviewer | Security concern found | Esecurity-officer |
-| Ecode-test-engineer | Coverage below 50% | Esupervision-orchestrator |
-
-The orchestrating skill (Qexecute, Qexecute -utopia) checks `.qe/agent-triggers/` after each agent completes and spawns triggered agents automatically.
+Internal agent results use one JSON object with `run_id`, `agent`, `status`, `summary`,
+`evidence`, `findings`, `changed_files`, `handoffs`, and `metrics`. User-facing prose is
+rendered by the caller after validation. Do not wrap the JSON in explanatory prose.
 
 ---
 

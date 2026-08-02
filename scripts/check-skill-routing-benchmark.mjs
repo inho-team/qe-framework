@@ -41,14 +41,14 @@ const validation = validateFixtureData(fixture);
 for (const warning of validation.warnings) warn(warning);
 for (const error of validation.errors) failures.push(`[fixture] ${error}`);
 
-expect(normalizeSkillName('Qgs') === 'Qgenerate-spec', '[alias] Qgs should normalize to Qgenerate-spec');
-expect(normalizeSkillName('Qrt') === 'Qexecute', '[alias] Qrt should normalize to Qexecute');
-expect(normalizeSkillName('qe-framework:Qgs') === 'Qgenerate-spec', '[alias] namespaced Qgs should normalize');
+expect(normalizeSkillName('Qgenerate-spec') === 'Qgenerate-spec', '[routing] Qgenerate-spec should remain canonical');
+expect(normalizeSkillName('Qexecute') === 'Qexecute', '[routing] Qexecute should remain canonical');
+expect(normalizeSkillName('qe-framework:Qgenerate-spec') === 'Qgenerate-spec', '[alias] namespaced Qgenerate-spec should normalize');
 
 const syntheticRoutes = {
   routes: {
-    'generate-spec/spec-document/task-request': 'Qgs',
-    'run-task/execute-task': 'Qrt',
+    'generate-spec/spec-document/task-request': 'Qplan',
+    'run-task/execute-task': 'Qplan',
   },
 };
 
@@ -56,7 +56,7 @@ const syntheticRoutes = {
   const routed = routePrompt('please create a spec document for this task request', syntheticRoutes, {
     threshold: DEFAULT_THRESHOLD,
   });
-  expect(routed.routedTo === 'Qgenerate-spec', `[routing] expected Qgenerate-spec, got ${routed.routedTo}`);
+  expect(routed.routedTo === 'Qplan', `[routing] expected public Qplan controller, got ${routed.routedTo}`);
   expect(routed.matched === true, '[routing] spec prompt should produce a match');
 }
 
@@ -71,7 +71,7 @@ const syntheticRoutes = {
 {
   const report = evaluateCases(
     [
-      { id: 'alias', prompt: 'generate a spec document', expectedSkill: 'Qgs' },
+      { id: 'controller', prompt: 'generate a spec document', expectedSkill: 'Qplan' },
       { id: 'none', prompt: 'utterly unrelated phrase', noRoute: true },
     ],
     syntheticRoutes,
