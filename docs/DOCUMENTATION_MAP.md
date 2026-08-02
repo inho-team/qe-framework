@@ -28,6 +28,7 @@ Use this file to find the right document quickly.
 
 ## Usage
 
+- User-facing response style and Stop-hook enforcement: [../core/OUTPUT_STYLE.md](../core/OUTPUT_STYLE.md)
 - General usage guide: [USAGE_GUIDE.md](USAGE_GUIDE.md)
 - Single-AI SIVS settings: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
 - Global MCP setup: [MCP_GLOBAL_SETUP.md](MCP_GLOBAL_SETUP.md)

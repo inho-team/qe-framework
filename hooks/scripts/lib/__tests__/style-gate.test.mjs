@@ -2,8 +2,8 @@
 
 /**
  * style-gate.test.mjs
- * Stage-1 drama pre-filter: precision (no false positives on clean answers) and
- * recall (catches the actual 의식의 흐름 / 추임새 markers), plus transcript extraction.
+ * Stage-1 response scanner: deterministic structure checks, operational-response
+ * semantic review candidates, legacy drama precision/recall, and transcript extraction.
  * Run with: node --test hooks/scripts/lib/__tests__/style-gate.test.mjs
  */
 
@@ -17,6 +17,7 @@ import {
   scanStyleViolations,
   extractLastAssistantText,
   DRAMA_PATTERNS,
+  STYLE_PATTERNS,
   loadStyleRubric,
   judgeStyle,
   parseJudgeOutput,
@@ -96,10 +97,63 @@ test('scan: empty / non-string → no trip', () => {
 });
 
 test('patterns: every entry has a rule name and RegExp', () => {
-  for (const p of DRAMA_PATTERNS) {
+  assert.equal(DRAMA_PATTERNS, STYLE_PATTERNS);
+  for (const p of STYLE_PATTERNS) {
     assert.equal(typeof p.rule, 'string');
     assert.ok(p.re instanceof RegExp);
   }
+});
+
+// ============================================================================
+// ACTION-FIRST CONTRACT — deterministic structure + semantic-review routing
+// ============================================================================
+
+test('operational response: routes to semantic review without false missing-marker hits', () => {
+  const text = [
+    '다음 행동: 대상 테스트를 실행합니다.',
+    '현재 상태: 구현 완료, 검증 진행 중이며 약 5분 남았습니다.',
+    '완료: 문체 계약을 갱신했습니다.',
+    '다음 단계: 테스트 결과를 확인합니다.',
+  ].join('\n');
+  const rules = scanStyleViolations(text).hits.map((hit) => hit.rule);
+  assert.ok(rules.includes('operational-response-review'));
+  assert.ok(!rules.includes('missing-action-lead'));
+  assert.ok(!rules.includes('missing-current-state'));
+  assert.ok(!rules.includes('missing-next-step'));
+});
+
+test('operational response: catches missing action lead, state, and concrete next step', () => {
+  const text = [
+    '구현을 진행했습니다.',
+    '대상 파일을 수정했습니다.',
+    '테스트도 실행할 예정입니다.',
+  ].join('\n');
+  const rules = scanStyleViolations(text).hits.map((hit) => hit.rule);
+  assert.ok(rules.includes('missing-action-lead'));
+  assert.ok(rules.includes('missing-current-state'));
+  assert.ok(rules.includes('missing-next-step'));
+});
+
+test('list cap: six contiguous items trip, five items pass', () => {
+  const five = ['a', 'b', 'c', 'd', 'e'].map((x) => `- ${x}`).join('\n');
+  const six = `${five}\n- f`;
+  assert.equal(scanStyleViolations(five).hits.some((hit) => hit.rule === 'list-over-5'), false);
+  assert.equal(scanStyleViolations(six).hits.some((hit) => hit.rule === 'list-over-5'), true);
+});
+
+test('list cap: fenced examples do not count as user-facing lists', () => {
+  const text = ['```markdown', '- a', '- b', '- c', '- d', '- e', '- f', '```'].join('\n');
+  assert.equal(scanStyleViolations(text).hits.some((hit) => hit.rule === 'list-over-5'), false);
+});
+
+test('no-closer contract: generic closer and recap opener trip', () => {
+  assert.ok(scanStyleViolations('결과는 정상입니다.\n필요하시면 언제든지 말씀해 주세요.').hits.some((hit) => hit.rule === 'generic-closer'));
+  assert.ok(scanStyleViolations('요약하면 변경은 세 가지입니다.').hits.some((hit) => hit.rule === 'recap-opener'));
+});
+
+test('minute estimate contract: vague timing trips, integer minutes pass', () => {
+  assert.ok(scanStyleViolations('조금 걸립니다.').hits.some((hit) => hit.rule === 'vague-time-estimate'));
+  assert.equal(scanStyleViolations('약 5분 걸립니다.').hits.some((hit) => hit.rule === 'vague-time-estimate'), false);
 });
 
 // ============================================================================
@@ -205,6 +259,19 @@ test('judgeStyle: injected fetch returns PASS → not severe', async () => {
   assert.equal(v.judged, true);
 });
 
+test('judgeStyle: prompt carries the complete action-first contract', async () => {
+  let requestBody = null;
+  const fakeFetch = async (_url, init) => {
+    requestBody = JSON.parse(init.body);
+    return { ok: true, json: async () => ({ content: [{ text: 'PASS' }] }) };
+  };
+  await judgeStyle('다음 행동: 검증합니다.', { token: 'x', fetchImpl: fakeFetch });
+  const prompt = requestBody.messages[0].content;
+  for (const cue of ['다음 행동', '현재 상태', '분 단위', '성과', '오류', '목록 5개', '곁가지', '반복 요약', '다음 단계']) {
+    assert.match(prompt, new RegExp(cue));
+  }
+});
+
 test('judgeStyle: fetch throws (timeout) → fail-open', async () => {
   const fakeFetch = async () => { throw new Error('timeout'); };
   const v = await judgeStyle('잠깐 — 드라마', { token: 'x', fetchImpl: fakeFetch });
@@ -221,11 +288,13 @@ test('judgeStyle: non-ok response → fail-open', async () => {
 test('loadStyleRubric: reads 안티패턴 section from this repo OUTPUT_STYLE.md', () => {
   const rubric = loadStyleRubric(process.cwd());
   assert.ok(rubric.length > 0);
-  // The real doc's anti-pattern section mentions 의식의 흐름; fallback also does.
   assert.ok(/의식의 흐름/.test(rubric), `rubric missing expected content: ${rubric.slice(0, 80)}`);
+  assert.ok(/다음 행동/.test(rubric));
+  assert.ok(/목록은 최대 5개/.test(rubric));
 });
 
 test('loadStyleRubric: missing doc → fallback', () => {
   const rubric = loadStyleRubric('/nonexistent/dir');
   assert.ok(/의식의 흐름/.test(rubric));
+  assert.ok(/현재 상태/.test(rubric));
 });

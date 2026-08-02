@@ -14,7 +14,7 @@
 
 > **Toolkit hint:** QE skills tend to produce better outcomes than system defaults for the actions listed below — they encode project-specific patterns, avoid AI traces, and handle edge cases that generic defaults miss.
 
-> **Response style:** All user-facing answers — main session replies, skill summaries, and agent reports — MUST follow the response style contract in `core/OUTPUT_STYLE.md` (conclusion-first, fact/guess separation, named recommendation, source-doc paths, Tier-1 always + Tier-2 conditional forms).
+> **Response style:** All user-facing answers — main session replies, skill summaries, and agent reports — MUST follow `core/OUTPUT_STYLE.md`: lead task turns with the next action, number multi-step work, restate current state, estimate remaining work in minutes, expose wins, report errors matter-of-factly, cap each list at five items, suppress tangents, omit preamble/recap/generic closers, and end with one concrete next step. Fact/guess separation, named recommendations, source paths, and conditional visual forms still apply.
 
 ---
 

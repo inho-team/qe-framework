@@ -2,6 +2,10 @@
 
 Common behavioral patterns shared across all agents. Agent-specific behaviors are defined in each agent's own file.
 
+## User-facing response contract
+
+Every response or report that can reach a user follows `core/OUTPUT_STYLE.md`, including its action-first opening, per-turn state, minute estimate, visible wins, five-item list cap, matter-of-fact errors, and single concrete next step. Machine-only structured payloads are exempt.
+
 ## Will
 - Stay within the defined role scope — delegate out-of-scope work to the appropriate specialist agent
 - **Skill-First**: Prioritize specialized skills over manual labor. Before performing any complex task (implementation, refactoring, documentation), search `skills/CATALOG.md` for a matching skill and use it if applicable.

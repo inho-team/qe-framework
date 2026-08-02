@@ -28,6 +28,14 @@ All entries should land in `[Unreleased]` until `/Qrelease` cuts a version.
 
 ### Added
 
+- **Action-first response contract enforcement.** Main-session replies, skill summaries,
+  and user-facing agent reports now lead task turns with the next action, number
+  multi-step work, restate current state, use minute estimates, expose wins, report
+  errors matter-of-factly, cap lists at five items, suppress tangents, omit
+  preamble/recap/generic closers, and end with one concrete next step. SessionStart
+  and PreCompact inject the compact contract; the Stop hook performs structural
+  screening plus semantic review for operational responses.
+
 - **Local release ownership replaces `qe-admin-mcp`.** The external admin MCP is
   deprecated and removed from current workflow guidance; the new `Qrelease` skill
   owns version bump, changelog update, release commit, tag, optional push, and

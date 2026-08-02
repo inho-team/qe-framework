@@ -78,11 +78,11 @@ const DEFAULTS = {
   // .qe/config.json { "hooks": { "sweep_auto": false } } for users who prefer manual control.
   sweep_auto: true,                    // auto-apply Qgc sweep archive moves on Stop hook
 
-  // [why default true]: the OUTPUT_STYLE drama gate (ADR-025 R3) is cost-0 on clean
-  // turns (Stage-1 regex only) and fail-open without credentials, so it is safe to
-  // ship on. Stage-2 Haiku judge runs ONLY when the regex pre-filter trips. Opt-out
+  // [why default true]: the OUTPUT_STYLE response gate (ADR-025 R3) is cost-0 on
+  // non-operational clean turns and fail-open without credentials. Stage-2 Haiku
+  // reviews structural candidates and task/progress responses. Opt-out
   // via .qe/config.json { "hooks": { "style_gate": false } } if a misfire annoys.
-  style_gate: true,                    // Stop-hook OUTPUT_STYLE drama gate
+  style_gate: true,                    // Stop-hook OUTPUT_STYLE response gate
   // [why these values]: at most 2 distinct-text style blocks per 10-min window, and
   // identical re-blocked text is never blocked twice — bounds any judge/model loop.
   style_gate_max_blocks: 2,            // max style blocks per window before giving up

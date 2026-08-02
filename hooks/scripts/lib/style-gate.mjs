@@ -2,19 +2,17 @@
 'use strict';
 
 /**
- * style-gate.mjs — Stage-1 regex pre-filter for the OUTPUT_STYLE drama gate.
+ * style-gate.mjs — Stage-1 candidate scanner for the OUTPUT_STYLE response gate.
  *
  * Role in the 2-stage gate (ADR-025 R3):
- *   Stage 1 (THIS file, cost 0): scan the last assistant message for high-precision
- *     drama markers (의식의 흐름 / 추임새 / 금지 오프너). If nothing trips, the Stop
- *     hook allows stop with ZERO API cost — the common case.
+ *   Stage 1 (THIS file, cost 0): scan the last assistant message for deterministic
+ *     structural violations and identify operational responses that need semantic
+ *     review. If nothing trips, the Stop hook allows stop with ZERO API cost.
  *   Stage 2 (later): only on a Stage-1 trip does the Stop hook escalate to a Haiku
  *     judge that decides "심한 위반?" against core/OUTPUT_STYLE.md.
  *
- * Design rule: the pattern set MUST stay HIGH-PRECISION. A gate that blocks a clean
- * answer is worse than the drama it prevents. So we never flag a bare em-dash (the
- * style doc itself uses `—` everywhere) — only specific interjection LEXEMES followed
- * by a dash, filler openers, and the two banned openers OUTPUT_STYLE.md:182 names.
+ * Design rule: deterministic findings MUST stay HIGH-PRECISION. Semantic rules are
+ * candidates only; the Stage-2 judge decides whether they are real violations.
  *
  * Every function is fault-tolerant: any failure returns the "no violation / empty"
  * shape so the gate can never crash the Stop hook.
@@ -33,7 +31,7 @@ import { readClaudeOAuthToken } from './claude-token.mjs';
  * 의식의 흐름 actually surfaces. Mid-sentence occurrences (e.g. a word that happens to
  * contain 음) do not trip.
  */
-export const DRAMA_PATTERNS = [
+export const STYLE_PATTERNS = [
   {
     // 추임새 + 대시: "잠깐 —", "맞다 —", "아 잠깐 —", "그러네 —" (line 35 / 178)
     rule: 'interjection-dash',
@@ -54,10 +52,84 @@ export const DRAMA_PATTERNS = [
     rule: 'banned-opener-explain',
     re: /(에\s*대해|에\s*관해)\s*설명(을)?\s*(드리겠습니다|하겠습니다|드릴게요|할게요|하겠습니다만)/,
   },
+  {
+    // 형식적 맺음말 — 마지막 문장에 있을 때만 차단 후보
+    rule: 'generic-closer',
+    re: /(?:도움이\s*되었(?:길|으면)|필요하시면\s*(?:언제든지\s*)?(?:말씀|알려)|더\s*궁금한\s*(?:점|사항)이\s*있으면|feel free to (?:ask|reach out)|hope (?:this|that) helps)[^\n]*[.!]?\s*$/i,
+  },
+  {
+    // 본문을 다시 말하는 종결 요약 오프너
+    rule: 'recap-opener',
+    re: /(^|\n)\s*(?:요약하면|정리하면|다시\s*정리하면|recap|to\s+summari[sz]e)\s*[:：,]?/im,
+  },
+  {
+    // 시간 단위를 피한 모호한 예상
+    rule: 'vague-time-estimate',
+    re: /(?:잠시\s*후|곧\s*(?:끝|완료)|(?:조금|약간)\s*(?:걸립니다|소요됩니다)|\b(?:soon|shortly|in a bit|take a while)\b)/i,
+  },
 ];
 
+// Backward-compatible export for existing consumers and tests.
+export const DRAMA_PATTERNS = STYLE_PATTERNS;
+
+const OPERATIONAL_SIGNAL = /(?:현재\s*상태|다음\s*행동|다음\s*단계|진행\s*중|작업\s*중|구현|수정|검증|테스트|완료|오류|실패|current\s+state|next\s+action|next\s+step|implement|verif(?:y|ication)|test(?:ing)?|completed?|failed?|error)/i;
+
+function structuralHits(text) {
+  const hits = [];
+  const lines = text.split('\n');
+  let inFence = false;
+  let listCount = 0;
+  let listStart = '';
+
+  const flushList = () => {
+    if (listCount > 5) {
+      hits.push({ rule: 'list-over-5', match: `${listStart} (${listCount} items)` });
+    }
+    listCount = 0;
+    listStart = '';
+  };
+
+  for (const raw of lines) {
+    const line = raw.trimEnd();
+    if (/^\s*```/.test(line)) {
+      flushList();
+      inFence = !inFence;
+      continue;
+    }
+    if (inFence) continue;
+
+    const item = line.match(/^\s*(?:[-*+]|\d+[.)])\s+(.+)/);
+    if (item) {
+      listCount += 1;
+      if (!listStart) listStart = item[0].trim().slice(0, 40);
+      continue;
+    }
+    if (line.trim() && !/^\s*>/.test(line)) flushList();
+  }
+  flushList();
+
+  const nonEmpty = lines.map((line) => line.trim()).filter(Boolean);
+  const operational = nonEmpty.length >= 3 && OPERATIONAL_SIGNAL.test(text);
+  if (operational) {
+    hits.push({ rule: 'operational-response-review', match: nonEmpty[0].slice(0, 40) });
+
+    if (!/^(?:다음\s*행동|next\s+action)\s*[:：]/i.test(nonEmpty[0])) {
+      hits.push({ rule: 'missing-action-lead', match: nonEmpty[0].slice(0, 40) });
+    }
+    if (!/(^|\n)\s*(?:현재\s*상태|current\s+state)\s*[:：]/i.test(text)) {
+      hits.push({ rule: 'missing-current-state', match: 'current-state marker absent' });
+    }
+    const last = nonEmpty[nonEmpty.length - 1];
+    if (!/^(?:다음\s*단계|next\s+step)\s*[:：]/i.test(last)) {
+      hits.push({ rule: 'missing-next-step', match: last.slice(0, 40) });
+    }
+  }
+
+  return hits;
+}
+
 /**
- * Scan a block of assistant prose for drama markers.
+ * Scan assistant prose for deterministic violations and semantic-review candidates.
  *
  * @param {string} text - The assistant's user-facing text.
  * @returns {{ tripped: boolean, hits: Array<{rule: string, match: string}> }}
@@ -66,12 +138,13 @@ export function scanStyleViolations(text) {
   if (!text || typeof text !== 'string') return { tripped: false, hits: [] };
 
   const hits = [];
-  for (const { rule, re } of DRAMA_PATTERNS) {
+  for (const { rule, re } of STYLE_PATTERNS) {
     const m = re.exec(text);
     if (m) {
       hits.push({ rule, match: m[0].trim().slice(0, 40) });
     }
   }
+  hits.push(...structuralHits(text));
   return { tripped: hits.length > 0, hits };
 }
 
@@ -166,6 +239,10 @@ export function extractLastAssistantText(transcriptPath) {
  * Mirrors the "안티패턴" section so the judge still has criteria off-grid.
  */
 const RUBRIC_FALLBACK = [
+  '- 작업·진행 응답은 `다음 행동:`으로 시작하고 `현재 상태:`를 밝히며 마지막 `다음 단계:` 하나로 끝낸다',
+  '- 실행 순서가 둘 이상이면 번호를 붙이고, 한 목록은 최대 5개다',
+  '- 남은 시간은 정수 분으로 말하고, 완료한 성과는 보이게 하며, 오류는 사실·영향·대응만 담백하게 보고한다',
+  '- 목표와 무관한 곁가지, 서론, 반복 요약, 형식적 맺음말을 쓰지 않는다',
   '- 의식의 흐름 / 과정 서술 (결론만, 도달 경로 금지)',
   '- 추임새 + 대시 ("잠깐 —", "맞다 —", "음, 그러네")',
   '- 인위적 긴장/드라마 (확신했다 곧장 뒤집기, "즉시 …한다")',
@@ -182,10 +259,10 @@ export function loadStyleRubric(cwd) {
     const p = join(cwd, 'core', 'OUTPUT_STYLE.md');
     if (!existsSync(p)) return RUBRIC_FALLBACK;
     const src = readFileSync(p, 'utf8');
-    // Grab from the "## 안티패턴" heading to the next "---" or "## " heading.
-    const m = src.match(/##\s*안티패턴[^\n]*\n([\s\S]*?)(?:\n---|\n##\s|$)/);
-    const body = m && m[1] ? m[1].trim() : '';
-    return body || RUBRIC_FALLBACK;
+    const operational = src.match(/##\s*Tier 1A[^\n]*\n([\s\S]*?)(?:\n---|\n##\s|$)/);
+    const antiPatterns = src.match(/##\s*안티패턴[^\n]*\n([\s\S]*?)(?:\n---|\n##\s|$)/);
+    const sections = [operational?.[1], antiPatterns?.[1]].filter(Boolean).map((s) => s.trim());
+    return sections.length > 0 ? sections.join('\n\n') : RUBRIC_FALLBACK;
   } catch {
     return RUBRIC_FALLBACK;
   }
@@ -228,10 +305,10 @@ export async function judgeStyle(text, opts = {}) {
   const snippet = text.length > 2000 ? text.slice(0, 2000) : text;
 
   const prompt =
-    '당신은 답변 문체 심판이다. 아래 금지 규칙을 어긴 **심한 위반만** 잡는다. ' +
-    '미묘한 밀도/형식 문제는 통과(PASS)시킨다.\n\n' +
-    `금지 규칙 (core/OUTPUT_STYLE.md 안티패턴):\n${rubric}\n\n` +
-    '심한 위반의 예: 의식의 흐름·추임새("잠깐 —","음, 그러네"), 인위적 드라마(확신했다 곧장 뒤집기,"즉시 …한다"), 금지 오프너("좋은 질문입니다").\n\n' +
+    '당신은 사용자 대상 작업 응답의 문체 심판이다. 아래 계약의 명백하고 실질적인 위반만 잡는다. ' +
+    '정보성 단답에는 작업 상태 형식을 억지로 요구하지 말고, 작업·진행·완료 보고에는 전부 적용한다.\n\n' +
+    `응답 계약 (core/OUTPUT_STYLE.md):\n${rubric}\n\n` +
+    '특히 다음 행동 시작, 번호 있는 다단계 작업, 매 턴 현재 상태, 분 단위 예상, 보이는 성과, 담백한 오류, 목록 5개 제한, 곁가지 억제, 서론·반복 요약·형식적 맺음말 금지, 마지막의 구체적 다음 단계 하나를 검사한다.\n\n' +
     `판정할 답변:\n"""\n${snippet}\n"""\n\n` +
     '규칙: 심한 위반이 있으면 첫 줄을 `BLOCK <사유 15자 이내>`로, 없으면 `PASS`만 출력. 다른 말 금지.';
 

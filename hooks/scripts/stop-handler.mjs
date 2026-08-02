@@ -447,9 +447,9 @@ if (!activeMode && (cfg.code_risk_stop_gate !== false || cfg.style_gate !== fals
   }
 }
 
-// --- OUTPUT_STYLE drama gate (ADR-025 R3) ---
-// 2-stage: Stage-1 regex pre-filter (cost 0) → only on a trip, Stage-2 Haiku judge
-// against core/OUTPUT_STYLE.md's anti-patterns. Blocks the stop with a rewrite
+// --- OUTPUT_STYLE response gate (ADR-025 R3) ---
+// 2-stage: Stage-1 structural/candidate scan (cost 0) → only on a trip, Stage-2
+// Haiku judge against core/OUTPUT_STYLE.md. Blocks the stop with a rewrite
 // instruction on a SEVERE verdict. Loop guard: never re-block identical text, and at
 // most style_gate_max_blocks distinct blocks per rolling window. Fail-open throughout.
 if (!activeMode && cfg.code_risk_stop_gate !== false) {
@@ -516,7 +516,7 @@ if (!activeMode && cfg.style_gate !== false) {
           console.log(JSON.stringify({
             continue: false,
             decision: 'block',
-            reason: `[QE Style] ${verdict.reason || '문체 위반'} — core/OUTPUT_STYLE.md 위반. 의식의 흐름·추임새("잠깐 —","음,")·과장을 빼고, 결론부터 담백하게 다시 써라.`,
+            reason: `[QE Style] ${verdict.reason || '응답 문체 위반'} — core/OUTPUT_STYLE.md 위반. 다음 행동으로 시작하고 현재 상태를 밝힌 뒤, 목록은 5개 이하로 유지하고 구체적인 다음 단계 하나로 끝내라. 서론·곁가지·반복 요약·형식적 맺음말은 제거하라.`,
           }));
           process.exit(0);
         } else if (sg.lastHash) {
