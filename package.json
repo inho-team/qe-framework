@@ -1,6 +1,9 @@
 {
   "name": "@inho-team/qe-framework",
   "version": "8.3.0",
+  "engines": {
+    "node": ">=22.5.0"
+  },
   "description": "Query Execute Framework for Claude Code and Codex — focused SIVS loop with 10 skills and 12 agents",
   "files": [
     ".claude-plugin/",
@@ -21,6 +24,7 @@
     "QE_CONVENTIONS.md",
     "README.md",
     "scripts/",
+    "!**/__tests__/**",
     "skills/",
     "uninstall.js"
   ],

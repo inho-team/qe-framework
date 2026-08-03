@@ -50,7 +50,11 @@ claims and at-least-once mailbox delivery in `qe.db`; session resume reclaims
 dead or expired-unknown reservations while preserving completed tasks and
 unacknowledged messages. It does not recreate live agent processes.
 
-The release CLI updates `package.json`, `.claude-plugin/plugin.json`, and the marketplace entry together. It does not commit, tag, publish, or push; review the diff and use `Qcommit` separately.
+The release CLI first requires the target framework version to be covered by
+`core/store/schema-manifest.json`, then updates `package.json`,
+`.claude-plugin/plugin.json`, and the marketplace entry together. An uncovered
+version fails before any manifest is written. The CLI does not commit, tag,
+publish, or push; review the diff and use `Qcommit` separately.
 
 ## State and recovery
 

@@ -6,6 +6,9 @@ Codex home exists, QE also installs native Codex assets under `~/.codex`. This
 page documents exactly what it touches and how to preview, back up, and roll
 back.
 
+QE v9 requires Node.js 22.5 or newer because its DB-backed state layer uses the
+built-in `node:sqlite` API. CI verifies the supported Node 22 and 24 lines.
+
 ## Where assets go
 
 | Mode | Trigger | Destination |
@@ -26,6 +29,11 @@ path.
 The Claude plugin remains the distribution anchor: marketplace install,
 `.claude-plugin/plugin.json`, and the plugin cache decide how the framework is
 packaged. Runtime capability is broader than that package anchor:
+
+For v9, the supported public distribution channel is the GitHub-backed Claude
+marketplace shown in the README. The npm tarball is a reproducible build and
+provenance artifact; publication to the public npm registry is optional and
+must be an explicit release decision, not an installation prerequisite.
 
 | Runtime surface | Claude | Codex |
 |-----------------|--------|-------|

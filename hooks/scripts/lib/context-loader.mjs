@@ -6,7 +6,7 @@
  *
  * Provides lazy loading functions for the three On-Demand context tiers:
  *   - profile: corrections.md + command-patterns.md
- *   - memory: project-memory.json (notes + directives)
+ *   - memory: project-memory.json (typed, prioritized entries)
  *   - failures: .qe/learning/failures/ recent session summaries
  *   - docs: .qe/docs/ domain knowledge documents
  *
@@ -24,7 +24,7 @@
 import { readFileSync, existsSync, readdirSync } from './qe-fs.mjs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
-import { formatMemoryForInjection } from './memory.mjs';
+import { formatMemoryContext } from './project-memory.mjs';
 import { readRecentFailures } from './failure-capture.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
@@ -83,7 +83,7 @@ export function loadProfile(cwd) {
 }
 
 /**
- * Load project memory (notes + directives).
+ * Load canonical project memory entries.
  * Mirrors the original Check 5 logic from session-start.mjs.
  *
  * @param {string} cwd - Project root
@@ -91,7 +91,7 @@ export function loadProfile(cwd) {
  */
 export function loadMemory(cwd) {
   try {
-    const memoryContext = formatMemoryForInjection(cwd);
+    const memoryContext = formatMemoryContext(cwd);
     return memoryContext || null;
   } catch {
     // Fault tolerance — ignore memory loading errors

@@ -1,53 +1,51 @@
 # QE Project Memory Specification
 
-## Overview
-A persistent knowledge store per project. Survives across sessions and prevents repeated rediscovery.
+Project Memory is the single persistent, project-scoped context store injected
+at SessionStart and available to the on-demand context loader.
 
-## Storage Location
-`.qe/memory/project-memory.json`
+## Canonical storage
 
-## Data Structure
+- Path: `.qe/project-memory.json`
+- Runtime: `hooks/scripts/lib/project-memory.mjs`
+- Budget: 2KB of formatted context, as defined by `core/CONTEXT_BUDGET.md`
 
 ```json
 {
-  "notes": [
-    {
-      "category": "conventions",
-      "note": "This project uses Gradle Wrapper",
-      "added_at": "2026-03-14T10:30:00Z"
-    }
-  ],
-  "directives": [
-    {
-      "directive": "Always use testcontainers when running tests",
-      "added_at": "2026-03-14T10:30:00Z"
-    }
-  ]
+  "version": 1,
+  "entries": [{
+    "id": "mem_12ab34cd",
+    "type": "convention",
+    "content": "Use the Gradle Wrapper",
+    "priority": "permanent",
+    "createdAt": "2026-03-14T10:30:00.000Z",
+    "ttl": null,
+    "expiresAt": null,
+    "source": "agent",
+    "tags": ["build"]
+  }]
 }
 ```
 
-## Categories
+Priorities are `permanent`, `high`, `normal`, and `low`; finite priorities use
+30-day, 7-day, and 1-day TTLs respectively. Expired entries are pruned at
+SessionStart. Both SessionStart and the on-demand loader use
+`formatMemoryContext()` from the same runtime module.
 
-| Category | Description |
-|----------|-------------|
-| `conventions` | Project conventions (code style, naming, etc.) |
-| `architecture` | Architecture decisions |
-| `gotchas` | Warnings, pitfalls |
-| `tools` | Build tools, dependency notes |
-| `people` | Team members, roles |
+## Legacy compatibility
 
-## notes vs directives
-
-| Type | Strength | Injection Method |
-|------|----------|-----------------|
-| **notes** | Informational | Injected as summary at SessionStart |
-| **directives** | Must follow | Always injected at SessionStart |
+The former `.qe/memory/project-memory.json` notes/directives shape is read-only
+compatibility input. Legacy directives map to permanent entries and notes map to
+normal entries. The runtime never deletes the legacy file; the next canonical
+write persists the merged entries to `.qe/project-memory.json`.
 
 ## API
 
 ```javascript
-import { addNote, addDirective, readMemory } from './lib/memory.mjs';
+import { addMemory, getActiveMemories } from './hooks/scripts/lib/project-memory.mjs';
 
-addNote(cwd, 'conventions', 'Write commit messages in English');
-addDirective(cwd, 'Never push directly to the main branch');
+addMemory(cwd, 'Use the Gradle Wrapper', 'convention', {
+  priority: 'permanent',
+  source: 'maintainer'
+});
+getActiveMemories(cwd);
 ```

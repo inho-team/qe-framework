@@ -7,7 +7,7 @@ import os from 'node:os';
 import path from 'node:path';
 
 import { openStore } from '../store.mjs';
-import { isSqliteAvailable } from '../store-sqlite.mjs';
+import { closeSqlite, isSqliteAvailable, openSqlite } from '../store-sqlite.mjs';
 import {
   normalizeStatus, parseFailureContext, parseTaskLog, parseWikiPage, reindex,
 } from '../store-indexer.mjs';
@@ -1016,6 +1016,28 @@ test('a database whose version overstates its tables repairs itself',
         'repair must not discard data');
       assert.equal(store.backend, 'sqlite', 'must not have demoted to the file backend');
     } finally { store.close(); }
+  });
+
+test('a current-version database repairs a missing expected table even when the table count matches',
+  { skip: !SQLITE }, () => {
+    const root = makeProject();
+    const store = openStore(root, { backend: 'sqlite' });
+    store.setState('schema', 'probe', true);
+    store.close();
+
+    const sqlite = process.getBuiltinModule('node:sqlite');
+    const damaged = new sqlite.DatabaseSync(path.join(root, '.qe', 'qe.db'));
+    damaged.exec('DROP TABLE file_index; CREATE TABLE extra_table(id INTEGER); PRAGMA user_version = 4');
+    const before = damaged.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'").get().n;
+    damaged.close();
+
+    const repaired = openSqlite(root);
+    assert.ok(repaired, 'the damaged database must reopen instead of silently degrading');
+    try {
+      const after = repaired.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type='table'").get().n;
+      assert.equal(after, before + 1, 'repair recreates the missing table and leaves the unrelated table intact');
+      assert.doesNotThrow(() => repaired.prepare('SELECT COUNT(*) FROM file_index').get());
+    } finally { closeSqlite(repaired); }
   });
 
 test('schema migrates forward on an existing database', { skip: !SQLITE }, () => {

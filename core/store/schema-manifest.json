@@ -1,7 +1,10 @@
 {
   "manifestVersion": 1,
   "currentSchemaVersion": 4,
-  "frameworkCompatibility": [{ "framework": "8.3.x", "schema": 4, "minReadable": 1 }],
+  "frameworkCompatibility": [
+    { "framework": "8.3.x", "schema": 4, "minReadable": 1 },
+    { "framework": "9.x", "schema": 4, "minReadable": 1 }
+  ],
   "schemas": {
     "4": {
       "erd": "erd/v4.md",

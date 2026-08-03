@@ -3,6 +3,7 @@
 import { readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { findSchemaCompatibility } from './lib/schema_compatibility.mjs';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const SEMVER = /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(?:-[0-9A-Za-z.-]+)?(?:\+[0-9A-Za-z.-]+)?$/;
@@ -22,18 +23,32 @@ export function bumpVersion(version, root = ROOT) {
   const packagePath = join(root, 'package.json');
   const pluginPath = join(root, '.claude-plugin', 'plugin.json');
   const marketplacePath = join(root, '.claude-plugin', 'marketplace.json');
+  const lockPath = join(root, 'package-lock.json');
+  const schemaManifestPath = join(root, 'core', 'store', 'schema-manifest.json');
   const pkg = readJson(packagePath);
   const plugin = readJson(pluginPath);
   const marketplace = readJson(marketplacePath);
+  const lock = readJson(lockPath);
+  const schemaManifest = readJson(schemaManifestPath);
   const marketplacePlugin = (marketplace.plugins || []).find((entry) => entry?.name === 'qe-framework');
   if (!marketplacePlugin) throw new Error('qe-framework entry is missing from marketplace.json');
+  const schemaCompatibility = findSchemaCompatibility(schemaManifest, version);
+  if (!schemaCompatibility || schemaCompatibility.schema !== schemaManifest.currentSchemaVersion) {
+    throw new Error(`Framework v${version} is not covered by core/store/schema-manifest.json`);
+  }
+  if (lock.name !== pkg.name || lock.version !== pkg.version || lock.packages?.['']?.version !== pkg.version) {
+    throw new Error('package-lock.json root metadata is not aligned with package.json');
+  }
 
   pkg.version = version;
   plugin.version = version;
   marketplacePlugin.version = version;
+  lock.version = version;
+  lock.packages[''].version = version;
   writeJson(packagePath, pkg);
   writeJson(pluginPath, plugin);
   writeJson(marketplacePath, marketplace);
+  writeJson(lockPath, lock);
   return version;
 }
 

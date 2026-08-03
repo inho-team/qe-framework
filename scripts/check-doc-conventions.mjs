@@ -133,7 +133,8 @@ function checkDoc({ full, rel }) {
 }
 
 // 1. Per-document convention checks (opt-in).
-for (const doc of listExecutionDocFiles(ROOT)) {
+const executionDocs = listExecutionDocFiles(ROOT);
+for (const doc of executionDocs) {
   try {
     checkDoc(doc);
   } catch (err) {
@@ -146,9 +147,9 @@ for (const doc of listExecutionDocFiles(ROOT)) {
 //    post-write rebuild call — a generation-path defect, so it is a FAIL.
 const indexPath = join(ROOT, '.qe', 'index.md');
 try {
-  if (!existsSync(indexPath)) {
+  if (!existsSync(indexPath) && executionDocs.length > 0) {
     failures.push('.qe/index.md — missing; run `node scripts/lib/doc-index.mjs` to generate it.');
-  } else if (readFileSync(indexPath, 'utf8') !== computeIndex(ROOT)) {
+  } else if (existsSync(indexPath) && readFileSync(indexPath, 'utf8') !== computeIndex(ROOT)) {
     failures.push('.qe/index.md — stale; rebuild with `node scripts/lib/doc-index.mjs` after any doc create/move.');
   }
 } catch (err) {

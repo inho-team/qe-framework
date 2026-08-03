@@ -42,8 +42,10 @@ for (const name of skillNames) {
 }
 expect(setEqual(publicNames, PUBLIC), `public skill metadata drift: ${[...publicNames].sort().join(', ')}`);
 
+const instructionDocs = ['CLAUDE.md', 'AGENTS.md'].filter((rel) => existsSync(join(ROOT, rel)));
+expect(instructionDocs.length > 0, 'missing project instruction artifact (CLAUDE.md or AGENTS.md)');
 const publicDocs = [
-  'README.md', 'CLAUDE.md', 'docs/QE_SKILL_ROUTING.md', 'docs/USAGE_GUIDE.md',
+  'README.md', ...instructionDocs, 'docs/QE_SKILL_ROUTING.md', 'docs/USAGE_GUIDE.md',
   'docs/README.ko.md', 'docs/README.ja.md', 'docs/README.zh.md',
 ];
 for (const rel of publicDocs) {

@@ -3,10 +3,11 @@
 
 import { existsSync, readFileSync } from './qe-fs.mjs';
 import { join } from 'path';
-import { randomBytes } from 'crypto';
+import { createHash, randomBytes } from 'crypto';
 import { atomicWriteJson } from './state.mjs';
 
 const MEMORY_FILE = 'project-memory.json';
+const LEGACY_MEMORY_FILE = join('memory', 'project-memory.json');
 const MAX_CONTEXT_BYTES = 2048;
 
 const TTL_MAP = {
@@ -22,15 +23,51 @@ function getMemoryPath(cwd) {
   return join(cwd, '.qe', MEMORY_FILE);
 }
 
+function legacyEntries(cwd) {
+  const legacyPath = join(cwd, '.qe', LEGACY_MEMORY_FILE);
+  if (!existsSync(legacyPath)) return [];
+  try {
+    const legacy = JSON.parse(readFileSync(legacyPath, 'utf8'));
+    const rows = [
+      ...(Array.isArray(legacy.directives) ? legacy.directives.map((item) => ({
+        type: 'directive', content: item.directive, priority: 'permanent', createdAt: item.added_at,
+      })) : []),
+      ...(Array.isArray(legacy.notes) ? legacy.notes.map((item) => ({
+        type: item.category || 'note', content: item.note, priority: 'normal', createdAt: item.added_at,
+      })) : []),
+    ];
+    return rows.filter((item) => typeof item.content === 'string' && item.content.trim()).map((item) => ({
+      id: `legacy_${createHash('sha256').update(`${item.type}\0${item.content}`).digest('hex').slice(0, 8)}`,
+      type: item.type,
+      content: item.content,
+      priority: item.priority,
+      createdAt: item.createdAt || new Date(0).toISOString(),
+      ttl: item.priority === 'permanent' ? null : TTL_MAP.normal,
+      expiresAt: null,
+      source: 'legacy-memory-compat',
+      tags: ['legacy'],
+    }));
+  } catch {
+    return [];
+  }
+}
+
 /** Load project memory from disk. */
 export function loadMemory(cwd) {
   const filePath = getMemoryPath(cwd);
-  if (!existsSync(filePath)) return { version: 1, entries: [] };
+  let memory = { version: 1, entries: [] };
   try {
-    return JSON.parse(readFileSync(filePath, 'utf8'));
+    if (existsSync(filePath)) memory = JSON.parse(readFileSync(filePath, 'utf8'));
   } catch {
-    return { version: 1, entries: [] };
+    memory = { version: 1, entries: [] };
   }
+  if (!Array.isArray(memory.entries)) memory.entries = [];
+  const seen = new Set(memory.entries.map((entry) => `${entry.type}\0${entry.content}`));
+  for (const entry of legacyEntries(cwd)) {
+    const key = `${entry.type}\0${entry.content}`;
+    if (!seen.has(key)) { memory.entries.push(entry); seen.add(key); }
+  }
+  return memory;
 }
 
 /** Save project memory to disk (atomic write). */

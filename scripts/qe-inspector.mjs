@@ -25,6 +25,11 @@ import { join, relative, basename } from 'node:path';
 const ROOT = process.cwd();
 const QE = join(ROOT, '.qe');
 const DB_PATH = join(QE, 'qe.db');
+if (process.argv.includes('--help') || process.argv.includes('-h')) {
+  console.log('Usage: node scripts/qe-inspector.mjs [--out <path>]');
+  console.log('Generate a self-contained HTML inspection report from .qe/qe.db.');
+  process.exit(0);
+}
 const outArg = process.argv.indexOf('--out');
 const OUT = outArg > -1 ? process.argv[outArg + 1] : join(QE, 'inspector.html');
 

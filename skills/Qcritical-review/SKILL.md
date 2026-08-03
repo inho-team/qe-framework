@@ -1,7 +1,7 @@
 ---
 name: Qcritical-review
 user_invocable: true
-description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qexecute -verify, Esupervision."
+description: "Critical thinking verification for SIVS stages. Spawns adversarial sub-agents to stress-test specs, implementations, and merge readiness. Also hosts structured debate and evidence-backed risk proof modes. Use for 'review critically', 'stress test this', 'devil advocate', debates, risk proof, or auto-invoked by Qgenerate-spec, Qexecute -verify, Esupervision-orchestrator."
 invocation_trigger: When critical verification is needed at any SIVS stage, or when the user wants adversarial review, structured debate, or code risk proof.
 recommendedModel: opus
 ---

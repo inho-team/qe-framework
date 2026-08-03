@@ -34,13 +34,53 @@ test('release admin keeps all version manifests aligned', () => {
   const root = tempRoot('qe-release-admin-');
   try {
     write(join(root, 'package.json'), '{"name":"fixture","version":"1.0.0"}\n');
+    write(join(root, 'package-lock.json'), '{"name":"fixture","version":"1.0.0","lockfileVersion":3,"packages":{"":{"name":"fixture","version":"1.0.0"}}}\n');
     write(join(root, '.claude-plugin/plugin.json'), '{"name":"qe-framework","version":"1.0.0"}\n');
     write(join(root, '.claude-plugin/marketplace.json'), '{"plugins":[{"name":"qe-framework","version":"1.0.0"}]}\n');
+    write(join(root, 'core/store/schema-manifest.json'), '{"currentSchemaVersion":4,"frameworkCompatibility":[{"framework":"2.x","schema":4,"minReadable":1}]}\n');
     assert.equal(bumpVersion('2.3.4-rc.1', root), '2.3.4-rc.1');
     assert.equal(JSON.parse(readFileSync(join(root, 'package.json'))).version, '2.3.4-rc.1');
     assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin/plugin.json'))).version, '2.3.4-rc.1');
     assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin/marketplace.json'))).plugins[0].version, '2.3.4-rc.1');
+    assert.equal(JSON.parse(readFileSync(join(root, 'package-lock.json'))).version, '2.3.4-rc.1');
+    assert.equal(JSON.parse(readFileSync(join(root, 'package-lock.json'))).packages[''].version, '2.3.4-rc.1');
     assert.throws(() => bumpVersion('v2', root), /Invalid semantic version/);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release admin rejects a version outside the declared store compatibility before writing', () => {
+  const root = tempRoot('qe-release-schema-guard-');
+  try {
+    write(join(root, 'package.json'), '{"name":"fixture","version":"8.3.0"}\n');
+    write(join(root, 'package-lock.json'), '{"name":"fixture","version":"8.3.0","lockfileVersion":3,"packages":{"":{"name":"fixture","version":"8.3.0"}}}\n');
+    write(join(root, '.claude-plugin/plugin.json'), '{"name":"qe-framework","version":"8.3.0"}\n');
+    write(join(root, '.claude-plugin/marketplace.json'), '{"plugins":[{"name":"qe-framework","version":"8.3.0"}]}\n');
+    write(join(root, 'core/store/schema-manifest.json'), '{"currentSchemaVersion":4,"frameworkCompatibility":[{"framework":"8.3.x","schema":4,"minReadable":1}]}\n');
+
+    assert.throws(() => bumpVersion('9.0.0', root), /not covered by core\/store\/schema-manifest\.json/);
+    assert.equal(JSON.parse(readFileSync(join(root, 'package.json'))).version, '8.3.0');
+    assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin/plugin.json'))).version, '8.3.0');
+    assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin/marketplace.json'))).plugins[0].version, '8.3.0');
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('release admin rejects stale lock metadata before writing any manifest', () => {
+  const root = tempRoot('qe-release-lock-guard-');
+  try {
+    write(join(root, 'package.json'), '{"name":"fixture","version":"8.3.0"}\n');
+    write(join(root, 'package-lock.json'), '{"name":"fixture","version":"8.2.0","lockfileVersion":3,"packages":{"":{"name":"fixture","version":"8.2.0"}}}\n');
+    write(join(root, '.claude-plugin/plugin.json'), '{"name":"qe-framework","version":"8.3.0"}\n');
+    write(join(root, '.claude-plugin/marketplace.json'), '{"plugins":[{"name":"qe-framework","version":"8.3.0"}]}\n');
+    write(join(root, 'core/store/schema-manifest.json'), '{"currentSchemaVersion":4,"frameworkCompatibility":[{"framework":"8.x","schema":4,"minReadable":1}]}\n');
+
+    assert.throws(() => bumpVersion('8.4.0', root), /package-lock\.json root metadata/);
+    assert.equal(JSON.parse(readFileSync(join(root, 'package.json'))).version, '8.3.0');
+    assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin/plugin.json'))).version, '8.3.0');
+    assert.equal(JSON.parse(readFileSync(join(root, '.claude-plugin/marketplace.json'))).plugins[0].version, '8.3.0');
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

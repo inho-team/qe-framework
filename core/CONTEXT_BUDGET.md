@@ -124,7 +124,7 @@ Skills that run multi-step pipelines should call `enterPersistentMode(cwd, mode,
 
 ## Project Memory Budget
 
-Project memory (`.qe/project-memory.json`) is injected at session start via `formatMemoryContext()`. It is capped at **2KB** of formatted text to stay within the Reference allocation tier.
+Project memory (`.qe/project-memory.json`) is injected at session start via `formatMemoryContext()`. It is capped at **2KB** of formatted text to stay within the Reference allocation tier. See `core/MEMORY_SPEC.md` for the canonical schema and legacy compatibility contract.
 
 - Entries are priority-sorted: `permanent` > `high` > `normal` > `low`.
 - If total formatted output exceeds 2KB, lower-priority entries are truncated.

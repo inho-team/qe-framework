@@ -71,48 +71,14 @@ Before collecting user info, identify the strategic context:
 3. **Identify Phase**: If an active Phase exists in the resolved STATE.md, use its **Success Criteria** and **Requirement IDs** as the primary source of truth for the spec.
 4. **Missing Roadmap**: If no plan is resolvable and no flat roadmap exists either, **STOP** and suggest running `{adapter.commandPrefix}Qplan` first to maintain the PSE Chain integrity.
 
-### Step 1.4: Context Dump Intake (Meta-Prompting Support)
+### Steps 1.4–1.5: Context dump and clarification
 
-Freeform input does not have to be structured. If the argument string is **long (300+ characters — count Unicode characters, not bytes, after stripping any `{slug}:` prefix) or unstructured** — pasted meeting notes, a requirements email, chat fragments, a stream-of-consciousness brain dump — treat it as a **context dump**:
-
-- Accept it as-is. Do **not** ask the user to reformat it into Step 2's structured fields.
-- Encourage this pattern: the user's raw context is higher-signal than a premature summary. More dump = better spec.
-- A context dump **always routes through the Step 1.5 gate in question-elicitation mode** (the Micro-scale skip still applies). The dump replaces none of the gate — it feeds it.
-
-Short structured requests (a slug, a one-line task) skip this step entirely and proceed as before.
-
-### Step 1.5: Brainstorming Gate (conditional, scale-aware)
-
-Before gathering spec details, run a lightweight ambiguity check. If the incoming requirement is **ambiguous AND the task scale is Small or larger**, perform a concise Socratic clarification pass before drafting. (Source: adapted from Superpowers' brainstorming stage — but **scale-aware, not mandatory**; see `D019` in `.qe/planning/DECISION_LOG.md`.)
-
-**This is our deliberate differentiator from Superpowers' blanket-mandatory brainstorming**: a one-line bug fix must never be forced through a clarification round.
-
-**Gate condition** = `(ambiguous(requirement) OR came-from-context-dump (Step 1.4)) AND scale ≥ Small`.
-
-The `scale ≥ Small` term applies to both branches: a context dump about a Micro task still skips the gate, consistent with "Micro tasks always skip this gate" below.
-
-- **Scale** is judged with the same heuristic as `Qplan` Step 0.7 (Micro / Small / Full / Workflow). **Micro tasks always skip this gate.**
-- **Ambiguity** is true when **any 2 of these 3 objective signals** hold:
-  1. **Core verb/noun unspecified** — the action or the target object is vague ("개선해", "정리해", "make it better") with no concrete subject.
-  2. **No acceptance criteria** — nothing in the request or the resolved Phase Success Criteria states how "done" is verified.
-  3. **Alternatives unconsidered** — the request fixes a solution without stating the problem, so no design choice was weighed.
-
-**On gate trigger — question elicitation:** Invert the direction of information flow: instead of drafting from what the user gave, **ask the user what the spec still lacks** ("지금까지의 컨텍스트로 좋은 스펙을 만들기에 부족한 것을 내가 질문한다"). Generate targeted questions from these fixed dimensions, skipping any already answered by the dump/Phase context:
-
-1. **Target user / actor** — who uses or consumes this?
-2. **Core features & priorities** — which items are must-have vs nice-to-have?
-3. **Data / domain model** — key entities, sources, lifecycle.
-4. **Completeness level** — MVP vs production-complete; how far does "done" go this round?
-5. **Design / UX reference** — existing style, reference product, or explicit non-goal.
-6. **Constraints** — stack, performance, security, deadline.
-
-Keep it to the highest-impact questions (≤ 6). On the Claude adapter, `AskUserQuestion` carries at most 4 questions per call — if more than 4 survive, trim to the top 4 or split into two sequential calls; never fall back to plain-text questions. The user may answer partially and delegate the rest ("나머지는 알아서 정해줘") — delegation is allowed, but every AI-chosen default MUST be recorded in the TASK_REQUEST's `## 가정 (AI 결정)` section tagged `[ASSUMED]`, so the user can review and override before execution. Never silently absorb a delegated decision.
-
-Then produce one of:
-- `PASS` → ambiguity resolved (or never present); continue to Step 2 with the sharpened requirement.
-- `CLARIFY` → unresolved gaps remain; surface its questions to the user before drafting. Do **not** draft specs from an unclarified `CLARIFY` requirement.
-
-**Skip the gate entirely** when: scale is Micro, the requirement already cites specific file paths / functions / reproduction steps, or the task `type` is `docs`/`analysis` with a clear target. The gate is a **clarification prompt, not a hard block** — a `PASS` proceeds immediately with no added friction.
+Accept long or unstructured context without asking the user to reformat it. For
+Small-or-larger ambiguous work, ask only the highest-impact missing questions;
+Micro tasks and exact file/reproduction requests skip clarification. Record every
+AI-chosen default under `## 가정 (AI 결정)` as `[ASSUMED]`. Full thresholds,
+signals, and question dimensions:
+[./reference/spec-workflow.md](./reference/spec-workflow.md).
 
 ### Step 2: Information Gathering
 ... (omitted) ...
@@ -128,130 +94,26 @@ Write drafts using templates from `templates/` directory (`TASK_REQUEST_TEMPLATE
 - **Frontmatter substitution (per `core/DOC_CONVENTIONS.md`)**: the title-following `qe-doc-frontmatter` block placeholders are filled deterministically — `{{kind}}` = the generator mapping value (`TASK_REQUEST` → `spec`, `VERIFY_CHECKLIST` → `verify`), `{{plan}}` = the active plan slug, `{{phase}}` = the requested/current phase name, `{{created}}` = today's date (`YYYY-MM-DD`), `{{status}}` = `pending` at creation. Keep the H1 title on line 1 so the completion hook still extracts it; the frontmatter block goes on the line immediately after.
 - **Model Preference**: Use **Haiku** for drafting standardized templates to reduce latency.
 
-### Step 2.4: Premise Verification (Mandatory for external dependencies)
-Before drafting specs, verify that any external platform features, APIs, or tools referenced in the task actually exist and work as claimed.
+### Steps 2.4–2.6: Premise and spec gates
 
-**When to run:** Any task that depends on features outside the project's own codebase — Claude Code CLI features, npm packages, OS commands, API endpoints, plugin.json fields, hook events, etc.
+Verify external CLI, manifest, hook, API, and npm claims before drafting. Mark
+unresolved claims `[UNVERIFIED]` and remove disproved premises. Check structural
+and executability criteria, then always run `Qcritical-review --stage spec` with
+isolated roles. FAIL remains execution-blocking after at most two revisions;
+WARN/PASS may proceed with notes. Full workflow:
+[./reference/spec-workflow.md](./reference/spec-workflow.md).
 
-**Procedure:**
+This gate ALWAYS runs. Unlike Step 2.5, it has no skip conditions.
 
-1. **CLI feature claims** → Run `command --help` or `command --version` via Bash and check the output
-2. **Plugin.json fields** → Compare against a known working plugin.json (the one before changes)
-3. **Hook events** → Check against the project's existing working `hooks.json` events
-4. **API features** → Fetch official documentation URL or run a minimal test call
-5. **npm packages** → Run `npm info {package} version` to confirm existence
+### Step 3: Review, Create, and Execute
 
-**Outcome:**
-- Verified → proceed normally
-- Unverified → tag the item with `[UNVERIFIED]` in TASK_REQUEST and alert the user via additionalContext: "This task depends on unverified external feature: {feature}. Confirm before proceeding."
-- Disproved → remove the item from the spec and report to user
-
-**Skip conditions:** Tasks with no external dependencies (pure local logic, documentation, analysis).
-
-### Step 2.5: Spec Verification (Automatic)
-After drafting, verify spec quality. **Skip conditions (fast path):** checklist ≤ 3 items OR `type: docs`/`analysis` → skip entirely, proceed to Step 3.
-
-When verification runs, perform **both structural and executability checks in a single pass**:
-
-**Structural criteria (S1-S5) — Use Haiku**:
-1. Single responsibility per item
-2. Specific and verifiable (yes/no)
-3. TASK_REQUEST/VERIFY_CHECKLIST consistency
-4. No constraint conflicts
-5. No missing dependencies
-
-**Executability criteria (E1-E4) — Use Sonnet**:
-
-| # | Criterion | Fail Example |
-|---|-----------|--------------|
-| E1 | Single-action executability | `"Design API and implement routes"` — two distinct edits |
-| E2 | Output path validity | `→ output: src/utils/helper` — missing extension |
-| E3 | Logical ordering | Item 3 references file from Item 5 |
-| E4 | Verifiable completion | `"Refactor code appropriately"` — subjective |
-
-**For complex tasks (8+ items):** Spawn Plan agent (`subagent_type: "Plan"`, model: **Haiku**) for S1-S5 review while self-checking E1-E4 in parallel using **Sonnet**. Max 2 iterations.
-
-**For simple tasks (4-7 items):** Self-check all 9 criteria without agent spawn. Use **Sonnet** for full-pass or **Haiku** for S1-S5 if splitting. Max 1 iteration.
-
-Any fail → fix automatically. After max iterations, proceed with best version.
-
-### Step 2.6: Spec Self-Reference Gate (MANDATORY — no skip)
-
-Step 2.5 checks spec *quality* with the same model that drafted it — which cannot
-catch errors rooted in that model's own blind spots (the **self-reference
-problem**, acute when the SIVS engine is homogeneously all-Claude or all-Codex).
-Step 2.6 closes that gap with an **isolated adversarial gate**.
-
-**This gate ALWAYS runs.** Unlike Step 2.5, it has **no skip conditions** — it
-runs regardless of item count or task type (DECISION_LOG D011). Spec-stage errors
-are independent of size, so size-based skipping would reopen the exact hole this
-gate exists to close.
-
-**Procedure:**
-
-1. Invoke `{adapter.commandPrefix}Qcritical-review --stage spec` against the just-drafted TASK_REQUEST
-   (+ VERIFY_CHECKLIST). The gate spawns the Structural Reviewer + Critical
-   Reviewer + Edge Case Finder in parallel and returns a PASS/WARN/FAIL verdict.
-   The active client uses isolated reviewer roles only; it never calls a second
-   AI client. Full protocol: `skills/Qcritical-review/reference/spec-gate-protocol.md`.
-2. **On FAIL:** the spec contains CRITICAL/HIGH problems. Revise the TASK_REQUEST
-   / VERIFY_CHECKLIST to address them and re-run the gate (max 2 iterations).
-   Then enter Step 3 in **blocked mode** (see below) if still FAIL.
-3. **On WARN/PASS:** proceed to Step 3 normally, carrying any WARN notes forward.
-
-**Skip conditions:** none. (Autonomous mode still runs the gate; on FAIL it
-auto-revises up to the iteration cap, then proceeds Generate-Only.)
-
-### Step 3: Review, Create, and Execute (The High-Performance Path)
-- **GATE-BLOCKED (Step 2.6 FAIL):** If the Spec self-reference gate returned FAIL
-  after its iteration cap, this is a **hard gate** — do **NOT** offer
-  "Generate & Execute". Present only **"Generate Only"**
-  (so the draft is saved) and **"Fix spec & re-run gate"**, and list the
-  CRITICAL/HIGH findings as required fixes. Execution options unlock only after the
-  gate reaches WARN/PASS, or the user explicitly overrides with full awareness of
-  the findings.
-- **MANDATORY**: Use the interaction adapter to present these options.
-  - Claude: `AskUserQuestion`.
-  - Codex interactive: concise plain-text choices.
-  - Codex non-interactive: Generate Only by default and report `selected_default=Generate Only`.
-- **Recommend Wave**: If the checklist has 4+ independent items, clearly label **"Generate & Execute (Wave)"** as the **[Recommended]** path. Explain that Qexecute auto-selects parallel wave execution for maximum speed.
-- **Auto-Chain**: Once the user selects an execution option, immediately invoke `{adapter.commandPrefix}Qexecute` with the generated UUIDs.
-
-On "Generate & Execute":
-- Auto-create directories and files
-- Invoke `{adapter.commandPrefix}Qexecute {UUID}` immediately. (Sets `<!-- chained-from: Qgenerate-spec -->` flag so Qexecute skips approval)
-
-On "Generate Only":
-- Auto-create directories (`mkdir -p`)
-- Create all spec files
-- If existing `TASK_REQUEST_*.md` / `VERIFY_CHECKLIST_*.md` found in project root, suggest migrating to `.qe/tasks/pending/` and `.qe/checklists/pending/`
-- **On initial setup**, scope client-specific files to the active adapter:
-  - Claude adapter: if `.claude/settings.json` and project `.mcp.json` are expected but missing, suggest creating them with defaults.
-  - Codex adapter: do not ask for Claude-only settings; verify Codex hook trust/readiness through the Codex installer and `/hooks` workflow when needed.
-- **Automatic `.gitignore` management:** Add missing shared entries under `# QE Framework` section:
-  ```gitignore
-  # QE Framework
-  .claude/settings-local.json
-  .qe/tasks/
-  .qe/checklists/
-  TASK_REQUEST_*.md
-  VERIFY_CHECKLIST_*.md
-  ANALYSIS_*.md
-  ```
-
-Output status summary after file creation:
-```
-✅ Generation complete (spec documents only):
-- Project instruction artifact when this invocation created or migrated one
-- .qe/tasks/pending/TASK_REQUEST_{UUID}.md
-- .qe/checklists/pending/VERIFY_CHECKLIST_{UUID}.md
-
-❌ Not yet created (actual deliverables):
-- {expected output files from TASK_REQUEST checklist}
-```
-
-On "Generate & Execute" with multiple tasks:
-- **Multiple tasks** → invoke `{adapter.commandPrefix}Qexecute {UUID1} {UUID2} ... {UUIDn}` with all generated UUIDs space-separated in a single call. Qexecute handles parallel execution.
+Use the interaction adapter to choose Generate Only or Generate & Execute. A
+gate-blocked spec may only be saved or revised. Recommend a wave for four or
+more independent items. Non-interactive Codex defaults to Generate Only unless
+execution was explicitly requested or chained. Create artifacts in pending/ and
+chain execution internally; never ask the user to orchestrate internal PSE stages.
+Detailed choices and output reporting:
+[./reference/spec-workflow.md](./reference/spec-workflow.md).
 
 ## Autonomous Mode Support
 
@@ -314,32 +176,10 @@ TASK_REQUEST and VERIFY_CHECKLIST must match the user's language.
 
 ## Contract Candidate Extraction (Optional)
 
-After draft creation (Step 2) and before handing off, check whether the TASK_REQUEST opts into **contract candidate extraction**.
-
-**Opt-in marker**: If the TASK_REQUEST body contains the exact HTML-comment marker `<!-- contract-candidates: auto -->`, enter this flow. If absent, skip entirely.
-
-**Flow**:
-1. Read the newly drafted TASK_REQUEST text.
-2. Call `extractCandidates(taskRequestText)` from `hooks/scripts/lib/contract-candidate-extractor.mjs`.
-3. For each candidate `{name, targetPath, suggestedSignature}`:
-   - Read `.qe/contracts/TEMPLATE.md` as the base.
-   - Fill in a draft:
-     - Replace the example `Signature` body with a code block containing `suggestedSignature` (empty string initially — user fills in later).
-     - Replace the example `Purpose` with a single line: `Business-logic contract for \`${targetPath}\``
-     - Leave `Constraints`, `Invariants`, `Error Modes` as lightly pre-filled placeholders (e.g., `- TBD (candidate draft)`).
-     - Omit `Flow` (optional section) unless the user fills it.
-   - Write to `.qe/contracts/pending/${name}.md`.
-4. **Do not write to `.qe/contracts/active/`** — user must review and promote manually. This preserves the opt-in, user-in-the-loop principle (D011).
-5. Report the new pending draft paths. After explicit human review, promote a draft with
-   `node scripts/qe-contract.mjs approve {name} --reason "{review rationale}"`; this is the
-   retained non-skill administration path and records the approval hash.
-
-**Skip conditions**:
-- Marker absent → skip silently.
-- `extractCandidates` returns `[]` → skip with a short note ("Marker present but no `.mjs` output items found in checklist.").
-- A pending draft with the same name already exists → skip that one, warn the user ("Draft already pending: {name}.md").
-
-**Reference**: See `.qe/contracts/README.md` and D011 in `.qe/planning/DECISION_LOG.md` (DECISION_LOG stays global across all plans).
+Only `<!-- contract-candidates: auto -->` enables extraction. Write generated
+contracts to `.qe/contracts/pending/`, preserve existing drafts, and require
+explicit human approval before promotion. Full rules:
+[./reference/document-contracts.md](./reference/document-contracts.md).
 
 ## Handoff
 After generating spec files (on "Generate Only"), display using the standard handoff format from `QE_CONVENTIONS.md`:

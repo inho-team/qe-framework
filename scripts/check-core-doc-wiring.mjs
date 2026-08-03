@@ -59,9 +59,7 @@ const SELF_REL = relative(ROOT, SELF).split(sep).join('/');
  * Remove entries as they get wired, linked, or deleted — a stale entry fails this
  * gate.
  */
-const KNOWN_UNREACHABLE = new Set([
-  'core/MEMORY_SPEC.md',
-]);
+const KNOWN_UNREACHABLE = new Set();
 
 /** @returns {string[]} repo-relative POSIX paths of every core/ markdown file */
 function listCoreDocs() {
@@ -184,11 +182,10 @@ if (failures.length > 0) {
   for (const failure of failures) {
     console.error(`  - ${failure}`);
   }
-  console.error(`\n${failures.length} problem(s). See issue #16.`);
+  console.error(`\n${failures.length} core-document reachability problem(s).`);
   process.exit(1);
 }
 
-console.log(
-  `check-core-doc-wiring: PASS — ${coreDocs.length - KNOWN_UNREACHABLE.size}/${coreDocs.length} core docs reachable, ` +
-  `${KNOWN_UNREACHABLE.size} known-unreachable (issue #16).`
-);
+console.log(KNOWN_UNREACHABLE.size > 0
+  ? `check-core-doc-wiring: PASS — ${coreDocs.length - KNOWN_UNREACHABLE.size}/${coreDocs.length} core docs reachable, ${KNOWN_UNREACHABLE.size} known-unreachable.`
+  : `check-core-doc-wiring: PASS — ${coreDocs.length}/${coreDocs.length} core docs reachable; debt ledger empty.`);

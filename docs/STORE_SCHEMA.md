@@ -2,8 +2,8 @@
 
 QE keeps `.qe/` documents in the local SQLite store and maintains rebuildable
 indexes for tasks, verification failures, and project knowledge. The framework
-release and database schema are versioned separately: the current framework
-`8.3.x` requires schema `v4`.
+release and database schema are versioned separately: framework lines `8.3.x`
+and `9.x` require schema `v4`.
 
 ## Authoritative specification
 
@@ -26,7 +26,8 @@ npm run qe:schema -- migrate
 `status` reports the declared and installed schema. `verify` fails if the
 database does not contain every table declared by the manifest. `plan` reports
 whether an upgrade is needed. `migrate` opens the store and applies the existing
-idempotent append-only migrations.
+idempotent append-only migrations. It also initializes a fresh project's `.qe/`
+database directory and authoritative `qe_files` table.
 
 ## Adding a schema version
 
@@ -38,6 +39,7 @@ idempotent append-only migrations.
    fresh database and an upgraded database.
 5. When releasing a framework version, update `package.json` and
    `.claude-plugin/plugin.json` together and ensure the manifest range covers it.
+   The release CLI rejects an uncovered version before writing any manifest.
 
 Derived tables must remain rebuildable from `qe_files` or documented source
 artifacts. Do not expose sensitive cache content through the public CLI.

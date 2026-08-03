@@ -107,8 +107,9 @@ function isVersionOwnedManifest(filePath) {
   // `Package.json` resolves to the same file, so the gate must not depend on
   // exact case. No case-colliding manifest names exist, so `i` adds no
   // false positives.
+  // Claude distribution metadata is version-owned even when Codex is active.
   return /(?:^|\/)package\.json$/i.test(p) ||
-    /(?:^|\/)\.claude-plugin\/(?:plugin|marketplace)\.json$/i.test(p);
+    /(?:^|\/)\.claude-plugin\/(?:plugin|marketplace)\.json$/i.test(p); // Claude distribution metadata
 }
 
 // The standalone skill-bypass flag (defect 4). Only the hook itself may write it,
@@ -824,12 +825,12 @@ if (toolName === 'Bash' && cfg.staging_guard !== false) {
         emitBlock({
           skill: '_staging_guard',
           reason: stagingVerdict.reason,
-          action: '명시 경로로 git add path1 path2 를 사용하거나 /Qcommit 을 사용하세요.',
+          action: `명시 경로로 git add path1 path2 를 사용하거나 ${skillCommand('Qcommit')} 을 사용하세요.`,
           bypass: 'staging_guard: "warn" 강등 또는 hook_profile=minimal',
         });
       } else {
         // warn mode (default): non-block hint via additionalContext channel
-        hints.push(`[staging-guard] ${stagingVerdict.reason} 명시 경로로 git add path1 path2 를 사용하거나 /Qcommit 을 사용하세요.`);
+        hints.push(`[staging-guard] ${stagingVerdict.reason} 명시 경로로 git add path1 path2 를 사용하거나 ${skillCommand('Qcommit')} 을 사용하세요.`);
       }
     } else if (stagingVerdict.verdict === 'warn') {
       hints.push(`[staging-guard] ${stagingVerdict.reason}`);

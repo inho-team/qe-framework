@@ -11,6 +11,7 @@ QE uses a layered memory architecture. Each layer has different scope and lifeti
 | Layer | Location | Scope | Lifetime |
 |-------|----------|-------|----------|
 | **Auto Memory** | `~/.claude/projects/{path}/memory/` | Per-project, per-user | Permanent (user-managed) |
+| **QE Project Memory** | `.qe/project-memory.json` | Per-project, shared runtime | TTL/priority managed; see `core/MEMORY_SPEC.md` |
 | **CLAUDE.md** | Project root | Per-project, shared | Permanent (git-tracked) |
 | **Unified State** | `.qe/state/unified-state.json` | Per-project | Session-scoped (reset on start) |
 | **Session Context** | `.qe/context/sessions/{sid}/` | Per-session | Until compaction/cleanup |

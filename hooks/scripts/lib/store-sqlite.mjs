@@ -17,6 +17,7 @@
  */
 
 import { existsSync, mkdirSync, readFileSync, readdirSync, statSync } from './qe-fs.mjs';
+import { mkdirSync as realMkdirSync } from 'node:fs';
 import { dirname, join, relative } from 'path';
 
 import {
@@ -264,6 +265,7 @@ const MIGRATIONS = [
 const EXPECTED_TABLES = [
   'schema_meta', 'state_kv', 'counters', 'memo', 'events', 'sessions',
   'file_index', 'learnings', 'task_log', 'failures', 'wiki_pages', 'wiki_links',
+  'qe_files',
 ];
 
 /**
@@ -275,6 +277,13 @@ function tableNames(db) {
   return new Set(
     db.prepare("SELECT name FROM sqlite_master WHERE type = 'table'").all().map(r => r.name),
   );
+}
+
+/** Ensure the DB-authoritative document table owned by qe-fs is present. */
+function ensureQeFilesTable(db) {
+  db.exec(`CREATE TABLE IF NOT EXISTS qe_files(
+    path TEXT PRIMARY KEY, content TEXT, encoding TEXT, size INTEGER,
+    mode INTEGER, mtime_ms INTEGER, sha256 TEXT, migrated_at INTEGER)`);
 }
 
 /**
@@ -294,6 +303,7 @@ function tableNames(db) {
  * @param {object} db - An open DatabaseSync handle
  */
 function migrate(db) {
+  ensureQeFilesTable(db);
   const claimed = db.prepare('PRAGMA user_version').get()?.user_version ?? 0;
   const present = tableNames(db);
   const complete = EXPECTED_TABLES.every(name => present.has(name));
@@ -359,7 +369,9 @@ export function openSqlite(cwd, opts = {}) {
   if (!cwd || !existsSync(cwd)) return null;
 
   if (!readOnly) {
-    try { mkdirSync(dirname(dbPath), { recursive: true }); } catch { return null; }
+    // The database directory cannot be created through qe-fs: `.qe/`
+    // directories are virtual there, but SQLite still needs a real parent.
+    try { realMkdirSync(dirname(dbPath), { recursive: true }); } catch { return null; }
   }
 
   // Retry the whole open: `PRAGMA journal_mode = WAL` and the first migration
@@ -394,16 +406,15 @@ export function openSqlite(cwd, opts = {}) {
         // half-finished creation.
         // `user_version` alone is not enough to decide the schema is complete:
         // it is a claim the tables can contradict after an interrupted upgrade
-        // or a partial restore. Counting tables is one indexed read of
-        // `sqlite_master`, cheap enough to pay on every open, and skipping it
-        // is how a half-migrated database silently demoted every caller to the
-        // file backend.
+        // or a partial restore. Checking the expected table names is one
+        // indexed read of `sqlite_master`, cheap enough to pay on every open.
+        // A count is insufficient because an unrelated table can replace a
+        // required one while leaving the count unchanged.
         const version = db.prepare('PRAGMA user_version').get()?.user_version ?? 0;
-        const tableCount = Number(
-          db.prepare("SELECT COUNT(*) AS n FROM sqlite_master WHERE type = 'table'").get()?.n,
-        ) || 0;
+        const present = tableNames(db);
+        const schemaComplete = EXPECTED_TABLES.every(name => present.has(name));
 
-        if (version < MIGRATIONS.length || tableCount < EXPECTED_TABLES.length) {
+        if (version < MIGRATIONS.length || !schemaComplete) {
           // WAL lets readers proceed during a write, which matters because
           // hooks read far more often than they write.
           db.exec('PRAGMA journal_mode = WAL');
