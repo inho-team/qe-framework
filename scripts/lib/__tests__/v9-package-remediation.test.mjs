@@ -15,11 +15,11 @@ test('package policy excludes test trees while preserving runtime assets', () =>
   const pkg = readJson('package.json');
   assert.ok(pkg.files.includes('!**/__tests__/**'));
 
-  const npmCommand = process.platform === 'win32' ? 'npm.cmd' : 'npm';
-  const run = spawnSync(npmCommand, ['pack', '--dry-run', '--json', '--ignore-scripts'], {
+  const run = spawnSync('npm', ['pack', '--dry-run', '--json', '--ignore-scripts'], {
     cwd: ROOT,
     encoding: 'utf8',
     maxBuffer: 8 * 1024 * 1024,
+    shell: process.platform === 'win32',
   });
   assert.equal(run.status, 0, run.stderr);
   const [pack] = JSON.parse(run.stdout);

@@ -245,9 +245,14 @@ export function createPackageProvenance(repositoryRoot = REPOSITORY_ROOT) {
   const temporaryDirectory = mkdtempSync(join(tmpdir(), 'qe-package-provenance-'));
   try {
     const packed = spawnSync(
-      process.platform === 'win32' ? 'npm.cmd' : 'npm',
+      'npm',
       ['pack', '--json', '--ignore-scripts', '--pack-destination', temporaryDirectory],
-      { cwd: repositoryRoot, encoding: 'utf8', maxBuffer: 20 * 1024 * 1024 },
+      {
+        cwd: repositoryRoot,
+        encoding: 'utf8',
+        maxBuffer: 20 * 1024 * 1024,
+        shell: process.platform === 'win32',
+      },
     );
     if (packed.status !== 0 || packed.error) {
       throw new Error(`npm pack failed: ${packed.error?.message || packed.stderr.trim() || `exit ${packed.status}`}`);

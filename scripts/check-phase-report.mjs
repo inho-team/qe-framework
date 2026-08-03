@@ -17,11 +17,13 @@ import { phaseReport, createGoals, recordEvent } from '../hooks/scripts/lib/ledg
 import { spawnSync } from 'node:child_process';
 import { mkdtempSync, mkdirSync, writeFileSync, readFileSync, existsSync, rmSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join, dirname, resolve } from 'node:path';
+import { join, dirname } from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { pathToFileURL } from 'node:url';
 
 const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..');
 const LEDGER = join(ROOT, 'hooks', 'scripts', 'lib', 'ledger.mjs');
+const QE_FS_URL = pathToFileURL(join(ROOT, 'hooks', 'scripts', 'lib', 'qe-fs.mjs')).href;
 
 const failures = [];
 const cleanup = [];
@@ -147,7 +149,16 @@ function runLedger(args, cwdOverride) {
   expect(r.code === 0, `[cli-a] valid phase-report must exit 0 (got ${r.code})`);
   const parsed = (() => { try { return JSON.parse(r.stdout); } catch { return null; } })();
   expect(parsed && parsed.reportFile, `[cli-a] must return reportFile in JSON (got ${r.stdout.slice(0, 80)})`);
-  expect(parsed && existsSync(resolve(cwd, parsed.reportFile)), '[cli-a] reportFile path must exist under the requested cwd');
+  const persisted = parsed?.reportFile
+    ? spawnSync(process.execPath, [
+      '--input-type=module',
+      '--eval',
+      `import { readFileSync } from '${QE_FS_URL}'; process.stdout.write(readFileSync(process.argv[1], 'utf8'));`,
+      parsed.reportFile,
+    ], { cwd, encoding: 'utf8' })
+    : null;
+  expect(persisted?.status === 0 && persisted.stdout.includes('Phase 1 Goal Satisfaction Report'),
+    '[cli-a] report must be readable from the DB-backed requested cwd');
 }
 
 // (cli-b) invalid phase → exit 0 (backfill-safe), error in JSON
