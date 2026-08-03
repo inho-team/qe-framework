@@ -12,6 +12,8 @@ const workflow = readFileSync(resolve(ROOT, '.github/workflows/ci.yml'), 'utf8')
 test('CI contract covers supported Node lines and native operating systems', () => {
   assert.deepEqual(validateCiWorkflow(workflow), { ok: true, errors: [] });
   assert.doesNotMatch(workflow, /node:\s*\[[^\]]*['"]20['"]/);
+  assert.equal((workflow.match(/actions\/checkout@v7/g) || []).length, 2);
+  assert.equal((workflow.match(/actions\/setup-node@v7/g) || []).length, 2);
 });
 
 test('CI contract fails closed when a native operating system is removed', () => {

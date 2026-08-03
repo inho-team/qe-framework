@@ -32,8 +32,8 @@ export function validateCiWorkflow(text) {
     'scripts/lib/__tests__/package-provenance.test.mjs',
   ])) errors.push('native-package job must cover Linux/macOS/Windows on Node 22 with the focused package suite');
   if ((text.match(/fail-fast:\s*false/g) || []).length < 2) errors.push('both matrices must keep fail-fast disabled');
-  if ((text.match(/uses:\s*actions\/checkout@v4/g) || []).length !== 2) errors.push('both jobs must check out the repository');
-  if ((text.match(/uses:\s*actions\/setup-node@v4/g) || []).length !== 2) errors.push('both jobs must use setup-node v4');
+  if ((text.match(/uses:\s*actions\/checkout@v7/g) || []).length !== 2) errors.push('both jobs must use checkout v7');
+  if ((text.match(/uses:\s*actions\/setup-node@v7/g) || []).length !== 2) errors.push('both jobs must use setup-node v7');
 
   return { ok: errors.length === 0, errors };
 }
