@@ -19,7 +19,7 @@ const SHIM = join(HERE, '..', 'qe-fs.mjs');
 
 // Each test runs the shim in a fresh child process with QE_ROOT pointed at a
 // temp sandbox (QE_ROOT is read at module load, so a child is the clean way).
-function runInSandbox(body) {
+function runInSandbox(body, { dbOnly = '1' } = {}) {
   const root = mkdtempSync(join(tmpdir(), 'qe-fs-'));
   mkdirSync(join(root, '.qe'), { recursive: true });
   // seed an empty store so the shim's CREATE TABLE has a db to open
@@ -34,8 +34,11 @@ function runInSandbox(body) {
     console.log('OK');
   `;
   // exercise the abolition end-state (DB_ONLY): writes never touch disk
+  const env = { ...process.env };
+  if (dbOnly == null) delete env.QE_STORE_DB_ONLY;
+  else env.QE_STORE_DB_ONLY = dbOnly;
   const r = spawnSync('node', ['--input-type=module', '-e', script], {
-    encoding: 'utf8', env: { ...process.env, QE_STORE_DB_ONLY: '1' },
+    encoding: 'utf8', env,
   });
   return { ok: r.stdout.includes('OK'), out: r.stdout, err: r.stderr, status: r.status };
 }
@@ -49,6 +52,22 @@ test('write then read a .qe file goes through the DB (no disk file created)', ()
     assert.equal(fs.existsSync(p), true, 'shim existsSync sees the row');
     assert.equal(fs.readFileSync(p, 'utf8'), '# hello\\n한글');
   `);
+  assert.equal(r.ok, true, r.err);
+});
+
+test('planning is DB-only by default while other .qe paths retain transition mirroring', () => {
+  const r = runInSandbox(`
+    const planning = ROOT + '/.qe/planning/plans/demo/ROADMAP.md';
+    const task = ROOT + '/.qe/tasks/demo.md';
+    fs.writeFileSync(planning, '# roadmap');
+    fs.writeFileSync(task, '# task');
+    const real = (await import('node:fs')).default;
+    assert.equal(real.existsSync(planning), false, 'planning write must not create a disk file');
+    assert.equal(real.existsSync(ROOT + '/.qe/planning'), false, 'planning directory must remain virtual');
+    assert.equal(fs.readFileSync(planning, 'utf8'), '# roadmap');
+    assert.deepEqual(fs.readdirSync(ROOT + '/.qe/planning/plans/demo'), ['ROADMAP.md']);
+    assert.equal(real.existsSync(task), true, 'unmigrated namespaces must keep transition mirroring');
+  `, { dbOnly: null });
   assert.equal(r.ok, true, r.err);
 });
 

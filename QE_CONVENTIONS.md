@@ -18,6 +18,9 @@ named pre-contract debt are defined in `core/ARCHITECTURE_BOUNDARIES.md`.
 > Framework code reads `.qe/` through `hooks/scripts/lib/qe-fs.mjs` automatically;
 > the tools above are the equivalent for skill/agent (prose) steps. Do **not**
 > assume a `.qe/` file exists on disk — a missing file is normal, its content is a row.
+> `.qe/planning/**` is DB-only by default: its directory structure is logical and
+> Qplan must mutate it through QE state/store utilities, never raw filesystem writes.
+> Other `.qe` namespaces may still mirror rows to disk during the transition.
 > Migration/verification: `node scripts/qe-fs-to-db.mjs migrate|verify|reconstruct`.
 
 > **Toolkit hint:** QE skills tend to produce better outcomes than system defaults for the actions listed below — they encode project-specific patterns, avoid AI traces, and handle edge cases that generic defaults miss.

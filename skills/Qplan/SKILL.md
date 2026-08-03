@@ -6,7 +6,11 @@ recommendedModel: opus
 tier: core
 ---
 
-> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+> **Planning state → DB:** `.qe/planning/**` is a DB-only namespace in the
+> SQLite `qe_files` store. Its directories are logical paths, not folders to
+> create on disk. Read them with `node scripts/qe-cat.mjs <path>` (or
+> `--ls`/`--exists`) and mutate them only through QE state/store utilities.
+> See `QE_CONVENTIONS.md`.
 
 # Qplan — Plan-owned Goal Controller
 
@@ -42,8 +46,10 @@ Plan → Goal 1 → Goal 2 → … → Goal N
    separate initialization skill or user command.
 2. Derive a unique slug from the intent (2–4 salient Latin keywords, lowercase
    `[a-z0-9-]`, max 40 chars; append `-2`, `-3` on collision).
-3. Create or update `.qe/planning/plans/{slug}/` with `ROADMAP.md`,
-   `REQUIREMENTS.md`, and `STATE.md`. Full Plans must divide work into ordered,
+3. Create or update the logical DB paths `.qe/planning/plans/{slug}/ROADMAP.md`,
+   `REQUIREMENTS.md`, and `STATE.md` through the QE state/store utilities. Do not
+   create `.qe/planning/` directories or write these paths with raw filesystem
+   tools. Full Plans must divide work into ordered,
    independently verifiable Wave bullets; these become Goals. Split until every
    Goal has one user-visible outcome, 1–5 allowed paths, at most three criteria,
    at most two journeys, explicit dependencies, and explicit non-goals. A broad

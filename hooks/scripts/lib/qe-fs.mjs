@@ -16,7 +16,12 @@
  *   unlink    → drop the row (and the disk file)
  *   rename    → move the row (supports the write-tmp-then-rename atomic pattern)
  *
- * Two modes (env QE_STORE_DB_ONLY):
+ * Persistence policy:
+ *   .qe/planning/** is always DB-only. Qplan owns this namespace, and all of
+ *   its framework consumers use this shim, so materializing a parallel folder
+ *   tree only creates a second, potentially stale representation.
+ *
+ * Two modes for every other .qe path (env QE_STORE_DB_ONLY):
  *   unset/0 (default, transition-safe): writes go to BOTH the row and the disk
  *     file, so consumers not yet routed through this shim still read fresh data.
  *   1 (abolition end-state): writes go to the row ONLY — no disk file is created,
@@ -41,6 +46,12 @@ const DB_SELF = /\.qe\/qe\.db(-wal|-shm|-journal)?$/;
 // store being readable.
 const DB_ONLY = process.env.QE_STORE_DB_ONLY === '1'
   || realFs.existsSync(join(QE, '.store-db-only'));
+
+/** Whether a store-backed path should also be mirrored to the legacy disk tree. */
+function shouldMirrorToDisk(rel) {
+  if (DB_ONLY) return false;
+  return rel !== '.qe/planning' && !rel.startsWith('.qe/planning/');
+}
 
 /** Repo-relative `.qe/...` path when `p` addresses a store-backed file, else null. */
 function qeRel(p) {
@@ -100,7 +111,7 @@ export function writeFileSync(p, data, opts) {
   if (rel == null) return realFs.writeFileSync(p, data, opts);
   const buf = Buffer.isBuffer(data) ? data : Buffer.from(String(data), (opts && opts.encoding) || 'utf8');
   upsert(rel, buf, opts && opts.mode);
-  if (!DB_ONLY) { // mirror to disk for consumers not yet on the shim
+  if (shouldMirrorToDisk(rel)) { // mirror only namespaces still in transition
     try { realFs.mkdirSync(dirname(p), { recursive: true }); realFs.writeFileSync(p, data, opts); } catch { /* best effort */ }
   }
 }
