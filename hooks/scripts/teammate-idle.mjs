@@ -7,7 +7,7 @@ import { getTeamContext } from './lib/team-detect.mjs';
 
 let input = '';
 try {
-  input = readFileSync('/dev/stdin', 'utf8');
+  input = readFileSync(0, 'utf8');
 } catch {
   process.exit(0);
 }

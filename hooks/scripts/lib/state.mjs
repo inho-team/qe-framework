@@ -312,7 +312,7 @@ export function listActiveModes(cwd, sessionId) {
  */
 export function readStdinJson() {
   try {
-    const input = readFileSync('/dev/stdin', 'utf8');
+    const input = readFileSync(0, 'utf8');
     return JSON.parse(input);
   } catch {
     return null;

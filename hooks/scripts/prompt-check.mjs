@@ -16,7 +16,7 @@ const __dirname = dirname(fileURLToPath(import.meta.url));
 
 let input = '';
 try {
-  input = readFileSync('/dev/stdin', 'utf8');
+  input = readFileSync(0, 'utf8');
 } catch {
   process.exit(0);
 }
