@@ -26,7 +26,8 @@
 import { readFileSync, existsSync, mkdirSync, readdirSync, statSync } from './qe-fs.mjs';
 import { join } from 'path';
 import { atomicWriteJson } from './state.mjs';
-import { getLatestCodexJobStatus } from '../../../scripts/lib/codex_bridge.mjs';
+import { getLatestDurableJobStatus } from '../../../scripts/lib/job-status.mjs';
+import { reconcileTeamRuntime } from './team-runtime.mjs';
 
 const STATE_FILE = '.qe/state/current-session.json';
 const CONTEXT_BASE = '.qe/context';
@@ -295,6 +296,87 @@ export function readSessionPlan(projectRoot, sessionRef = null) {
   return typeof data?.activePlanSlug === 'string' ? data.activePlanSlug.trim() : '';
 }
 
+/** Read the host/QE Goal link stored alongside the session Plan binding. */
+export function readSessionGoalLink(projectRoot, sessionRef = null) {
+  if (!projectRoot) return null;
+  const link = readSessionBinding(projectRoot, sessionRef)?.hostGoalLink;
+  if (!link || typeof link !== 'object' || Array.isArray(link)) return null;
+  const planSlug = typeof link.planSlug === 'string' ? link.planSlug.trim() : '';
+  const goalId = typeof link.goalId === 'string' ? link.goalId.trim() : '';
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(planSlug) || !/^G\d{3,}$/.test(goalId)) return null;
+  return {
+    planSlug,
+    goalId,
+    hostGoalId: typeof link.hostGoalId === 'string' ? link.hostGoalId.slice(0, 160) : '',
+    objectiveHash: typeof link.objectiveHash === 'string' ? link.objectiveHash : '',
+  };
+}
+
+/** Merge-write host/QE Goal link metadata without owning host Goal state. */
+export function writeSessionGoalLink(projectRoot, link, sessionRef = null) {
+  const filePath = resolveWritableSessionBindingPath(projectRoot, sessionRef);
+  if (!filePath) return { hostGoalLink: null, filePath: null };
+  const hostGoalLink = {
+    planSlug: String(link?.planSlug || '').trim(),
+    goalId: String(link?.goalId || '').trim(),
+    hostGoalId: String(link?.hostGoalId || '').slice(0, 160),
+    objectiveHash: String(link?.objectiveHash || ''),
+  };
+  if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(hostGoalLink.planSlug) || !/^G\d{3,}$/.test(hostGoalLink.goalId)) {
+    throw new Error('invalid host Goal link');
+  }
+  let existing = {};
+  if (existsSync(filePath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+    } catch {}
+  }
+  atomicWriteJson(filePath, {
+    ...existing,
+    activePlanSlug: hostGoalLink.planSlug,
+    hostGoalLink,
+    updatedAt: new Date().toISOString(),
+  });
+  return { hostGoalLink, filePath };
+}
+
+/** Read a durable team/member link stored with the session binding. */
+export function readSessionTeamLink(projectRoot, sessionRef = null) {
+  if (!projectRoot) return null;
+  const link = readSessionBinding(projectRoot, sessionRef)?.teamRuntimeLink;
+  if (!link || typeof link !== 'object' || Array.isArray(link)) return null;
+  const teamId = typeof link.teamId === 'string' && ID_SAFE(link.teamId) ? link.teamId : '';
+  const memberId = typeof link.memberId === 'string' && ID_SAFE(link.memberId) ? link.memberId : '';
+  return teamId && memberId ? { teamId, memberId } : null;
+}
+
+const ID_SAFE = value => /^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$/.test(value);
+
+/** Merge-write a session's durable team/member link. */
+export function writeSessionTeamLink(projectRoot, link, sessionRef = null) {
+  const filePath = resolveWritableSessionBindingPath(projectRoot, sessionRef);
+  if (!filePath) return { teamRuntimeLink: null, filePath: null };
+  const teamRuntimeLink = { teamId: String(link?.teamId || ''), memberId: String(link?.memberId || '') };
+  if (!ID_SAFE(teamRuntimeLink.teamId) || !ID_SAFE(teamRuntimeLink.memberId)) throw new Error('invalid team runtime link');
+  let existing = {};
+  if (existsSync(filePath)) {
+    try {
+      const parsed = JSON.parse(readFileSync(filePath, 'utf8'));
+      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) existing = parsed;
+    } catch {}
+  }
+  atomicWriteJson(filePath, { ...existing, teamRuntimeLink, updatedAt: new Date().toISOString() });
+  return { teamRuntimeLink, filePath };
+}
+
+/** Resolve the session link and reconcile its durable team runtime on resume. */
+export function reconcileSessionTeamRuntime(projectRoot, sessionRef = null, options = {}) {
+  const link = readSessionTeamLink(projectRoot, sessionRef);
+  if (!link) return { linked: false, classifications: {}, reclaimed: [], redeliver: [] };
+  return { linked: true, link, ...reconcileTeamRuntime(projectRoot, link.teamId, options) };
+}
+
 /**
  * Merge-write sessionName into `.qe/planning/.sessions/{id}.json`, preserving
  * activePlanSlug, summary, and any other existing fields.
@@ -555,7 +637,7 @@ export function summarizeSessionState(projectRoot, options = {}) {
   const codexJob = summarizeCodexJob(
     Object.prototype.hasOwnProperty.call(options, 'codexJob')
       ? options.codexJob
-      : getLatestCodexJobStatus(projectRoot)
+      : getLatestDurableJobStatus(projectRoot)
   );
 
   return {

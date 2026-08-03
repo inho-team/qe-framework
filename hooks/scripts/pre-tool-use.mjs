@@ -12,6 +12,8 @@ import { executableView, matchesExecutable, deobfuscateShellTokens, shellDashCAr
 import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
 import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs';
 import { appendTelemetry, initMetrics, recordDelegationRequest } from './lib/metrics.mjs';
+import { evaluateStaleEditPayload } from './lib/pre-tool-use-handler.mjs';
+import { checkStaleEditPrecondition, staleEditPreconditionFromToolInput } from '../../scripts/lib/stale-edit-guard.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -53,6 +55,47 @@ const COMMAND_PREFIX = process.env.QE_COMMAND_PREFIX || '/';
 const skillCommand = (name) => `${COMMAND_PREFIX}${name}`;
 const RELEASE_VERSION_CAPABILITY = 'qe-release-version';
 const RELEASE_VERSION_ACTION = 'Run `npm run qe:release -- bump <version>`.';
+
+// Optional hash-anchored Edit requests are fail-closed. A passing anchor is
+// stripped before the host receives the normal Edit input; legacy Edit payloads
+// without line_anchor remain backward-compatible.
+if (toolName === 'Edit') {
+  const staleEdit = evaluateStaleEditPayload(data);
+  if (staleEdit.applies && !staleEdit.allowed) {
+    emitBlock(staleEdit.block);
+  }
+  if (staleEdit.applies) mutatedInput = staleEdit.sanitizedInput;
+}
+
+// Optional cross-client edit envelope. Editors that observed line hashes attach
+// them to the mutation request; a mismatch is a deliberate fail-closed block.
+// Calls without the envelope retain existing behavior for backwards compatibility.
+if (['Edit', 'MultiEdit', 'apply_patch'].includes(toolName)) {
+  const precondition = staleEditPreconditionFromToolInput(rootToolInput);
+  if (precondition) {
+    const verdict = checkStaleEditPrecondition(cwd, precondition.filePath, precondition.observations);
+    if (!verdict.ok) {
+      const remaps = verdict.conflicts.map((conflict) => {
+        if (conflict.remap.kind === 'unique') return `line ${conflict.line} -> unique line ${conflict.remap.line} (${conflict.remap.hash})`;
+        if (conflict.remap.kind === 'ambiguous') return `line ${conflict.line} -> ambiguous lines ${conflict.remap.candidates.join(',')}`;
+        return `line ${conflict.line} -> not found`;
+      }).join('; ');
+      emitBlock({
+        skill: '_stale_edit_guard',
+        reason: `STALE EDIT: ${verdict.reason}${remaps ? `; ${remaps}` : ''}`,
+        action: 'Re-read the target, use the remap only when it is unique, recompute line hashes, then retry. Do not force-apply the stale edit. Policy: core/EDIT_SAFETY.md.',
+      });
+    }
+    const baseInput = mutatedInput || rootToolInput;
+    const {
+      stale_edit_precondition: _snake,
+      staleEditPrecondition: _camel,
+      qe_stale_edit: _legacy,
+      ...sanitizedInput
+    } = baseInput;
+    mutatedInput = sanitizedInput;
+  }
+}
 
 // Version-owned manifests whose `version` field only the release/admin workflow may change:
 // package.json plus the two .claude-plugin manifests. marketplace.json carries

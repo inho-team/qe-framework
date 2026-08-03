@@ -2,8 +2,8 @@
  * @fileoverview SIVS engine routing enforcement module.
  * Pure functions only — no side effects on import.
  *
- * Scope: this module enforces which ENGINE handles each SIVS stage (per
- * `.qe/sivs-config.json`) and audits routing decisions. It is complementary to —
+ * Scope: this module enforces the single-AI session boundary and audits routing
+ * decisions. `.qe/sivs-config.json` configures roles, not engines. It is complementary to —
  * and distinct from — the **stage verification gates** (the self-reference
  * defense), which are skill-driven (`skills/Qcritical-review/reference/*-gate-protocol.md`),
  * record their verdicts via `gate-audit.mjs`, and fold agent verdicts via
@@ -15,7 +15,6 @@
 
 import { appendFileSync, mkdirSync } from './qe-fs.mjs';
 import { join } from 'path';
-import { checkPoolDisjoint } from './engines.mjs';
 
 // subagent_type → SIVS stage mapping
 const STAGE_MAP = {
@@ -43,64 +42,74 @@ function inferStageFromText(text) {
 /**
  * Resolves the SIVS stage and actual engine from the Agent tool input.
  * @param {object} toolInput - Agent tool input object containing subagent_type and prompt
- * @returns {{ stage: string|null, actualEngine: string }} Resolved stage and engine identifier
+ * @returns {{ stage: string|null, requestedClient: string|null }} Resolved stage and explicit client request
  */
-function resolveStageAndEngine(toolInput) {
+function resolveStageAndClient(toolInput) {
   const subagentType = (toolInput && (toolInput.subagent_type || toolInput.subagentType)) || '';
   const prompt = (toolInput && (toolInput.prompt || toolInput.description)) || '';
 
   // Codex subagent patterns
   if (subagentType.startsWith('codex:') || subagentType.includes('codex-rescue') || subagentType.includes('codex-result-handling')) {
     const stage = inferStageFromText(prompt);
-    return { stage, actualEngine: 'codex' };
+    return { stage, requestedClient: 'codex' };
   }
 
   // Known Claude subagent types
   const stage = STAGE_MAP[subagentType] || null;
-  return { stage, actualEngine: 'claude-agent' };
+  const requestedClient = toolInput?.client || toolInput?.engine || toolInput?.provider || null;
+  return { stage, requestedClient };
+}
+
+function findLegacyRoutingField(config) {
+  if (!config || typeof config !== 'object') return null;
+  if (Object.prototype.hasOwnProperty.call(config, 'profile')) return 'profile';
+  for (const [stage, entry] of Object.entries(config)) {
+    if (!entry || typeof entry !== 'object') continue;
+    if (Object.prototype.hasOwnProperty.call(entry, 'engine')) return `${stage}.engine`;
+    if (Object.prototype.hasOwnProperty.call(entry, 'background')) return `${stage}.background`;
+  }
+  return null;
 }
 
 /** Enforces SIVS engine routing policy for an Agent tool call.
  * @param {object} toolInput - Agent tool input (data.tool_input); must include subagent_type
  * @param {object} sivsConfig - Parsed sivs-config.json, or empty object when not configured
- * @param {object} [codexReachable] - isCodexReachable() result; defaults to { reachable: true }
- * @returns {object} Decision: { action: 'allow'|'block'|'fallback', stage, configuredEngine, actualEngine, reason } */
-export function enforceRouting(toolInput, sivsConfig, codexReachable = { reachable: true }) {
-  const { stage, actualEngine } = resolveStageAndEngine(toolInput);
+ * @param {object} [session] - { activeClient?: 'claude'|'codex' }; legacy reachability objects are ignored
+ * @returns {object} Decision: { action: 'allow'|'block', stage, activeClient, requestedClient, reason } */
+export function enforceRouting(toolInput, sivsConfig, session = {}) {
+  const { stage, requestedClient } = resolveStageAndClient(toolInput);
+  const activeClient = session?.activeClient || toolInput?.active_client || toolInput?.activeClient || null;
+  const legacyField = findLegacyRoutingField(sivsConfig);
 
-  // No stage resolved or no sivs config → allow immediately (zero impact on unknown agents)
-  if (!stage || !sivsConfig || Object.keys(sivsConfig).length === 0) {
-    return { action: 'allow', stage, configuredEngine: 'claude', actualEngine, reason: 'no_sivs_config' };
+  if (legacyField) {
+    return {
+      action: 'block', stage, activeClient, requestedClient,
+      configuredEngine: null, actualEngine: requestedClient,
+      reason: `legacy_cross_client_config:${legacyField}`,
+    };
   }
 
-  const stageEntry = sivsConfig[stage];
-  // Stage has no config entry → skip enforcement
-  if (!stageEntry) {
-    return { action: 'allow', stage, configuredEngine: 'claude', actualEngine, reason: 'no_stage_config' };
+  if (activeClient && requestedClient && requestedClient !== activeClient) {
+    return {
+      action: 'block', stage, activeClient, requestedClient,
+      configuredEngine: activeClient, actualEngine: requestedClient,
+      reason: 'cross_client_delegation_disabled',
+    };
   }
 
-  const configuredEngine = stageEntry.engine || 'claude';
-
-  // Engines match → allow
-  if (configuredEngine === actualEngine || (configuredEngine === 'claude' && actualEngine === 'claude-agent')) {
-    return { action: 'allow', stage, configuredEngine, actualEngine, reason: 'match' };
+  if (!activeClient && requestedClient) {
+    return {
+      action: 'block', stage, activeClient, requestedClient,
+      configuredEngine: null, actualEngine: requestedClient,
+      reason: 'active_client_required',
+    };
   }
 
-  // Config requires codex, actual is claude-agent
-  if (configuredEngine === 'codex' && actualEngine === 'claude-agent') {
-    if (codexReachable && codexReachable.reachable === false) {
-      return { action: 'fallback', stage, configuredEngine, actualEngine, reason: codexReachable.reason || 'codex_unreachable' };
-    }
-    return { action: 'block', stage, configuredEngine, actualEngine, reason: 'sivs_config_requires_codex' };
-  }
-
-  // Config requires claude, actual is codex → soft allow (codex override is fine, just add hint)
-  if (configuredEngine === 'claude' && actualEngine === 'codex') {
-    return { action: 'allow', stage, configuredEngine, actualEngine, reason: 'codex_override_allowed' };
-  }
-
-  // Default: allow unknown combinations
-  return { action: 'allow', stage, configuredEngine, actualEngine, reason: 'unknown_combination' };
+  return {
+    action: 'allow', stage, activeClient, requestedClient,
+    configuredEngine: activeClient, actualEngine: requestedClient,
+    reason: stage ? 'active_client_owns_stage' : 'client_neutral_agent',
+  };
 }
 
 /** Appends a SIVS routing audit log entry to .qe/agent-results/sivs-audit.log.
@@ -119,16 +128,17 @@ export function appendAuditLog(cwd, entry) {
 }
 
 /**
- * Verify that a SIVS config's Implement and Verify stages draw from disjoint
- * provider pools (the structural Implement/Verify independence guarantee).
- * Returns { ok, reason, implement, verify }. ok=false means the Verify engine's
- * vendor sits inside the Implement engine's pool, so the check is not independent.
+ * Compatibility export for callers that previously checked provider pools.
+ * Single-AI verification independence is role/fresh-context based.
  * @param {object} sivsConfig - parsed .qe/sivs-config.json
  * @returns {{ ok: boolean, reason: string, implement: string, verify: string }}
  */
 export function checkSivsPoolDisjoint(sivsConfig) {
-  const implement = (sivsConfig?.implement?.engine) || 'claude';
-  const verify = (sivsConfig?.verify?.engine) || 'claude';
-  const { ok, reason } = checkPoolDisjoint(implement, verify);
-  return { ok, reason, implement, verify };
+  const legacyField = findLegacyRoutingField(sivsConfig);
+  return {
+    ok: !legacyField,
+    reason: legacyField ? `legacy_cross_client_config:${legacyField}` : 'role_separated_fresh_context',
+    implement: 'active-client',
+    verify: 'active-client',
+  };
 }

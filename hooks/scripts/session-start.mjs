@@ -23,6 +23,7 @@ import { openStore } from './lib/store.mjs';
 import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
+import { formatGoalReconciliation, reconcileHostGoal } from './lib/goal-adapter.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 // Read fd 0 directly. `/dev/stdin` re-opens the pipe and can read empty on Linux CI
@@ -113,6 +114,18 @@ function sessionIdFromPayload(payload) {
 // agree. Falls back to '_unknown' bucket downstream if sid is missing.
 const currentSessionId = sessionIdFromPayload(data);
 const currentSid = shortenSid(currentSessionId);
+
+// Reconcile an optional host-native Goal snapshot with the session-bound QE
+// Plan. The adapter persists link metadata only; it returns proposed host/QE
+// actions for the active client instead of owning either state machine.
+try {
+  const hostGoal = data.host_goal || data.hostGoal || data.goal || null;
+  const goalResult = reconcileHostGoal(cwd, { sessionId: currentSessionId, hostGoal });
+  const goalMessage = formatGoalReconciliation(goalResult);
+  if (goalMessage) messages.push(goalMessage);
+} catch {
+  messages.push('[Goal Sync] unavailable:reconciliation_error');
+}
 
 // Run every auto-eligible legacy migration (context flat, handoffs flat,
 // future entries from lib/legacy-migrator.mjs) before any downstream reader

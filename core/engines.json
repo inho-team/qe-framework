@@ -1,25 +1,9 @@
 {
-  "_doc": "Engine registry for SIVS routing. Machine-read (JSON, not YAML) because the package is zero-dependency and needs a programmatic loader for pool-disjointness enforcement. Each engine has: type (cli | openai-compat), vendor (the model provider — the unit of independence), pool (vendors this engine may draw from), and optional experimental flag. Pool-disjointness rule: a Verify engine's vendor must NOT appear in the Implement engine's pool, so the model that checks work never shares a provider with the model that produced it.",
-  "version": 1,
-  "engines": {
-    "claude": {
-      "type": "cli",
-      "vendor": "anthropic",
-      "pool": ["anthropic"],
-      "cli": "claude"
-    },
-    "codex": {
-      "type": "cli",
-      "vendor": "openai",
-      "pool": ["openai"],
-      "cli": "codex"
-    },
-    "fugu": {
-      "type": "openai-compat",
-      "vendor": "fugu",
-      "pool": ["fugu"],
-      "experimental": true,
-      "note": "Experiment-only. Access via an OpenAI-compatible endpoint; keys env-only, never logged."
-    }
-  }
+  "_doc": "Single-AI SIVS policy manifest. The host's active client owns every stage; verification independence comes from role separation, fresh context, and machine re-execution.",
+  "version": 2,
+  "policy": "active-client-only",
+  "selection": "host-native",
+  "crossClientFallback": false,
+  "verificationIndependence": ["role-separated", "fresh-context", "machine-reexecution"],
+  "engines": {}
 }

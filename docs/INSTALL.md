@@ -73,6 +73,67 @@ qe-framework-install doctor
 Read-only. Reports: install mode, framework version, each asset location
 (present/absent), and how many reversible backups exist.
 
+## Verify a packed artifact before installation
+
+Create the package and its immutable provenance in a trusted build environment,
+without publishing it:
+
+```bash
+npm pack --ignore-scripts
+node scripts/check-package-provenance.mjs --artifact inho-team-qe-framework-<version>.tgz --out qe.provenance.json
+```
+
+Verify the received artifact before installation:
+
+```bash
+node scripts/check-package-provenance.mjs --artifact inho-team-qe-framework-<version>.tgz --provenance qe.provenance.json
+node scripts/check-packaged-install.mjs --artifact inho-team-qe-framework-<version>.tgz --provenance qe.provenance.json
+```
+
+To bind the provenance to an existing Ed25519 release key, create a detached
+signature in the trusted build environment:
+
+```bash
+node scripts/check-package-provenance.mjs \
+  --artifact inho-team-qe-framework-<version>.tgz \
+  --out qe.provenance.json \
+  --sign-private-key release-ed25519-private.pem \
+  --signature qe.provenance.sig
+```
+
+Verify with a separately trusted public key before installation:
+
+```bash
+node scripts/check-package-provenance.mjs \
+  --artifact inho-team-qe-framework-<version>.tgz \
+  --provenance qe.provenance.json \
+  --signature qe.provenance.sig \
+  --verify-public-key release-ed25519-public.pem
+
+node scripts/check-packaged-install.mjs \
+  --artifact inho-team-qe-framework-<version>.tgz \
+  --provenance qe.provenance.json \
+  --signature qe.provenance.sig \
+  --verify-public-key release-ed25519-public.pem
+```
+
+The verifier recomputes the compressed artifact SHA-256, every packed regular
+file digest, package name/version, safe tar paths, and required assets for the
+`darwin`, `linux`, and `win32` install matrix. npm install and uninstall use the
+same Node lifecycle entrypoint on all three platforms and do not require a host
+shell. A missing asset or digest mismatch
+fails before installation. Unsigned provenance remains available for local
+preflight. When signature verification is requested, the detached signature and
+trusted public key are both mandatory; a changed artifact, provenance, signature,
+or key fails closed. The signature covers a domain-separated canonical JSON
+encoding of the complete provenance record. QE does not generate, store, rotate,
+or distribute release keys: private-key custody and public-key trust must be
+provided by the release process through a channel separate from the artifact.
+
+For a repository-local preflight that creates and removes its own temporary
+artifact, run both commands without arguments. Neither command publishes or
+changes the package version.
+
 ## Install — automatic backup
 
 ```bash

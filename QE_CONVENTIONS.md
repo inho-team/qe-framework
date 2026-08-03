@@ -1,5 +1,13 @@
 # QE Conventions
 
+## Architecture dependency boundary
+
+Harness-neutral code may not import Claude/Codex-specific adapters, and the two
+host adapters may not import one another directly. Put shared behavior in the
+neutral core and validate changes with `scripts/check-architecture-boundaries.mjs`
+(automatically included by `scripts/check-all.mjs`). The enforced zones and
+named pre-contract debt are defined in `core/ARCHITECTURE_BOUNDARIES.md`.
+
 > **`.qe` state lives in the DB, not files (DB-backed store).** The `.qe/` tree is
 > backed by the SQLite store `.qe/qe.db` (`qe_files` table + derived index tables);
 > a given `.qe/` path may have **no file on disk**. So when a skill or the agent
@@ -126,6 +134,11 @@ Codex compatibility is handled through the QE client adapter: Claude uses Agent
 tool delegation, while Codex uses native subagents when available and preserves
 the same role contract with role-separated inline execution only when the active
 Codex runtime lacks the required subagent primitive.
+
+Dependency direction is enforced by `scripts/check-architecture-boundaries.mjs`.
+Harness-neutral core must not import a host adapter, and Claude/Codex adapters
+must not couple directly. See [`core/ARCHITECTURE_BOUNDARIES.md`](core/ARCHITECTURE_BOUNDARIES.md)
+for the exact rules and the single documented legacy baseline edge.
 
 ---
 

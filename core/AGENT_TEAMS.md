@@ -192,12 +192,38 @@ Each teammate MUST own distinct files within a wave/phase:
 
 ## Limitations
 
-- **No session resumption**: `/resume` does not restore in-process teammates
+- **No process resurrection**: `/resume` cannot restore in-process teammate contexts. QE's durable team runtime can preserve completed tasks, reclaim expired claims, and redeliver unacknowledged mailbox entries, but the host must start replacement workers.
 - **One team per session**: Lead can manage only one team at a time
 - **No nested teams**: Teammates cannot spawn their own teams
 - **Lead is fixed**: The session that creates the team is always the lead
 - **Permissions inherited**: All teammates start with lead's permission mode
 - **tmux required for split panes**: In-process mode is the default (works anywhere)
+
+## Durable Team Runtime
+
+QE can persist an optional project-local task and mailbox runtime in `qe.db`.
+The runtime is separate from the host's live agent handles: it preserves work
+intent and delivery state across a crash, but it does not recreate an in-process
+teammate.
+
+- Task claims execute under a SQLite `BEGIN IMMEDIATE` transaction. A task is
+  claimable only after every dependency is complete, and one active owner/token
+  wins. Repeating the same owner's claim is idempotent.
+- Mailbox messages use a caller-stable message id. Unacknowledged messages are
+  returned on every receive and increment `deliveryCount`, providing
+  at-least-once delivery without pretending it is exactly once.
+- Session bindings store `teamId` and `memberId`. Resume reconciliation labels
+  each member `live`, `dead`, or `unknown`; dead claims and expired unknown
+  claims return to pending, while completed tasks and unacknowledged messages
+  remain durable.
+- Reconciliation never force-completes work and never guesses that an unknown,
+  unexpired member is dead. No remote queue or multi-host consensus is provided.
+
+## Durable coordination state
+
+`hooks/scripts/lib/team-runtime.mjs` provides an optional single-host SQLite coordination layer for task and mailbox continuity. Task claims use `BEGIN IMMEDIATE`, honor completed dependencies, and require an opaque claim token for completion. Mailbox delivery is at-least-once: an unacknowledged lease is requeued after expiry, while an acknowledged message is never delivered again.
+
+On resume, reconciliation classifies recorded members as `live`, `dead`, or `unknown`. It preserves completed tasks, reclaims expired reservations or work owned by a confirmed-dead member, and leaves a non-expired unknown owner untouched. This is local durability, not a remote broker or multi-host consensus protocol.
 
 ---
 

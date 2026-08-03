@@ -20,7 +20,6 @@
 
 import { readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
-import { readClaudeOAuthToken } from './claude-token.mjs';
 
 /**
  * High-precision drama markers. Each entry is enforcing a rule that ALREADY exists
@@ -268,15 +267,14 @@ export function loadStyleRubric(cwd) {
   }
 }
 
-// Token source: shared helper (file → macOS Keychain). See lib/claude-token.mjs.
-
 /**
  * Judge whether assistant prose is a SEVERE OUTPUT_STYLE violation.
  *
  * @param {string} text - The assistant's user-facing prose (Stage-1 already tripped).
  * @param {object} [opts]
  * @param {string} [opts.rubric]    - Rubric text; defaults to RUBRIC_FALLBACK.
- * @param {string} [opts.token]     - OAuth token; defaults to the credentials file.
+ * @param {string} [opts.token]     - Explicit OAuth token.
+ * @param {Function} [opts.tokenProvider] - Adapter-owned lazy token provider.
  * @param {Function} [opts.fetchImpl] - Injectable fetch (for tests).
  * @param {number} [opts.timeoutMs] - Network timeout (default 2500).
  * @param {string} [opts.model]     - Model id (default claude-haiku-4-5-20251001).
@@ -289,7 +287,14 @@ export async function judgeStyle(text, opts = {}) {
   if (!text || typeof text !== 'string') return NO;
 
   const rubric = opts.rubric || RUBRIC_FALLBACK;
-  const token = opts.token || readClaudeOAuthToken();
+  let token = opts.token;
+  if (!token && typeof opts.tokenProvider === 'function') {
+    try {
+      token = opts.tokenProvider();
+    } catch {
+      return NO;
+    }
+  }
   if (!token) return NO; // can't judge → fail-open
 
   const doFetch = opts.fetchImpl || (typeof fetch !== 'undefined' ? fetch : null);

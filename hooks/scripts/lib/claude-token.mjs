@@ -20,38 +20,15 @@
  * error message can never leak.
  */
 
-import { readFileSync, existsSync } from './qe-fs.mjs';
-import { join } from 'path';
-import { execSync } from 'child_process';
+import { readCredentialToken } from './credential-token.mjs';
 
 /**
  * @returns {string|null} The OAuth access token, or null if unavailable.
  */
 export function readClaudeOAuthToken() {
-  // 1) credentials file
-  try {
-    const credPath = join(process.env.HOME || '/root', '.claude', '.credentials.json');
-    if (existsSync(credPath)) {
-      const creds = JSON.parse(readFileSync(credPath, 'utf8'));
-      const t = creds?.claudeAiOauth?.accessToken;
-      if (t) return t;
-    }
-  } catch {
-    // fall through to keychain
-  }
-  // 2) macOS Keychain (fixed command, no interpolation → no injection surface)
-  if (process.platform === 'darwin') {
-    try {
-      const out = execSync('security find-generic-password -s "Claude Code-credentials" -w', {
-        encoding: 'utf8',
-        timeout: 3000,
-        stdio: ['ignore', 'pipe', 'ignore'],
-      });
-      const creds = JSON.parse(out);
-      return creds?.claudeAiOauth?.accessToken || null;
-    } catch {
-      return null;
-    }
-  }
-  return null;
+  return readCredentialToken({
+    relativeFile: '.claude/.credentials.json',
+    jsonPath: ['claudeAiOauth', 'accessToken'],
+    keychainService: 'Claude Code-credentials',
+  });
 }

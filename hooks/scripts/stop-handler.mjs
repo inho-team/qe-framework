@@ -23,10 +23,12 @@ import { parseChecklist } from './lib/checklist-parser.mjs';
 import { analyze as sweepAnalyze } from './lib/sweep-analyzer.mjs';
 import { execute as sweepExecute, executeVolatileOnly as sweepVolatileOnly } from './lib/sweep-executor.mjs';
 import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
+import { readClaudeOAuthToken } from './lib/claude-token.mjs';
 import { isCompletionClaim, evaluateEvidenceGate, parseSameTurnEvents } from './lib/verification-evidence-gate.mjs';
 import { shortenSid } from './lib/session-resolver.mjs';
 import { cleanupStaleSessions, removeSession } from './lib/session-registry.mjs';
 import { openStore } from './lib/store.mjs';
+import { deliverOnce } from './lib/delivery-ledger.mjs';
 
 const data = readStdinJson();
 if (!data) {
@@ -53,23 +55,25 @@ try {
  */
 function cleanupRegistryForAllowedStop() {
   try {
-    if (currentSid) removeSession(cwd, currentSid);
-    else cleanupStaleSessions(cwd);
-  } catch {
-    // Fault tolerance — registry cleanup must never block shutdown.
-  }
+    deliverOnce(cwd, {
+      eventType: 'Stop', payload: data, effect: 'allowed-stop-registry-cleanup',
+      run: () => {
+        try {
+          if (currentSid) removeSession(cwd, currentSid);
+          else cleanupStaleSessions(cwd);
+        } catch {}
 
-  // Mirror the removal into the store (ADR-027 P2). Kept in its own try so a
-  // store failure cannot undo the file cleanup above, and so a session that
-  // stopped cleanly disappears from `qe-query sessions --active` at once
-  // rather than lingering until it ages past the stale cutoff.
-  try {
-    if (currentSid) {
-      const store = openStore(cwd, { sessionId: currentSid });
-      try { store.endSession(currentSid); } finally { store.close(); }
-    }
+        // Mirror the removal into the store (ADR-027 P2).
+        try {
+          if (currentSid) {
+            const store = openStore(cwd, { sessionId: currentSid });
+            try { store.endSession(currentSid); } finally { store.close(); }
+          }
+        } catch {}
+      },
+    });
   } catch {
-    // Fault tolerance — the store is advisory at shutdown.
+    // Fault tolerance — registry cleanup is retryable on replay and never blocks shutdown.
   }
 }
 
@@ -79,18 +83,24 @@ function cleanupRegistryForAllowedStop() {
 // Opt-out: .qe/config.json { "hooks": { "sweep_auto": false } }
 let sweepAnnouncement = null;
 try {
-  const plan = sweepAnalyze(cwd);
-  if (cfg.sweep_auto && (plan.archive.length > 0 || plan.delete.length > 0)) {
-    const res = sweepExecute(cwd, plan, { apply: true });
-    const parts = [];
-    if (res.moved.length > 0) parts.push(`archived ${res.moved.length} → .qe/.archive/${res.version}`);
-    if (res.deleted.length > 0) parts.push(`purged ${res.deleted.length} volatile`);
-    if (parts.length > 0) sweepAnnouncement = `[QE Sweep] ${parts.join(', ')}`;
-  } else if (plan.delete.length > 0) {
-    sweepVolatileOnly(cwd, plan);
-  }
+  const delivery = deliverOnce(cwd, {
+    eventType: 'Stop', payload: data, effect: 'qe-sweep',
+    run: () => {
+      const plan = sweepAnalyze(cwd);
+      if (cfg.sweep_auto && (plan.archive.length > 0 || plan.delete.length > 0)) {
+        const res = sweepExecute(cwd, plan, { apply: true });
+        const parts = [];
+        if (res.moved.length > 0) parts.push(`archived ${res.moved.length} → .qe/.archive/${res.version}`);
+        if (res.deleted.length > 0) parts.push(`purged ${res.deleted.length} volatile`);
+        return parts.length > 0 ? `[QE Sweep] ${parts.join(', ')}` : null;
+      }
+      if (plan.delete.length > 0) sweepVolatileOnly(cwd, plan);
+      return null;
+    },
+  });
+  sweepAnnouncement = delivery.status === 'delivered' ? delivery.value : null;
 } catch {
-  // Fault tolerance — never let sweep crash stop handler
+  // Fault tolerance — failed sweep delivery remains retryable on replay.
 }
 
 // --- Ralph Mode Check (highest priority) ---
@@ -419,7 +429,7 @@ if (!activeMode && cfg.style_gate !== false) {
         try { writeUnifiedState(cwd, st); } catch {}
       } else {
         const rubric = loadStyleRubric(cwd);
-        const verdict = await judgeStyle(text, { rubric });
+        const verdict = await judgeStyle(text, { rubric, tokenProvider: readClaudeOAuthToken });
         if (verdict.severe) {
           st.styleGate = { lastHash: hash, count: count + 1, windowStart };
           try { writeUnifiedState(cwd, st); } catch {}

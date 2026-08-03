@@ -11,7 +11,7 @@ import {
 } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { createHash } from 'node:crypto';
-import { isProcessAlive } from '../../../scripts/lib/codex_bridge.mjs';
+import { isProcessAlive } from '../../../scripts/lib/process-liveness.mjs';
 import { matchesExecutable } from './shell-scanner.mjs';
 
 export const DEFAULT_BUILD_MIN_FREE_MB = 1536;

@@ -1,105 +1,40 @@
 #!/usr/bin/env node
 
 import { execFileSync } from 'child_process';
-import { createHash } from 'crypto';
-import { appendFileSync, existsSync, mkdirSync, readdirSync, readFileSync, statSync } from '../../hooks/scripts/lib/qe-fs.mjs';
-import { homedir, tmpdir } from 'os';
-import { join, resolve } from 'path';
+import { existsSync, readdirSync, readFileSync } from '../../hooks/scripts/lib/qe-fs.mjs';
+import { homedir } from 'os';
+import { join } from 'path';
+import { isProcessAlive } from './process-liveness.mjs';
+import {
+  detectJobStaleness,
+  getLatestDurableJobStatus as getLatestCodexJobStatus,
+  isRuntimeLossMessage as isCodexRuntimeLossMessage,
+  resolveDurableJobStateDir as resolveCodexStateDir,
+} from './job-status.mjs';
+import {
+  DELEGATION_ARTIFACT_BYTE_CAP,
+  DELEGATION_TRUNCATION_MARKER,
+  SIVS_STAGES,
+  buildDelegationContext,
+  loadSivsConfig,
+  loadSvsConfig,
+} from './delegation-context.mjs';
 
-// Per-artifact prompt injection cap. Large artifacts are trimmed before they are
-// added to Codex input so delegation stays bounded and predictable.
-export const DELEGATION_ARTIFACT_BYTE_CAP = 64 * 1024;
-export const DELEGATION_TRUNCATION_MARKER = `[TRUNCATED: artifact exceeded ${DELEGATION_ARTIFACT_BYTE_CAP} bytes]`;
-
-const DELEGATION_ARTIFACTS = [
-  ['taskPath', 'TASK_REQUEST'],
-  ['checklistPath', 'VERIFY_CHECKLIST'],
-  ['planPath', 'PLAN'],
-];
-
-const CONTEXT_AUDIT_LOG_NAME = 'codex-context-audit.log';
-
-function utf8SafePrefix(buffer, maxBytes) {
-  if (buffer.length <= maxBytes) return buffer;
-
-  let end = maxBytes;
-  while (end > 0 && (buffer[end] & 0xc0) === 0x80) {
-    end -= 1;
-  }
-
-  const lead = buffer[end - 1];
-  if (lead >= 0xc0) {
-    end -= 1;
-  }
-
-  return buffer.subarray(0, Math.max(0, end));
-}
-
-function appendContextAuditLog(cwd, stage, artifacts, warnings) {
-  if (!artifacts.length) return;
-
-  const dir = join(cwd, '.qe', 'agent-results');
-  const logPath = join(dir, CONTEXT_AUDIT_LOG_NAME);
-  const entry = {
-    timestamp: new Date().toISOString(),
-    stage,
-    artifacts: artifacts.map(({ kind, path, bytes, truncated }) => ({ kind, path, bytes, truncated })),
-    warningCount: warnings.length,
-  };
-
-  try {
-    mkdirSync(dir, { recursive: true });
-    appendFileSync(logPath, `${JSON.stringify(entry)}\n`, 'utf8');
-  } catch {
-    // Audit logging is metadata-only and non-critical; never break delegation.
-  }
-}
-
-/**
- * Build delimited artifact context for Codex delegation.
- *
- * Missing or unreadable artifact paths are skipped and reported as warnings.
- * Each artifact body is capped at DELEGATION_ARTIFACT_BYTE_CAP bytes and trimmed
- * on UTF-8 character boundaries before a truncation marker is appended.
- *
- * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
- * @param {object} options - { taskPath?: string, checklistPath?: string, planPath?: string, cwd?: string, audit?: boolean }
- * @returns {{ context: string, warnings: string[], artifacts: Array<{ kind: string, path: string, bytes: number, truncated: boolean }> }}
- */
-export function buildDelegationContext(stage, options = {}) {
-  const cwd = options.cwd || process.cwd();
-  const warnings = [];
-  const artifacts = [];
-  const sections = [];
-
-  for (const [optionKey, kind] of DELEGATION_ARTIFACTS) {
-    const artifactPath = options[optionKey];
-    if (!artifactPath) continue;
-
-    const resolvedPath = resolve(cwd, artifactPath);
-    try {
-      const buffer = readFileSync(resolvedPath);
-      const bytes = buffer.length;
-      const truncated = bytes > DELEGATION_ARTIFACT_BYTE_CAP;
-      let content = utf8SafePrefix(buffer, DELEGATION_ARTIFACT_BYTE_CAP).toString('utf8');
-      if (truncated) {
-        content += `${content.endsWith('\n') ? '' : '\n'}${DELEGATION_TRUNCATION_MARKER}`;
-      }
-
-      sections.push(`=== ${kind} (${artifactPath}) ===\n${content}`);
-      artifacts.push({ kind, path: artifactPath, bytes, truncated });
-    } catch (err) {
-      warnings.push(`Skipped ${kind} artifact ${artifactPath}: ${err?.code || err?.message || 'unreadable'}`);
-    }
-  }
-
-  const context = sections.join('\n\n');
-  if (options.audit !== false) {
-    appendContextAuditLog(cwd, stage, artifacts, warnings);
-  }
-
-  return { context, warnings, artifacts };
-}
+export { isProcessAlive } from './process-liveness.mjs';
+export {
+  detectJobStaleness,
+  getLatestDurableJobStatus as getLatestCodexJobStatus,
+  isRuntimeLossMessage as isCodexRuntimeLossMessage,
+  resolveDurableJobStateDir as resolveCodexStateDir,
+} from './job-status.mjs';
+export {
+  DELEGATION_ARTIFACT_BYTE_CAP,
+  DELEGATION_TRUNCATION_MARKER,
+  SIVS_STAGES,
+  buildDelegationContext,
+  loadSivsConfig,
+  loadSvsConfig,
+};
 
 /**
  * Check if codex-plugin-cc is installed
@@ -149,71 +84,25 @@ export function isCodexPluginAvailable() {
 }
 
 /**
- * Get codex command for a given SIVS stage
+ * Retired compatibility entrypoint for legacy cross-client Codex commands.
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
  * @param {object} options - { model?: string, effort?: string, background?: boolean }
  * @returns {object} { command: string, description: string }
  */
-export function getCodexCommand(stage, options = {}) {
-  let command = '';
-  let description = '';
-
-  switch (stage) {
-    case 'spec':
-      command = '/codex:rescue';
-      description = 'Delegate spec generation to Codex';
-      break;
-    case 'implement':
-      command = '/codex:rescue --write';
-      description = 'Delegate implementation to Codex';
-      break;
-    case 'verify':
-      command = '/codex:rescue --verify';
-      description = 'Delegate verification to Codex';
-      break;
-    case 'supervise':
-      command = '/codex:review';
-      description = 'Delegate code review to Codex';
-      break;
-    default:
-      throw new Error(`Unknown stage: ${stage}`);
-  }
-
-  // Add optional flags
-  if (options.model) {
-    command += ` --model ${options.model}`;
-  }
-  if (options.effort) {
-    command += ` --effort ${options.effort}`;
-  }
-  if (options.background) {
-    command += ' --background';
-  }
-
-  return { command, description };
+export function getCodexCommand() {
+  throw new Error('Cross-client Codex delegation is retired; the active client owns every SIVS stage.');
 }
 
 /**
- * Resolve the implicit SIVS defaults for the current environment.
- *
- * Claude owns spec and final supervision by default. When Codex is available,
- * implementation and verification prefer Codex to reduce Claude session token
- * pressure. Explicit `.qe/sivs-config.json` entries still override these
- * defaults stage-by-stage.
+ * Resolve client-neutral SIVS role defaults.
  *
  * @param {object} [options] - { codexAvailable?: boolean }
  * @returns {object} default SIVS config
  */
 export function getDefaultSivsConfig(options = {}) {
-  const codexAvailable = options.codexAvailable ?? isCodexPluginAvailable();
-  const defaults = {
-    spec: { engine: 'claude' },
-    implement: { engine: codexAvailable ? 'codex' : 'claude' },
-    verify: { engine: codexAvailable ? 'codex' : 'claude' },
-    supervise: { engine: 'claude' },
+  return {
+    spec: {}, implement: {}, verify: { effort: 'high' }, supervise: { effort: 'high' },
   };
-
-  return defaults;
 }
 
 /**
@@ -228,35 +117,19 @@ export function getDefaultSivsConfig(options = {}) {
  * @returns {{ command: { command: string, description: string }, context: string, warnings: string[], artifacts: Array<{ kind: string, path: string, bytes: number, truncated: boolean }> }}
  */
 export function buildDelegationPayload(stage, options = {}) {
-  const command = getCodexCommand(stage, options);
-  const { context, warnings, artifacts } = buildDelegationContext(stage, options);
-  return { command, context, warnings, artifacts };
+  void stage; void options;
+  throw new Error('Cross-client Codex delegation is retired; use a host-native subagent.');
 }
 
 /**
  * The four SIVS stages, in canonical order.
  * @type {string[]}
  */
-export const SIVS_STAGES = ['spec', 'implement', 'verify', 'supervise'];
-
 /**
- * Named SIVS role profiles. Head = spec + supervise (design + final judgment);
- * Body = implement + verify (execution + validation). Selecting a profile expands
- * to explicit per-stage engine entries so resolveEngine() and the routing enforcer
- * keep reading stage entries unchanged.
- *
- * - `claude-head` — Claude designs/judges (Head), Codex executes (Body). Default.
- * - `codex-head`  — Codex designs/judges (Head), Claude executes (Body).
- * - `all-claude`  — homogeneous Claude (Codex absent or unused).
- * - `all-codex`   — homogeneous Codex (Claude absent or unused).
+ * Legacy profile registry retained as an empty compatibility export.
  * @type {Record<string, { spec: string, implement: string, verify: string, supervise: string }>}
  */
-export const SIVS_PROFILES = {
-  'claude-head': { spec: 'claude', implement: 'codex', verify: 'codex', supervise: 'claude' },
-  'codex-head': { spec: 'codex', implement: 'claude', verify: 'claude', supervise: 'codex' },
-  'all-claude': { spec: 'claude', implement: 'claude', verify: 'claude', supervise: 'claude' },
-  'all-codex': { spec: 'codex', implement: 'codex', verify: 'codex', supervise: 'codex' },
-};
+export const SIVS_PROFILES = Object.freeze({});
 
 /**
  * Expand a named profile into an explicit sivs-config object.
@@ -268,88 +141,34 @@ export const SIVS_PROFILES = {
  * @throws {Error} when the profile name is unknown
  */
 export function expandProfile(name) {
-  const map = SIVS_PROFILES[name];
-  if (!map) {
-    throw new Error(`Unknown SIVS profile "${name}". Valid: ${Object.keys(SIVS_PROFILES).join(', ')}`);
-  }
-  const config = { profile: name };
-  for (const stage of SIVS_STAGES) {
-    config[stage] = { engine: map[stage] };
-  }
-  return config;
+  throw new Error(`SIVS profile "${name}" is retired; configure model, effort, and compaction per stage.`);
 }
 
 /**
- * Detect which named profile a config's stage engines correspond to.
- * Compares only the resolved engine per stage (unset stages fall back to the
- * environment-aware defaults); returns 'custom' when no named profile matches.
- * Model/effort/background/compaction overrides are ignored for matching.
+ * Compatibility label for the current single-AI policy.
  * @param {object} [config] - parsed sivs-config.json (may include a profile field)
  * @param {object} [options] - { codexAvailable?: boolean } to fill unset stages
  * @returns {string} profile name or 'custom'
  */
 export function resolveProfileName(config = {}, options = {}) {
-  const defaults = getDefaultSivsConfig(options);
-  const engines = {};
-  for (const stage of SIVS_STAGES) {
-    engines[stage] = config?.[stage]?.engine || defaults[stage].engine;
-  }
-  for (const [name, map] of Object.entries(SIVS_PROFILES)) {
-    if (SIVS_STAGES.every((stage) => engines[stage] === map[stage])) {
-      return name;
-    }
-  }
-  return 'custom';
+  void config; void options;
+  return 'single-ai';
 }
 
 /**
- * Resolve which engine to use for a given SIVS stage
+ * Resolve the host's active client for a given SIVS stage without fallback.
  * @param {string} stage - "spec" | "implement" | "verify" | "supervise"
  * @param {object} config - parsed sivs-config.json object (or empty for defaults)
  * @param {object} [options] - { codexAvailable?: boolean, base?: 'claude'|'codex', claudeReachable?: boolean }
  * @returns {object} { engine: string, warning?: string, command?: object }
  */
 export function resolveEngine(stage, config = {}, options = {}) {
-  const defaultConfig = getDefaultSivsConfig(options);
-  const stageConfig = {
-    ...(defaultConfig[stage] || { engine: 'claude' }),
-    ...(config[stage] || {}),
-  };
-  const engine = stageConfig.engine || 'claude';
-
-  if (engine === 'claude') {
-    // Reverse fallback: a Codex-native session cannot reach Claude. Route the
-    // stage to Codex instead of stalling on an unreachable Head/Body engine.
-    if (options.base === 'codex' && options.claudeReachable === false) {
-      // `stageConfig.model` is intentionally omitted: this stage was configured
-      // for the claude engine, so its model override names a Claude model and
-      // would be invalid if forwarded to a Codex command. Only engine-neutral
-      // options (effort/background) carry over.
-      return {
-        engine: 'codex',
-        command: getCodexCommand(stage, { effort: stageConfig.effort, background: stageConfig.background }),
-        warning: 'Claude unreachable in a codex-base session. Falling back to Codex for this stage.'
-      };
-    }
-    return { engine: 'claude' };
+  if (!SIVS_STAGES.includes(stage)) throw new Error(`Unknown stage: ${stage}`);
+  if (config?.profile !== undefined || config?.[stage]?.engine !== undefined || config?.[stage]?.background !== undefined) {
+    throw new Error('Legacy cross-client SIVS routing is unsupported. Remove profile, engine, and background.');
   }
-
-  if (engine === 'codex') {
-    const codexAvailable = options.codexAvailable ?? isCodexPluginAvailable();
-    if (codexAvailable) {
-      return {
-        engine: 'codex',
-        command: getCodexCommand(stage, stageConfig)
-      };
-    } else {
-      return {
-        engine: 'claude',
-        warning: 'codex-plugin-cc not installed. Falling back to Claude. Install: /plugin install codex@openai-codex'
-      };
-    }
-  }
-
-  return { engine: 'claude' };
+  const activeClient = options.activeClient || options.base || 'codex';
+  return { engine: activeClient, reason: 'active_client_owns_stage' };
 }
 
 /**
@@ -377,33 +196,12 @@ The "verify" stage has been split into "implement" (coding) and "verify" (valida
 
 /**
  * Load .qe/sivs-config.json from a project directory.
- * Falls back to legacy .qe/svs-config.json for backward compatibility.
+ * Legacy .qe/svs-config.json and engine-routing fields are rejected.
  * @param {string} [cwd] - project root to read from; defaults to process.cwd().
  *   Hook callers should pass their resolved session cwd so config loading stays
  *   consistent with the rest of the hook (audit log, routing, context injection).
  * @returns {object} parsed config or empty object if file doesn't exist
  */
-export function loadSivsConfig(cwd = process.cwd()) {
-  const configPath = join(cwd, '.qe', 'sivs-config.json');
-  const legacyPath = join(cwd, '.qe', 'svs-config.json');
-
-  const pathToLoad = existsSync(configPath) ? configPath : (existsSync(legacyPath) ? legacyPath : null);
-
-  if (!pathToLoad) {
-    return {};
-  }
-
-  try {
-    const content = readFileSync(pathToLoad, 'utf-8');
-    return JSON.parse(content);
-  } catch {
-    return {};
-  }
-}
-
-// Backward compatibility alias
-export const loadSvsConfig = loadSivsConfig;
-
 /**
  * Get codex-plugin-cc version info from installed_plugins.json
  * @returns {{ installed: boolean, version?: string, installPath?: string, installedAt?: string, gitCommitSha?: string } }
@@ -436,35 +234,6 @@ export function getCodexPluginInfo() {
   } catch {
     return { installed: false };
   }
-}
-
-/**
- * Resolve Codex companion state directory for the given workspace.
- * The companion stores job state in:
- *   $CLAUDE_PLUGIN_DATA/state/{slug}-{hash}/  (primary)
- *   $TMPDIR/codex-companion/{slug}-{hash}/    (fallback)
- *
- * @param {string} cwd - Project root directory
- * @returns {string|null} Absolute path to state dir, or null if not found
- */
-export function resolveCodexStateDir(cwd) {
-  const basename = cwd.split('/').filter(Boolean).pop() || 'workspace';
-  const slug = basename.replace(/[^a-zA-Z0-9._-]+/g, '-').replace(/^-+|-+$/g, '') || 'workspace';
-  const hash = createHash('sha256').update(cwd).digest('hex').slice(0, 16);
-  const dirName = `${slug}-${hash}`;
-
-  // Primary: CLAUDE_PLUGIN_DATA
-  const pluginData = process.env.CLAUDE_PLUGIN_DATA;
-  if (pluginData) {
-    const primary = join(pluginData, 'state', dirName);
-    if (existsSync(primary)) return primary;
-  }
-
-  // Fallback: tmpdir
-  const fallback = join(tmpdir(), 'codex-companion', dirName);
-  if (existsSync(fallback)) return fallback;
-
-  return null;
 }
 
 /**
@@ -523,87 +292,6 @@ export function evaluateCodexReachability(state = {}, options = {}, pluginAvaila
 }
 
 /**
- * Staleness threshold (ms): an active job whose log has been silent at least
- * this long, with no live worker process recorded, is treated as a soft
- * staleness signal. Override with CODEX_STALE_LOG_SILENCE_MS.
- */
-const DEFAULT_STALE_LOG_SILENCE_MS = 5 * 60 * 1000;
-
-function staleLogSilenceThresholdMs() {
-  const raw = Number(process.env.CODEX_STALE_LOG_SILENCE_MS);
-  return Number.isFinite(raw) && raw > 0 ? raw : DEFAULT_STALE_LOG_SILENCE_MS;
-}
-
-/**
- * Detect Codex runtime/session loss messages that can be surfaced through
- * companion cancel failures or persisted job errors. These are not user intent.
- * @param {unknown} value
- * @returns {boolean}
- */
-export function isCodexRuntimeLossMessage(value) {
-  for (const candidate of codexRuntimeLossCandidates(value)) {
-    if (/thread[\s_-]+not[\s_-]+found|runtime[\s_-]+lost|codex[\s_-]+turn[\s_-]+interrupt[\s_-]+failed|codex\b[^\n\r]{0,120}\binterrupt\s+failed|turn\s+interrupt\s+failed/i.test(candidate)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-/**
- * Extract bounded diagnostic candidates from strings and structured errors.
- * This accepts future companion schemas without trusting arbitrary deep objects.
- * @param {unknown} value
- * @returns {string[]}
- */
-function codexRuntimeLossCandidates(value) {
-  const out = [];
-  const seen = new WeakSet();
-  const stack = [{ value, depth: 0 }];
-  while (stack.length > 0 && out.length < 50) {
-    const item = stack.pop();
-    const current = item?.value;
-    const depth = item?.depth ?? 0;
-    if (typeof current === 'string') {
-      out.push(current);
-      continue;
-    }
-    if (!current || typeof current !== 'object' || depth > 3 || seen.has(current)) continue;
-    seen.add(current);
-    if (Array.isArray(current)) {
-      for (const entry of current) {
-        stack.push({ value: entry, depth: depth + 1 });
-      }
-      continue;
-    }
-    if (current.runtimeLost === true || current.runtime_lost === true) out.push('runtime_lost');
-    for (const key of [
-      'code',
-      'errorCode',
-      'error_code',
-      'reasonCode',
-      'reason_code',
-      'kind',
-      'type',
-      'name',
-      'status',
-      'reason',
-      'error',
-      'errors',
-      'errorMessage',
-      'message',
-      'cause',
-      'details',
-      'metadata',
-    ]) {
-      if (Object.prototype.hasOwnProperty.call(current, key)) {
-        stack.push({ value: current[key], depth: depth + 1 });
-      }
-    }
-  }
-  return out;
-}
-
-/**
  * Redact sensitive or environment-specific details before surfacing companion
  * diagnostics through QE status/reporting paths.
  * @param {unknown} value
@@ -643,120 +331,6 @@ function execFailureParts(err) {
   if (err?.stderr) parts.push(Buffer.isBuffer(err.stderr) ? err.stderr.toString('utf8') : String(err.stderr));
   if (err?.stdout) parts.push(Buffer.isBuffer(err.stdout) ? err.stdout.toString('utf8') : String(err.stdout));
   return parts;
-}
-
-/**
- * Liveness probe for a recorded worker pid. Uses signal 0, which performs the
- * existence/permission check without delivering a signal.
- * @param {number} pid
- * @returns {boolean|null} true=alive, false=gone, null=unknown (no/invalid pid)
- */
-export function isProcessAlive(pid) {
-  if (!Number.isInteger(pid) || pid <= 0) return null;
-  try {
-    process.kill(pid, 0);
-    return true;
-  } catch (err) {
-    // ESRCH: no such process. EPERM: alive but owned by another user.
-    return err?.code === 'EPERM';
-  }
-}
-
-/**
- * Milliseconds since a log file was last modified, or null if unreadable.
- * @param {string|null} logFile
- * @returns {number|null}
- */
-function logSilenceMs(logFile) {
-  if (!logFile) return null;
-  try {
-    return Date.now() - statSync(logFile).mtimeMs;
-  } catch {
-    return null;
-  }
-}
-
-/**
- * Detect "zombie" Codex jobs: the persisted status still says running, but the
- * worker process is gone (or, when no pid is recorded, the log has been silent
- * far longer than expected). Codex's own status command only reads the stored
- * status field, so a crashed background job reports "running" forever. Doing the
- * check here lets the qe consumer surface the truth without patching the codex
- * plugin (which would be lost on every plugin update).
- *
- * Conservative by design: a confirmed-alive pid is always trusted (long log
- * gaps are normal while Codex writes a large file or runs a slow command), so
- * only crashed or pid-less-and-silent jobs are flagged.
- *
- * `staleKind` distinguishes confidence: `process-dead` is a strong, near-certain
- * signal (the recorded worker pid is gone) and is safe to auto-reap;
- * `log-silent` is a weak heuristic (no pid + quiet log) that a slow job can
- * trigger, so callers should surface it but NOT auto-cancel on it.
- *
- * @param {object} [job] - state.json job entry ({ status, pid, logFile })
- * @returns {{ stale: boolean, staleReason: string|null, staleKind: 'process-dead'|'log-silent'|null }}
- */
-export function detectJobStaleness(job = {}) {
-  if (job.status !== 'running') return { stale: false, staleReason: null, staleKind: null };
-
-  const alive = isProcessAlive(job.pid);
-  // Strong signal: recorded worker process is gone but status says running.
-  if (alive === false) {
-    return { stale: true, staleReason: `recorded process ${job.pid} is not running`, staleKind: 'process-dead' };
-  }
-  // Confirmed alive — trust it.
-  if (alive === true) return { stale: false, staleReason: null, staleKind: null };
-
-  // pid unknown — fall back to the log-silence heuristic only.
-  const silenceMs = logSilenceMs(job.logFile);
-  if (silenceMs != null && silenceMs > staleLogSilenceThresholdMs()) {
-    return {
-      stale: true,
-      staleReason: `no log activity for ${Math.round(silenceMs / 60000)}m and no live process recorded`,
-      staleKind: 'log-silent',
-    };
-  }
-  return { stale: false, staleReason: null, staleKind: null };
-}
-
-/**
- * Get the latest Codex companion job status for the given workspace.
- * @param {string} cwd - Project root directory
- * @returns {{ found: boolean, jobId?: string, status?: string, phase?: string, pid?: number|null, completedAt?: string, error?: string, stale?: boolean, staleReason?: string|null }}
- */
-export function getLatestCodexJobStatus(cwd) {
-  const stateDir = resolveCodexStateDir(cwd);
-  if (!stateDir) return { found: false };
-
-  const stateFile = join(stateDir, 'state.json');
-  if (!existsSync(stateFile)) return { found: false };
-
-  try {
-    const state = JSON.parse(readFileSync(stateFile, 'utf-8'));
-    const jobs = state?.jobs;
-    if (!Array.isArray(jobs) || jobs.length === 0) return { found: false };
-
-    // Most recent job (sorted by updatedAt desc)
-    const latest = jobs.sort((a, b) => (b.updatedAt || '').localeCompare(a.updatedAt || ''))[0];
-    const { stale, staleReason, staleKind } = detectJobStaleness(latest);
-    return {
-      found: true,
-      jobId: latest.id,
-      status: latest.status,
-      phase: latest.phase,
-      pid: Number.isInteger(latest.pid) && latest.pid > 0 ? latest.pid : null,
-      logFile: latest.logFile || null,
-      updatedAt: latest.updatedAt || null,
-      completedAt: latest.completedAt || null,
-      error: latest.errorMessage || null,
-      runtimeLost: isCodexRuntimeLossMessage(latest),
-      stale,
-      staleReason,
-      staleKind,
-    };
-  } catch {
-    return { found: false };
-  }
 }
 
 /**

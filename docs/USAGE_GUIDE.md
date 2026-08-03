@@ -35,11 +35,28 @@ npm run qe:release -- bump <semver>
 npm run check:all
 ```
 
+Inspect optional local LSP and AST capabilities without installing or downloading anything:
+
+```bash
+node scripts/qe-doctor.mjs
+node scripts/qe-doctor.mjs --json
+```
+
+Missing semantic tools are a supported configuration. The doctor reports why a capability is unavailable and selects an explicit bounded text-search fallback so the workflow can continue safely. See the [semantic tool adapter policy](../core/SEMANTIC_TOOL_ADAPTER.md) for the shared state model and health transitions.
+
+Agent-team workflows may opt into the project-local durable runtime described in
+[`core/AGENT_TEAMS.md`](../core/AGENT_TEAMS.md). It records dependency-aware task
+claims and at-least-once mailbox delivery in `qe.db`; session resume reclaims
+dead or expired-unknown reservations while preserving completed tasks and
+unacknowledged messages. It does not recreate live agent processes.
+
 The release CLI updates `package.json`, `.claude-plugin/plugin.json`, and the marketplace entry together. It does not commit, tag, publish, or push; review the diff and use `Qcommit` separately.
 
 ## State and recovery
 
 QE state is DB-backed. Use `node scripts/qe-cat.mjs <.qe/path>` for document reads and `node scripts/qe-query.mjs ...` for structured queries. Use `Qcompact` before ending a long session and `Qresume` to restore it.
+
+For experimental Agent Teams, durable local task claims and mailbox acknowledgements can survive a session restart. Resume reconciliation preserves completed work, requeues expired unacknowledged delivery, and reports members as live, dead, or unknown. It does not resurrect host teammate processes; see [Agent Teams](../core/AGENT_TEAMS.md#durable-coordination-state).
 
 Completed task pairs move to `completed/`; the deterministic Stop sweep archives them. No follow-up archive command is required.
 

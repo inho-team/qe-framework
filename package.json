@@ -29,8 +29,8 @@
     "qe-framework-uninstall": "./bin/qe-framework-uninstall.mjs"
   },
   "scripts": {
-    "postinstall": "sh -c 'cd / && node --input-type=module -e \"try { const p = process.env.npm_package_json; const { installClaudeAssets, installCodexAssets } = await import(new URL(\\\"./scripts/lib/client_installers.mjs\\\", \\\"file://\\\" + p)); installClaudeAssets(); installCodexAssets(); } catch (err) { console.warn(\\\"[qe-framework] postinstall skipped:\\\", err?.message || err); console.warn(\\\"[qe-framework] Run qe-framework-install manually after installation.\\\"); }\"'",
-    "preuninstall": "sh -c 'cd / && node --input-type=module -e \"try { const p = process.env.npm_package_json; const { uninstallClaudeAssets } = await import(new URL(\\\"./scripts/lib/client_installers.mjs\\\", \\\"file://\\\" + p)); uninstallClaudeAssets(); } catch (err) { console.warn(\\\"[qe-framework] preuninstall skipped:\\\", err?.message || err); }\"'",
+    "postinstall": "node ./scripts/package-lifecycle.mjs postinstall installClaudeAssets installCodexAssets",
+    "preuninstall": "node ./scripts/package-lifecycle.mjs preuninstall uninstallClaudeAssets",
     "qe:secret": "node scripts/qe_secret.mjs",
     "qe:validate": "node scripts/validate_svs_config.mjs",
     "qe:query": "node scripts/qe-query.mjs",

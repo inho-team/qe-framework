@@ -245,6 +245,25 @@ test('judgeStyle: no token → fail-open (judged:false)', async () => {
   assert.deepEqual(v, { severe: false, reason: '', judged: false });
 });
 
+test('judgeStyle: adapter-owned token provider is lazy and enables judging', async () => {
+  let providerCalls = 0;
+  const fakeFetch = async () => ({ ok: true, json: async () => ({ content: [{ text: 'PASS' }] }) });
+  const v = await judgeStyle('결론: 완료.', {
+    tokenProvider: () => { providerCalls += 1; return 'injected-token'; },
+    fetchImpl: fakeFetch,
+  });
+  assert.equal(providerCalls, 1);
+  assert.equal(v.judged, true);
+});
+
+test('judgeStyle: token provider failure remains fail-open', async () => {
+  const v = await judgeStyle('잠깐 — 드라마', {
+    tokenProvider: () => { throw new Error('credential backend unavailable'); },
+    fetchImpl: () => { throw new Error('should not call'); },
+  });
+  assert.deepEqual(v, { severe: false, reason: '', judged: false });
+});
+
 test('judgeStyle: injected fetch returns BLOCK → severe', async () => {
   const fakeFetch = async () => ({ ok: true, json: async () => ({ content: [{ text: 'BLOCK 추임새' }] }) });
   const v = await judgeStyle('잠깐 — 확인한다', { token: 'x', fetchImpl: fakeFetch });
