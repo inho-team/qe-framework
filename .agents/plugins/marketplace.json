@@ -1,0 +1,20 @@
+{
+  "name": "inho-team-qe-framework",
+  "interface": {
+    "displayName": "Inho Team Qe Framework"
+  },
+  "plugins": [
+    {
+      "name": "qissue-adapter",
+      "source": {
+        "source": "local",
+        "path": "./plugins/qissue-adapter"
+      },
+      "policy": {
+        "installation": "AVAILABLE",
+        "authentication": "ON_INSTALL"
+      },
+      "category": "Productivity"
+    }
+  ]
+}

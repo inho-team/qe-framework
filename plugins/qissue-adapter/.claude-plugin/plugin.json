@@ -1,0 +1,11 @@
+{
+  "name": "qissue-adapter",
+  "description": "Optional GitHub issue adapter for QE workflows using an existing gh login.",
+  "author": {
+    "name": "inho-team"
+  },
+  "homepage": "https://github.com/inho-team/qe-framework",
+  "license": "MIT",
+  "keywords": ["github", "issues", "qe", "gh"],
+  "skills": ["./skills/"]
+}

@@ -32,6 +32,17 @@
         "repo": "inho-team/qe-framework",
         "ref": "main"
       }
+    },
+    {
+      "name": "qissue-adapter",
+      "description": "Optional GitHub issue adapter using an existing gh CLI login",
+      "category": "development",
+      "tags": [
+        "github",
+        "issues",
+        "optional-adapter"
+      ],
+      "source": "./plugins/qissue-adapter"
     }
   ]
 }

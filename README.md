@@ -114,6 +114,31 @@ claude plugin list
 # Should show: qe-framework@inho-team-qe-framework ✔ enabled
 ```
 
+### Optional adapters
+
+Optional integrations stay outside QE's core 10-skill process surface. Install
+the GitHub issue adapter only when the project uses GitHub Issues:
+
+```bash
+claude plugin install qissue-adapter@inho-team-qe-framework
+```
+
+The namespaced `/qissue-adapter:qissue` skill drafts one `bug`, `feature`, or
+`question`, shows the exact payload for approval, and then delegates creation to
+an already authenticated `gh` CLI. It never asks QE to collect or store a PAT;
+run `gh auth login` directly if authentication is required.
+
+For Codex CLI, register this repository's marketplace and install the adapter:
+
+```bash
+codex plugin marketplace add inho-team/qe-framework
+codex plugin add qissue-adapter@inho-team-qe-framework
+```
+
+Start a new Codex session after installation, then invoke `$qissue` explicitly
+or describe the issue you want to draft. You can also browse and manage the
+adapter through `/plugins`.
+
 Skill manifests remain deterministic via `npm run eval:skills`;
 behavioral review can be delegated manually to `/Qcritical-review` when needed.
 

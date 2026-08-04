@@ -1,0 +1,4 @@
+interface:
+  display_name: "Qissue"
+  short_description: "Create reviewed GitHub issues through gh"
+  default_prompt: "Use $qissue to draft, confirm, and create a GitHub issue safely."

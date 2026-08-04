@@ -1,0 +1,22 @@
+{
+  "name": "qissue-adapter",
+  "version": "0.1.0",
+  "description": "Optional GitHub issue adapter for QE workflows using an existing gh login.",
+  "author": {
+    "name": "inho-team"
+  },
+  "homepage": "https://github.com/inho-team/qe-framework",
+  "repository": "https://github.com/inho-team/qe-framework",
+  "license": "MIT",
+  "keywords": ["github", "issues", "qe", "gh"],
+  "skills": "./skills/",
+  "interface": {
+    "displayName": "Qissue Adapter",
+    "shortDescription": "Create reviewed GitHub issues through gh.",
+    "longDescription": "Draft, confirm, and create GitHub issues without placing token handling inside the QE core framework.",
+    "developerName": "inho-team",
+    "category": "Productivity",
+    "capabilities": ["Interactive", "Write"],
+    "defaultPrompt": ["Draft and create a GitHub issue from this failure."]
+  }
+}

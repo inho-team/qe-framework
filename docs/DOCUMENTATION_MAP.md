@@ -35,6 +35,7 @@ Use this file to find the right document quickly.
 ## Usage
 
 - General usage guide: [USAGE_GUIDE.md](USAGE_GUIDE.md)
+- Optional GitHub issue adapter: [../README.md#optional-adapters](../README.md#optional-adapters)
 - Tacit-knowledge intake controls and recovery: [USAGE_GUIDE.md#deterministic-tacit-knowledge-intake](USAGE_GUIDE.md#deterministic-tacit-knowledge-intake)
 - Single-AI SIVS settings: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
 - Skill catalog: [../skills/CATALOG.md](../skills/CATALOG.md)
