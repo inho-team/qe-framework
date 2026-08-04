@@ -4,10 +4,14 @@ import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
+import { createHash } from 'node:crypto';
 
 import { createGoals, append, advanceGoal, setGoalAcceptance, runGoalEvidence, recordGoalEvidence, status, renderState, readGoals, recordEvent, tailLedger } from '../ledger.mjs';
+import * as ledgerModule from '../ledger.mjs';
+import { buildProcessTrace, createInvalidProcessTrace } from '../process-trace.mjs';
 
 const SLUG = 'demo-plan';
+const HASH = '0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef';
 
 /** Create a temp project root with `.qe/planning/plans/{slug}/`. @returns {string} cwd */
 function makeProject(slug = SLUG) {
@@ -32,6 +36,119 @@ function writeJson(cwd, name, value) {
   const file = path.join(cwd, name);
   writeFileSync(file, JSON.stringify(value), 'utf8');
   return file;
+}
+
+function makeSource(exists, raw) {
+  return { exists, raw };
+}
+
+function makeTraceSnapshot(goalId = 'G001', objective = 'first objective', includeRuns = false) {
+  const acceptance = {
+    schema: 1,
+    goalId,
+    requirements: [{ id: 'R001', criterion: 'Requested behavior works', command: 'node --test --help' }],
+    scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
+    regression: { scope: 'existing behavior', command: 'node --test --help' },
+    traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
+  };
+  const acceptanceRaw = JSON.stringify(acceptance);
+  const acceptanceHash = createHash('sha256').update(acceptanceRaw).digest('hex');
+  const goals = {
+    goals: [
+      {
+        id: goalId,
+        objective,
+        acceptance: { hash: acceptanceHash },
+      },
+    ],
+  };
+  return {
+    goals: makeSource(true, JSON.stringify(goals)),
+    acceptance: makeSource(true, acceptanceRaw),
+    implementation: includeRuns
+      ? makeSource(true, JSON.stringify({
+        schema: 1,
+        goalId,
+        role: 'implementation',
+        sessionId: '11111111-1111-1111-1111-111111111111',
+        contractHash: acceptanceHash,
+        passed: true,
+        runs: [
+          { command: 'node --test --help', passed: true, exitCode: 0, outputHash: HASH },
+        ],
+      }))
+      : makeSource(false, null),
+    verification: includeRuns
+      ? makeSource(true, JSON.stringify({
+        schema: 1,
+        goalId,
+        role: 'verification',
+        verifier: 'fresh reviewer',
+        sessionId: '22222222-2222-2222-2222-222222222222',
+        contractHash: acceptanceHash,
+        passed: true,
+        runs: [
+          { command: 'node --test --help', passed: true, exitCode: 0, outputHash: HASH },
+        ],
+      }))
+      : makeSource(false, null),
+    completion: makeSource(false, null),
+  };
+}
+
+function makeCliReport(status, goalId = 'G001') {
+  if (status === 'invalid') {
+    return {
+      schema: 1,
+      authority: 'structural-only',
+      authoritative: false,
+      goalId: null,
+      contractHash: null,
+      status: 'invalid',
+      traceComplete: false,
+      summary: { totalItems: 0, linkedItems: 0, gapCount: 1 },
+      items: [],
+      regression: {
+        implementation: { status: 'not-evaluated', outputHash: null, sessionId: null, verifier: null },
+        verification: { status: 'not-evaluated', outputHash: null, sessionId: null, verifier: null },
+        verdict: { status: 'not-evaluated', evidencePresent: false },
+        gaps: [],
+      },
+      independentVerification: { status: 'not-evaluated', verifier: null, evidencePresent: false },
+      goalAlignment: { status: 'not-evaluated', verifier: null, evidencePresent: false, objectiveMatches: false },
+      gaps: [{ code: 'INVALID_INPUT', kind: 'trace', id: '$global', detail: 'INVALID_INPUT' }],
+      nextActions: ['repair-evidence'],
+    };
+  }
+  const acceptance = {
+    schema: 1,
+    goalId,
+    requirements: [{ id: 'R001', criterion: 'criterion', command: 'node --test --help' }],
+    scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'journey', expected: 'visible', command: 'node --test --help' }],
+    regression: { scope: 'existing', command: 'node --test --help' },
+    traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
+  };
+  const run = (role, sessionId) => ({
+    schema: 1, goalId, role, sessionId, contractHash: HASH, passed: true,
+    ...(role === 'verification' ? { verifier: 'fresh reviewer' } : {}),
+    runs: [{ command: 'node --test --help', passed: true, exitCode: 0, outputHash: HASH }],
+  });
+  const completionRecord = status === 'complete' ? {
+    schema: 1, goalId,
+    requirements: [{ id: 'R001', outcome: 'pass', evidence: 'pass' }],
+    scenarios: [{ id: 'S001', outcome: 'pass', evidence: 'pass' }],
+    regression: { outcome: 'pass', evidence: 'pass' },
+    independentVerification: { verifier: 'fresh reviewer', mode: 'machine-reexecution', outcome: 'pass', evidence: 'pass' },
+    goalAlignment: { objective: 'first objective', verifier: 'fresh reviewer', outcome: 'pass', evidence: 'pass' },
+  } : undefined;
+  return buildProcessTrace({
+    goal: { id: goalId, objective: 'first objective', acceptanceHash: HASH },
+    acceptanceHash: HASH,
+    acceptance,
+    implementationRun: run('implementation', '11111111-1111-1111-1111-111111111111'),
+    verificationRun: run('verification', '22222222-2222-2222-2222-222222222222'),
+    ...(completionRecord ? { completion: completionRecord } : {}),
+  });
 }
 
 function acceptance(goalId = 'G001', humanRequired = false, goalObjective = 'first objective') {
@@ -124,6 +241,127 @@ test('append rejects invalid event/status (schema guard)', () => {
   assert.throws(() => append(cwd, SLUG, { goalId: 'GXXX', event: 'started' }), /unknown goalId/);
   assert.throws(() => append(cwd, SLUG, { goalId: 'G001', event: 'checkpoint', status: 'complete' }), /must use advance/);
   rmSync(cwd, { recursive: true, force: true });
+});
+
+test('G002 exports the read-only trace query and CLI adapter', () => {
+  assert.equal(typeof ledgerModule.traceGoal, 'function');
+  assert.equal(typeof ledgerModule.runTraceCli, 'function');
+});
+
+test('acceptance lock rejects invalid optional traceability before mutation', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['A::first objective']);
+  const contract = acceptance('G001', false, 'first objective');
+  contract.traceability = [{ requirementId: 'R999', scenarioIds: ['S001'] }];
+  const input = writeJson(cwd, 'invalid-traceability.json', contract);
+  const locked = path.join(cwd, '.qe', 'planning', 'plans', SLUG, 'evidence', 'G001.acceptance.json');
+  const before = JSON.stringify(readGoals(cwd, SLUG));
+
+  assert.throws(
+    () => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: input }),
+    /traceability/,
+  );
+  assert.equal(existsSync(locked), false);
+  assert.equal(JSON.stringify(readGoals(cwd, SLUG)), before);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('traceGoal is read-only and reports missing run/completion evidence as incomplete', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['A::first objective']);
+  const contract = acceptance('G001', false, 'first objective');
+  contract.traceability = [{ requirementId: 'R001', scenarioIds: ['S001'] }];
+  setGoalAcceptance(cwd, SLUG, {
+    goalId: 'G001',
+    file: writeJson(cwd, 'trace-acceptance.json', contract),
+  });
+  const plan = path.join(cwd, '.qe', 'planning', 'plans', SLUG);
+  const beforeGoals = readFileSync(path.join(plan, 'goals.json'), 'utf8');
+  const beforeLedger = readFileSync(path.join(plan, 'ledger.jsonl'), 'utf8');
+  const beforeAcceptance = readFileSync(path.join(plan, 'evidence', 'G001.acceptance.json'), 'utf8');
+
+  const report = ledgerModule.traceGoal(cwd, SLUG, { goalId: 'G001' });
+
+  assert.equal(report.status, 'incomplete');
+  assert.ok(report.gaps.some(gap => gap.code === 'MISSING_IMPLEMENTATION_RUN'));
+  assert.ok(report.gaps.some(gap => gap.code === 'MISSING_VERIFICATION_RUN'));
+  assert.equal(readFileSync(path.join(plan, 'goals.json'), 'utf8'), beforeGoals);
+  assert.equal(readFileSync(path.join(plan, 'ledger.jsonl'), 'utf8'), beforeLedger);
+  assert.equal(readFileSync(path.join(plan, 'evidence', 'G001.acceptance.json'), 'utf8'), beforeAcceptance);
+
+  const stdout = [];
+  const stderr = [];
+  const exit = ledgerModule.runTraceCli(
+    ['--slug', SLUG, '--goal-id', 'G001', '--cwd', cwd],
+    { traceGoal: () => report, stdout: value => stdout.push(value), stderr: value => stderr.push(value) },
+  );
+  assert.equal(exit, 3);
+  assert.equal(stdout.length, 1);
+  assert.equal(JSON.parse(stdout[0]).status, 'incomplete');
+  assert.deepEqual(stderr, []);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('traceGoal reads a stable snapshot exactly twice before building the report', () => {
+  const calls = [];
+  const snapshot = makeTraceSnapshot();
+
+  const report = ledgerModule.traceGoal('/tmp/project', SLUG, { goalId: 'G001' }, {
+    readSnapshot(cwd, slug, goalId) {
+      calls.push([cwd, slug, goalId]);
+      return snapshot;
+    },
+  });
+
+  assert.equal(calls.length, 2);
+  assert.deepEqual(calls[0], ['/tmp/project', SLUG, 'G001']);
+  assert.deepEqual(calls[1], ['/tmp/project', SLUG, 'G001']);
+  assert.equal(report.status, 'incomplete');
+  assert.ok(report.gaps.some((gap) => gap.code === 'MISSING_IMPLEMENTATION_RUN'));
+  assert.ok(report.gaps.some((gap) => gap.code === 'MISSING_VERIFICATION_RUN'));
+});
+
+test('traceGoal gives changed-read precedence before parsing malformed evidence', () => {
+  const source = (exists, raw) => ({ exists, raw });
+  const first = {
+    goals: source(true, '{bad'), acceptance: source(true, '{bad'),
+    implementation: source(false, null), verification: source(false, null), completion: source(false, null),
+  };
+  const second = {
+    ...first,
+    completion: source(true, '{still-bad'),
+  };
+  let reads = 0;
+  const report = ledgerModule.traceGoal('/tmp/project', SLUG, { goalId: 'G001' }, {
+    readSnapshot: () => (reads++ === 0 ? first : second),
+  });
+  assert.equal(reads, 2);
+  assert.equal(report.status, 'invalid');
+  assert.equal(report.gaps[0].code, 'EVIDENCE_CHANGED_DURING_READ');
+  assert.deepEqual(report.nextActions, ['retry-query']);
+});
+
+test('traceGoal returns INVALID_INPUT when the requested goal is absent from the stable goals source', () => {
+  const report = ledgerModule.traceGoal('/tmp/project', SLUG, { goalId: 'G001' }, {
+    readSnapshot() {
+      return {
+        goals: makeSource(true, JSON.stringify({ goals: [{ id: 'G002', objective: 'other objective', acceptance: { hash: HASH } }] })),
+        acceptance: makeSource(true, JSON.stringify({
+          schema: 1,
+          goalId: 'G001',
+          requirements: [{ id: 'R001', criterion: 'Requested behavior works', command: 'node --test --help' }],
+          scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
+          regression: { scope: 'existing behavior', command: 'node --test --help' },
+        })),
+        implementation: makeSource(false, null),
+        verification: makeSource(false, null),
+        completion: makeSource(false, null),
+      };
+    },
+  });
+
+  assert.equal(report.status, 'invalid');
+  assert.equal(report.gaps[0].code, 'INVALID_INPUT');
 });
 
 test('broad Goal contracts are rejected before execution and must be split', () => {
@@ -341,4 +579,114 @@ test('Qplan SKILL.md stays within line budget (baseline 240 + 15 = 255)', () => 
   const skill = path.join(repoRoot, 'skills', 'Qplan', 'SKILL.md');
   const lines = readFileSync(skill, 'utf8').split('\n').length;
   assert.ok(lines <= 255, `Qplan/SKILL.md is ${lines} lines, budget is 255`);
+});
+
+test('runTraceCli returns the expected exit codes and diagnostics for trace report statuses', () => {
+  const cases = [
+    { status: 'complete', exit: 0 },
+    { status: 'incomplete', exit: 3 },
+    { status: 'invalid', exit: 4 },
+  ];
+
+  for (const { status, exit } of cases) {
+    const stdout = [];
+    const stderr = [];
+    const observedExit = ledgerModule.runTraceCli(
+      ['--slug', SLUG, '--goal-id', 'G001', '--cwd', '/tmp/project'],
+      {
+        traceGoal: () => makeCliReport(status),
+        stdout: (value) => stdout.push(value),
+        stderr: (value) => stderr.push(value),
+      },
+    );
+
+    assert.equal(observedExit, exit);
+    assert.equal(stdout.length, 1);
+    assert.equal(stderr.length, 0);
+    assert.equal(JSON.parse(stdout[0]).status, status);
+  }
+});
+
+test('runTraceCli exits 2 for malformed flag sets and 1 for traceGoal failures', () => {
+  const usageCases = [
+    ['--goal-id', 'G001', '--goal-id', 'G002'],
+    ['--slug', SLUG],
+    ['--goal-id', 'G001', '--unknown', 'x'],
+    ['--goal-id', 'G001', '--cwd'],
+  ];
+
+  for (const argv of usageCases) {
+    const stdout = [];
+    const stderr = [];
+    const exit = ledgerModule.runTraceCli(argv, {
+      traceGoal: () => makeCliReport('complete'),
+      stdout: (value) => stdout.push(value),
+      stderr: (value) => stderr.push(value),
+    });
+    assert.equal(exit, 2);
+    assert.equal(stdout.length, 0);
+    assert.equal(stderr.length, 1);
+    assert.equal(stderr[0], 'ledger trace: usage\n');
+  }
+
+  const failureStdout = [];
+  const failureStderr = [];
+  const failureExit = ledgerModule.runTraceCli(
+    ['--slug', SLUG, '--goal-id', 'G001', '--cwd', '/tmp/project'],
+    {
+      traceGoal: () => {
+        throw new Error('boom');
+      },
+      stdout: (value) => failureStdout.push(value),
+      stderr: (value) => failureStderr.push(value),
+    },
+  );
+
+  assert.equal(failureExit, 1);
+  assert.equal(failureStdout.length, 0);
+  assert.equal(failureStderr.length, 1);
+  assert.equal(failureStderr[0], 'ledger trace: trace query failed\n');
+});
+
+test('runTraceCli rejects incoherent reports and serializer substitution without stdout', () => {
+  const malformed = makeCliReport('complete');
+  malformed.summary.totalItems = 99;
+  const malformedOut = [];
+  const malformedErr = [];
+  assert.equal(ledgerModule.runTraceCli(
+    ['--slug', SLUG, '--goal-id', 'G001', '--cwd', '/tmp/project'],
+    { traceGoal: () => malformed, stdout: value => malformedOut.push(value), stderr: value => malformedErr.push(value) },
+  ), 1);
+  assert.deepEqual(malformedOut, []);
+  assert.deepEqual(malformedErr, ['ledger trace: invalid trace report\n']);
+
+  for (const forge of [
+    report => { report.items[0].implementation.verifier = 'forged reviewer'; },
+    report => { report.items[1].scenarioIds = ['S001']; },
+  ]) {
+    const forged = makeCliReport('complete');
+    forge(forged);
+    const out = [];
+    const err = [];
+    assert.equal(ledgerModule.runTraceCli(
+      ['--slug', SLUG, '--goal-id', 'G001', '--cwd', '/tmp/project'],
+      { traceGoal: () => forged, stdout: value => out.push(value), stderr: value => err.push(value) },
+    ), 1);
+    assert.deepEqual(out, []);
+    assert.deepEqual(err, ['ledger trace: invalid trace report\n']);
+  }
+
+  const serializerOut = [];
+  const serializerErr = [];
+  assert.equal(ledgerModule.runTraceCli(
+    ['--slug', SLUG, '--goal-id', 'G001', '--cwd', '/tmp/project'],
+    {
+      traceGoal: () => makeCliReport('complete'),
+      stringify: () => '{}',
+      stdout: value => serializerOut.push(value),
+      stderr: value => serializerErr.push(value),
+    },
+  ), 1);
+  assert.deepEqual(serializerOut, []);
+  assert.deepEqual(serializerErr, ['ledger trace: trace serialization failed\n']);
 });

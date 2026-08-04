@@ -36,6 +36,8 @@ import { resolveActivePlanSlug } from './plan-resolver.mjs';
 import { readCurrentSessionId } from './session-resolver.mjs';
 import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
 import { isAllowlistCommand, isBehavioralEvidenceCommand } from './verification-evidence-gate.mjs';
+import { buildProcessTrace, validateTraceabilityDefinition } from './process-trace.mjs';
+import { types as utilTypes } from 'node:util';
 
 const PLANS_DIR = '.qe/planning/plans';
 const STATUS_ENUM = ['pending', 'active', 'complete', 'failed', 'blocked'];
@@ -225,6 +227,7 @@ const MAX_GOAL_PATHS = 5;
 const CODE_PATH_RE = /\.(?:mjs|cjs|js|jsx|ts|tsx|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|php|rb|sh|bash|zsh|sql|vue|svelte)$/iu;
 const MACHINE_SESSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const GOAL_COMMAND_TIMEOUT_MS = 120_000;
+const intrinsicStringify = JSON.stringify;
 
 function normalizedText(value) { return String(value ?? '').replace(/\s+/g, ' ').trim(); }
 
@@ -311,6 +314,10 @@ function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   }
   if (risk.categories.some(category => category !== 'none') && !contract.humanAcceptance.required) {
     throw new Error('risk-bearing Goals require humanAcceptance.required: true');
+  }
+  if (Object.prototype.hasOwnProperty.call(contract, 'traceability')) {
+    const traceability = validateTraceabilityDefinition(contract);
+    if (!traceability.ok) throw new Error(`acceptance contract traceability is invalid: ${traceability.code}`);
   }
   return contract;
 }
@@ -1151,7 +1158,321 @@ export function phaseReport(cwd, slug, phaseNum) {
   };
 }
 
-// ── CLI ──────────────────────────────────────────────────────────────────
+// ── structural trace query (read-only, non-authoritative) ───────────────────
+const TRACE_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,63}$/;
+const TRACE_GOAL_RE = /^G[0-9]{3,63}$/;
+const TRACE_USAGE = 'ledger trace: usage\n';
+
+function invalidTraceReport(code) {
+  const action = code === 'EVIDENCE_CHANGED_DURING_READ' ? 'retry-query'
+    : ['SESSION_NOT_INDEPENDENT', 'VERIFIER_MISMATCH'].includes(code) ? 'run-verification'
+      : code === 'GOAL_ALIGNMENT_MISMATCH' ? 'align-goal' : 'repair-evidence';
+  return {
+    schema: 1, authority: 'structural-only', authoritative: false,
+    goalId: null, contractHash: null, status: 'invalid', traceComplete: false,
+    summary: { totalItems: 0, linkedItems: 0, gapCount: 1 }, items: [],
+    regression: {
+      implementation: { status: 'not-evaluated', outputHash: null, sessionId: null, verifier: null },
+      verification: { status: 'not-evaluated', outputHash: null, sessionId: null, verifier: null },
+      verdict: { status: 'not-evaluated', evidencePresent: false }, gaps: [],
+    },
+    independentVerification: { status: 'not-evaluated', verifier: null, evidencePresent: false },
+    goalAlignment: { status: 'not-evaluated', verifier: null, evidencePresent: false, objectiveMatches: false },
+    gaps: [{ code, kind: 'trace', id: '$global', detail: code }], nextActions: [action],
+  };
+}
+
+function isPlainRecord(value) {
+  if (value === null || typeof value !== 'object' || Array.isArray(value) || utilTypes.isProxy(value)) return false;
+  const proto = Object.getPrototypeOf(value);
+  return proto === Object.prototype || proto === null;
+}
+
+function ownData(value, key) {
+  const desc = Object.getOwnPropertyDescriptor(value, key);
+  return desc && Object.prototype.hasOwnProperty.call(desc, 'value') ? desc.value : undefined;
+}
+
+function readTraceSource(file) {
+  return existsSync(file) ? { exists: true, raw: readFileSync(file, 'utf8') } : { exists: false, raw: null };
+}
+
+function readTraceSnapshot(cwd, slug, goalId) {
+  return {
+    goals: readTraceSource(goalsPath(cwd, slug)),
+    acceptance: readTraceSource(acceptancePath(cwd, slug, goalId)),
+    implementation: readTraceSource(runEvidencePath(cwd, slug, goalId, 'implementation')),
+    verification: readTraceSource(runEvidencePath(cwd, slug, goalId, 'verification')),
+    completion: readTraceSource(completionEvidencePath(cwd, slug, goalId)),
+  };
+}
+
+function captureTraceSnapshot(value) {
+  if (!isPlainRecord(value)) throw new TypeError('invalid trace snapshot');
+  const result = Object.create(null);
+  for (const key of ['goals', 'acceptance', 'implementation', 'verification', 'completion']) {
+    const source = ownData(value, key);
+    if (!isPlainRecord(source)) throw new TypeError('invalid trace source');
+    const exists = ownData(source, 'exists');
+    const raw = ownData(source, 'raw');
+    if (typeof exists !== 'boolean' || (exists ? typeof raw !== 'string' : raw !== null)) throw new TypeError('invalid trace source');
+    result[key] = Object.assign(Object.create(null), { exists, raw });
+  }
+  return result;
+}
+
+function parseTraceSource(source, required = false) {
+  if (!source.exists) return required ? null : undefined;
+  try { return JSON.parse(source.raw); } catch { return null; }
+}
+
+function selectTraceGoal(goalsDoc, goalId) {
+  if (!isPlainRecord(goalsDoc)) return null;
+  const goals = ownData(goalsDoc, 'goals');
+  if (!Array.isArray(goals) || utilTypes.isProxy(goals)) return null;
+  const ids = new Set();
+  let selected = null;
+  for (let index = 0; index < goals.length; index += 1) {
+    if (!Object.prototype.hasOwnProperty.call(goals, index)) return null;
+    const goal = goals[index];
+    const id = isPlainRecord(goal) ? ownData(goal, 'id') : null;
+    if (typeof id !== 'string' || !TRACE_GOAL_RE.test(id) || ids.has(id)) return null;
+    ids.add(id);
+    if (id === goalId) selected = goal;
+  }
+  if (!selected) return null;
+  const objective = ownData(selected, 'objective');
+  const metadata = ownData(selected, 'acceptance');
+  const acceptanceHash = isPlainRecord(metadata) ? ownData(metadata, 'hash') : null;
+  return typeof objective === 'string' && typeof acceptanceHash === 'string'
+    ? { id: goalId, objective, acceptanceHash } : null;
+}
+
+/** Read two observed snapshots and construct a bounded structural trace. */
+export function traceGoal(cwd, slug, options, deps = {}) {
+  if (typeof cwd !== 'string' || cwd.trim() === '' || Buffer.byteLength(cwd, 'utf8') > 4096 || cwd.includes('\0')) throw new TypeError('invalid cwd');
+  if (typeof slug !== 'string' || !TRACE_SLUG_RE.test(slug)) throw new TypeError('invalid slug');
+  if (!isPlainRecord(options)) throw new TypeError('invalid options');
+  const goalId = ownData(options, 'goalId');
+  if (typeof goalId !== 'string' || !TRACE_GOAL_RE.test(goalId)) throw new TypeError('invalid goalId');
+  if (!isPlainRecord(deps)) throw new TypeError('invalid dependencies');
+  const suppliedReader = ownData(deps, 'readSnapshot');
+  const readSnapshot = suppliedReader === undefined ? readTraceSnapshot : suppliedReader;
+  if (typeof readSnapshot !== 'function') throw new TypeError('invalid readSnapshot');
+
+  const first = captureTraceSnapshot(readSnapshot(cwd, slug, goalId));
+  const second = captureTraceSnapshot(readSnapshot(cwd, slug, goalId));
+  const changed = ['goals', 'acceptance', 'implementation', 'verification', 'completion']
+    .some(key => first[key].exists !== second[key].exists || first[key].raw !== second[key].raw);
+  if (changed) return invalidTraceReport('EVIDENCE_CHANGED_DURING_READ');
+
+  const goalsDoc = parseTraceSource(second.goals, true);
+  const acceptance = parseTraceSource(second.acceptance, true);
+  const implementationRun = parseTraceSource(second.implementation);
+  const verificationRun = parseTraceSource(second.verification);
+  const completion = parseTraceSource(second.completion);
+  if (!goalsDoc || !acceptance || (second.implementation.exists && !implementationRun) ||
+      (second.verification.exists && !verificationRun) || (second.completion.exists && !completion)) return invalidTraceReport('INVALID_INPUT');
+  const goal = selectTraceGoal(goalsDoc, goalId);
+  if (!goal) return invalidTraceReport('INVALID_INPUT');
+  const acceptanceHash = createHash('sha256').update(intrinsicStringify(acceptance)).digest('hex');
+  return buildProcessTrace({ goal, acceptanceHash, acceptance, implementationRun, verificationRun, completion });
+}
+
+function resolveOwnFunction(deps, key, fallback) {
+  const desc = Object.getOwnPropertyDescriptor(deps, key);
+  if (!desc) return fallback;
+  if (!Object.prototype.hasOwnProperty.call(desc, 'value') || typeof desc.value !== 'function') throw new TypeError(`invalid ${key}`);
+  return desc.value;
+}
+
+function captureTraceArgv(argv) {
+  if (!Array.isArray(argv) || utilTypes.isProxy(argv) || ![Array.prototype, null].includes(Object.getPrototypeOf(argv))) return null;
+  const length = Object.getOwnPropertyDescriptor(argv, 'length')?.value;
+  if (!Number.isSafeInteger(length) || length < 0 || length > 6) return null;
+  const expected = new Set(['length', ...Array.from({ length }, (_, i) => String(i))]);
+  const keys = Reflect.ownKeys(argv);
+  if (keys.length !== expected.size || keys.some(key => typeof key !== 'string' || !expected.has(key))) return null;
+  const result = [];
+  for (let index = 0; index < length; index += 1) {
+    const value = ownData(argv, String(index));
+    if (typeof value !== 'string' || Buffer.byteLength(value, 'utf8') > 4096 || value.includes('\0')) return null;
+    result.push(value);
+  }
+  return result;
+}
+
+function parseTraceFlags(argv) {
+  const result = Object.create(null);
+  for (let index = 0; index < argv.length; index += 2) {
+    const flag = argv[index];
+    const value = argv[index + 1];
+    if (!['--slug', '--goal-id', '--cwd'].includes(flag) || value === undefined || value.startsWith('--') || Object.prototype.hasOwnProperty.call(result, flag)) return null;
+    result[flag] = value;
+  }
+  if (!TRACE_GOAL_RE.test(result['--goal-id'] || '')) return null;
+  if (result['--slug'] !== undefined && !TRACE_SLUG_RE.test(result['--slug'])) return null;
+  if (result['--cwd'] !== undefined && (result['--cwd'].trim() === '' || Buffer.byteLength(result['--cwd'], 'utf8') > 4096 || result['--cwd'].includes('\0'))) return null;
+  return result;
+}
+
+function inertCopy(value, seen = new Set()) {
+  if (value === null || ['string', 'boolean', 'number'].includes(typeof value)) return value;
+  if (typeof value !== 'object' || utilTypes.isProxy(value) || seen.has(value)) throw new TypeError('invalid report');
+  const proto = Object.getPrototypeOf(value);
+  seen.add(value);
+  if (Array.isArray(value)) {
+    if (![Array.prototype, null].includes(proto) || value.length > 64) throw new TypeError('invalid report');
+    const out = [];
+    Object.setPrototypeOf(out, null);
+    for (let index = 0; index < value.length; index += 1) {
+      const desc = Object.getOwnPropertyDescriptor(value, String(index));
+      if (!desc || !Object.prototype.hasOwnProperty.call(desc, 'value')) throw new TypeError('invalid report');
+      out[index] = inertCopy(desc.value, seen);
+    }
+    if (Reflect.ownKeys(value).length !== value.length + 1) throw new TypeError('invalid report');
+    return out;
+  }
+  if (![Object.prototype, null].includes(proto)) throw new TypeError('invalid report');
+  const out = Object.create(null);
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string') throw new TypeError('invalid report');
+    const desc = Object.getOwnPropertyDescriptor(value, key);
+    if (!desc || !Object.prototype.hasOwnProperty.call(desc, 'value')) throw new TypeError('invalid report');
+    out[key] = inertCopy(desc.value, seen);
+  }
+  return out;
+}
+
+function validTraceRunStatus(value, role) {
+  if (!isPlainRecord(value) || Reflect.ownKeys(value).join('|') !== 'status|outputHash|sessionId|verifier' || !['missing', 'failed', 'pass'].includes(value.status)) return false;
+  if (value.status !== 'pass') return value.outputHash === null && value.sessionId === null && value.verifier === null;
+  const verifierValid = role === 'implementation'
+    ? value.verifier === null
+    : typeof value.verifier === 'string' && value.verifier.trim() !== '' && Buffer.byteLength(value.verifier, 'utf8') <= 128;
+  return verifierValid && typeof value.outputHash === 'string' && /^[0-9a-f]{64}$/iu.test(value.outputHash)
+    && typeof value.sessionId === 'string' && /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu.test(value.sessionId);
+}
+
+function validTraceVerdictStatus(value) {
+  return isPlainRecord(value)
+    && Reflect.ownKeys(value).join('|') === 'status|evidencePresent'
+    && ['missing', 'failed', 'pass'].includes(value.status)
+    && value.evidencePresent === (value.status === 'pass');
+}
+
+function validTraceGlobalStatus(value, alignment) {
+  const keys = alignment ? 'status|verifier|evidencePresent|objectiveMatches' : 'status|verifier|evidencePresent';
+  if (!isPlainRecord(value) || Reflect.ownKeys(value).join('|') !== keys || !['missing', 'failed', 'pass'].includes(value.status)) return false;
+  if (value.status === 'pass') {
+    if (typeof value.verifier !== 'string' || value.verifier.trim() === '' || Buffer.byteLength(value.verifier, 'utf8') > 128 || value.evidencePresent !== true) return false;
+    return !alignment || value.objectiveMatches === true;
+  }
+  return value.verifier === null && value.evidencePresent === false && (!alignment || value.objectiveMatches === false);
+}
+
+function captureCanonicalReport(report) {
+  const projection = inertCopy(report);
+  const expected = ['schema', 'authority', 'authoritative', 'goalId', 'contractHash', 'status', 'traceComplete', 'summary', 'items', 'regression', 'independentVerification', 'goalAlignment', 'gaps', 'nextActions'];
+  if (Reflect.ownKeys(projection).join('|') !== expected.join('|') || projection.schema !== 1 || projection.authority !== 'structural-only' || projection.authoritative !== false || !['complete', 'incomplete', 'invalid'].includes(projection.status)) throw new TypeError('invalid report');
+  if (!Array.isArray(projection.items) || !Array.isArray(projection.gaps) || !Array.isArray(projection.nextActions)) throw new TypeError('invalid report');
+  if (projection.status === 'invalid') {
+    const gap = projection.gaps[0];
+    const code = isPlainRecord(gap) ? ownData(gap, 'code') : null;
+    const invalidCodes = new Set(['EVIDENCE_CHANGED_DURING_READ', 'INVALID_INPUT', 'GOAL_ID_MISMATCH', 'CONTRACT_HASH_MISMATCH', 'INVALID_TRACEABILITY', 'ROLE_MISMATCH', 'DUPLICATE_COMMAND_RUN', 'DUPLICATE_VERDICT_ID', 'UNKNOWN_VERDICT_ID', 'SESSION_NOT_INDEPENDENT', 'VERIFIER_MISMATCH', 'GOAL_ALIGNMENT_MISMATCH']);
+    if (!invalidCodes.has(code)) throw new TypeError('invalid report');
+    const expectedInvalid = invalidTraceReport(code);
+    if (code === 'ROLE_MISMATCH' || code === 'DUPLICATE_COMMAND_RUN') {
+      expectedInvalid.gaps[0].id = ownData(gap, 'id');
+      if (!['$implementation', '$verification'].includes(expectedInvalid.gaps[0].id)) throw new TypeError('invalid report');
+    } else if (code === 'DUPLICATE_VERDICT_ID' || code === 'UNKNOWN_VERDICT_ID') {
+      expectedInvalid.gaps[0].id = '$completion';
+    }
+    if (intrinsicStringify(projection) !== intrinsicStringify(expectedInvalid)) throw new TypeError('invalid report');
+    return { projection, status: projection.status };
+  }
+  if (typeof projection.goalId !== 'string' || !TRACE_GOAL_RE.test(projection.goalId) || typeof projection.contractHash !== 'string' || !/^[0-9a-f]{64}$/iu.test(projection.contractHash)) throw new TypeError('invalid report');
+  if (!isPlainRecord(projection.summary) || Reflect.ownKeys(projection.summary).join('|') !== 'totalItems|linkedItems|gapCount') throw new TypeError('invalid report');
+  if (!Number.isSafeInteger(projection.summary.totalItems) || projection.summary.totalItems < 2 || projection.summary.totalItems > 5 || projection.summary.totalItems !== projection.items.length || !Number.isSafeInteger(projection.summary.linkedItems) || projection.summary.linkedItems < 0 || projection.summary.linkedItems > projection.items.length || projection.summary.gapCount !== projection.gaps.length) throw new TypeError('invalid report');
+  for (let index = 0; index < projection.gaps.length; index += 1) {
+    const gap = projection.gaps[index];
+    if (!isPlainRecord(gap) || Reflect.ownKeys(gap).join('|') !== 'code|kind|id|detail' || typeof gap.code !== 'string' || typeof gap.kind !== 'string' || typeof gap.id !== 'string' || gap.detail !== gap.code) throw new TypeError('invalid report');
+  }
+  for (let index = 0; index < projection.nextActions.length; index += 1) {
+    if (typeof projection.nextActions[index] !== 'string') throw new TypeError('invalid report');
+  }
+  let sawScenario = false;
+  const requirementIds = new Set();
+  const scenarioIds = new Set();
+  for (let index = 0; index < projection.items.length; index += 1) {
+    const item = projection.items[index];
+    const itemKeys = ['kind', 'id', 'label', 'command', 'relation', 'scenarioIds', 'requirementIds', 'implementation', 'verification', 'verdict', 'gaps'];
+    if (!isPlainRecord(item) || Reflect.ownKeys(item).join('|') !== itemKeys.join('|') || !['requirement', 'scenario'].includes(item.kind) || typeof item.id !== 'string' || typeof item.label !== 'string' || typeof item.command !== 'string' || !Array.isArray(item.scenarioIds) || !Array.isArray(item.requirementIds) || !Array.isArray(item.gaps)) throw new TypeError('invalid report');
+    if (item.kind === 'scenario') sawScenario = true;
+    else if (sawScenario) throw new TypeError('invalid report');
+    const ownIds = item.kind === 'requirement' ? requirementIds : scenarioIds;
+    if (ownIds.has(item.id)) throw new TypeError('invalid report');
+    ownIds.add(item.id);
+    if (!isPlainRecord(item.relation) || Reflect.ownKeys(item.relation).join('|') !== 'status' || !['pass', 'missing'].includes(item.relation.status)) throw new TypeError('invalid report');
+    const linkedIds = item.kind === 'requirement' ? item.scenarioIds : item.requirementIds;
+    const emptyIds = item.kind === 'requirement' ? item.requirementIds : item.scenarioIds;
+    if (emptyIds.length !== 0 || (item.relation.status === 'pass') !== (linkedIds.length > 0)) throw new TypeError('invalid report');
+    for (let linkedIndex = 0; linkedIndex < linkedIds.length; linkedIndex += 1) {
+      if (typeof linkedIds[linkedIndex] !== 'string') throw new TypeError('invalid report');
+    }
+    for (let gapIndex = 0; gapIndex < item.gaps.length; gapIndex += 1) {
+      if (typeof item.gaps[gapIndex] !== 'string') throw new TypeError('invalid report');
+    }
+    if (!validTraceRunStatus(item.implementation, 'implementation') || !validTraceRunStatus(item.verification, 'verification') || !validTraceVerdictStatus(item.verdict)) throw new TypeError('invalid report');
+  }
+  if (!sawScenario || projection.items[0]?.kind !== 'requirement') throw new TypeError('invalid report');
+  if (!isPlainRecord(projection.regression) || Reflect.ownKeys(projection.regression).join('|') !== 'implementation|verification|verdict|gaps' || !Array.isArray(projection.regression.gaps) || !validTraceRunStatus(projection.regression.implementation, 'implementation') || !validTraceRunStatus(projection.regression.verification, 'verification') || !validTraceVerdictStatus(projection.regression.verdict)) throw new TypeError('invalid report');
+  if (!validTraceGlobalStatus(projection.independentVerification, false) || !validTraceGlobalStatus(projection.goalAlignment, true)) throw new TypeError('invalid report');
+  if (projection.status === 'complete' && (projection.traceComplete !== true || projection.gaps.length !== 0)) throw new TypeError('invalid report');
+  if (projection.status === 'incomplete' && (projection.traceComplete !== false || projection.gaps.length === 0)) throw new TypeError('invalid report');
+  return { projection, status: projection.status };
+}
+
+/** Execute the trace-only CLI adapter without mutating process exit state. */
+export function runTraceCli(argv, deps = {}) {
+  if (!isPlainRecord(deps)) throw new TypeError('invalid dependencies');
+  const query = resolveOwnFunction(deps, 'traceGoal', traceGoal);
+  const stdout = resolveOwnFunction(deps, 'stdout', value => process.stdout.write(value));
+  const stderr = resolveOwnFunction(deps, 'stderr', value => process.stderr.write(value));
+  const activePlanResolver = resolveOwnFunction(deps, 'activePlanResolver', cwd => resolveActivePlanSlug(cwd));
+  const stringify = resolveOwnFunction(deps, 'stringify', intrinsicStringify);
+  const args = captureTraceArgv(argv);
+  const flags = args && parseTraceFlags(args);
+  if (!flags) { stderr(TRACE_USAGE); return 2; }
+  let cwd;
+  if (flags['--cwd'] !== undefined) cwd = flags['--cwd'];
+  else {
+    try { cwd = process.cwd(); } catch { stderr('ledger trace: cwd resolution failed\n'); return 1; }
+    if (typeof cwd !== 'string' || cwd.trim() === '' || Buffer.byteLength(cwd, 'utf8') > 4096 || cwd.includes('\0')) { stderr('ledger trace: cwd resolution failed\n'); return 1; }
+  }
+  let slug = flags['--slug'];
+  if (slug === undefined) {
+    try { slug = activePlanResolver(cwd); } catch { stderr('ledger trace: active plan resolution failed\n'); return 1; }
+    if (typeof slug !== 'string' || !TRACE_SLUG_RE.test(slug)) { stderr(TRACE_USAGE); return 2; }
+  }
+  let report;
+  try { report = query(cwd, slug, { goalId: flags['--goal-id'] }); }
+  catch { stderr('ledger trace: trace query failed\n'); return 1; }
+  let captured;
+  try { captured = captureCanonicalReport(report); }
+  catch { stderr('ledger trace: invalid trace report\n'); return 1; }
+  if (captured.status !== 'invalid' && captured.projection.goalId !== flags['--goal-id']) { stderr('ledger trace: invalid trace report\n'); return 1; }
+  let nativeJson, injectedJson;
+  try {
+    nativeJson = intrinsicStringify(captured.projection);
+    injectedJson = stringify(captured.projection);
+    if (typeof nativeJson !== 'string' || typeof injectedJson !== 'string' || nativeJson !== injectedJson) throw new TypeError('serialization mismatch');
+  } catch { stderr('ledger trace: trace serialization failed\n'); return 1; }
+  stdout(`${nativeJson}\n`);
+  return captured.status === 'complete' ? 0 : captured.status === 'incomplete' ? 3 : 4;
+}
+
+// ── CLI ─────────────────────────────────────────────────────────────────
 function parseArgs(argv) {
   const out = { _: [], goal: [] };
   for (let i = 0; i < argv.length; i++) {
@@ -1167,6 +1488,9 @@ function parseArgs(argv) {
 function main() {
   const argv = process.argv.slice(2);
   const cmd = argv[0];
+  if (cmd === 'trace') {
+    process.exit(runTraceCli(argv.slice(1)));
+  }
   const args = parseArgs(argv.slice(1));
   const cwd = args.cwd || process.cwd();
   let slug = normalizeSlug(args.slug) || resolveActivePlanSlug(cwd, args.session || null);
