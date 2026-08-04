@@ -26,6 +26,46 @@ For goal triage, use `/Qgoal` or `$Qgoal`. Small concrete goals can stay direct;
 
 `Qgenerate-spec` and `Qexecute` are installed internal contracts used by `Qplan`; they are not public entry points.
 
+## Deterministic tacit-knowledge intake
+
+Broad or ambiguous work starts with a bounded Qplan interview after QE has
+looked for answers in the repository. Before asking, QE shows the actual base
+question count, the maximum 12 follow-ups, and the batch size of 3. Progress is
+stable and visible:
+
+```text
+Questions: 30 base, up to 12 follow-ups; 3 per batch. You can pause or stop.
+[17/30] What observable outcome would make this complete?
+[17-1/3] Which part of that outcome is irreversible?
+```
+
+`30` is the actual inventory total, not a promise to ask 30 questions. The
+engine caps base questions at 30, active follow-ups at 3 per parent, allocated
+follow-ups at 12 overall, and unique issued question versions at 42.
+
+Controls and boundaries:
+
+- `pause` stores the current state; `resume` returns the earliest unresolved
+  label. Up to 10 successful resume cycles are allowed.
+- `skip` records an assumption only for an explicitly reversible non-material
+  question. Skipping a material or unknown question blocks the intake.
+- Answers can be corrected up to 6 times. One re-baseline can replace the
+  unresolved base inventory, and synthesis can be corrected twice.
+- To opt out, use `stop`; it records a user block without inventing answers. A ceiling that requires decomposition returns
+  `split-required`; accepted synthesis returns `confirmed`.
+
+Qplan finalizes ROADMAP, REQUIREMENTS, Goals, and acceptance contracts only
+after `confirmed`. In a non-interactive run, QE never invents a material answer:
+it preserves the draft and reports the earliest unresolved label.
+
+The resumable record lives at the DB-only logical path
+`.qe/planning/plans/{slug}/INTAKE.json`. Mutations require the current revision
+and owning session; stale revisions or another session fail without overwriting
+the accepted history. Answers remain typed intake evidence (`source-fact`,
+user decision, preference, constraint, assumption, or open question). They do
+not become reviewed project-wiki knowledge until a Goal passes normal
+verification and completion evidence.
+
 ## Administration
 
 ```bash

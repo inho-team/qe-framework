@@ -113,6 +113,39 @@ PSE Chain (Plan-owned internal workflow)
 
 `Qplan` is the public Plan controller. `Qgenerate-spec` and `Qexecute` are internal PSE units, not normal user entry points. Start new work with `$Qplan {의도}` in Codex or `/Qplan {의도}` in Claude; `$Qgoal`/`/Qgoal` remain accepted intake aliases. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
 
+### Deterministic tacit-knowledge intake
+
+- Qplan is the sole intake owner. Qgoal delegates the original intent and
+  client mode; internal PSE stages do not recreate questions or counters.
+- Reconnaissance precedes intake. Repository evidence becomes typed
+  `source-fact` knowledge; unresolved user choices become questions. A model
+  synthesis is not a reviewed wiki fact.
+- Broad, ambiguous, or materially incomplete work uses
+  `scripts/qe-intake.mjs` before ROADMAP, REQUIREMENTS, Goal, or acceptance
+  finalization. The safe omission path requires a recorded finding that no
+  unresolved material decision exists.
+- Intake state is the DB-only logical path
+  `.qe/planning/plans/{slug}/INTAKE.json`. Every state-changing CLI call uses
+  the current full session owner and expected revision. Owner or revision
+  conflicts fail closed and preserve the prior stored bytes.
+- The engine, not the client adapter, owns labels and limits: base 30,
+  follow-up 3 per parent and 12 allocated total, 42 unique issued versions,
+  and batches of 3. Base labels use `[17/30]`; follow-ups use `[17-1/3]`.
+- Interactive clients render the same labeled open question. Non-interactive
+  clients may assume only an explicitly reversible non-material default; any
+  unresolved material question blocks finalization.
+- Pause/resume preserves the earliest unresolved label. Answer correction is
+  capped at 6, re-baseline at 1, synthesis correction at 2, and successful
+  resume cycles at 10. Stop produces `blocked`; exhausted structural budgets
+  produce `split-required`; only accepted synthesis produces `confirmed`.
+- Confirmed intake knowledge remains Plan evidence. It reaches the reviewed
+  project wiki only through the normal verified Goal completion path.
+
+The authoritative transition and knowledge schema is
+[`core/KNOWLEDGE_ELICITATION_CONTRACT.md`](core/KNOWLEDGE_ELICITATION_CONTRACT.md);
+rendering behavior is in
+[`core/INTERACTION_ADAPTER.md`](core/INTERACTION_ADAPTER.md).
+
 ---
 
 ## Client Command Prefixes

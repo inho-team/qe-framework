@@ -1,14 +1,14 @@
 ---
 name: Qgoal
-description: Routes an explicit goal or natural-language intent into the active Plan-owned Goal queue. Use when the user enters /Qgoal {goal} or states a clear implementation goal.
-invocation_trigger: When the user enters `/Qgoal {goal}` or a clear implementation goal in natural language.
+description: Routes an explicit goal or natural-language intent into the active Plan-owned Goal queue. Use when the user enters Qgoal with the active client prefix or states a clear implementation goal.
+invocation_trigger: When the user enters `/Qgoal {goal}`, `$Qgoal {goal}`, or a clear implementation goal in natural language.
 user_invocable: true
 recommendedModel: haiku
 ---
 
 # Qgoal — Plan Intake Router
 
-Use `/Qgoal {목표}` to state an intent explicitly. UserPromptSubmit applies the same deterministic router to clear natural-language goals. A Goal is owned by a Plan; it is not a separate user workflow.
+Use `/Qgoal {목표}` in Claude or `$Qgoal {목표}` in Codex to state an intent explicitly. UserPromptSubmit applies the same deterministic router to clear natural-language goals. A Goal is owned by a Plan; it is not a separate user workflow.
 
 The route payload is advisory: `{ detected, source, goalText, route, reason, instruction }`. Both direct and pipeline routes enter `Qplan`; Qplan decides whether to create a Micro Plan, add to the active Plan, or create a full roadmap and then advances Goals internally.
 
@@ -40,6 +40,12 @@ they are not separate user commands or optional handoffs. Preserve the active
 Plan/Goal and generated UUID across the stages. If spec generation, execution,
 or verification fails, keep the Goal active or blocked with its evidence rather
 than continuing to another Goal.
+
+Qplan is the sole owner of tacit-knowledge intake before this pipeline. Qgoal
+delegates the original intent and client mode unchanged, then consumes Qplan's
+confirmed synthesis or blocker. It must not create a second question inventory,
+format progress labels, maintain interview counters, infer skipped material
+answers, or reproduce intake state transitions.
 
 Step 4 — Marker handling: a `goalRuntime` marker is advisory observability only. Never treat it as authorization; a missing marker (absent session id, write failure) changes nothing in Steps 2–3.
 

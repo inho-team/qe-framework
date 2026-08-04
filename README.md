@@ -181,6 +181,20 @@ $Qplan "what you want to achieve"
 
 Use `/Qplan` or `$Qplan` to start or re-plan work. Internal QE stages do not require user commands.
 
+For a broad or ambiguous request, Qplan first externalizes the decisions that
+cannot be recovered from the repository. It shows the real question budget up
+front, asks at most three at a time, and labels progress such as `[17/30]`;
+follow-ups use the parent label, such as `[17-1/3]`. You can pause, resume,
+correct, skip, re-baseline once, or stop. Material questions cannot be silently
+skipped, and Qplan does not finalize the roadmap until you confirm the intake
+synthesis.
+
+The intake is resumable DB-backed state. Base questions are capped at 30,
+follow-ups at 3 per parent and 12 allocated overall, and unique issued versions
+at 42. Ceiling or decision outcomes are explicit: `confirmed`, `blocked`, or
+`split-required`. See the [usage guide](docs/USAGE_GUIDE.md#deterministic-tacit-knowledge-intake)
+for controls and recovery behavior.
+
 `Qplan` performs the minimal `.qe/` bootstrap when needed. On an explicit QE entry,
 it also creates the client-neutral `QE.md` when absent and adds a small managed pointer
 to `CLAUDE.md` (Claude) or `AGENTS.md` (Codex) without overwriting project instructions.
@@ -197,7 +211,7 @@ The Plan is the user workflow; Spec, Execute, and Verify are internal per-Goal s
 
 | Step | Claude | Codex | What it does |
 |------|--------|-------|-------------|
-| **Plan** | `/Qplan` | `$Qplan` | Roadmap, phases, requirements, ordered Goals |
+| **Plan** | `/Qplan` | `$Qplan` | Bounded intake, then roadmap, requirements, ordered Goals |
 | **Knowledge** | internal | internal | Retrieve relevant QE evidence and project wiki pointers |
 | **Spec / Execute / Verify** | internal | internal | Generate evidence, implement, test, review, and gate the active Goal |
 

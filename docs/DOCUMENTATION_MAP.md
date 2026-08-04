@@ -15,8 +15,10 @@ Use this file to find the right document quickly.
 - SIVS assurance model, risk triggers, and effectiveness metrics: [SIVS_ASSURANCE_MODEL.md](SIVS_ASSURANCE_MODEL.md)
 - System overview: [SYSTEM_OVERVIEW.md](SYSTEM_OVERVIEW.md)
 - Execution harness contract: [../core/EXECUTION_HARNESS.md](../core/EXECUTION_HARNESS.md)
+- Deterministic workflow transition kernel: [../core/PROCESS_KERNEL.md](../core/PROCESS_KERNEL.md)
 - Execution harness validation plan: [../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md](../.qe/planning/plans/execution-harness-layer/VALIDATION_PLAN.md)
 - Interaction adapter contract: [../core/INTERACTION_ADAPTER.md](../core/INTERACTION_ADAPTER.md)
+- Deterministic tacit-knowledge intake state and limits: [../core/KNOWLEDGE_ELICITATION_CONTRACT.md](../core/KNOWLEDGE_ELICITATION_CONTRACT.md)
 - Lifecycle adapter contract: [../core/LIFECYCLE_ADAPTER.md](../core/LIFECYCLE_ADAPTER.md)
 - Subagent lifecycle cleanup: [SUBAGENT_LIFECYCLE.md](SUBAGENT_LIFECYCLE.md)
 - Phase 1 adapter contract: [../.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md](../.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md)
@@ -33,6 +35,7 @@ Use this file to find the right document quickly.
 ## Usage
 
 - General usage guide: [USAGE_GUIDE.md](USAGE_GUIDE.md)
+- Tacit-knowledge intake controls and recovery: [USAGE_GUIDE.md#deterministic-tacit-knowledge-intake](USAGE_GUIDE.md#deterministic-tacit-knowledge-intake)
 - Single-AI SIVS settings: [../core/SIVS_SINGLE_AI_MODEL.md](../core/SIVS_SINGLE_AI_MODEL.md)
 - Skill catalog: [../skills/CATALOG.md](../skills/CATALOG.md)
 - Routing contract: [QE_SKILL_ROUTING.md](QE_SKILL_ROUTING.md)

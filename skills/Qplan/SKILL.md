@@ -1,6 +1,6 @@
 ---
 name: Qplan
-description: "Use when starting or resuming a Plan. Creates or updates a roadmap, then internally advances one verified Goal at a time through knowledge, spec, execution, and verification. Use Qgoal only as a goal-intake alias."
+description: "Use when starting or resuming a Plan. Runs bounded tacit-knowledge intake when needed, creates or updates a roadmap, then advances one verified Goal at a time. Use Qgoal only as a goal-intake alias."
 user_invocable: true
 recommendedModel: opus
 tier: core
@@ -36,6 +36,46 @@ Plan → Goal 1 → Goal 2 → … → Goal N
   derived project knowledge layer. Do not treat a DB row or LLM summary as the source of truth.
 - Only a verified Goal with explicit evidence may write back to the wiki.
 
+## Deterministic tacit-knowledge intake
+
+For a broad or ambiguous intent, Qplan owns one durable intake before it
+finalizes execution artifacts. This is a bounded decision-discovery stage, not
+an invitation to interview the user about facts already available in the
+repository.
+
+1. **Reconnaissance first:** inspect the minimum relevant sources and record
+   source facts. Build a canonical base-question inventory only for unresolved
+   decisions, with stable ordinals and material dimensions from
+   `core/KNOWLEDGE_ELICITATION_CONTRACT.md`.
+2. Initialize `.qe/planning/plans/{slug}/INTAKE.json` with
+   `node scripts/qe-intake.mjs init`, the current full session UUID, and the
+   inventory JSON. Before asking, disclose the actual base total, the maximum
+   12 allocated follow-ups, and the maximum batch size of 3.
+3. Run `node scripts/qe-intake.mjs next` with the stored revision. Render only
+   the returned batch through `core/INTERACTION_ADAPTER.md`; preserve engine
+   labels such as `[17/30]` and `[17-1/3]` exactly. Persist every answer, skip,
+   correction, pause, resume, re-baseline, or stop through the CLI using the
+   returned revision. Never hand-edit counters or `INTAKE.json`.
+4. When no material question remains, run the CLI `synthesize` operation and
+   show the synthesis to the user. Persist corrections or a material
+   re-baseline, and run `confirm` only after the user accepts the synthesis.
+5. A pause preserves the earliest unresolved label and returns control to the
+   user. A stop persists a blocked terminal. Do not convert either state into
+   an inferred answer.
+
+Interactive Claude and Codex sessions ask the same labeled open questions and
+wait for answers. In non-interactive mode, skip only a question that the engine
+classifies as explicitly reversible and non-material; record that resolution
+as an assumption. If any material question remains, retain the intake draft,
+report the earliest unresolved label, and block Plan finalization without
+fabricating an answer.
+
+The intake may be omitted only when reconnaissance proves that the intent is
+already bounded and has no unresolved material decision. Record that reason in
+the Plan decision log; convenience or non-interactive execution is not a
+bypass. Qplan is the sole owner of this stage. Qgoal and downstream PSE stages
+must not duplicate its questions, counters, or transitions.
+
 ## Entry and bootstrap
 
 1. Ensure the shared `QE.md` and active-client instruction pointer exist before planning.
@@ -46,7 +86,12 @@ Plan → Goal 1 → Goal 2 → … → Goal N
    separate initialization skill or user command.
 2. Derive a unique slug from the intent (2–4 salient Latin keywords, lowercase
    `[a-z0-9-]`, max 40 chars; append `-2`, `-3` on collision).
-3. Create or update the logical DB paths `.qe/planning/plans/{slug}/ROADMAP.md`,
+3. Run the deterministic intake above when the intent is broad, ambiguous, or
+   has an unresolved material decision. Reach `confirmed`, or block and return
+   without finalizing a Plan. A bounded intent with no material gap may use the
+   documented omission path.
+4. Only after confirmed intake (or a recorded safe omission), create or update
+   the logical DB paths `.qe/planning/plans/{slug}/ROADMAP.md`,
    `REQUIREMENTS.md`, and `STATE.md` through the QE state/store utilities. Do not
    create `.qe/planning/` directories or write these paths with raw filesystem
    tools. Full Plans must divide work into ordered,
@@ -54,9 +99,9 @@ Plan → Goal 1 → Goal 2 → … → Goal N
    Goal has one user-visible outcome, 1–5 allowed paths, at most three criteria,
    at most two journeys, explicit dependencies, and explicit non-goals. A broad
    feature area is a Phase, never a Goal.
-4. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` to assign
+5. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` to assign
    stable Goal IDs.
-5. For every Goal, define a pre-execution acceptance contract from
+6. For every Goal, define a pre-execution acceptance contract from
    `core/GOAL_ACCEPTANCE_CONTRACT.md`: verbatim Goal alignment, requirement criteria,
    at least one runnable user-journey scenario, a regression command, risk assessment,
    and whether human acceptance is required. High-impact risk categories (authentication,
@@ -65,8 +110,8 @@ Plan → Goal 1 → Goal 2 → … → Goal N
    Save it as `evidence/{goalId}.acceptance.json`, then run
    `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
    Do not let tests or implementation retrospectively define what success means.
-6. Bind the Plan through `.qe/planning/ACTIVE_PLAN` and the current session binding.
-7. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
+7. Bind the Plan through `.qe/planning/ACTIVE_PLAN` and the current session binding.
+8. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
    the `## Phase Progress` block.
 
 ## Internal Goal loop
