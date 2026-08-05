@@ -12,6 +12,7 @@ import { resolvePseStateHint } from './lib/pse-state-router.mjs';
 import { renderSkillCommand } from '../../scripts/lib/interaction_adapter.mjs';
 import { ensureQeProjectInstructions, isQeInstructionBootstrapCommand } from './lib/project-instructions.mjs';
 import { renderResponseLanguageHint, resolveResponseLanguage } from './lib/response-language.mjs';
+import { ASSURANCE_MODE, resolveAssurancePolicy } from './lib/assurance-policy.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -41,6 +42,7 @@ const cwd = data.cwd || data.directory || process.cwd();
 const cfg = loadConfig(cwd);
 const client = data.client || process.env.QE_CLIENT || 'claude';
 const skillCommand = (skillName, args = '') => renderSkillCommand(skillName, args, { client });
+const assurancePolicy = resolveAssurancePolicy(userMessage);
 
 // --- Load Unified State ---
 const state = readUnifiedState(cwd);
@@ -161,9 +163,9 @@ if (!isAmbiguous && words.length > 5) {
 
 // --- Strategic Planning Hint ---
 if (!isAmbiguous) {
-  const planKeywords = /\b(new project|start project|roadmap|milestone|planning|plan phase|architecture|overall|전략|계획|로드맵|마일스톤)\b/i;
-  if (planKeywords.test(userMessage)) {
-    hints.push(`[PLAN] Strategic roadmap detected. This project uses the PSE Loop (Plan-Spec-Execute). Run \`${skillCommand('Qplan')}\` first to establish/update the roadmap before Spec generation.`);
+  const planKeywords = /(?:\b(?:new project|start project|roadmap|milestone|planning|plan phase|architecture|overall)\b|전략|계획|로드맵|마일스톤)/i;
+  if (planKeywords.test(userMessage) && assurancePolicy.mode === ASSURANCE_MODE.NATIVE) {
+    hints.push(`[PLAN OPTIONAL] Planning intent detected. Continue with native execution unless the user explicitly invokes \`${skillCommand('Qplan')}\` or \`${skillCommand('Qgoal')}\`; Qplan may be recommended for durable high-assurance work.`);
   }
 }
 
@@ -308,7 +310,11 @@ if (!isAmbiguous && !helpFlag.matched) try {
     confidence_level = 'MEDIUM';
   }
 
-  if (bestMatch && confidence_level !== 'LOW') {
+  const normalizedTarget = String(bestMatch?.routed_to || '').replace(/^(?:qe-framework:)+/i, '').toLowerCase();
+  const suppressImplicitFullSivs = assurancePolicy.mode === ASSURANCE_MODE.NATIVE
+    && (normalizedTarget === 'qplan' || normalizedTarget === 'qgoal');
+
+  if (bestMatch && confidence_level !== 'LOW' && !suppressImplicitFullSivs) {
     state.intent_route = {
       intent: bestMatch.intent,
       routed_to: bestMatch.routed_to,

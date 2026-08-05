@@ -53,11 +53,12 @@ const DEFAULTS = {
   // .qe/config.json { "hooks": { "sweep_auto": false } } for users who prefer manual control.
   sweep_auto: true,                    // auto-apply deterministic archive moves on Stop hook
 
-  // [why default true]: the OUTPUT_STYLE response gate (ADR-025 R3) is cost-0 on
-  // non-operational clean turns and fail-open without credentials. Stage-2 Haiku
-  // reviews structural candidates and task/progress responses. Opt-out
-  // via .qe/config.json { "hooks": { "style_gate": false } } if a misfire annoys.
+  // [why default true]: OUTPUT_STYLE is an always-on response invariant. The
+  // gate remains bounded and fail-open on runtime faults, but configuration and
+  // assurance profiles cannot disable the policy itself.
   style_gate: true,                    // Stop-hook OUTPUT_STYLE response gate
+  safety_kernel: true,                 // immutable Progressive Assurance baseline
+  response_style: true,                // immutable user-facing response contract
   // [why these values]: at most 2 distinct-text style blocks per 10-min window, and
   // identical re-blocked text is never blocked twice — bounds any judge/model loop.
   style_gate_max_blocks: 2,            // max style blocks per window before giving up
@@ -100,11 +101,9 @@ const DEFAULTS = {
   // before reaching the hard limit at 200.
   context_pressure_warn: 150,          // tool calls before token-saving hint
 
-  // [why this value]: hook_profile gates how aggressively PreToolUse hard-blocks
-  // override actions (raw git commit, version edits, sed -i). "safe" (default) keeps
-  // the guards on; "minimal" downgrades them to soft hints (escape hatch when a guard
-  // misfires or the user wants a friction-free session); "full" reserved for future
-  // stricter policy. ContextMemo dedup and analysis hints are independent of this.
+  // [why this value]: hook_profile controls non-safety interaction depth only.
+  // Raw commit, version ownership, bypass forgery, and destructive edit guards
+  // are Safety Kernel invariants and are never downgraded by this profile.
   hook_profile: 'safe',                // minimal | safe | full
 
   // prompt-check.mjs
@@ -144,6 +143,12 @@ export function loadConfig(cwd) {
       // Invalid config — use defaults silently
     }
   }
+
+  // Progressive Assurance invariants are applied after user overrides. These
+  // flags are capability statements, not optional workflow preferences.
+  config.safety_kernel = true;
+  config.response_style = true;
+  config.style_gate = true;
 
   return config;
 }

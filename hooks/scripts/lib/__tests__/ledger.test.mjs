@@ -573,6 +573,32 @@ test('render-state replaces the progress block idempotently', () => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
+test('render-state derives Plan status and current phase from goal state', () => {
+  const cwd = makeProject();
+  const planDir = path.join(cwd, '.qe', 'planning', 'plans', SLUG);
+  const sp = path.join(planDir, 'STATE.md');
+  const goalsPath = path.join(planDir, 'goals.json');
+  writeFileSync(sp, '# STATE — demo-plan\n\nStatus: active\nCurrent phase: Phase 1\n');
+  createGoals(cwd, SLUG, ['A::a', 'B::b']);
+  const doc = JSON.parse(readFileSync(goalsPath, 'utf8'));
+  doc.goals[0].phase = 'Phase 1 — Foundation';
+  doc.goals[1].phase = 'Phase 4 — Migration';
+  writeFileSync(goalsPath, JSON.stringify(doc), 'utf8');
+
+  append(cwd, SLUG, { goalId: 'G001', event: 'started', status: 'active' });
+  append(cwd, SLUG, { goalId: 'G001', event: 'verified', status: 'complete', allowComplete: true });
+  append(cwd, SLUG, { goalId: 'G002', event: 'started', status: 'active' });
+  renderState(cwd, SLUG);
+  assert.match(readFileSync(sp, 'utf8'), /^Status: active$/m);
+  assert.match(readFileSync(sp, 'utf8'), /^Current phase: Phase 4 — Migration$/m);
+
+  append(cwd, SLUG, { goalId: 'G002', event: 'verified', status: 'complete', allowComplete: true });
+  renderState(cwd, SLUG);
+  assert.match(readFileSync(sp, 'utf8'), /^Status: complete$/m);
+  assert.match(readFileSync(sp, 'utf8'), /^Current phase: Phase 4 — Migration$/m);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
 test('Qplan SKILL.md stays within line budget (baseline 240 + 15 = 255)', () => {
   const here = path.dirname(fileURLToPath(import.meta.url));
   const repoRoot = path.resolve(here, '..', '..', '..', '..');

@@ -4,6 +4,7 @@
  */
 import { createHash } from 'node:crypto';
 import { getNamespace, setNamespace } from './state.mjs';
+import { ASSURANCE_MODE, resolveAssurancePolicy } from './assurance-policy.mjs';
 
 export const GOAL_SCAN_LIMIT = 2000;
 export const GOAL_TAIL_LIMIT = 200;
@@ -62,7 +63,7 @@ function overrideTokens(message) {
   const main = headWindow(message);
   const words = maskedMarkdown(main).split(/\s+/).filter(Boolean); const tokens = new Set();
   let i = 0;
-  if (words[i] && /^[$/]Qgoal$/i.test(words[i])) i += 1;
+  if (words[i] && /^[$/]Q(?:plan|goal)$/i.test(words[i])) i += 1;
   while (i < words.length && OVERRIDE_TOKENS.has(words[i])) { tokens.add(words[i]); i += 1; }
   const promptEndsInMain = !exceedsCodePoints(message, GOAL_SCAN_LIMIT);
   if (promptEndsInMain) {
@@ -149,13 +150,13 @@ function fileMentions(text, windowComplete) {
 export function detectGoalIntent(message) {
   try {
     if (typeof message !== 'string') return { detected: false };
-    const scan = headWindow(message); const command = /^\s*[$\/]Qgoal(?=$|\s)/i.exec(scan);
+    const scan = headWindow(message); const command = /^\s*[$\/]Q(?:plan|goal)(?=$|\s)/i.exec(scan);
     if (command) {
       const goalText = scan.slice(command[0].length).trim();
       const commandName = command[0].trim();
       return goalText ? { detected: true, source: 'command', goalText, scan } : { detected: false, source: 'command', goalText: '', usage: `${commandName} {목표}` };
     }
-    // A command-shaped first token that is not Qgoal is an attempted command,
+    // A command-shaped first token that is not a supported Plan entry is an attempted command,
     // never a natural-language goal.
     const firstToken = scan.trimStart().split(/\s+/, 1)[0] || '';
     if (/^[$\/][A-Za-z][\w-]*$/.test(firstToken)) return { detected: false };
@@ -174,6 +175,7 @@ export function detectGoalIntent(message) {
 export function triageGoal(message, options = {}) {
   const intent = detectGoalIntent(message);
   if (!intent.detected) return { ...intent, route: 'direct', reason: intent.usage ? 'usage' : 'not-goal', instruction: intent.usage || '' };
+  const assurance = resolveAssurancePolicy(message);
   const override = overrideTokens(message);
   const goalText = stripBoundaryOverrides(intent.goalText);
   const visible = maskedMarkdown(goalText); const files = fileMentions(maskedForFiles(goalText), !exceedsCodePoints(message, GOAL_SCAN_LIMIT));
@@ -184,13 +186,16 @@ export function triageGoal(message, options = {}) {
   else if (files.size >= 10 || (/(대규모|massive|적대 검증|adversarial)/i.test(visible) && groups >= 3)) { scale = 'Workflow'; reason = 'workflow-scale'; }
   else if (files.size >= 4 || groups >= 3 || length >= 1000) { scale = 'Full'; reason = 'full-scale'; }
   else if (files.size >= 2 || groups >= 2 || length >= 301) { scale = 'Small'; reason = 'small-scale'; }
-  if (override === 'direct') { scale = 'Micro'; reason = 'override-direct'; }
-  if (override === 'full') { scale = 'Full'; reason = 'override-full'; }
-  const route = scale === 'Full' || scale === 'Workflow' ? 'pipeline' : 'direct';
-  const instruction = route === 'pipeline'
-    ? `Run PSE: spec → execute → verify for this ${scale} goal.${scale === 'Workflow' ? ' Propose a dynamic workflow before execution.' : ''}`
-    : 'Direct handling: keep this goal on the existing direct path.';
-  return { detected: true, source: intent.source, goalText, route, reason, instruction, scale, override, fileCount: files.size, verbGroups: groups, length };
+  // Scale remains diagnostic only. Workflow admission is an explicit user
+  // choice, so natural-language shape and legacy !full/!direct tokens cannot
+  // promote or downgrade the request.
+  const explicit = assurance.mode === ASSURANCE_MODE.FULL_SIVS;
+  const route = explicit ? 'pipeline' : 'direct';
+  reason = explicit ? 'explicit-full-sivs' : 'native-default';
+  const instruction = explicit
+    ? 'Enter Qplan Full SIVS for this explicit Goal.'
+    : 'Use native execution; Safety Kernel and QE response style remain active.';
+  return { detected: true, source: intent.source, goalText, route, reason, instruction, scale, override, assuranceMode: assurance.mode, fileCount: files.size, verbGroups: groups, length };
 }
 
 /** Produces the bounded hook payload; marker persistence remains the caller's choice. */

@@ -18,6 +18,11 @@ tier: core
 Goal queue; Goals are not separate user commands. The user supplies an intent,
 reviews material Plan changes, and receives results. QE runs the internal work.
 
+Qplan is an explicit high-assurance entry. Only active-prefix `$Qplan`/`/Qplan`
+or the `$Qgoal`/`/Qgoal` alias activates Full SIVS. Ordinary requests use the
+native client execution path while the Safety Kernel and QE response style stay
+active; prompt size, file count, and risk words never activate this workflow.
+
 ## Model
 
 ```text

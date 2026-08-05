@@ -12,6 +12,13 @@
 
 **See it work:** run `/Qplan` on a real task. QE creates a Plan with ordered Goals, then internally performs knowledge preflight, spec, execution, and verification for each Goal. Role contract: [`core/SIVS_SINGLE_AI_MODEL.md`](core/SIVS_SINGLE_AI_MODEL.md).
 
+QE uses **Progressive Assurance**: ordinary requests stay on Claude's or
+Codex's native execution path, while explicit `/Qplan`/`$Qplan` and
+`/Qgoal`/`$Qgoal` entries activate Full SIVS. Safety guards,
+completion-evidence checks, and QE response style remain enabled on both paths.
+Execution choice (solo, subagent, wave, durable, or isolated) is independent of
+assurance choice.
+
 ---
 
 ```
@@ -205,6 +212,11 @@ $Qplan "what you want to achieve"
 ```
 
 Use `/Qplan` or `$Qplan` to start or re-plan work. Internal QE stages do not require user commands.
+
+`Qgoal` is the explicit single-Goal alias of `Qplan`. Large prompts, planning
+language, risk words, `!full`, and `!direct` do not change the route by
+themselves. See the [v8→v9 migration guide](docs/MIGRATION_v8_to_v9.md) and the
+[harness evaluation protocol](docs/HARNESS_EVALUATION.md).
 
 For a broad or ambiguous request, Qplan first externalizes the decisions that
 cannot be recovered from the repository. It shows the real question budget up

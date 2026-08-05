@@ -266,8 +266,8 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
     '[QE OVERRIDE MAP] Use the QE skill, not the manual action — PreToolUse HARD-BLOCKS ' +
     `direct git commit / version edits. manual commit → ${skillCommand('Qcommit')} · framework update/release → ${skillCommand('Qupdate')} · ` +
     `show version → ${skillCommand('Qversion')} · context save → ${skillCommand('Qcompact')} · restore → ${skillCommand('Qresume')} · ` +
-    `spec → ${skillCommand('Qgenerate-spec')} · plan → ${skillCommand('Qplan')} · execute → ${skillCommand('Qexecute')} · ` +
-    `critical review → ${skillCommand('Qcritical-review')}. ${skillCommand('Qgoal')} {목표} or a clear natural-language goal is the default goal entry.` + fullMapPointer
+    `critical review → ${skillCommand('Qcritical-review')}. Explicit Full SIVS entry → ${skillCommand('Qplan')} {목표}; ` +
+    `${skillCommand('Qgoal')} {목표} is its single-Goal alias. Ordinary requests stay native.` + fullMapPointer
   );
 }
 
@@ -580,9 +580,9 @@ function buildMinimalBootstrap(cwdPath, cmdPrefix) {
     '[QE OVERRIDE MAP] Use the QE skill — PreToolUse HARD-BLOCKS direct git commit / version edits. ' +
     `manual commit → ${skillCmd('Qcommit')} · framework update/release → ${skillCmd('Qupdate')} · ` +
     `context save → ${skillCmd('Qcompact')} · restore → ${skillCmd('Qresume')} · ` +
-    `show version → ${skillCmd('Qversion')} · spec → ${skillCmd('Qgenerate-spec')} · plan → ${skillCmd('Qplan')} · ` +
-    `execute → ${skillCmd('Qexecute')} · critical review → ${skillCmd('Qcritical-review')}. ` +
-    `${skillCmd('Qgoal')} {목표} or a clear natural-language goal is the default goal entry. Full map: QE_CONVENTIONS.md.`
+    `show version → ${skillCmd('Qversion')} · critical review → ${skillCmd('Qcritical-review')}. ` +
+    `Explicit Full SIVS entry → ${skillCmd('Qplan')} {목표}; ${skillCmd('Qgoal')} {목표} is its single-Goal alias. ` +
+    'Ordinary requests stay native. Full map: QE_CONVENTIONS.md.'
   );
 
   // 2. Output style (1 line)

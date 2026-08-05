@@ -127,3 +127,16 @@ including the current state. It is empty before snapshot validation succeeds.
 With a valid snapshot it remains structural even when revision, authority, or
 evidence checks fail. Complete returns `[complete]`; goal blocked with active
 resume returns `[active, blocked, failed]`.
+
+## Progressive Assurance scope
+
+The process kernel governs a process only after an execution adapter elects to
+use the Runtime Controller. It does not decide whether a prompt enters Full
+SIVS, choose `solo`/`subagent`/`wave`/`durable`/`isolated` execution, or promote
+ordinary prose into a Plan.
+
+Workflow assurance and execution mechanics are separate inputs. Full SIVS is
+activated only by explicit `Qplan` or `Qgoal`; controller-backed persistence is
+activated only for durable, long-running, or high-risk runtime needs. The
+kernel's transition and completion-evidence rules remain strict whenever the
+controller is selected.

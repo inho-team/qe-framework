@@ -132,7 +132,7 @@ before a protected release stage:
 The original numeric `ts` is retained across stages and remains valid for 120 seconds;
 a missing, empty, or mismatched `command` grants no bypass.
 
-## hook_profile — dialing down enforcement
+## hook_profile — interaction depth
 
 `.qe/config.json`:
 
@@ -142,15 +142,15 @@ a missing, empty, or mismatched `command` grants no bypass.
 
 | Profile | PreToolUse override blocks | ContextMemo / hints |
 |---------|----------------------------|---------------------|
-| `minimal` | downgraded to **soft hints** (nothing hard-blocks) | unchanged |
+| `minimal` | core safety blocks remain enforced; non-safety interaction is minimal | unchanged |
 | `safe` (default) | enforced (exit 2) | unchanged |
 | `full` | enforced; reserved for future stricter policy | unchanged |
 
-`minimal` is the escape hatch when a guard misfires or you want a friction-free
-session — you still see a hint, but the tool call proceeds. **Note: `minimal` is
-all-or-nothing** — it downgrades *every* override block (git commit, gh pr, version,
-in-place edit) at once. There is no per-rule granularity yet; for a one-off bypass of
-a single rule, prefer `.qe/state/skill-bypass.json` instead.
+`minimal` reduces non-safety interaction but never disables the Safety Kernel.
+Raw commits, direct version mutation, bypass forgery, in-place editing, and an
+explicit `staging_guard: block` remain hard-blocked. A narrowly scoped,
+short-lived capability may admit its exact intended operation; do not treat
+`hook_profile` as a bypass.
 
 ## Utopia safety rails
 

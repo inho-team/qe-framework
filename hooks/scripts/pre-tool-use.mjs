@@ -719,8 +719,8 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
 
   // Block if any rule matched and not bypassed by the corresponding skill.
   // Uses exit code 2 = hard block. The harness refuses the tool call — no negotiation.
-  // hook_profile gates enforcement: "minimal" downgrades to a soft hint (escape hatch
-  // when a guard misfires); "safe" (default) and "full" enforce.
+  // Safety Kernel rules are profile-independent. A profile may tune advisory
+  // workflow behavior, but it cannot downgrade these ownership/integrity gates.
   for (const rule of overrideRules) {
     const bypassMatchesRule =
       bypassSkill === rule.skill ||
@@ -737,18 +737,14 @@ if (['Glob', 'Grep', 'Read'].includes(toolName) && !stats._analysis_hinted) {
       }
       continue;
     }
-    if (cfg.hook_profile === 'minimal') {
-      hints.push(`[guard:${rule.skill}] ${rule.msg} (hook_profile=minimal — not enforced)`);
-    } else {
-      emitBlock({
-        skill: rule.skill,
-        reason: rule.msg,
-        action: rule.skill === RELEASE_VERSION_CAPABILITY || rule.skill.startsWith('_')
-          ? rule.msg
-          : `Use ${skillCommand(rule.skill)} instead`,
-        bypass: `skill-bypass.json with skill:"${rule.skill}"`,
-      });
-    }
+    emitBlock({
+      skill: rule.skill,
+      reason: rule.msg,
+      action: rule.skill === RELEASE_VERSION_CAPABILITY || rule.skill.startsWith('_')
+        ? rule.msg
+        : `Use ${skillCommand(rule.skill)} instead`,
+      bypass: `skill-bypass.json with skill:"${rule.skill}"`,
+    });
   }
 
   if (consumeSkillEntryBypass && state.skill_bypass?.source === 'skill-entry-hook') {
@@ -812,21 +808,19 @@ if (toolName === 'Read') {
 // in bypass consumption. It never matches or consumes the Qcommit one-shot bypass.
 // Region-aware matching lives in git-staging-guard.mjs. It also unwraps simple
 // shell wrappers (`bash -lc 'git add .'`) and env prefixes (`env FOO=1 git add .`).
-// hook_profile=minimal downgrades to hint (same as existing gates above).
+// An explicit staging_guard mode is also independent of hook_profile.
 if (toolName === 'Bash' && cfg.staging_guard !== false) {
   try {
     const cmd = (data.tool_input || data.toolInput || {}).command || '';
     const { classifyStagingCommand } = await import('./lib/git-staging-guard.mjs');
     const stagingVerdict = classifyStagingCommand(cmd);
     if (stagingVerdict.verdict === 'block') {
-      if (cfg.hook_profile === 'minimal') {
-        hints.push(`[guard:staging] ${stagingVerdict.reason} (hook_profile=minimal — not enforced)`);
-      } else if (cfg.staging_guard === 'block') {
+      if (cfg.staging_guard === 'block') {
         emitBlock({
           skill: '_staging_guard',
           reason: stagingVerdict.reason,
           action: `명시 경로로 git add path1 path2 를 사용하거나 ${skillCommand('Qcommit')} 을 사용하세요.`,
-          bypass: 'staging_guard: "warn" 강등 또는 hook_profile=minimal',
+          bypass: 'staging_guard: "warn" 강등',
         });
       } else {
         // warn mode (default): non-block hint via additionalContext channel

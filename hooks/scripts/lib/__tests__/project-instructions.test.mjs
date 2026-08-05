@@ -2,7 +2,8 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { existsSync, mkdtempSync, readFileSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { dirname, join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import {
   QE_POINTER_BEGIN,
   QE_POINTER_END,
@@ -10,6 +11,8 @@ import {
   instructionFileForClient,
   isQeInstructionBootstrapCommand,
 } from '../project-instructions.mjs';
+
+const ROOT = join(dirname(fileURLToPath(import.meta.url)), '..', '..', '..', '..');
 
 function fixture() {
   const dir = mkdtempSync(join(tmpdir(), 'qe-project-instructions-'));
@@ -67,6 +70,31 @@ test('bootstrap trigger only accepts explicit public Qplan and Qgoal commands', 
   for (const message of ['plan this work', 'Qplan without prefix', '/Qexecute run', '$Qgenerate-spec task', '/Qgs legacy spec', 'please use Qgoal']) {
     assert.equal(isQeInstructionBootstrapCommand(message), false, message);
   }
+});
+
+test('Qgoal and Qplan documents pin explicit-only Full SIVS and native ordinary work', () => {
+  const qgoal = readFileSync(join(ROOT, 'skills', 'Qgoal', 'SKILL.md'), 'utf8');
+  const qplan = readFileSync(join(ROOT, 'skills', 'Qplan', 'SKILL.md'), 'utf8');
+  const sessionStart = readFileSync(join(ROOT, 'hooks', 'scripts', 'session-start.mjs'), 'utf8');
+  const philosophy = readFileSync(join(ROOT, 'core', 'PHILOSOPHY.md'), 'utf8');
+  const principles = readFileSync(join(ROOT, 'core', 'PRINCIPLES.md'), 'utf8');
+  assert.match(qgoal, /Explicit Single-Goal Qplan Alias/);
+  assert.match(qgoal, /Ordinary requests remain on the native client path/);
+  assert.doesNotMatch(qgoal, /clear natural-language goals/i);
+  assert.match(qplan, /explicit high-assurance entry/);
+  assert.match(qplan, /Safety Kernel and QE response style stay/);
+  assert.match(sessionStart, /Explicit Full SIVS entry/);
+  assert.match(sessionStart, /Ordinary requests stay native/);
+  assert.doesNotMatch(sessionStart, /clear natural-language goal/i);
+  assert.doesNotMatch(sessionStart, /spec → .*Qgenerate-spec/);
+  assert.doesNotMatch(sessionStart, /execute → .*Qexecute/);
+  assert.match(philosophy, /native client path is the default/i);
+  assert.doesNotMatch(philosophy, /drives every task to completion/i);
+  assert.match(philosophy, /Obligations 1–5 and 8 govern work after\s+the user enters a Full SIVS Plan/);
+  assert.match(philosophy, /do not create\s+an entry from ordinary prose/);
+  assert.doesNotMatch(philosophy, /Every skill, agent, and hook in this framework must uphold/);
+  assert.match(principles, /never promotes an ordinary request into Full SIVS/);
+  assert.doesNotMatch(principles, /automatically route through/);
 });
 
 test('managed pointer markers remain balanced', () => {

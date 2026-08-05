@@ -495,6 +495,15 @@ export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) 
 export function renderState(cwd, slug) {
   const doc = readGoals(cwd, slug);
   if (!doc) throw new Error(`no goals.json for slug ${slug}`);
+  const allComplete = doc.goals.length > 0 && doc.goals.every(goal => goal.status === 'complete');
+  const hasBlocker = doc.goals.some(goal => goal.status === 'blocked' || goal.status === 'failed');
+  const planStatus = allComplete ? 'complete' : hasBlocker ? 'blocked' : 'active';
+  const currentGoal = doc.goals.find(goal => goal.status === 'active')
+    || doc.goals.find(goal => goal.status === 'blocked')
+    || doc.goals.find(goal => goal.status === 'pending')
+    || doc.goals.find(goal => goal.status === 'failed')
+    || doc.goals.at(-1);
+  const currentPhase = currentGoal?.phase || 'none';
   const mark = { pending: ' ', active: '>', complete: 'x', failed: '!', blocked: '~' };
   const byPhase = new Map();
   for (const g of doc.goals) {
@@ -511,7 +520,11 @@ export function renderState(cwd, slug) {
   }
 
   const sp = statePath(cwd, slug);
-  const prior = existsSync(sp) ? readFileSync(sp, 'utf8') : `# STATE — ${slug}\n`;
+  let prior = existsSync(sp) ? readFileSync(sp, 'utf8') : `# STATE — ${slug}\n`;
+  if (/^Status:.*$/m.test(prior)) prior = prior.replace(/^Status:.*$/m, `Status: ${planStatus}`);
+  else prior = prior.replace(/^(# .*\n)/, `$1\nStatus: ${planStatus}\n`);
+  if (/^Current phase:.*$/m.test(prior)) prior = prior.replace(/^Current phase:.*$/m, `Current phase: ${currentPhase}`);
+  else prior = prior.replace(/^(Status:.*\n)/m, `$1Current phase: ${currentPhase}\n`);
   let next;
   const idx = prior.indexOf(PROGRESS_HEADING);
   if (idx === -1) {

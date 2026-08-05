@@ -48,7 +48,10 @@ The QE Framework is built around one repeating loop:
 Spec → Implement → Verify → Supervise → (if failed) Remediate → Spec → ...
 ```
 
-This loop — the **SIVS Loop** — is not optional. It is the quality gate that drives every task to completion.
+This loop — the **SIVS Loop** — is mandatory after the user explicitly enters
+Full SIVS through `Qplan` or its single-Goal alias `Qgoal`. Ordinary requests
+remain on the native client path, where the Safety Kernel, completion-evidence
+checks, and QE response style still apply.
 
 Each stage in this loop runs a **mandatory independent verification gate** (Mandatory Obligation #8): a fresh-context adversarial sub-agent that breaks the self-reference problem of a homogeneous engine certifying its own output. A gate FAIL routes the loop **backward** to the causing stage rather than dead-ending.
 
@@ -219,29 +222,36 @@ The QE Framework registers seven lifecycle events with concrete QE outcomes.
 
 ## Mandatory Obligations
 
-Every skill, agent, and hook in this framework must uphold the following:
+These obligations have explicit scope. Obligations 1–5 and 8 govern work after
+the user enters a Full SIVS Plan through `Qplan` or `Qgoal`; they do not create
+an entry from ordinary prose. Obligations 6–7 are evidence-quality rules for
+both native and Full SIVS work. The Safety Kernel and QE response style also
+remain universal.
 
-1. **Respect the spec.** Do not execute work that has no TASK_REQUEST. If asked to work without a spec, generate one first via `Qgenerate-spec`.
+1. **Respect the Full SIVS spec.** Within an explicit Full SIVS Plan, do not execute Goal work that has no TASK_REQUEST. Specification is a Plan-owned internal step.
 
-2. **Do not skip verification.** A task is not complete until its VERIFY_CHECKLIST items are checked. Marking a task complete without checking is a violation.
+2. **Do not skip Full SIVS verification.** A planned Goal is not complete until its VERIFY_CHECKLIST items are checked. Marking it complete without checking is a violation.
 
 3. **Parallel first.** If two operations have no data dependency, run them in parallel. Never default to sequential when parallel is possible. This applies to: agent spawning, file reads/writes, analysis tasks, test+review, multi-UUID execution, and wave execution in Etask-executor. Sequential is the fallback, not the default.
 
-4. **Remediation is a new spec, not a patch.** When verification fails, generate a proper REMEDIATION_REQUEST with a proper checklist. Do not apply ad-hoc fixes without a spec.
+4. **Full SIVS remediation is a new spec, not a patch.** When verification fails inside a Plan, generate a proper REMEDIATION_REQUEST with a proper checklist. Do not apply ad-hoc fixes without a spec.
 
-5. **The loop is the product.** Features, skills, and agents are means to an end. The end is always: spec defined → implemented → verified → shipped with confidence.
+5. **The Full SIVS loop is the structured product.** Inside an explicit Plan, features, skills, and agents are means to the Plan-owned end: spec defined → implemented → verified → shipped with confidence.
 
 6. **Ground truth over self-assessment.** When verifying work, prefer external execution (Bash, actual tool invocation, real system test) over self-review. Code that compiles is not code that works. A checklist item that passes self-review may still fail in the real system. Always run the actual command, install the actual plugin, execute the actual test before declaring completion.
 
 7. **Verify research before planning.** Web search results, blog posts, and documentation claims must be tested against the actual system before incorporating into plans. Run `--help`, `--version`, or a minimal test to confirm the feature exists. Unverified claims must be tagged `[UNVERIFIED]` in all downstream documents. Never build phases around unverified external capabilities.
 
-8. **Independent verification at every stage.** A stage cannot certify its own output. Every SIVS stage therefore uses structural independence: fresh-context adversarial subagents in distinct cognitive modes (Spec: Structural+Critical, Verify: Critical, Supervise: Meticulous). A gate FAIL routes backward to its cause (Spec→Spec, Verify→Implement/Spec, Supervise→Verify→Implement→Spec) until it passes or the 3-round cap escalates to the user. A degraded inline run cannot claim PASS without later delegated evidence. See `skills/Qcritical-review/reference/{thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
+8. **Independent verification at every Full SIVS stage.** A stage cannot certify its own output. Every SIVS stage therefore uses structural independence: fresh-context adversarial subagents in distinct cognitive modes (Spec: Structural+Critical, Verify: Critical, Supervise: Meticulous). A gate FAIL routes backward to its cause (Spec→Spec, Verify→Implement/Spec, Supervise→Verify→Implement→Spec) until it passes or the 3-round cap escalates to the user. A degraded inline run cannot claim PASS without later delegated evidence. See `skills/Qcritical-review/reference/{thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
 
 ---
 
 ## Adaptive Harness Principle
 
-PSE chain (Qplan → Qgenerate-spec → Qexecute → Qexecute -verify) is the structured default path. However, when Claude Code provides native features that are more suitable, prefer native over PSE:
+The native client path is the default. The user may explicitly enter the PSE
+chain through `Qplan` or `Qgoal` when durable planning and Full SIVS assurance
+are desired. Execution mechanisms remain independent of that assurance choice;
+when a client-native feature is more suitable, use it within the selected path:
 
 1. **Verification** → `/goal` sets a completion condition evaluated by a **separate model**, breaking self-preferential bias. Use when the pass criteria are mechanically verifiable (tests pass, build succeeds, lint clean).
 2. **Large-scale orchestration** → `/workflows` writes a JS orchestration script for up to 1,000 subagents. Use when the task has 10+ independent items or requires adversarial multi-agent coordination.
@@ -252,10 +262,10 @@ PSE chain (Qplan → Qgenerate-spec → Qexecute → Qexecute -verify) is the st
 
 The Execution Harness Layer (`core/EXECUTION_HARNESS.md`) defines QE-owned runtime
 patterns for mode selection, durable lanes, isolated workspaces, status
-projection, and evidence collection. It is subordinate to the SIVS Loop and the
-Mandatory Obligations above: harness status can supply evidence, but it cannot
-replace TASK_REQUEST fulfillment, VERIFY_CHECKLIST completion, or supervision
-judgment.
+projection, and evidence collection. Within an explicit Full SIVS Plan it is
+subordinate to the SIVS Loop and the Mandatory Obligations above: harness status
+can supply evidence, but it cannot replace TASK_REQUEST fulfillment,
+VERIFY_CHECKLIST completion, or supervision judgment.
 
 See `docs/CLAUDE_CODE_FEATURES.md` for verified feature reference with minimum versions and official documentation links.
 

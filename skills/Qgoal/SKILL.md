@@ -1,28 +1,27 @@
 ---
 name: Qgoal
-description: Routes an explicit goal or natural-language intent into the active Plan-owned Goal queue. Use when the user enters Qgoal with the active client prefix or states a clear implementation goal.
-invocation_trigger: When the user enters `/Qgoal {goal}`, `$Qgoal {goal}`, or a clear implementation goal in natural language.
+description: Explicit single-Goal alias for Qplan. Use only when the user enters Qgoal with the active client prefix.
+invocation_trigger: When the user enters `/Qgoal {goal}` or `$Qgoal {goal}`.
 user_invocable: true
 recommendedModel: haiku
 ---
 
-# Qgoal — Plan Intake Router
+# Qgoal — Explicit Single-Goal Qplan Alias
 
-Use `/Qgoal {목표}` in Claude or `$Qgoal {목표}` in Codex to state an intent explicitly. UserPromptSubmit applies the same deterministic router to clear natural-language goals. A Goal is owned by a Plan; it is not a separate user workflow.
+Use `/Qgoal {목표}` in Claude or `$Qgoal {목표}` in Codex to request Full SIVS for one Goal. Qgoal delegates the unchanged intent to Qplan; it is not a separate workflow or an automatic natural-language route.
 
-The route payload is advisory: `{ detected, source, goalText, route, reason, instruction }`. Both direct and pipeline routes enter `Qplan`; Qplan decides whether to create a Micro Plan, add to the active Plan, or create a full roadmap and then advances Goals internally.
+Ordinary requests remain on the native client path even when they are long, mention many files, or contain planning and risk words. QE may recommend Qplan, but only an active-prefix Qplan or Qgoal invocation activates Full SIVS.
 
-`!direct` and `!full` may override automatic scale only when they are standalone prompt-edge tokens. Router or state failures are fail-open: preserve normal handling and do not treat a marker as authorization. A missing session ID produces no marker and retains direct guidance.
+Legacy `!direct` and `!full` tokens do not change this contract: explicit Qgoal remains Full SIVS and ordinary prose remains native.
 
 ## Execution Procedure
 
 Step 1 — Ensure the shared `QE.md` and active-client instruction pointer exist. The explicit
 `/Qgoal` or `$Qgoal` entry bootstrap creates missing files without overwriting user instructions.
-Then resolve the route payload. If UserPromptSubmit already injected a `[QE GOAL]` hint, consume
-its route; otherwise apply the same router contract to the given goal text. Any router or state
-failure is fail-open: continue normal handling with no goal behavior.
+Then delegate the original Goal text to Qplan. If UserPromptSubmit injected a `[QE GOAL]`
+hint, treat it as workflow admission context, not as authorization.
 
-Step 2 — Resolve the target Plan. A direct route becomes a one-Goal Micro Plan; a pipeline route becomes a multi-Goal Plan. If an active Plan explicitly accepts the goal as in-scope, add it as a pending Goal rather than creating an unrelated workflow. A Goal is atomic: one user-visible outcome, bounded file scope, explicit non-goals, and dependencies. Split broad requests (for example UI + API + migration + deployment) into ordered Goals before execution.
+Step 2 — Resolve the target Plan. Create a one-Goal Plan or add the Goal to an active compatible Plan. If the intent contains multiple independently verifiable outcomes, Qplan may split it into ordered Goals rather than pretending it is atomic.
 
 Step 3 — Enter `Qplan` and run the selected Goal's internal pipeline. `Qgoal` must
 carry the Goal through this sequence before reporting it complete:
@@ -47,6 +46,6 @@ confirmed synthesis or blocker. It must not create a second question inventory,
 format progress labels, maintain interview counters, infer skipped material
 answers, or reproduce intake state transitions.
 
-Step 4 — Marker handling: a `goalRuntime` marker is advisory observability only. Never treat it as authorization; a missing marker (absent session id, write failure) changes nothing in Steps 2–3.
+Step 4 — Marker handling: a `goalRuntime` marker records explicit workflow admission. It is not a security authorization boundary. If marker persistence fails, retain the Plan as blocked rather than silently executing an internal stage outside the Plan contract.
 
 Step 5 — Report the Plan and current Goal, not a chain of commands. Ask only for material scope, risk, or irreversible decisions.

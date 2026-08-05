@@ -218,5 +218,6 @@
 1. **1단 정규식·구조 검사(비용 0):** 목록 6개+, 모호한 시간, 서론·반복 요약·형식적 맺음말, 추임새를 찾는다. 작업·상태 보고는 의미 규칙 검사를 위해 2단 후보로 올린다.
 2. **2단 Haiku 저지(후보일 때만):** `Tier 1A`와 `안티패턴`을 루브릭으로 실질 위반을 판정한다. 위반이면 stop을 차단하고 재작성을 강제한다.
 - 루프가드: 동일 텍스트는 두 번 차단하지 않고, 창(window)당 최대 `style_gate_max_blocks`회. 자격증명/네트워크 실패 시 **fail-open**(통과).
-- 끄기: `.qe/config.json` → `{ "hooks": { "style_gate": false } }`.
+- 설정에 `style_gate: false`가 있더라도 Progressive Assurance 정책이 이를
+  `true`로 정규화한다. QE 응답 형식은 native와 Full SIVS 양쪽에서 항상 적용된다.
 - 구현: `hooks/scripts/lib/style-gate.mjs`, 연결: `hooks/scripts/stop-handler.mjs`.

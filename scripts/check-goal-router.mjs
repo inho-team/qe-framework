@@ -34,25 +34,28 @@ function tempDir(prefix) {
 const LONG_PAD = 'lorem '.repeat(400); // > 2,000 code points
 
 const routeCases = [
-  ['command micro', '/Qgoal fix login in auth.mjs', { detected: true, source: 'command', route: 'direct', scale: 'Micro' }],
-  ['codex command micro', '$Qgoal fix login in auth.mjs', { detected: true, source: 'command', route: 'direct', scale: 'Micro' }],
+  ['plan command', '/Qplan redesign the runtime', { detected: true, source: 'command', route: 'pipeline', reason: 'explicit-full-sivs' }],
+  ['codex plan command', '$Qplan redesign the runtime', { detected: true, source: 'command', route: 'pipeline', reason: 'explicit-full-sivs' }],
+  ['command micro', '/Qgoal fix login in auth.mjs', { detected: true, source: 'command', route: 'pipeline', scale: 'Micro', reason: 'explicit-full-sivs' }],
+  ['codex command micro', '$Qgoal fix login in auth.mjs', { detected: true, source: 'command', route: 'pipeline', scale: 'Micro', reason: 'explicit-full-sivs' }],
   ['command no-arg usage', '/Qgoal', { detected: false, reason: 'usage', instruction: '/Qgoal {목표}' }],
   ['codex command no-arg usage', '$Qgoal', { detected: false, reason: 'usage', instruction: '$Qgoal {목표}' }],
   ['command blank-arg usage', '/Qgoal    ', { detected: false, reason: 'usage', instruction: '/Qgoal {목표}' }],
+  ['plan no-arg usage', '/Qplan', { detected: false, reason: 'usage', instruction: '/Qplan {목표}' }],
   ['near-miss /Qgoals', '/Qgoals 정리', { detected: false }],
   ['near-miss /QgoalX', '/QgoalX something', { detected: false }],
   ['korean natural small', 'hooks/scripts/lib/state.mjs 수정하고 테스트 추가해줘', { detected: true, source: 'natural', route: 'direct', scale: 'Small' }],
   ['english natural micro', 'fix the typo in README.md', { detected: true, route: 'direct', scale: 'Micro' }],
   ['mixed ko-en small', 'goal-router.mjs에 verify 로직 추가해줘', { detected: true, route: 'direct', scale: 'Small' }],
-  ['full by file count', 'a.mjs b.mjs c.mjs d.mjs 구현해줘', { detected: true, route: 'pipeline', scale: 'Full' }],
-  ['workflow scale', '대규모 리팩터링을 구현하고 테스트와 문서와 배포 마이그레이션까지 진행해줘', { detected: true, route: 'pipeline', scale: 'Workflow', reason: 'workflow-scale' }],
+  ['full by file count stays native', 'a.mjs b.mjs c.mjs d.mjs 구현해줘', { detected: true, route: 'direct', scale: 'Full', reason: 'native-default' }],
+  ['workflow scale stays native', '대규모 리팩터링을 구현하고 테스트와 문서와 배포 마이그레이션까지 진행해줘', { detected: true, route: 'direct', scale: 'Workflow', reason: 'native-default' }],
   ['non-goal question', 'what does this repository actually do?', { detected: false }],
   ['verb substring (fix vs fixture)', 'fixture cleanup discussion', { detected: false }],
-  ['override leading direct', '!direct a.mjs b.mjs c.mjs d.mjs 구현해줘', { detected: true, route: 'direct', reason: 'override-direct' }],
-  ['override trailing full', '작은 오타 수정해줘 README.md !full', { detected: true, route: 'pipeline', reason: 'override-full' }],
-  ['override conflict → direct wins', '!direct 구현해줘 x.mjs !full', { detected: true, route: 'direct', reason: 'override-direct' }],
-  ['override duplicate once', '!direct !direct x.mjs 수정해줘', { detected: true, route: 'direct', reason: 'override-direct' }],
-  ['override after /Qgoal', '/Qgoal !full 오타 수정 README.md', { detected: true, route: 'pipeline', reason: 'override-full' }],
+  ['override leading direct remains native', '!direct a.mjs b.mjs c.mjs d.mjs 구현해줘', { detected: true, route: 'direct', reason: 'native-default' }],
+  ['override trailing full cannot activate', '작은 오타 수정해줘 README.md !full', { detected: true, route: 'direct', reason: 'native-default' }],
+  ['override conflict remains native', '!direct 구현해줘 x.mjs !full', { detected: true, route: 'direct', reason: 'native-default' }],
+  ['override duplicate remains native', '!direct !direct x.mjs 수정해줘', { detected: true, route: 'direct', reason: 'native-default' }],
+  ['override after /Qgoal cannot downgrade explicit entry', '/Qgoal !direct 오타 수정 README.md', { detected: true, route: 'pipeline', reason: 'explicit-full-sivs' }],
 ];
 for (const [name, message, expected] of routeCases) {
   ok(`route: ${name}`, () => {
@@ -64,25 +67,25 @@ for (const [name, message, expected] of routeCases) {
 ok('override mid-sentence ignored + kept in goalText', () => {
   const result = triageGoal('이 문장 중간의 !full 토큰은 무시하고 x.mjs 수정해줘');
   assert.equal(result.route, 'direct');
-  assert.notEqual(result.reason, 'override-full');
+  assert.equal(result.reason, 'native-default');
   assert.ok(result.goalText.includes('!full'), 'mid-sentence token must stay in goalText');
 });
 ok('override inside fenced block ignored', () => {
   const result = triageGoal('```\n!full\n```\nx.mjs 수정해줘');
   assert.equal(result.route, 'direct');
-  assert.notEqual(result.reason, 'override-full');
+  assert.equal(result.reason, 'native-default');
 });
 ok('override inside inline code ignored', () => {
   const result = triageGoal('`!full` 토큰 설명이 있는 x.mjs 수정해줘');
-  assert.notEqual(result.reason, 'override-full');
+  assert.equal(result.reason, 'native-default');
 });
 ok('override inside quote ignored', () => {
   const result = triageGoal('> !full\nx.mjs 수정해줘');
-  assert.notEqual(result.reason, 'override-full');
+  assert.equal(result.reason, 'native-default');
 });
 ok('tail override recognized past 2000 cps', () => {
   const result = triageGoal(`x.mjs 수정해줘 ${LONG_PAD} !direct`);
-  assert.equal(result.reason, 'override-direct');
+  assert.equal(result.reason, 'native-default');
 });
 ok('tail override blocked by unclosed main fence', () => {
   const result = triageGoal(`x.mjs 수정해줘\n\`\`\`\n${LONG_PAD}\n!direct`);
@@ -113,7 +116,7 @@ ok('ambiguous goal candidate defaults to direct', () => {
   const result = triageGoal('수정 x.y');
   assert.equal(result.detected, true);
   assert.equal(result.route, 'direct');
-  assert.equal(result.reason, 'ambiguous-default-direct');
+  assert.equal(result.reason, 'native-default');
 });
 ok('trailing override inside fence stays in goalText, not honored', () => {
   const result = triageGoal('x.mjs 수정해줘\n```\n!full');
@@ -169,7 +172,7 @@ ok('backtick module identifiers count toward scale', () => {
   const result = triageGoal('구현해줘 `alpha` `beta` `gamma` `delta`');
   assert.equal(result.fileCount, 4);
   assert.equal(result.scale, 'Full');
-  assert.equal(result.route, 'pipeline');
+  assert.equal(result.route, 'direct');
 });
 ok('hint instruction stays within 512 bytes', () => {
   for (const message of ['/Qgoal 대규모 리팩터링을 구현하고 테스트와 문서와 배포 마이그레이션까지 진행해줘', '/Qgoal 😀'.padEnd(600, '가')]) {

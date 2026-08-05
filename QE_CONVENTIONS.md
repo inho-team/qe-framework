@@ -35,7 +35,7 @@ All skills, agents, and documents in this framework MUST use these standard term
 
 | Concept | Standard Term | Deprecated | Notes |
 |---------|--------------|------------|-------|
-| User workflow | **PSE Chain** | ~~PSE Loop~~ | Router-owned internal workflow entered through `Qgoal` |
+| User workflow | **PSE Chain** | ~~PSE Loop~~ | Plan-owned internal workflow entered explicitly through `Qplan` or its single-Goal alias `Qgoal` |
 | Quality gate | **SIVS Loop** | ~~SVS Loop~~ | Inner quality gate within Execute/Verify steps |
 | Parallel execution group | **Wave** | ~~Swarm~~ | Independent items grouped for concurrent execution |
 | Parallel agent | **Teammate** | ~~Subagent~~ (internal only) | Haiku Teammate = Haiku-model agent in a Wave |
@@ -55,6 +55,13 @@ All skills, agents, and documents in this framework MUST use these standard term
 User: $Qplan {의도} / /Qplan {의도} (or $Qgoal / /Qgoal) → Plan intake
 Internal: Plan-owned Goal loop → knowledge → Qgenerate-spec → Qexecute → Qexecute -verify
 ```
+
+This Full SIVS path is explicit-only. Ordinary natural-language work stays on
+the active client's native execution path regardless of prompt size, file
+count, planning vocabulary, or risk vocabulary. QE may recommend Qplan for
+durable or high-assurance work, but a recommendation is not activation. Safety
+Kernel guards, completion-evidence checks, and `core/OUTPUT_STYLE.md` apply on
+both native and Full SIVS paths.
 
 - **Plan**: Define roadmap, phases, requirements, and an ordered Goal queue (`Qplan`)
 - **Spec**: Generate TASK_REQUEST + VERIFY_CHECKLIST (`Qgenerate-spec`)
@@ -111,7 +118,7 @@ PSE Chain (Plan-owned internal workflow)
 | Execute | `Qexecute` | Sequential execution (fallback for non-atomic tasks) |
 | Verify | `Qexecute -verify` | Test → review → fix quality loop |
 
-`Qplan` is the public Plan controller. `Qgenerate-spec` and `Qexecute` are internal PSE units, not normal user entry points. Start new work with `$Qplan {의도}` in Codex or `/Qplan {의도}` in Claude; `$Qgoal`/`/Qgoal` remain accepted intake aliases. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
+`Qplan` is the public Plan controller. `Qgenerate-spec` and `Qexecute` are internal PSE units, not normal user entry points. Explicitly request Full SIVS with `$Qplan {의도}` in Codex or `/Qplan {의도}` in Claude; `$Qgoal`/`/Qgoal` are single-Goal aliases. In-chain calls carrying an existing task UUID remain valid through task-artifact continuity.
 
 ### Deterministic tacit-knowledge intake
 
@@ -375,7 +382,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 ### 2. Token-Aware Context Management
 - **Thresholds**: Monitor context pressure at **140k tokens** (Warning/Snapshot) and **170k tokens** (Critical/Hard Stop).
 - **Semantic Compression**: When context is high, prioritize `SNAPSHOT_SUMMARY.md` over raw history preservation.
-- **Strategic Planning**: Start with active-prefix `Qgoal {목표}`; the router owns PSE planning and `.qe/planning/` state.
+- **Strategic Planning**: Active-prefix `Qplan {의도}` or `Qgoal {목표}` explicitly opts into Plan-owned Full SIVS; ordinary planning requests remain native unless the user chooses that entry.
 - **Token Fallback**: If real-time metrics are missing, use `Characters / 4` for estimation.
 
 ### 3. Persistent Mode Protection
@@ -417,7 +424,7 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 | Skill | Purpose |
 |-------|---------|
 | `Qplan` | Plan-owned Goal controller and minimal project bootstrap |
-| `Qgoal` | Goal intake router |
+| `Qgoal` | Explicit single-Goal alias for `Qplan` |
 | `Qgenerate-spec` | TASK_REQUEST and VERIFY_CHECKLIST generation |
 | `Qexecute` | Spec execution and `-verify` quality loop |
 | `Qcritical-review` | SIVS adversarial verification, debate, and risk modes |

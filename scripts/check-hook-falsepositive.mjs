@@ -83,14 +83,14 @@ const EXIT_BLOCK = 2; // emitBlock() convention
   expect(/MANDATORY SECURITY REVIEW/.test(r.stdout), '[GUARD] shell script with security keyword lost its security hint');
 }
 
-// 6. hook_profile=minimal downgrades the git-commit hard-block to a soft hint.
+// 6. hook_profile=minimal cannot downgrade a Safety Kernel hard block.
 {
   const tmp = mkdtempSync(join(tmpdir(), 'qe-hookprofile-'));
   try {
     mkdirSync(join(tmp, '.qe'), { recursive: true });
     writeFileSync(join(tmp, '.qe', 'config.json'), '{"hooks":{"hook_profile":"minimal"}}');
     const r = runHook(PRE, { cwd: tmp, tool_name: 'Bash', tool_input: { command: 'git commit -m x' } });
-    expect(r.code !== EXIT_BLOCK, `[PROFILE] minimal profile still hard-blocked git commit (exit ${r.code})`);
+    expect(r.code === EXIT_BLOCK && /Qcommit/.test(r.stderr), `[PROFILE] minimal profile bypassed git commit guard (exit ${r.code})`);
   } finally {
     rmSync(tmp, { recursive: true, force: true });
   }

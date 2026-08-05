@@ -1,8 +1,9 @@
-# Migrating from v8 to v9 — Goal Runtime
+# Migrating from v8 to v9 — Progressive Assurance
 
-v9 makes **goal** the single entry point. The former PSE skills (spec/execute)
-are now internal units: calling them directly is **hard-blocked** by the
-`PreToolUse` gate, which redirects you to the goal entry.
+v9 makes explicit **Plan entry** the Full SIVS boundary. `Qplan` is the primary
+entry and `Qgoal` is its single-Goal alias. The former PSE skills (spec/execute)
+are internal units: calling them directly is hard-blocked unless an existing
+Plan-owned task is continuing.
 
 ## Breaking change: direct PSE skill calls are blocked
 
@@ -11,7 +12,7 @@ The hard-block set (authoritative source: `PSE_SKILLS` in
 
 | v8 direct call | Blocked in v9? | v9 replacement |
 |---|---|---|
-| `/Qgs {목표}` | **Yes** | `/Qgoal {목표}` (legacy alias removed; router auto-runs spec) |
+| `/Qgs {목표}` | **Yes** | `/Qgoal {목표}` (legacy alias removed; Plan owns specification) |
 | `/Qgenerate-spec {목표}` | **Yes** | `/Qgoal {목표}` |
 | `/Qexecute {uuid}` | **Yes** (new call) | `/Qgoal {목표}`; an existing `pending`/`in-progress`/`on-hold` task artifact lets a continuation through |
 | `/Qrt` (legacy alias of Qexecute) | **Yes** | `/Qgoal {목표}` |
@@ -27,23 +28,25 @@ not restore `Qgs` as a supported public workflow; use `/Qgoal` for new work.
 
 ## The goal entry
 
-- **Command**: `/Qgoal {목표}` — explicit entry.
-- **Natural language**: a clear goal typed as a normal prompt is detected by the
-  `UserPromptSubmit` hook (`prompt-check.mjs`) and routed. Non-goal prompts and
-  non-PSE skills are unaffected (byte-identical behavior — regression 0).
+- **Commands**: `/Qplan {목표}` and `/Qgoal {목표}` are explicit Full SIVS
+  entries. `Qgoal` is the single-Goal alias of `Qplan`.
+- **Natural language**: ordinary prompts stay on the active client's native
+  execution path regardless of size, file count, planning vocabulary, or risk
+  vocabulary. The hook may recommend `Qplan`, but a recommendation never
+  activates Full SIVS.
 
-## Triage (automatic)
+## Triage (diagnostic only)
 
-`goal-router` classifies each goal by scale:
+`goal-router` may classify a request by scale for diagnostics and
+recommendations, but scale no longer selects the execution route:
 
 | Signal | Scale | Route |
 |---|---|---|
-| question / micro-fix (not detected as a goal) | — | direct (PSE **not** started) |
-| short natural goal, no file/verb signals | Micro / Small | direct |
-| `!full`, ≥3 verb groups, ≥4 file mentions, or ≥1000 chars | Full | **pipeline** (spec→execute→verify) |
-| `대규모` / adversarial-verify keywords + ≥3 verbs | Workflow | pipeline + dynamic workflow proposal |
+| ordinary natural-language request | Any | native |
+| explicit `/Qplan` or `/Qgoal` | Any | **Full SIVS** (plan→execute→verify) |
 
-Override tokens: `!direct` forces direct, `!full` forces the pipeline.
+Legacy `!direct` and `!full` tokens do not override this boundary. Only an
+explicit `Qplan` or `Qgoal` invocation activates Full SIVS.
 
 ## Escape hatches (when a direct PSE call must pass)
 
@@ -53,7 +56,7 @@ The gate admits a blocked call when any of these hold (see
 1. A **fresh pipeline marker** issued by the goal router this session.
 2. **Task-artifact continuity** — the call references an existing
    `pending`/`in-progress`/`on-hold` task (so resuming a task is not blocked).
-3. A fresh **utopia** opt-in (`Qexecute -utopia`).
+3. A fresh **utopia** state inside an already entered Plan-owned execution.
 4. The **`allowDirect`** debug flag in `.qe/config.json` (`goalRuntime.allowDirect`, default false).
 
 ## Doc convention layer (v9)
@@ -64,5 +67,20 @@ onto the convention in Phase 4 (`scripts/migrate-qe-docs.mjs`).
 
 ## What did NOT change
 
-- Non-goal prompts and non-PSE skills behave identically (regression 0).
+- Ordinary prompts and non-PSE skills remain on the native execution path.
+- Claude uses `/Qplan` and `/Qgoal`; Codex uses `$Qplan` and `$Qgoal`.
+- Safety Kernel guards, completion-evidence checks, and QE response style remain active on both paths.
 - Commit / release / version discipline: `/Qcommit`, the repository release workflow, and `/Qversion`.
+
+## Migration checklist
+
+1. Replace direct `Qgenerate-spec`/`Qexecute` instructions with one explicit
+   `Qplan` entry; use `Qgoal` when only one Goal is needed.
+2. Remove automation that depends on prompt length, risk words, `!full`, or
+   `!direct` selecting a route.
+3. Keep existing task UUIDs for continuation; active task artifacts remain
+   compatible across Claude and Codex.
+4. Treat `hook_profile` as interaction-depth configuration, not a safety-off
+   switch. Core commit/version/bypass guards remain enforced.
+5. Compare policy changes with the four-condition protocol in
+   `HARNESS_EVALUATION.md` before tuning defaults.
