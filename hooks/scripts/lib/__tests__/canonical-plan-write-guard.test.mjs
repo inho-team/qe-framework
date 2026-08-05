@@ -8,6 +8,7 @@ import { DatabaseSync } from 'node:sqlite';
 
 import { createGoals, advanceGoal, runGoalEvidence, setGoalAcceptance, createLifecycleOperation, recordEvent } from '../ledger.mjs';
 import { openSqlite, closeSqlite } from '../store-sqlite.mjs';
+import { canonicalJson, sha256 } from '../process-controller-store.mjs';
 
 const SLUG = 'demo-plan';
 
@@ -198,6 +199,15 @@ test('legacy lifecycle tables backfill roster columns and install guard triggers
   const cwd = makeProject();
   try {
     const dbPath = join(cwd, '.qe', 'qe.db');
+    const intentDigest = sha256(canonicalJson([
+      'qe-lifecycle-intent-v1',
+      1,
+      'journal-test',
+      'semantic-1',
+      'test',
+      {},
+      [{ ordinal: 0, layer: 'goal', operation: 'initialize', processId: 'goal-a' }],
+    ]));
     const db = new DatabaseSync(dbPath);
     db.exec(`
       CREATE TABLE lifecycle_operations(
@@ -232,7 +242,7 @@ test('legacy lifecycle tables backfill roster columns and install guard triggers
         UNIQUE(operation_id, request_id)
       );
       INSERT INTO lifecycle_operations VALUES(
-        'journal-test','11111111-1111-4111-8111-111111111111','semantic-1','test','{}','digest','pending',0,NULL,1,1
+        'journal-test','11111111-1111-4111-8111-111111111111','semantic-1','test','{}','${intentDigest}','pending',0,NULL,1,1
       );
       INSERT INTO lifecycle_operation_children VALUES(
         '11111111-1111-4111-8111-111111111111',0,'goal','initialize','goal-a','req-1','{"processId":"goal-a","requestId":"req-1"}','pending',0,NULL,NULL,NULL,NULL
@@ -241,8 +251,16 @@ test('legacy lifecycle tables backfill roster columns and install guard triggers
     db.close();
     const script = `
       process.env.QE_ROOT = ${JSON.stringify(cwd)};
-      const { createLifecycleOperation, openSqlite } = await import(${JSON.stringify(new URL('../ledger.mjs', import.meta.url).href)});
+      const { createLifecycleOperation } = await import(${JSON.stringify(new URL('../ledger.mjs', import.meta.url).href)});
+      const { openSqlite } = await import(${JSON.stringify(new URL('../store-sqlite.mjs', import.meta.url).href)});
       const result = createLifecycleOperation(${JSON.stringify(cwd)}, 'journal-test', {
+        operationId: '11111111-1111-4111-8111-111111111111',
+        semanticKey: 'semantic-1',
+        kind: 'test',
+        payload: {},
+        children: [{ layer: 'goal', operation: 'initialize', processId: 'goal-a' }],
+      });
+      const replay = createLifecycleOperation(${JSON.stringify(cwd)}, 'journal-test', {
         operationId: '11111111-1111-4111-8111-111111111111',
         semanticKey: 'semantic-1',
         kind: 'test',
@@ -253,7 +271,7 @@ test('legacy lifecycle tables backfill roster columns and install guard triggers
       const row = db.prepare('SELECT roster_json, roster_digest, finalized FROM lifecycle_operations WHERE operation_id=?').get('11111111-1111-4111-8111-111111111111');
       const seal = db.prepare('SELECT name, version FROM qe_schema_seals WHERE name=?').get('lifecycle-journal-immutability');
       db.close();
-      console.log(JSON.stringify({ result, row, seal }));
+      console.log(JSON.stringify({ result, replay, row, seal }));
     `;
     const result = spawnSync(process.execPath, ['--input-type=module', '-e', script], {
       encoding: 'utf8',
@@ -262,6 +280,7 @@ test('legacy lifecycle tables backfill roster columns and install guard triggers
     assert.equal(result.status, 0, result.stderr);
     const parsed = JSON.parse(result.stdout.trim());
     assert.equal(parsed.result.code, 'REPLAYED');
+    assert.equal(parsed.replay.code, 'REPLAYED');
     assert.equal(parsed.row.finalized, 1);
     assert.equal(parsed.seal.name, 'lifecycle-journal-immutability');
   } finally {
@@ -274,7 +293,8 @@ test('lifecycle trigger guards reject immutable parent, child, and seal mutation
   try {
     const script = `
       process.env.QE_ROOT = ${JSON.stringify(cwd)};
-      const { createLifecycleOperation, openSqlite } = await import(${JSON.stringify(new URL('../ledger.mjs', import.meta.url).href)});
+      const { createLifecycleOperation } = await import(${JSON.stringify(new URL('../ledger.mjs', import.meta.url).href)});
+      const { openSqlite } = await import(${JSON.stringify(new URL('../store-sqlite.mjs', import.meta.url).href)});
       createLifecycleOperation(${JSON.stringify(cwd)}, 'journal-test', {
         operationId: '11111111-1111-4111-8111-111111111111',
         semanticKey: 'semantic-1',
@@ -303,7 +323,7 @@ test('lifecycle trigger guards reject immutable parent, child, and seal mutation
     assert.equal(result.status, 0, result.stderr);
     const outcomes = JSON.parse(result.stdout.trim());
     assert.equal(outcomes.length, 4);
-    assert.ok(outcomes.every(message => /LIFECYCLE_IMMUTABLE|cannot/i.test(message)));
+    assert.ok(outcomes.every(message => /LIFECYCLE_IMMUTABLE|cannot/i.test(message)), JSON.stringify(outcomes));
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }

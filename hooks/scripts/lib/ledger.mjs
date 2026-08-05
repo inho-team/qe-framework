@@ -447,6 +447,10 @@ function lifecycleRosterDigest(operationId, roster) {
   return sha256(canonicalJson(['qe-lifecycle-roster-v1', operationId, roster]));
 }
 
+function lifecycleSealDigest() {
+  return sha256(canonicalJson(['qe-lifecycle-seal-v1', LIFECYCLE_SEAL_NAME, 1]));
+}
+
 function lifecycleRosterEntry(rosterJson, ordinal) {
   const roster = typeof rosterJson === 'string' ? JSON.parse(rosterJson) : rosterJson;
   if (!Array.isArray(roster) || !Number.isSafeInteger(ordinal) || ordinal < 0 || ordinal >= roster.length) {
@@ -483,6 +487,14 @@ function lifecycleBackfill(db) {
     const rosterDigest = lifecycleRosterDigest(operationId, roster);
     db.prepare('UPDATE lifecycle_operations SET roster_json=?,roster_digest=?,finalized=1 WHERE operation_id=?')
       .run(rosterJson, rosterDigest, operationId);
+  }
+  const seal = db.prepare('SELECT version,digest FROM qe_schema_seals WHERE name=?').get(LIFECYCLE_SEAL_NAME);
+  const expectedDigest = lifecycleSealDigest();
+  if (!seal) {
+    db.prepare('INSERT INTO qe_schema_seals(name,version,digest,installed_at) VALUES(?,?,?,?)')
+      .run(LIFECYCLE_SEAL_NAME, 1, expectedDigest, Date.now());
+  } else if (seal.version !== 1 || seal.digest !== expectedDigest) {
+    throw new Error('LIFECYCLE_IMMUTABLE');
   }
 }
 
@@ -702,8 +714,6 @@ export function createLifecycleOperation(cwd, slug, input) {
         item.semantic.processId, item.requestId, canonicalJson(item.request), 'pending', 0, null, null, null, null);
     }
     db.prepare(`UPDATE lifecycle_operations SET finalized=1 WHERE operation_id=?`).run(captured.operationId);
-    db.prepare(`INSERT OR IGNORE INTO qe_schema_seals(name,version,digest,installed_at) VALUES(?,?,?,?)`)
-      .run(LIFECYCLE_SEAL_NAME, 1, lifecycleRosterDigest(captured.operationId, captured.roster), now);
     lifecycleFault('create-before-commit');
     db.exec('COMMIT');
     lifecycleFault('create-after-commit');
@@ -1624,7 +1634,8 @@ export function renderState(cwd, slug) {
           block += `- [${mark[g.status] || ' '}] ${g.id} ${w}${g.title}\n`;
         }
       }
-      const prior = canonicalPlanReadText(cwd, relState) || `# STATE — ${slug}\n`;
+      const currentState = canonicalPlanReadRow(db, relState);
+      const prior = currentState ? canonicalPlanDecodeRow(currentState) : `# STATE — ${slug}\n`;
       let next;
       if (/^Status:.*$/m.test(prior)) next = prior.replace(/^Status:.*$/m, `Status: ${planStatus}`);
       else next = prior.replace(/^(# .*\n)/, `$1\nStatus: ${planStatus}\n`);
@@ -1638,7 +1649,7 @@ export function renderState(cwd, slug) {
         const tail = nextHeading === -1 ? '' : after.slice(nextHeading);
         next = next.slice(0, idx) + block.replace(/\n*$/, '\n') + tail;
       }
-      canonicalPlanWriteRow(db, relState, next, current?.sha256 || null);
+      canonicalPlanWriteRow(db, relState, next, currentState?.sha256 ?? null);
       db.exec('COMMIT');
       return { state: join(cwd, relState), phases: byPhase.size };
     } catch (error) {
