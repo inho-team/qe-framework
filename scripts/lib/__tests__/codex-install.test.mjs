@@ -10,9 +10,16 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
-import { installCodexAssets, installClaudeAssets, cleanupCodexAssets } from '../client_installers.mjs';
+import {
+  cleanupCodexAssets,
+  computeCodexAssetHash,
+  evaluateCodexAssetSync,
+  installClaudeAssets,
+  installCodexAssets,
+} from '../client_installers.mjs';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 // Repo root: scripts/lib/__tests__ -> ../../.. -> repo root
@@ -156,6 +163,82 @@ test('(b) idempotent: install twice → exactly one fence, no duplicate skill di
   // Skills: no error thrown means overwrite succeeded (files should still be present)
   const skillsDir = path.join(homeDir, '.codex', 'skills');
   assert.ok(fs.existsSync(skillsDir), '~/.codex/skills/ still exists after second install');
+});
+
+test('(b1) version/content stamp detects same-version source asset drift', (t) => {
+  const homeDir = makeCodexHome();
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-content-stamp-repo-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  fs.writeFileSync(path.join(repoRoot, 'package.json'), JSON.stringify({ version: '1.2.3' }));
+  fs.mkdirSync(path.join(repoRoot, 'skills', 'Qsample'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'skills', 'Qsample', 'SKILL.md'), '---\nname: Qsample\ndescription: sample\n---\n');
+  fs.mkdirSync(path.join(repoRoot, 'agents'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'agents', 'Esample.md'), '---\nname: Esample\ndescription: sample\n---\nBody\n');
+  fs.mkdirSync(path.join(repoRoot, 'scripts'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'scripts', 'sample.mjs'), 'export const value = 1;\n');
+  fs.mkdirSync(path.join(repoRoot, 'hooks', 'scripts', 'codex'), { recursive: true });
+  fs.writeFileSync(path.join(repoRoot, 'hooks', 'scripts', 'codex', 'lifecycle-codex.mjs'), 'process.exit(0);\n');
+
+  installCodexAssets({ repoRoot, homeDir, log: () => {}, syncManifest: false });
+  const codexDir = path.join(homeDir, '.codex');
+  const stamp = JSON.parse(fs.readFileSync(path.join(codexDir, '.qe-codex-version'), 'utf8'));
+  assert.equal(stamp.schema, 2);
+  assert.match(stamp.assetHash, /^[a-f0-9]{64}$/);
+  assert.equal(stamp.assetHash, computeCodexAssetHash(repoRoot));
+  assert.equal(evaluateCodexAssetSync({ repoRoot, codexDir }).reason, 'in-sync');
+
+  // Same version, changed bytes: version-only detection would miss this.
+  fs.writeFileSync(path.join(repoRoot, 'scripts', 'sample.mjs'), 'export const value = 2;\n');
+  const drift = evaluateCodexAssetSync({ repoRoot, codexDir });
+  assert.equal(drift.needsSync, true);
+  assert.equal(drift.reason, 'asset-hash-mismatch');
+  assert.equal(drift.pluginVersion, drift.installedVersion);
+  assert.notEqual(drift.assetHash, drift.installedAssetHash);
+});
+
+test('(b1.1) legacy same-version stamp without asset hash is refreshed', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+  const codexDir = path.join(homeDir, '.codex');
+  const version = JSON.parse(fs.readFileSync(path.join(REPO_ROOT, 'package.json'), 'utf8')).version;
+  fs.writeFileSync(path.join(codexDir, '.qe-codex-version'), JSON.stringify({ version }));
+  const status = evaluateCodexAssetSync({ repoRoot: REPO_ROOT, codexDir });
+  assert.equal(status.needsSync, true);
+  assert.equal(status.reason, 'asset-hash-missing');
+});
+
+test('(b1.2) SessionStart consumes content-drift status and announces background sync', (t) => {
+  const homeDir = makeCodexHome();
+  const pluginRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-session-sync-plugin-'));
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-session-sync-cwd-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(pluginRoot, { recursive: true, force: true });
+    fs.rmSync(cwd, { recursive: true, force: true });
+  });
+
+  const installerDir = path.join(pluginRoot, 'scripts', 'lib');
+  fs.mkdirSync(installerDir, { recursive: true });
+  fs.writeFileSync(path.join(installerDir, 'client_installers.mjs'), [
+    "export const evaluateCodexAssetSync = () => ({ needsSync: true, reason: 'asset-hash-mismatch', pluginVersion: '1.2.3', installedVersion: '1.2.3' });",
+    'export const installCodexAssets = () => ({ skipped: false });',
+  ].join('\n'));
+
+  const hook = path.join(REPO_ROOT, 'hooks', 'scripts', 'session-start.mjs');
+  const result = spawnSync(process.execPath, [hook], {
+    input: JSON.stringify({ cwd, session_id: 'content-sync-session', source: 'startup' }),
+    encoding: 'utf8',
+    env: { ...process.env, HOME: homeDir, CLAUDE_PLUGIN_ROOT: pluginRoot },
+    timeout: 10000,
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout.trim().split('\n').find((line) => line.trim().startsWith('{')));
+  assert.match(output.hookSpecificOutput?.additionalContext || '', /asset-hash-mismatch/);
+  assert.match(output.hookSpecificOutput?.additionalContext || '', /v1\.2\.3/);
 });
 
 test('(b2) reinstall removes stray duplicate QE agent sections', (t) => {

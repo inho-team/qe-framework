@@ -11,6 +11,7 @@ import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs
 import { resolvePseStateHint } from './lib/pse-state-router.mjs';
 import { renderSkillCommand } from '../../scripts/lib/interaction_adapter.mjs';
 import { ensureQeProjectInstructions, isQeInstructionBootstrapCommand } from './lib/project-instructions.mjs';
+import { renderResponseLanguageHint, resolveResponseLanguage } from './lib/response-language.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -46,6 +47,16 @@ const state = readUnifiedState(cwd);
 
 const hints = [];
 const msgLower = userMessage.toLowerCase();
+
+// Response language is a per-turn signal. The current prompt wins; the legacy
+// project profile is consulted only when this prompt has no detectable prose.
+// Detection is local, deterministic, read-only, and fail-open.
+try {
+  const languageHint = renderResponseLanguageHint(resolveResponseLanguage(userMessage, cwd));
+  if (languageHint) hints.push(languageHint);
+} catch {
+  // Language context is advisory and must never block prompt admission.
+}
 
 // Explicit QE entry commands establish the project instruction contract before
 // the skill body runs. This is deliberately narrow: ordinary goal-like prose

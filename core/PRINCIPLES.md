@@ -84,7 +84,7 @@ Quality loops (Eqa-orchestrator), remediation iterations, and inter-task progres
 
 ## Communication Principles
 
-- **Respond in the user's language**: Check `.qe/profile/language.md` for the user's preferred language and respond accordingly.
+- **Respond in the latest user's language**: Use the language of the user's most recent message. Consult `.qe/profile/language.md` only when that message has no detectable natural language.
 - **Clarify ambiguous requirements**: Always confirm unclear requirements before implementing.
 - **Concise responses**: Omit unnecessary explanation, preamble, and repeated summaries.
 - **Conclusion first**: Answer in the order — conclusion then reasoning.

@@ -22,7 +22,7 @@ import {
 import { parseChecklist } from './lib/checklist-parser.mjs';
 import { analyze as sweepAnalyze } from './lib/sweep-analyzer.mjs';
 import { execute as sweepExecute, executeVolatileOnly as sweepVolatileOnly } from './lib/sweep-executor.mjs';
-import { extractLastAssistantText, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
+import { evaluateResponseLanguageMatch, extractLastConversationTurn, scanStyleViolations, judgeStyle, loadStyleRubric } from './lib/style-gate.mjs';
 import { readClaudeOAuthToken } from './lib/claude-token.mjs';
 import { isCompletionClaim, evaluateEvidenceGate, parseSameTurnEvents } from './lib/verification-evidence-gate.mjs';
 import { shortenSid } from './lib/session-resolver.mjs';
@@ -357,13 +357,62 @@ if (!activeMode && cfg.satisfaction_enabled) {
 // a deferred optimization; style-gate.mjs's extractLastAssistantText is path-based and
 // not trivially composable with parseSameTurnEvents without a shared JSONL reader.
 let lastText = null;
+let lastUserText = null;
 if (!activeMode && (cfg.code_risk_stop_gate !== false || cfg.style_gate !== false || cfg.verification_evidence_gate !== false)) {
   try {
-    lastText = typeof data.last_assistant_message === 'string'
+    const hasDirectAssistant = typeof data.last_assistant_message === 'string';
+    const hasDirectUser = typeof data.last_user_message === 'string';
+    const turn = hasDirectAssistant && hasDirectUser
+      ? { userText: '', assistantText: '' }
+      : extractLastConversationTurn(data.transcript_path);
+    lastText = hasDirectAssistant
       ? data.last_assistant_message
-      : extractLastAssistantText(data.transcript_path);
+      : turn.assistantText;
+    lastUserText = hasDirectUser
+      ? data.last_user_message
+      : turn.userText;
   } catch {
     // Fail-open — a read failure must never crash the stop handler.
+  }
+}
+
+// --- Response-language gate ---
+// Compare the latest real user prompt with final user-facing prose before the
+// semantic style judge. Both sides must have a deterministic natural-language
+// signal; code, paths, proper names, and uncertain text remain fail-open.
+if (!activeMode && cfg.style_gate !== false) {
+  try {
+    const languageGate = evaluateResponseLanguageMatch(lastUserText, lastText);
+    const st = readUnifiedState(cwd);
+    const lg = st.responseLanguageGate || {};
+    if (languageGate.mismatch && lastText) {
+      const hash = styleHash(`${lastUserText || ''}\u0000${lastText}`);
+      const now = Date.now();
+      const windowMs = cfg.style_gate_window_ms || 10 * 60 * 1000;
+      const maxBlocks = cfg.style_gate_max_blocks || 2;
+      let count = lg.count || 0;
+      let windowStart = lg.windowStart || now;
+      if (now - windowStart > windowMs) { count = 0; windowStart = now; }
+
+      if (lg.lastHash === hash || count >= maxBlocks) {
+        delete st.responseLanguageGate;
+        try { writeUnifiedState(cwd, st); } catch {}
+      } else {
+        st.responseLanguageGate = { lastHash: hash, count: count + 1, windowStart };
+        try { writeUnifiedState(cwd, st); } catch {}
+        console.log(JSON.stringify({
+          continue: false,
+          decision: 'block',
+          reason: `[QE Language] The latest user message is ${languageGate.expected}, but the final response is ${languageGate.actual}. Rewrite user-facing prose in ${languageGate.expected}; keep code, paths, identifiers, and proper names unchanged.`,
+        }));
+        process.exit(0);
+      }
+    } else if (lg.lastHash) {
+      delete st.responseLanguageGate;
+      try { writeUnifiedState(cwd, st); } catch {}
+    }
+  } catch {
+    // Fault tolerance — response-language detection must never crash Stop.
   }
 }
 

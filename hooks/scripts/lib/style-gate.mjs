@@ -20,6 +20,7 @@
 
 import { readFileSync, existsSync } from './qe-fs.mjs';
 import { join } from 'path';
+import { detectPromptLanguage } from './response-language.mjs';
 
 /**
  * High-precision drama markers. Each entry is enforcing a rule that ALREADY exists
@@ -159,6 +160,13 @@ function isHumanUserLine(obj) {
   return false;
 }
 
+function humanUserText(obj) {
+  if (!isHumanUserLine(obj)) return '';
+  const content = obj.message?.content;
+  if (typeof content === 'string') return content;
+  return content.filter((block) => block?.type === 'text').map((block) => block.text || '').join('\n');
+}
+
 /**
  * Pull the concatenated text of an assistant transcript line's text blocks.
  * tool_use / thinking blocks are ignored — only user-facing `text` blocks count.
@@ -185,14 +193,15 @@ function assistantText(obj) {
  * @param {string} transcriptPath - Absolute path to the .jsonl transcript.
  * @returns {string}
  */
-export function extractLastAssistantText(transcriptPath) {
-  if (!transcriptPath || typeof transcriptPath !== 'string') return '';
+export function extractLastConversationTurn(transcriptPath) {
+  const empty = { userText: '', assistantText: '' };
+  if (!transcriptPath || typeof transcriptPath !== 'string') return empty;
 
   let raw;
   try {
     raw = readFileSync(transcriptPath, 'utf8');
   } catch {
-    return '';
+    return empty;
   }
 
   const lines = raw.split('\n');
@@ -206,7 +215,7 @@ export function extractLastAssistantText(transcriptPath) {
       // skip malformed line — never throw
     }
   }
-  if (parsed.length === 0) return '';
+  if (parsed.length === 0) return empty;
 
   // Find the last human user turn; collect assistant prose after it.
   let lastUserIdx = -1;
@@ -222,7 +231,37 @@ export function extractLastAssistantText(transcriptPath) {
     const txt = assistantText(parsed[i]);
     if (txt) chunks.push(txt);
   }
-  return chunks.join('\n').trim();
+  return {
+    userText: lastUserIdx >= 0 ? humanUserText(parsed[lastUserIdx]).trim() : '',
+    assistantText: chunks.join('\n').trim(),
+  };
+}
+
+/** Backward-compatible assistant-only transcript extractor. */
+export function extractLastAssistantText(transcriptPath) {
+  return extractLastConversationTurn(transcriptPath).assistantText;
+}
+
+/**
+ * Compare only high-confidence natural-language signals. Unknown prompt or
+ * response language is an explicit exemption for code, paths, names, and other
+ * non-prose surfaces.
+ */
+export function evaluateResponseLanguageMatch(userText, assistantText) {
+  try {
+    const expected = detectPromptLanguage(userText);
+    const actual = detectPromptLanguage(assistantText);
+    if (!expected) return { mismatch: false, expected: null, actual: actual?.language || null, exemptReason: 'user-language-unknown' };
+    if (!actual) return { mismatch: false, expected: expected.language, actual: null, exemptReason: 'response-language-unknown' };
+    return {
+      mismatch: expected.language !== actual.language,
+      expected: expected.language,
+      actual: actual.language,
+      exemptReason: '',
+    };
+  } catch {
+    return { mismatch: false, expected: null, actual: null, exemptReason: 'detection-failed' };
+  }
 }
 
 // ── Stage 2: Haiku judge ──────────────────────────────────────────────────────

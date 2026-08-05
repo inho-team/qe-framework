@@ -319,29 +319,25 @@ if (existsSync(conventionsPath) || existsSync(qeDir)) {
   }
 }
 
-// Codex asset auto-sync (drift detection). Claude has no "plugin updated" hook
-// event, so we detect drift at session start instead: when the loaded plugin
-// version (CLAUDE_PLUGIN_ROOT/package.json) is ahead of the version stamped into
-// ~/.codex/.qe-codex-version by the last installCodexAssets() run, the Codex-side
-// QE skills/agents are stale. Kick off a fully detached background re-sync so the
-// Codex target follows the plugin without a manual /Qupdate. Best-effort: never
-// delays or blocks session start; ~/.codex absent → no-op (not a Codex user).
+// Codex asset auto-sync (version + content drift detection). A version alone is
+// not a content identity during local/plugin development, so the installer stamp
+// also carries a deterministic hash of every managed source surface.
 try {
   const pluginRoot = process.env.CLAUDE_PLUGIN_ROOT;
   const codexDir = join(homedir(), '.codex');
   if (pluginRoot && existsSync(codexDir)) {
-    let pluginVer = null;
-    try { pluginVer = JSON.parse(readFileSync(join(pluginRoot, 'package.json'), 'utf8')).version; } catch {}
-    let codexVer = null;
-    try { codexVer = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version; } catch {}
-    if (pluginVer && pluginVer !== codexVer) {
-      const installer = join(pluginRoot, 'scripts', 'lib', 'client_installers.mjs');
-      if (existsSync(installer)) {
+    const installer = join(pluginRoot, 'scripts', 'lib', 'client_installers.mjs');
+    if (existsSync(installer)) {
+      const installerUrl = pathToFileURL(installer).href;
+      const module = await import(installerUrl);
+      const sync = module.evaluateCodexAssetSync({ repoRoot: pluginRoot, codexDir });
+      if (sync.needsSync) {
         const code = `import(${JSON.stringify(pathToFileURL(installer).href)})`
           + `.then(m=>m.installCodexAssets()).catch(()=>{})`;
         const child = spawn(process.execPath, ['-e', code], { detached: true, stdio: 'ignore' });
         child.unref();
-        messages.push(`[QE] Codex 자산을 v${pluginVer}로 백그라운드 동기화 중 (이전: v${codexVer || 'none'}).`);
+        const previous = sync.installedVersion ? `v${sync.installedVersion}` : 'none';
+        messages.push(`[QE] Codex 자산을 v${sync.pluginVersion}로 백그라운드 동기화 중 (이전: ${previous}, 원인: ${sync.reason}).`);
       }
     }
   }

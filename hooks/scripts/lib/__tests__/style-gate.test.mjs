@@ -12,10 +12,14 @@ import assert from 'node:assert/strict';
 import fs from 'node:fs';
 import os from 'node:os';
 import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+import { fileURLToPath } from 'node:url';
 
 import {
   scanStyleViolations,
   extractLastAssistantText,
+  extractLastConversationTurn,
+  evaluateResponseLanguageMatch,
   DRAMA_PATTERNS,
   STYLE_PATTERNS,
   loadStyleRubric,
@@ -179,6 +183,80 @@ test('extract: returns final assistant prose after last human user turn', (t) =>
   const text = extractLastAssistantText(p);
   assert.equal(text, '잠깐 — 확인한다.');
   assert.ok(scanStyleViolations(text).tripped);
+});
+
+test('extract: returns the last real user prompt with the final assistant prose', (t) => {
+  const { dir, p } = writeTranscript([
+    { type: 'user', message: { role: 'user', content: 'old question' } },
+    { type: 'assistant', message: { role: 'assistant', content: 'old answer' } },
+    { type: 'user', message: { role: 'user', content: [{ type: 'text', text: '한국어로 답해줘' }] } },
+    { type: 'user', message: { role: 'user', content: [{ type: 'tool_result', content: 'ignored' }] } },
+    { type: 'assistant', message: { role: 'assistant', content: 'The result is complete.' } },
+  ]);
+  t.after(() => fs.rmSync(dir, { recursive: true, force: true }));
+  assert.deepEqual(extractLastConversationTurn(p), {
+    userText: '한국어로 답해줘',
+    assistantText: 'The result is complete.',
+  });
+});
+
+test('language gate detects clear Korean/English mismatches in both directions', () => {
+  assert.deepEqual(evaluateResponseLanguageMatch('한국어로 설명해줘', 'The change is complete and tests pass.'), {
+    mismatch: true, expected: 'Korean', actual: 'English', exemptReason: '',
+  });
+  assert.deepEqual(evaluateResponseLanguageMatch('Please explain this change', '변경 사항과 검증 결과를 설명합니다.'), {
+    mismatch: true, expected: 'English', actual: 'Korean', exemptReason: '',
+  });
+});
+
+test('language gate passes same-language prose', () => {
+  assert.equal(evaluateResponseLanguageMatch('이 변경을 설명해줘', '변경과 검증 결과를 설명합니다.').mismatch, false);
+  assert.equal(evaluateResponseLanguageMatch('Please explain this change', 'The change and test result are ready.').mismatch, false);
+});
+
+test('language gate exempts code-only, paths, proper names, and uncertain prompts', () => {
+  for (const response of ['```js\nconst ok = true;\n```', '/src/app.mjs', 'OpenAI Codex']) {
+    const result = evaluateResponseLanguageMatch('한국어로 알려줘', response);
+    assert.equal(result.mismatch, false, response);
+    assert.equal(result.exemptReason, 'response-language-unknown');
+  }
+  assert.equal(evaluateResponseLanguageMatch('`src/app.mjs`', 'The change is complete.').exemptReason, 'user-language-unknown');
+});
+
+test('Stop hook blocks a clear latest-prompt/final-response language mismatch', (t) => {
+  const cwd = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-language-stop-'));
+  const transcriptDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-language-transcript-'));
+  t.after(() => fs.rmSync(cwd, { recursive: true, force: true }));
+  t.after(() => fs.rmSync(transcriptDir, { recursive: true, force: true }));
+
+  fs.mkdirSync(path.join(cwd, '.qe'), { recursive: true });
+  fs.writeFileSync(path.join(cwd, '.qe', 'config.json'), JSON.stringify({
+    hooks: { sweep_auto: false, code_risk_stop_gate: false, verification_evidence_gate: false, style_gate: true },
+  }));
+  const transcriptPath = path.join(transcriptDir, 'transcript.jsonl');
+  fs.writeFileSync(transcriptPath, [
+    { type: 'user', message: { role: 'user', content: '한국어로 결과를 알려줘' } },
+    { type: 'assistant', message: { role: 'assistant', content: 'The change is complete and tests pass.' } },
+  ].map((line) => JSON.stringify(line)).join('\n'));
+
+  const handler = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../../stop-handler.mjs');
+  const result = spawnSync(process.execPath, [handler], {
+    input: JSON.stringify({ cwd, session_id: 'language-stop-test', transcript_path: transcriptPath }),
+    encoding: 'utf8',
+  });
+  assert.equal(result.status, 0, result.stderr);
+  const output = JSON.parse(result.stdout.trim().split('\n').find((line) => line.trim().startsWith('{')));
+  assert.equal(output.continue, false);
+  assert.match(output.reason, /QE Language/);
+  assert.match(output.reason, /Rewrite user-facing prose in Korean/);
+
+  const repeated = spawnSync(process.execPath, [handler], {
+    input: JSON.stringify({ cwd, session_id: 'language-stop-test', transcript_path: transcriptPath }),
+    encoding: 'utf8',
+  });
+  assert.equal(repeated.status, 0, repeated.stderr);
+  const repeatedOutput = JSON.parse(repeated.stdout.trim().split('\n').find((line) => line.trim().startsWith('{')));
+  assert.equal(repeatedOutput.continue, true, 'identical mismatch must not create an infinite Stop loop');
 });
 
 test('extract: ignores tool_use blocks, keeps text across split turn', (t) => {

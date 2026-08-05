@@ -46,5 +46,6 @@
 
 ## Response Style
 
-- Reply in English (primary language)
+- <!-- qe:response-language=latest-user-message -->
+- Reply in the language of the user's most recent message. Use a stored language profile only when that message has no detectable natural language.
 - Keep explanations concise and technical as needed

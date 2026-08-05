@@ -1170,6 +1170,92 @@ function collectSkillSourceDirs(skillsDir, baseDir = skillsDir, out = []) {
 }
 
 /**
+ * Hash the exact logical source surfaces consumed by installCodexAssets().
+ * Relative paths are included so rename/add/remove operations change the hash,
+ * not only byte edits. Symlinks remain excluded by the installer copy planner.
+ */
+export function computeCodexAssetHash(repoRoot = REPO_ROOT) {
+  const files = [];
+  const addPairs = (pairs, prefix, sourceRoot) => {
+    for (const pair of pairs) {
+      files.push({
+        path: `${prefix}/${relative(sourceRoot, pair.from).split(sep).join('/')}`,
+        file: pair.from,
+      });
+    }
+  };
+
+  const skillsRoot = join(repoRoot, 'skills');
+  for (const { src, rel } of collectSkillSourceDirs(skillsRoot)) {
+    addPairs(collectCopyPairs(src, src), `skills/${rel}`, src);
+  }
+
+  const agentsRoot = join(repoRoot, 'agents');
+  if (existsSync(agentsRoot)) {
+    for (const entry of readdirSync(agentsRoot).filter((name) => name.endsWith('.md'))) {
+      const file = join(agentsRoot, entry);
+      try {
+        const stat = lstatSync(file);
+        if (stat.isFile() && !stat.isSymbolicLink()) files.push({ path: `agents/${entry}`, file });
+      } catch {}
+    }
+  }
+
+  for (const surface of ['scripts', 'hooks']) {
+    const root = join(repoRoot, surface);
+    if (existsSync(root)) addPairs(collectCopyPairs(root, root), surface, root);
+  }
+
+  if (files.length === 0) throw new Error('no Codex asset source files found');
+  files.sort((a, b) => (a.path < b.path ? -1 : a.path > b.path ? 1 : 0));
+  const hash = createHash('sha256');
+  for (const item of files) {
+    const content = readFileSync(item.file);
+    hash.update(item.path);
+    hash.update('\0');
+    hash.update(String(content.length));
+    hash.update('\0');
+    hash.update(content);
+    hash.update('\0');
+  }
+  return hash.digest('hex');
+}
+
+/** Resolve version/content drift without mutating either source or installation. */
+export function evaluateCodexAssetSync({ repoRoot = REPO_ROOT, codexDir } = {}) {
+  if (!codexDir || !existsSync(codexDir)) return { needsSync: false, reason: 'codex-unavailable' };
+
+  let pluginVersion = null;
+  try { pluginVersion = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version; } catch {}
+  if (!pluginVersion) return { needsSync: false, reason: 'plugin-version-unavailable' };
+
+  let stamp = null;
+  try { stamp = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')); } catch {}
+  if (stamp?.version !== pluginVersion) {
+    return { needsSync: true, reason: 'version-mismatch', pluginVersion, installedVersion: stamp?.version || null };
+  }
+
+  let assetHash = null;
+  try { assetHash = computeCodexAssetHash(repoRoot); } catch {
+    return { needsSync: false, reason: 'asset-hash-unavailable', pluginVersion, installedVersion: stamp.version };
+  }
+  if (!/^[a-f0-9]{64}$/.test(stamp?.assetHash || '')) {
+    return { needsSync: true, reason: 'asset-hash-missing', pluginVersion, installedVersion: stamp.version, assetHash };
+  }
+  if (stamp.assetHash !== assetHash) {
+    return {
+      needsSync: true,
+      reason: 'asset-hash-mismatch',
+      pluginVersion,
+      installedVersion: stamp.version,
+      assetHash,
+      installedAssetHash: stamp.assetHash,
+    };
+  }
+  return { needsSync: false, reason: 'in-sync', pluginVersion, installedVersion: stamp.version, assetHash };
+}
+
+/**
  * Synchronise the codex-cleanup-manifest.json to include every skill name
  * currently in the repo `skills/` directory. Union with existing entries,
  * deduplicate, and write sorted. Ensures manifest symmetry: every skill
@@ -1402,22 +1488,21 @@ export function installCodexAssets({
   }
   if (installedHookOwned) log('[codex-install] QE hooks installed — run /hooks in Codex to review and approve them.');
 
-  // Record the installed version so SessionStart drift-detection can tell when
-  // the plugin has been updated but Codex assets weren't re-synced yet. The
-  // SessionStart hook reads ~/.codex/.qe-codex-version and, if it lags the
-  // loaded plugin version, kicks off a background re-sync. Best-effort: a
-  // failed stamp just means the next session re-syncs again (idempotent).
+  // Record both release identity and logical asset content identity. Version
+  // catches normal releases; assetHash catches same-version development/plugin
+  // drift. A legacy stamp without assetHash is refreshed on the next session.
   try {
     let version = 'unknown';
     try { version = JSON.parse(readFileSync(join(repoRoot, 'package.json'), 'utf8')).version; } catch {}
+    const assetHash = computeCodexAssetHash(repoRoot);
     writeFileSync(
       join(codexDir, '.qe-codex-version'),
-      `${JSON.stringify({ version, ts: new Date().toISOString() })}\n`,
+      `${JSON.stringify({ schema: 2, version, assetHash, ts: new Date().toISOString() })}\n`,
       'utf8',
     );
     const versionFile = join(codexDir, '.qe-codex-version');
     ownedFiles.set(relative(codexDir, versionFile).split(sep).join('/'), sha256File(versionFile));
-    log(`[codex-install] version stamp written: ${version}`);
+    log(`[codex-install] version/content stamp written: ${version} (${assetHash.slice(0, 12)})`);
   } catch { /* stamp is best-effort — never fail the install on it */ }
 
   writeCodexOwnership(codexDir, ownedFiles);

@@ -294,7 +294,10 @@ Planning state is scoped per plan under `.qe/planning/plans/{slug}/` so multiple
 ## Global Output Rules
 
 ### Response Language
-All skills MUST respond in the same language the user used in their most recent message. If the user writes in Korean, all output — section titles, descriptions, summaries, handoff messages, **and handoff labels (e.g., `Next:` → `다음:`)** — must be in Korean. Only the following are exempt and stay in English:
+<!-- qe:response-language=latest-user-message -->
+Reply in the language of the user's most recent message. Use a stored language profile only when that message has no detectable natural language.
+
+This applies to all skills and user-facing output. If the user writes in Korean, section titles, descriptions, summaries, handoff messages, **and handoff labels (e.g., `Next:` → `다음:`)** must be in Korean. Only the following are exempt and stay in English:
 - File names and paths (e.g., `TASK_REQUEST_abc123.md`)
 - Code and code blocks
 - Skill names and internal stage identifiers (e.g., `Qplan`, `Qexecute`)
