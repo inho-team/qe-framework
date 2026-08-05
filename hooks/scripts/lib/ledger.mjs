@@ -28,7 +28,8 @@
 
 import { appendFileSync, readFileSync, writeFileSync, renameSync, existsSync, mkdirSync, openSync, readSync, closeSync, fstatSync } from './qe-fs.mjs';
 import { join } from 'path';
-import { createHash } from 'crypto';
+import { realpathSync as nativeRealpathSync } from 'node:fs';
+import { createHash, randomUUID } from 'crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'url';
 import { atomicWriteJson } from './state.mjs';
@@ -37,6 +38,8 @@ import { readCurrentSessionId } from './session-resolver.mjs';
 import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
 import { isAllowlistCommand, isBehavioralEvidenceCommand } from './verification-evidence-gate.mjs';
 import { buildProcessTrace, validateTraceabilityDefinition } from './process-trace.mjs';
+import { closeSqlite, openSqlite } from './store-sqlite.mjs';
+import { canonicalJson, createProcessControllerStore, sha256 } from './process-controller-store.mjs';
 import { types as utilTypes } from 'node:util';
 
 const PLANS_DIR = '.qe/planning/plans';
@@ -46,11 +49,51 @@ const EVENT_ENUM = ['created', 'started', 'checkpoint', 'blocker', 'failed', 'me
 const PROGRESS_HEADING = '## Phase Progress';
 const STATUS_TAIL_BYTES = 8192;
 
+const LIFECYCLE_SLUG_RE = /^[a-z0-9][a-z0-9-]{0,39}$/;
+const LIFECYCLE_UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const LIFECYCLE_PROCESS_RE = /^[A-Za-z0-9][A-Za-z0-9._:-]{0,127}$/;
+const LIFECYCLE_LAYERS = new Set(['plan', 'goal', 'pse', 'sivs']);
+const LIFECYCLE_TERMINAL_CHILD = new Set(['committed', 'denied', 'cancelled']);
+const LIFECYCLE_TERMINAL_PARENT = new Set(['committed', 'denied']);
+const LIFECYCLE_MAX_JSON = 64 * 1024;
+const LIFECYCLE_MAX_AGGREGATE = 1024 * 1024;
+const LIFECYCLE_MAX_CHILDREN = 128;
+const LIFECYCLE_SEAL_NAME = 'lifecycle-journal-immutability';
+const LIFECYCLE_MIN_LEASE_MS = 1000;
+const LIFECYCLE_MAX_LEASE_MS = 300000;
+
 // ── paths ────────────────────────────────────────────────────────────────
 function normalizeSlug(raw) {
   if (typeof raw !== 'string') return null;
   const s = raw.trim();
   return /^[a-z0-9][a-z0-9-]{0,63}$/.test(s) ? s : null;
+}
+
+function canonicalPlanRoot(cwd) {
+  const root = process.env.QE_ROOT || process.cwd();
+  try {
+    return nativeRealpathSync(cwd) === nativeRealpathSync(root) ? nativeRealpathSync(root) : null;
+  } catch {
+    return null;
+  }
+}
+
+function qeFilesRowExists(cwd, relPath) {
+  const db = openSqlite(cwd, { readOnly: true });
+  if (!db) return null;
+  try {
+    return !!db.prepare('SELECT 1 FROM qe_files WHERE path=?').get(relPath);
+  } catch {
+    return null;
+  } finally { closeSqlite(db); }
+}
+
+function canonicalPlanBackendConflict(cwd, slug, relPath) {
+  if (!canonicalPlanRoot(cwd)) return false;
+  const diskPath = join(cwd, relPath);
+  if (!existsSync(diskPath)) return false;
+  const rowExists = qeFilesRowExists(cwd, relPath);
+  return rowExists === false;
 }
 /** Absolute path to a plan's directory under `.qe/planning/plans/`. */
 function planDir(cwd, slug) { return join(cwd, PLANS_DIR, slug); }
@@ -71,6 +114,9 @@ function evidenceDir(cwd, slug) { return join(planDir(cwd, slug), 'evidence'); }
 function acceptancePath(cwd, slug, goalId) { return join(evidenceDir(cwd, slug), `${goalId}.acceptance.json`); }
 function completionEvidencePath(cwd, slug, goalId) { return join(evidenceDir(cwd, slug), `${goalId}.completion.json`); }
 function runEvidencePath(cwd, slug, goalId, role) { return join(evidenceDir(cwd, slug), `${goalId}.${role}-run.json`); }
+function runEvidenceHistoryPath(cwd, slug, goalId, role, runId) {
+  return join(evidenceDir(cwd, slug), 'runs', `${goalId}.${role}.${runId}.json`);
+}
 /** Path for a phase report file (reports/ subdir under plan). */
 function reportPath(cwd, slug, phaseNum) { return join(planDir(cwd, slug), 'reports', `PHASE_${phaseNum}_REPORT.md`); }
 /** Current time as an ISO-8601 string (ledger event timestamp). */
@@ -90,11 +136,818 @@ function writeGoals(cwd, slug, doc) {
   atomicWriteJson(goalsPath(cwd, slug), doc); // temp+rename
 }
 
+const PLAN_DOC_MAX_BYTES = 4 * 1024 * 1024;
+const PLAN_LEDGER_MAX_BYTES = 16 * 1024 * 1024;
+const PLAN_LEDGER_MAX_LINES = 131072;
+
+function canonicalPlanError(code, message = code) {
+  const err = new Error(message);
+  err.code = code;
+  return err;
+}
+
+function canonicalPlanOpenDb(cwd, { readOnly = false } = {}) {
+  const db = openSqlite(cwd, { readOnly, timeoutMs: 5000 });
+  if (!db) return null;
+  if (readOnly) return db;
+  try {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS plan_write_identities(
+        identity TEXT PRIMARY KEY,
+        operation TEXT NOT NULL,
+        slug TEXT NOT NULL,
+        goal_id TEXT NOT NULL,
+        artifact_path TEXT NOT NULL,
+        artifact_sha256 TEXT NOT NULL,
+        event_sha256 TEXT NOT NULL,
+        event_offset INTEGER NOT NULL,
+        created_at INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS plan_write_identity_goal ON plan_write_identities(slug, goal_id, operation);
+    `);
+    return db;
+  } catch {
+    closeSqlite(db);
+    return null;
+  }
+}
+
+function canonicalPlanTextBytes(text) {
+  return Buffer.byteLength(text, 'utf8');
+}
+
+function canonicalPlanSerializeJson(value) {
+  const text = JSON.stringify(value, null, 2);
+  if (canonicalPlanTextBytes(text) > PLAN_DOC_MAX_BYTES) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+  return text;
+}
+
+function canonicalPlanReadRow(db, relPath) {
+  return db.prepare('SELECT content, encoding, sha256 FROM qe_files WHERE path=?').get(relPath) || null;
+}
+
+function canonicalPlanDecodeRow(row) {
+  if (!row) return null;
+  return row.encoding === 'base64' ? Buffer.from(row.content || '', 'base64').toString('utf8') : String(row.content || '');
+}
+
+function canonicalPlanReadText(cwd, relPath) {
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd, { readOnly: true });
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      const row = canonicalPlanReadRow(db, relPath);
+      return row ? canonicalPlanDecodeRow(row) : null;
+    } finally { closeSqlite(db); }
+  }
+  const abs = join(cwd, relPath);
+  if (!existsSync(abs)) return null;
+  return readFileSync(abs, 'utf8');
+}
+
+function canonicalPlanReadJson(cwd, relPath) {
+  const text = canonicalPlanReadText(cwd, relPath);
+  if (text == null) return null;
+  try { return JSON.parse(text); } catch { throw canonicalPlanError('CANONICAL_STORE_INVALID'); }
+}
+
+function canonicalPlanWriteRow(db, relPath, text, expectedSha = null, mode = 0o644) {
+  const bytes = canonicalPlanTextBytes(text);
+  if (bytes > PLAN_DOC_MAX_BYTES) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+  const sha = sha256(text);
+  const now = Date.now();
+  const current = canonicalPlanReadRow(db, relPath);
+  if (expectedSha !== null) {
+    if (!current || current.sha256 !== expectedSha) throw canonicalPlanError('CANONICAL_CAS_CONFLICT');
+    db.prepare(`UPDATE qe_files SET content=?,encoding='utf8',size=?,mode=?,mtime_ms=?,sha256=?,migrated_at=?
+      WHERE path=? AND sha256=?`)
+      .run(text, bytes, mode, now, sha, now, relPath, expectedSha);
+  } else if (current) {
+    db.prepare(`UPDATE qe_files SET content=?,encoding='utf8',size=?,mode=?,mtime_ms=?,sha256=?,migrated_at=?
+      WHERE path=?`)
+      .run(text, bytes, mode, now, sha, now, relPath);
+  } else {
+    db.prepare(`INSERT INTO qe_files(path,content,encoding,size,mode,mtime_ms,sha256,migrated_at)
+      VALUES(?,?,?,?,?,?,?,?)`)
+      .run(relPath, text, 'utf8', bytes, mode, now, sha, now);
+  }
+  return { sha, bytes };
+}
+
+function canonicalPlanLedgerLines(text) {
+  if (!text) return [];
+  if (!text.endsWith('\n')) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+  const lines = text.split('\n').filter(Boolean);
+  if (lines.some(line => line.includes('\r'))) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+  return lines;
+}
+
+function canonicalPlanAppendLedger(db, relPath, eventLine) {
+  const currentRow = canonicalPlanReadRow(db, relPath);
+  const currentText = canonicalPlanDecodeRow(currentRow) || '';
+  const lines = canonicalPlanLedgerLines(currentText);
+  if (lines.length + 1 > PLAN_LEDGER_MAX_LINES) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+  const nextLine = JSON.stringify(eventLine);
+  const nextText = currentText + nextLine + '\n';
+  if (canonicalPlanTextBytes(nextText) > PLAN_LEDGER_MAX_BYTES) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+  const nextSha = sha256(nextText);
+  const now = Date.now();
+  if (currentRow) {
+    db.prepare(`UPDATE qe_files SET content=?,encoding='utf8',size=?,mode=?,mtime_ms=?,sha256=?,migrated_at=?
+      WHERE path=? AND sha256=?`)
+      .run(nextText, canonicalPlanTextBytes(nextText), 0o644, now, nextSha, now, relPath, currentRow.sha256);
+  } else {
+    db.prepare(`INSERT INTO qe_files(path,content,encoding,size,mode,mtime_ms,sha256,migrated_at)
+      VALUES(?,?,?,?,?,?,?,?)`)
+      .run(relPath, nextText, 'utf8', canonicalPlanTextBytes(nextText), 0o644, now, nextSha, now);
+  }
+  return { sha: nextSha, lineCount: lines.length + 1 };
+}
+
+function canonicalPlanIdentity(db, identity, operation, slug, goalId, artifactPath, artifactSha256, eventSha256, eventOffset) {
+  const now = Date.now();
+  const existing = db.prepare('SELECT * FROM plan_write_identities WHERE identity=?').get(identity);
+  if (existing) {
+    if (existing.operation !== operation || existing.slug !== slug || existing.goal_id !== goalId ||
+        existing.artifact_path !== artifactPath || existing.artifact_sha256 !== artifactSha256 ||
+        existing.event_sha256 !== eventSha256 || existing.event_offset !== eventOffset) {
+      throw canonicalPlanError('CANONICAL_STORE_INVALID');
+    }
+    return { replayed: true, row: existing };
+  }
+  db.prepare(`INSERT INTO plan_write_identities(identity,operation,slug,goal_id,artifact_path,artifact_sha256,event_sha256,event_offset,created_at)
+    VALUES(?,?,?,?,?,?,?,?,?)`)
+    .run(identity, operation, slug, goalId, artifactPath, artifactSha256, eventSha256, eventOffset, now);
+  return { replayed: false, row: null };
+}
+
+function canonicalPlanWriteError(error) {
+  if (error?.code === 'CANONICAL_CAS_CONFLICT' || error?.code === 'CANONICAL_STORE_INVALID' || error?.code === 'CANONICAL_BACKEND_CONFLICT') {
+    return error;
+  }
+  return canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+}
+
+function canonicalStoreError(code) {
+  const err = new Error(code);
+  err.code = code;
+  return err;
+}
+
+function canonicalStoreClone(value, depth = 0, seen = new Set()) {
+  if (depth > 12) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+    return value;
+  }
+  if (typeof value === 'bigint' || typeof value === 'function' || typeof value === 'symbol' || value === undefined) {
+    throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  }
+  if (seen.has(value)) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  if (utilTypes.isProxy?.(value)) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  if (Array.isArray(value)) {
+    seen.add(value);
+    return value.map(item => canonicalStoreClone(item, depth + 1, seen));
+  }
+  if (value === null || typeof value !== 'object') throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  const prototype = Object.getPrototypeOf(value);
+  if (prototype !== Object.prototype && prototype !== null) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  seen.add(value);
+  const out = {};
+  for (const key of Reflect.ownKeys(value)) {
+    if (typeof key !== 'string') throw canonicalStoreError('CANONICAL_STORE_INVALID');
+    const desc = Object.getOwnPropertyDescriptor(value, key);
+    if (!desc || !Object.prototype.hasOwnProperty.call(desc, 'value')) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+    out[key] = canonicalStoreClone(desc.value, depth + 1, seen);
+  }
+  return out;
+}
+
 /** Append one event line. O(1) — never reads or rewrites existing lines. */
 export function recordEvent(cwd, slug, event) {
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const rel = join(PLANS_DIR, slug, 'ledger.jsonl');
+      const cloned = canonicalStoreClone(event);
+      const { lineCount } = canonicalPlanAppendLedger(db, rel, cloned);
+      db.exec('COMMIT');
+      return;
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   const dir = planDir(cwd, slug);
   if (!existsSync(dir)) mkdirSync(dir, { recursive: true });
-  appendFileSync(ledgerPath(cwd, slug), JSON.stringify(event) + '\n', 'utf8');
+  const cloned = canonicalStoreClone(event);
+  const line = canonicalJson(cloned);
+  if (Buffer.byteLength(line, 'utf8') > 64 * 1024) throw canonicalStoreError('CANONICAL_STORE_INVALID');
+  appendFileSync(ledgerPath(cwd, slug), line + '\n', 'utf8');
+}
+
+// ── Durable composite lifecycle journal ─────────────────────────────────
+
+function lifecyclePlainObject(value) {
+  try {
+    if (value === null || typeof value !== 'object' || Array.isArray(value)) return false;
+    const prototype = Object.getPrototypeOf(value);
+    if (prototype !== Object.prototype && prototype !== null) return false;
+    return Reflect.ownKeys(value).every(key => typeof key === 'string'
+      && Object.getOwnPropertyDescriptor(value, key)?.get === undefined
+      && Object.getOwnPropertyDescriptor(value, key)?.set === undefined);
+  } catch { return false; }
+}
+
+function lifecycleClone(value, depth = 0) {
+  if (depth > 12) throw new TypeError('depth');
+  if (value === null || typeof value === 'boolean' || typeof value === 'string') return value;
+  if (typeof value === 'number') {
+    if (!Number.isFinite(value)) throw new TypeError('number');
+    return value;
+  }
+  if (Array.isArray(value)) return value.map(item => lifecycleClone(item, depth + 1));
+  if (!lifecyclePlainObject(value)) throw new TypeError('object');
+  const out = {};
+  for (const key of Object.keys(value).sort()) out[key] = lifecycleClone(value[key], depth + 1);
+  return out;
+}
+
+function lifecycleExact(value, keys) {
+  return lifecyclePlainObject(value)
+    && Object.keys(value).sort().join('|') === [...keys].sort().join('|');
+}
+
+function lifecycleBoundedString(value, maxBytes, pattern = null) {
+  return typeof value === 'string' && value.trim() !== ''
+    && Buffer.byteLength(value, 'utf8') <= maxBytes && (!pattern || pattern.test(value));
+}
+
+function lifecycleError(code) { return { ok: false, code }; }
+
+// Private crash-test seam. It is intentionally not exported or reachable from
+// lifecycle request envelopes; subprocess tests install the symbol locally.
+function lifecycleFault(point) {
+  const injector = globalThis[Symbol.for('qe.lifecycle-journal.fault-injector')];
+  if (typeof injector === 'function') injector(point);
+}
+
+function lifecycleSchema(db) {
+  db.exec(`
+    CREATE TABLE IF NOT EXISTS lifecycle_operations(
+      slug TEXT NOT NULL,
+      operation_id TEXT PRIMARY KEY,
+      semantic_key TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      payload_json TEXT NOT NULL,
+      intent_digest TEXT NOT NULL,
+      roster_json TEXT NOT NULL DEFAULT '[]',
+      roster_digest TEXT NOT NULL DEFAULT '',
+      finalized INTEGER NOT NULL DEFAULT 0 CHECK(finalized IN (0,1)),
+      status TEXT NOT NULL,
+      current_ordinal INTEGER NOT NULL,
+      result_json TEXT,
+      created_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL,
+      UNIQUE(slug, semantic_key)
+    );
+    CREATE TABLE IF NOT EXISTS lifecycle_operation_children(
+      operation_id TEXT NOT NULL,
+      ordinal INTEGER NOT NULL,
+      layer TEXT NOT NULL,
+      operation_kind TEXT NOT NULL,
+      process_id TEXT NOT NULL,
+      request_id TEXT NOT NULL,
+      request_json TEXT NOT NULL,
+      status TEXT NOT NULL,
+      attempt INTEGER NOT NULL,
+      claim_owner TEXT,
+      claim_token TEXT,
+      lease_until INTEGER,
+      result_ref_json TEXT,
+      PRIMARY KEY(operation_id, ordinal),
+      UNIQUE(operation_id, request_id)
+    );
+    CREATE INDEX IF NOT EXISTS lifecycle_children_status
+      ON lifecycle_operation_children(operation_id, status, ordinal);
+
+    CREATE TABLE IF NOT EXISTS qe_schema_seals(
+      name TEXT PRIMARY KEY,
+      version INTEGER NOT NULL,
+      digest TEXT NOT NULL,
+      installed_at INTEGER NOT NULL
+    );
+  `);
+}
+
+function lifecycleRosterDigest(operationId, roster) {
+  return sha256(canonicalJson(['qe-lifecycle-roster-v1', operationId, roster]));
+}
+
+function lifecycleRosterEntry(rosterJson, ordinal) {
+  const roster = typeof rosterJson === 'string' ? JSON.parse(rosterJson) : rosterJson;
+  if (!Array.isArray(roster) || !Number.isSafeInteger(ordinal) || ordinal < 0 || ordinal >= roster.length) {
+    throw new Error('LIFECYCLE_IMMUTABLE');
+  }
+  return roster[ordinal];
+}
+
+function lifecycleRosterRequestJson(rosterJson, ordinal) {
+  const entry = lifecycleRosterEntry(rosterJson, ordinal);
+  return canonicalJson(entry.request);
+}
+
+function lifecycleBackfill(db) {
+  const columns = new Set(db.prepare('PRAGMA table_info(lifecycle_operations)').all().map(row => row.name));
+  if (!columns.has('roster_json')) db.exec(`ALTER TABLE lifecycle_operations ADD COLUMN roster_json TEXT NOT NULL DEFAULT '[]'`);
+  if (!columns.has('roster_digest')) db.exec(`ALTER TABLE lifecycle_operations ADD COLUMN roster_digest TEXT NOT NULL DEFAULT ''`);
+  if (!columns.has('finalized')) db.exec(`ALTER TABLE lifecycle_operations ADD COLUMN finalized INTEGER NOT NULL DEFAULT 0`);
+
+  const parents = db.prepare('SELECT operation_id FROM lifecycle_operations ORDER BY operation_id').all();
+  for (const { operation_id: operationId } of parents) {
+    const children = db.prepare('SELECT * FROM lifecycle_operation_children WHERE operation_id=? ORDER BY ordinal').all(operationId);
+    if (children.length === 0) continue;
+    const roster = children.map((child, ordinal) => ({
+      ordinal,
+      layer: child.layer,
+      operation: child.operation_kind,
+      processId: child.process_id,
+      requestId: child.request_id,
+      request: lifecycleParseJson(child.request_json),
+    }));
+    if (roster.some(entry => !entry.request)) throw new Error('LIFECYCLE_IMMUTABLE');
+    const rosterJson = canonicalJson(roster);
+    const rosterDigest = lifecycleRosterDigest(operationId, roster);
+    db.prepare('UPDATE lifecycle_operations SET roster_json=?,roster_digest=?,finalized=1 WHERE operation_id=?')
+      .run(rosterJson, rosterDigest, operationId);
+  }
+}
+
+function lifecycleInstallGuards(db) {
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS lifecycle_operations_parent_insert_guard
+      BEFORE INSERT ON lifecycle_operations
+      WHEN NEW.finalized <> 0 OR NEW.status <> 'pending' OR NEW.current_ordinal <> 0
+        OR NEW.result_json IS NOT NULL
+        OR NEW.roster_digest <> qe_lifecycle_roster_digest_v1(NEW.operation_id, NEW.roster_json)
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS lifecycle_operations_parent_update_guard
+      BEFORE UPDATE ON lifecycle_operations
+      WHEN NEW.slug <> OLD.slug OR NEW.operation_id <> OLD.operation_id OR NEW.semantic_key <> OLD.semantic_key
+        OR NEW.kind <> OLD.kind OR NEW.payload_json <> OLD.payload_json OR NEW.roster_json <> OLD.roster_json
+        OR NEW.roster_digest <> OLD.roster_digest OR NEW.created_at <> OLD.created_at
+        OR (OLD.finalized = 0 AND NEW.finalized <> 1)
+        OR (OLD.finalized = 1 AND NEW.finalized <> OLD.finalized AND NEW.finalized <> 1)
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS lifecycle_operations_parent_delete_guard
+      BEFORE DELETE ON lifecycle_operations BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS lifecycle_operation_children_insert_guard
+      BEFORE INSERT ON lifecycle_operation_children
+      WHEN NOT EXISTS(SELECT 1 FROM lifecycle_operations p WHERE p.operation_id = NEW.operation_id AND p.finalized = 0)
+        OR NEW.status <> 'pending' OR NEW.attempt <> 0 OR NEW.claim_owner IS NOT NULL OR NEW.claim_token IS NOT NULL
+        OR NEW.lease_until IS NOT NULL OR NEW.result_ref_json IS NOT NULL
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS lifecycle_operation_children_update_guard
+      BEFORE UPDATE ON lifecycle_operation_children
+      WHEN EXISTS(SELECT 1 FROM lifecycle_operations p WHERE p.operation_id = NEW.operation_id AND p.finalized = 0)
+        OR NEW.operation_id <> OLD.operation_id OR NEW.ordinal <> OLD.ordinal OR NEW.layer <> OLD.layer
+        OR NEW.operation_kind <> OLD.operation_kind OR NEW.process_id <> OLD.process_id OR NEW.request_id <> OLD.request_id
+        OR NEW.request_json <> OLD.request_json
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS lifecycle_operation_children_delete_guard
+      BEFORE DELETE ON lifecycle_operation_children BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS qe_schema_seals_insert_guard
+      BEFORE INSERT ON qe_schema_seals
+      WHEN NEW.name = '${LIFECYCLE_SEAL_NAME}' AND EXISTS(SELECT 1 FROM qe_schema_seals WHERE name = NEW.name)
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS qe_schema_seals_no_update
+      BEFORE UPDATE ON qe_schema_seals
+      WHEN OLD.name = '${LIFECYCLE_SEAL_NAME}' OR NEW.name = '${LIFECYCLE_SEAL_NAME}'
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+
+    CREATE TRIGGER IF NOT EXISTS qe_schema_seals_no_delete
+      BEFORE DELETE ON qe_schema_seals
+      WHEN OLD.name = '${LIFECYCLE_SEAL_NAME}'
+      BEGIN SELECT RAISE(ABORT, 'LIFECYCLE_IMMUTABLE'); END;
+  `);
+}
+
+function openLifecycleDb(cwd) {
+  const db = openSqlite(cwd, { timeoutMs: 5000 });
+  if (!db) return null;
+  try {
+    lifecycleSchema(db);
+    db.function('qe_lifecycle_roster_digest_v1', { deterministic: true }, (operationId, rosterJson) => lifecycleRosterDigest(String(operationId), JSON.parse(String(rosterJson))));
+    db.function('qe_lifecycle_roster_entry_v1', { deterministic: true }, (rosterJson, ordinal) => canonicalJson(lifecycleRosterEntry(String(rosterJson), Number(ordinal))));
+    db.function('qe_lifecycle_roster_request_v1', { deterministic: true }, (rosterJson, ordinal) => lifecycleRosterRequestJson(String(rosterJson), Number(ordinal)));
+    lifecycleBackfill(db);
+    lifecycleInstallGuards(db);
+    return db;
+  }
+  catch { closeSqlite(db); return null; }
+}
+
+function lifecycleParseJson(value) {
+  try { return value == null ? null : JSON.parse(value); } catch { return null; }
+}
+
+function lifecycleChildView(row) {
+  return {
+    ordinal: row.ordinal,
+    layer: row.layer,
+    operation: row.operation_kind,
+    processId: row.process_id,
+    requestId: row.request_id,
+    request: lifecycleParseJson(row.request_json),
+    status: row.status,
+    attempt: row.attempt,
+    claim: row.claim_token == null ? null : {
+      owner: row.claim_owner, token: row.claim_token, leaseUntil: row.lease_until,
+    },
+    resultRef: lifecycleParseJson(row.result_ref_json),
+  };
+}
+
+function lifecycleOperationFromDb(db, operationId) {
+  const row = db.prepare('SELECT * FROM lifecycle_operations WHERE operation_id=?').get(operationId);
+  if (!row) return null;
+  const children = db.prepare('SELECT * FROM lifecycle_operation_children WHERE operation_id=? ORDER BY ordinal')
+    .all(operationId).map(lifecycleChildView);
+  return {
+    slug: row.slug,
+    operationId: row.operation_id,
+    semanticKey: row.semantic_key,
+    kind: row.kind,
+    payload: lifecycleParseJson(row.payload_json),
+    intentDigest: row.intent_digest,
+    status: row.status,
+    currentOrdinal: row.current_ordinal,
+    result: lifecycleParseJson(row.result_json),
+    children,
+  };
+}
+
+function lifecycleRequestId(slug, operationId, ordinal, child) {
+  return sha256(canonicalJson([
+    'qe-lifecycle-child-v1', slug, operationId, ordinal,
+    child.layer, child.operation, child.processId,
+  ]));
+}
+
+function normalizeLifecycleChild(raw, ordinal, slug, operationId) {
+  if (!lifecyclePlainObject(raw)) throw new TypeError('child');
+  const common = lifecycleBoundedString(raw.layer, 16) && LIFECYCLE_LAYERS.has(raw.layer)
+    && raw.operation && lifecycleBoundedString(raw.processId, 128, LIFECYCLE_PROCESS_RE);
+  if (!common) throw new TypeError('child');
+  let semantic;
+  if (raw.operation === 'initialize' && lifecycleExact(raw, ['layer', 'operation', 'processId'])) {
+    semantic = { ordinal, layer: raw.layer, operation: raw.operation, processId: raw.processId };
+  } else if (raw.operation === 'transition'
+    && lifecycleExact(raw, ['layer', 'operation', 'processId', 'to', 'expectedRevision', 'attestations', 'humanAcceptance'])
+    && lifecycleBoundedString(raw.to, 64)
+    && Number.isSafeInteger(raw.expectedRevision) && raw.expectedRevision >= 0) {
+    semantic = lifecycleClone({
+      ordinal, layer: raw.layer, operation: raw.operation, processId: raw.processId,
+      to: raw.to, expectedRevision: raw.expectedRevision,
+      attestations: raw.attestations, humanAcceptance: raw.humanAcceptance,
+    });
+  } else throw new TypeError('child');
+  const requestId = lifecycleRequestId(slug, operationId, ordinal, semantic);
+  const request = semantic.operation === 'initialize'
+    ? { processId: semantic.processId, requestId }
+    : {
+        processId: semantic.processId, requestId, to: semantic.to,
+        expectedRevision: semantic.expectedRevision, attestations: semantic.attestations,
+        humanAcceptance: semantic.humanAcceptance,
+      };
+  if (Buffer.byteLength(canonicalJson(request), 'utf8') > LIFECYCLE_MAX_JSON) throw new TypeError('child-size');
+  return { semantic, requestId, request };
+}
+
+function normalizeLifecycleCreate(slug, input) {
+  if (!LIFECYCLE_SLUG_RE.test(slug) || !lifecycleExact(input, ['operationId', 'semanticKey', 'kind', 'payload', 'children'])
+    || !LIFECYCLE_UUID_RE.test(input.operationId)
+    || !lifecycleBoundedString(input.semanticKey, 256)
+    || !lifecycleBoundedString(input.kind, 64)
+    || !Array.isArray(input.children) || input.children.length < 1 || input.children.length > LIFECYCLE_MAX_CHILDREN) return null;
+  try {
+    const payload = lifecycleClone(input.payload);
+    if (Buffer.byteLength(canonicalJson(payload), 'utf8') > LIFECYCLE_MAX_JSON) return null;
+    const normalized = input.children.map((child, ordinal) => normalizeLifecycleChild(child, ordinal, slug, input.operationId));
+    const orderedChildren = normalized.map(item => item.semantic);
+    const intent = ['qe-lifecycle-intent-v1', 1, slug, input.semanticKey, input.kind, payload, orderedChildren];
+    const roster = normalized.map((item, ordinal) => ({
+      ordinal,
+      layer: item.semantic.layer,
+      operation: item.semantic.operation,
+      processId: item.semantic.processId,
+      requestId: item.requestId,
+      request: item.request,
+    }));
+    const aggregate = canonicalJson({
+      operationId: input.operationId, semanticKey: input.semanticKey, kind: input.kind,
+      payload, children: normalized.map(item => ({ ...item.semantic, requestId: item.requestId, request: item.request })),
+    });
+    if (Buffer.byteLength(aggregate, 'utf8') > LIFECYCLE_MAX_AGGREGATE) return null;
+    return { operationId: input.operationId, semanticKey: input.semanticKey, kind: input.kind,
+      payload, normalized, roster, intentDigest: sha256(canonicalJson(intent)) };
+  } catch { return null; }
+}
+
+/** Persist one closed composite intent and its complete ordered roster before any claim. */
+export function createLifecycleOperation(cwd, slug, input) {
+  const captured = normalizeLifecycleCreate(slug, input);
+  if (!captured) return lifecycleError('INVALID_INPUT');
+  const db = openLifecycleDb(cwd);
+  if (!db) return lifecycleError('STORE_UNAVAILABLE');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    const semantic = db.prepare('SELECT operation_id,intent_digest FROM lifecycle_operations WHERE slug=? AND semantic_key=?')
+      .get(slug, captured.semanticKey);
+    if (semantic) {
+      if (semantic.intent_digest !== captured.intentDigest) {
+        db.exec('ROLLBACK'); return lifecycleError('PAYLOAD_CONFLICT');
+      }
+      const operation = lifecycleOperationFromDb(db, semantic.operation_id);
+      db.exec('COMMIT');
+      return { ok: true, code: 'REPLAYED', operation };
+    }
+    const reusedId = db.prepare('SELECT 1 FROM lifecycle_operations WHERE operation_id=?').get(captured.operationId);
+    if (reusedId) { db.exec('ROLLBACK'); return lifecycleError('PAYLOAD_CONFLICT'); }
+    const now = Date.now();
+    db.prepare(`INSERT INTO lifecycle_operations
+      (slug,operation_id,semantic_key,kind,payload_json,intent_digest,roster_json,roster_digest,finalized,status,current_ordinal,result_json,created_at,updated_at)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?,?)`)
+      .run(slug, captured.operationId, captured.semanticKey, captured.kind,
+        canonicalJson(captured.payload), captured.intentDigest,
+        canonicalJson(captured.roster), lifecycleRosterDigest(captured.operationId, captured.roster),
+        0, 'pending', 0, null, now, now);
+    lifecycleFault('create-after-parent');
+    const insertChild = db.prepare(`INSERT INTO lifecycle_operation_children
+      (operation_id,ordinal,layer,operation_kind,process_id,request_id,request_json,status,attempt,claim_owner,claim_token,lease_until,result_ref_json)
+      VALUES(?,?,?,?,?,?,?,?,?,?,?,?,?)`);
+    for (let ordinal = 0; ordinal < captured.normalized.length; ordinal += 1) {
+      const item = captured.normalized[ordinal];
+      insertChild.run(captured.operationId, ordinal, item.semantic.layer, item.semantic.operation,
+        item.semantic.processId, item.requestId, canonicalJson(item.request), 'pending', 0, null, null, null, null);
+    }
+    db.prepare(`UPDATE lifecycle_operations SET finalized=1 WHERE operation_id=?`).run(captured.operationId);
+    db.prepare(`INSERT OR IGNORE INTO qe_schema_seals(name,version,digest,installed_at) VALUES(?,?,?,?)`)
+      .run(LIFECYCLE_SEAL_NAME, 1, lifecycleRosterDigest(captured.operationId, captured.roster), now);
+    lifecycleFault('create-before-commit');
+    db.exec('COMMIT');
+    lifecycleFault('create-after-commit');
+    return { ok: true, code: 'CREATED', operation: lifecycleOperationFromDb(db, captured.operationId) };
+  } catch {
+    try { db.exec('ROLLBACK'); } catch {}
+    return lifecycleError('STORE_UNAVAILABLE');
+  } finally { closeSqlite(db); }
+}
+
+/** Read a closed lifecycle journal projection. */
+export function getLifecycleOperation(cwd, slug, operationId) {
+  if (!LIFECYCLE_SLUG_RE.test(slug) || !LIFECYCLE_UUID_RE.test(operationId)) return lifecycleError('INVALID_INPUT');
+  const db = openLifecycleDb(cwd);
+  if (!db) return lifecycleError('STORE_UNAVAILABLE');
+  try {
+    const operation = lifecycleOperationFromDb(db, operationId);
+    if (!operation || operation.slug !== slug) return lifecycleError('NOT_FOUND');
+    return { ok: true, code: 'FOUND', operation };
+  } catch { return lifecycleError('STORE_UNAVAILABLE'); }
+  finally { closeSqlite(db); }
+}
+
+function lifecycleAuditDecision(cwd, child) {
+  const controller = createProcessControllerStore(cwd);
+  if (!controller) return { code: 'STORE_UNAVAILABLE', decision: null };
+  try {
+    const rawRows = controller.audit(child.process_id);
+    const head = controller.read(child.process_id);
+    if (head.code === 'PROCESS_NOT_FOUND') {
+      return rawRows.length === 0 ? { code: 'NONE', decision: null } : { code: 'CONTROLLER_AUDIT_INVALID', decision: null };
+    }
+    if (!head.ok) return { code: 'CONTROLLER_AUDIT_INVALID', decision: null };
+    const candidates = rawRows.filter(row => row.request_key === child.request_id);
+    if (candidates.length === 0) return { code: 'NONE', decision: null };
+    if (candidates.length !== 1) return { code: 'CONTROLLER_AUDIT_INVALID', decision: null };
+    const row = candidates[0];
+    if (row.audit_seq > head.auditSeq) return { code: 'CONTROLLER_AUDIT_INVALID', decision: null };
+    const event = lifecycleParseJson(row.event_json);
+    const request = lifecycleParseJson(child.request_json);
+    if (!event || event.processId !== child.process_id || event.layer !== child.layer
+      || event.operation !== child.operation_kind || event.requestId !== child.request_id
+      || canonicalJson(event.request) !== canonicalJson(request)
+      || typeof event.allowed !== 'boolean' || !event.result
+      || row.event_hash !== (row.audit_seq === head.auditSeq ? head.auditHash : row.event_hash)) {
+      return { code: 'CONTROLLER_AUDIT_INVALID', decision: null };
+    }
+    return {
+      code: 'FOUND',
+      decision: {
+        status: event.allowed ? 'committed' : 'denied',
+        resultRef: {
+          processId: event.processId, requestId: event.requestId, auditSeq: row.audit_seq,
+          auditHash: row.event_hash, allowed: event.allowed, code: event.code,
+          stateRevisionBefore: event.stateRevisionBefore, stateRevisionAfter: event.stateRevisionAfter,
+          resultDigest: sha256(canonicalJson(event.result)),
+        },
+      },
+    };
+  } catch { return { code: 'CONTROLLER_AUDIT_INVALID', decision: null }; }
+  finally { controller.close(); }
+}
+
+function lifecycleInternalRows(db, operationId) {
+  const parent = db.prepare('SELECT * FROM lifecycle_operations WHERE operation_id=?').get(operationId);
+  if (!parent) return null;
+  const children = db.prepare('SELECT * FROM lifecycle_operation_children WHERE operation_id=? ORDER BY ordinal').all(operationId);
+  return { parent, children };
+}
+
+function applyLifecycleDecision(db, rows, ordinal, decision, now) {
+  const child = rows.children[ordinal];
+  db.prepare(`UPDATE lifecycle_operation_children SET status=?,claim_owner=NULL,claim_token=NULL,
+    lease_until=NULL,result_ref_json=? WHERE operation_id=? AND ordinal=?`)
+    .run(decision.status, canonicalJson(decision.resultRef), rows.parent.operation_id, ordinal);
+  lifecycleFault('settle-after-child');
+  if (decision.status === 'denied') {
+    const suffix = rows.children.slice(ordinal + 1);
+    if (suffix.some(item => item.status !== 'pending')) throw new Error('ordered child invariant');
+    db.prepare(`UPDATE lifecycle_operation_children SET status='cancelled'
+      WHERE operation_id=? AND ordinal>? AND status='pending'`).run(rows.parent.operation_id, ordinal);
+    const result = canonicalJson({ outcome: 'denied', ordinal, resultRef: decision.resultRef });
+    db.prepare(`UPDATE lifecycle_operations SET status='denied',result_json=?,updated_at=? WHERE operation_id=?`)
+      .run(result, now, rows.parent.operation_id);
+    lifecycleFault('settle-after-parent');
+    return;
+  }
+  const nextOrdinal = ordinal + 1;
+  if (nextOrdinal === rows.children.length) {
+    const result = canonicalJson({ outcome: 'committed', childCount: rows.children.length });
+    db.prepare(`UPDATE lifecycle_operations SET status='committed',current_ordinal=?,result_json=?,updated_at=? WHERE operation_id=?`)
+      .run(nextOrdinal, result, now, rows.parent.operation_id);
+  } else {
+    db.prepare(`UPDATE lifecycle_operations SET status='running',current_ordinal=?,updated_at=? WHERE operation_id=?`)
+      .run(nextOrdinal, now, rows.parent.operation_id);
+  }
+  lifecycleFault('settle-after-parent');
+}
+
+function lifecycleChildSnapshot(cwd, slug, operationId, ordinal) {
+  const db = openLifecycleDb(cwd);
+  if (!db) return { error: 'STORE_UNAVAILABLE' };
+  try {
+    const rows = lifecycleInternalRows(db, operationId);
+    if (!rows || rows.parent.slug !== slug || !rows.children[ordinal]) return { error: 'NOT_FOUND' };
+    return { row: rows.children[ordinal] };
+  } catch { return { error: 'STORE_UNAVAILABLE' }; }
+  finally { closeSqlite(db); }
+}
+
+/** Claim only the current ordered child, reconciling a lost controller response first. */
+export function claimLifecycleChild(cwd, slug, input) {
+  if (!LIFECYCLE_SLUG_RE.test(slug) || !lifecycleExact(input, ['operationId', 'ordinal', 'owner', 'leaseMs'])
+    || !LIFECYCLE_UUID_RE.test(input.operationId) || !Number.isSafeInteger(input.ordinal) || input.ordinal < 0
+    || !lifecycleBoundedString(input.owner, 128) || !Number.isSafeInteger(input.leaseMs)
+    || input.leaseMs < LIFECYCLE_MIN_LEASE_MS || input.leaseMs > LIFECYCLE_MAX_LEASE_MS) return lifecycleError('INVALID_INPUT');
+  const snapshot = lifecycleChildSnapshot(cwd, slug, input.operationId, input.ordinal);
+  if (snapshot.error) return lifecycleError(snapshot.error);
+  const audit = lifecycleAuditDecision(cwd, snapshot.row);
+  if (audit.code === 'CONTROLLER_AUDIT_INVALID' || audit.code === 'STORE_UNAVAILABLE') return lifecycleError(audit.code);
+  const db = openLifecycleDb(cwd);
+  if (!db) return lifecycleError('STORE_UNAVAILABLE');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    const rows = lifecycleInternalRows(db, input.operationId);
+    if (!rows || rows.parent.slug !== slug || !rows.children[input.ordinal]) { db.exec('ROLLBACK'); return lifecycleError('NOT_FOUND'); }
+    const child = rows.children[input.ordinal];
+    if (LIFECYCLE_TERMINAL_PARENT.has(rows.parent.status) || LIFECYCLE_TERMINAL_CHILD.has(child.status)) {
+      const operation = lifecycleOperationFromDb(db, input.operationId); db.exec('COMMIT');
+      return { ok: true, code: 'REPLAYED', child: operation.children[input.ordinal] };
+    }
+    if (rows.parent.current_ordinal !== input.ordinal) { db.exec('ROLLBACK'); return lifecycleError('ORDER_VIOLATION'); }
+    const now = Date.now();
+    if (audit.decision) {
+      applyLifecycleDecision(db, rows, input.ordinal, audit.decision, now);
+      db.exec('COMMIT');
+      const operation = lifecycleOperationFromDb(db, input.operationId);
+      return { ok: true, code: 'RECONCILED', child: operation.children[input.ordinal] };
+    }
+    if (child.status === 'claimed' && child.lease_until > now) {
+      if (child.claim_owner !== input.owner) { db.exec('ROLLBACK'); return lifecycleError('CHILD_CAS_CONFLICT'); }
+      const view = lifecycleChildView(child); db.exec('COMMIT');
+      return { ok: true, code: 'REPLAYED', child: view };
+    }
+    if (!['pending', 'unavailable', 'claimed'].includes(child.status)) { db.exec('ROLLBACK'); return lifecycleError('CHILD_CAS_CONFLICT'); }
+    const token = randomUUID();
+    const changed = db.prepare(`UPDATE lifecycle_operation_children SET status='claimed',attempt=attempt+1,
+      claim_owner=?,claim_token=?,lease_until=? WHERE operation_id=? AND ordinal=? AND status=? AND attempt=?`)
+      .run(input.owner, token, now + input.leaseMs, input.operationId, input.ordinal, child.status, child.attempt);
+    if (changed.changes !== 1) { db.exec('ROLLBACK'); return lifecycleError('CHILD_CAS_CONFLICT'); }
+    lifecycleFault('claim-after-child');
+    db.prepare(`UPDATE lifecycle_operations SET status='running',updated_at=? WHERE operation_id=?`).run(now, input.operationId);
+    lifecycleFault('claim-before-commit');
+    db.exec('COMMIT');
+    lifecycleFault('claim-after-commit');
+    const operation = lifecycleOperationFromDb(db, input.operationId);
+    return { ok: true, code: 'CLAIMED', child: operation.children[input.ordinal] };
+  } catch {
+    try { db.exec('ROLLBACK'); } catch {}
+    return lifecycleError('STORE_UNAVAILABLE');
+  } finally { closeSqlite(db); }
+}
+
+/** Settle a claimed child exclusively from an authoritative per-process audit row. */
+export function settleLifecycleChild(cwd, slug, input) {
+  if (!LIFECYCLE_SLUG_RE.test(slug) || !lifecycleExact(input, ['operationId', 'ordinal', 'claimToken'])
+    || !LIFECYCLE_UUID_RE.test(input.operationId) || !Number.isSafeInteger(input.ordinal) || input.ordinal < 0
+    || !LIFECYCLE_UUID_RE.test(input.claimToken)) return lifecycleError('INVALID_INPUT');
+  const snapshot = lifecycleChildSnapshot(cwd, slug, input.operationId, input.ordinal);
+  if (snapshot.error) return lifecycleError(snapshot.error);
+  const audit = lifecycleAuditDecision(cwd, snapshot.row);
+  if (audit.code === 'CONTROLLER_AUDIT_INVALID' || audit.code === 'STORE_UNAVAILABLE') return lifecycleError(audit.code);
+  const db = openLifecycleDb(cwd);
+  if (!db) return lifecycleError('STORE_UNAVAILABLE');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    const rows = lifecycleInternalRows(db, input.operationId);
+    if (!rows || rows.parent.slug !== slug || !rows.children[input.ordinal]) { db.exec('ROLLBACK'); return lifecycleError('NOT_FOUND'); }
+    const child = rows.children[input.ordinal];
+    if (LIFECYCLE_TERMINAL_CHILD.has(child.status)) {
+      const operation = lifecycleOperationFromDb(db, input.operationId); db.exec('COMMIT');
+      return { ok: true, code: 'REPLAYED', child: operation.children[input.ordinal], operation };
+    }
+    if (child.status !== 'claimed' || child.claim_token !== input.claimToken
+      || rows.parent.current_ordinal !== input.ordinal) { db.exec('ROLLBACK'); return lifecycleError('CHILD_CAS_CONFLICT'); }
+    const now = Date.now();
+    if (!audit.decision) {
+      db.prepare(`UPDATE lifecycle_operation_children SET status='unavailable',claim_owner=NULL,
+        claim_token=NULL,lease_until=NULL WHERE operation_id=? AND ordinal=?`).run(input.operationId, input.ordinal);
+      db.prepare(`UPDATE lifecycle_operations SET status='running',updated_at=? WHERE operation_id=?`).run(now, input.operationId);
+    } else applyLifecycleDecision(db, rows, input.ordinal, audit.decision, now);
+    lifecycleFault('settle-before-commit');
+    db.exec('COMMIT');
+    lifecycleFault('settle-after-commit');
+    const operation = lifecycleOperationFromDb(db, input.operationId);
+    return { ok: true, code: 'RECORDED', child: operation.children[input.ordinal], operation };
+  } catch {
+    try { db.exec('ROLLBACK'); } catch {}
+    return lifecycleError('STORE_UNAVAILABLE');
+  } finally { closeSqlite(db); }
+}
+
+/** Reconcile the current child after restart without issuing a controller call. */
+export function reconcileLifecycleOperation(cwd, slug, input) {
+  if (!LIFECYCLE_SLUG_RE.test(slug) || !lifecycleExact(input, ['operationId'])
+    || !LIFECYCLE_UUID_RE.test(input.operationId)) return lifecycleError('INVALID_INPUT');
+  const current = getLifecycleOperation(cwd, slug, input.operationId);
+  if (!current.ok) return current;
+  if (LIFECYCLE_TERMINAL_PARENT.has(current.operation.status)) {
+    return { ok: true, code: 'UNCHANGED', operation: current.operation };
+  }
+  const ordinal = current.operation.currentOrdinal;
+  const snapshot = lifecycleChildSnapshot(cwd, slug, input.operationId, ordinal);
+  if (snapshot.error) return lifecycleError(snapshot.error);
+  const audit = lifecycleAuditDecision(cwd, snapshot.row);
+  if (audit.code === 'CONTROLLER_AUDIT_INVALID' || audit.code === 'STORE_UNAVAILABLE') return lifecycleError(audit.code);
+  const db = openLifecycleDb(cwd);
+  if (!db) return lifecycleError('STORE_UNAVAILABLE');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    const rows = lifecycleInternalRows(db, input.operationId);
+    if (!rows || rows.parent.slug !== slug) { db.exec('ROLLBACK'); return lifecycleError('NOT_FOUND'); }
+    if (LIFECYCLE_TERMINAL_PARENT.has(rows.parent.status)) {
+      const operation = lifecycleOperationFromDb(db, input.operationId); db.exec('COMMIT');
+      return { ok: true, code: 'UNCHANGED', operation };
+    }
+    if (rows.parent.current_ordinal !== ordinal) { db.exec('ROLLBACK'); return lifecycleError('CHILD_CAS_CONFLICT'); }
+    const child = rows.children[ordinal];
+    const now = Date.now();
+    let changed = false;
+    if (audit.decision) {
+      applyLifecycleDecision(db, rows, ordinal, audit.decision, now); changed = true;
+    } else if (child.status === 'claimed' && child.lease_until <= now) {
+      db.prepare(`UPDATE lifecycle_operation_children SET status='unavailable',claim_owner=NULL,
+        claim_token=NULL,lease_until=NULL WHERE operation_id=? AND ordinal=?`).run(input.operationId, ordinal);
+      db.prepare(`UPDATE lifecycle_operations SET status='running',updated_at=? WHERE operation_id=?`).run(now, input.operationId);
+      changed = true;
+    }
+    db.exec('COMMIT');
+    return { ok: true, code: changed ? 'RECONCILED' : 'UNCHANGED', operation: lifecycleOperationFromDb(db, input.operationId) };
+  } catch {
+    try { db.exec('ROLLBACK'); } catch {}
+    return lifecycleError('STORE_UNAVAILABLE');
+  } finally { closeSqlite(db); }
 }
 
 /** Bounded tail read of ledger.jsonl — reads at most STATUS_TAIL_BYTES. */
@@ -158,6 +1011,38 @@ function parseRoadmapGoals(cwd, slug) {
  * already exists it is preserved (re-running Qplan must not wipe history).
  */
 export function createGoals(cwd, slug, explicitGoals = []) {
+  const relGoals = join(PLANS_DIR, slug, 'goals.json');
+  if (canonicalPlanBackendConflict(cwd, slug, relGoals)) {
+    return { ok: false, code: 'CANONICAL_BACKEND_CONFLICT', reason: 'stale disk goals.json without DB row' };
+  }
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) return { ok: false, code: 'CANONICAL_STORE_UNAVAILABLE' };
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const current = canonicalPlanReadRow(db, relGoals);
+      if (current) { db.exec('COMMIT'); return { skipped: true, reason: 'goals.json exists' }; }
+      let goals = explicitGoals.map((g, i) => {
+        const [title, objective] = String(g).split('::');
+        return { id: `G${String(i + 1).padStart(3, '0')}`, title: (title || g).trim(),
+          objective: (objective || title || g).trim(), status: 'pending', attempts: 0,
+          phase: 'Phase 1', wave: '-' };
+      });
+      if (goals.length === 0) goals = parseRoadmapGoals(cwd, slug);
+      const doc = { planSlug: slug, schema: 1, createdAt: nowIso(), goals };
+      const goalsText = canonicalPlanSerializeJson(doc);
+      canonicalPlanWriteRow(db, relGoals, goalsText, null);
+      const ledgerRel = join(PLANS_DIR, slug, 'ledger.jsonl');
+      for (const g of goals) {
+        canonicalPlanAppendLedger(db, ledgerRel, { ts: nowIso(), event: 'created', goalId: g.id, status: 'pending', evidence: '', attempt: 0 });
+      }
+      db.exec('COMMIT');
+      return { created: goals.length };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   if (readGoals(cwd, slug)) return { skipped: true, reason: 'goals.json exists' };
 
   let goals = explicitGoals.map((g, i) => {
@@ -185,6 +1070,31 @@ export function append(cwd, slug, { goalId, event, status, evidence = '', allowC
   if (!EVENT_ENUM.includes(event)) throw new Error(`invalid event: ${event}`);
   if (status && !STATUS_ENUM.includes(status)) throw new Error(`invalid status: ${status}`);
   if (status === 'complete' && !allowComplete) throw new Error('Goal completion must use advance --action complete');
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const relGoals = join(PLANS_DIR, slug, 'goals.json');
+      const relLedger = join(PLANS_DIR, slug, 'ledger.jsonl');
+      const current = canonicalPlanReadRow(db, relGoals);
+      if (!current) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `no goals.json for slug ${slug}`); }
+      const doc = JSON.parse(canonicalPlanDecodeRow(current));
+      const goal = doc.goals.find(g => g.id === goalId);
+      if (!goal) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `unknown goalId: ${goalId}`); }
+      if (event === 'started') goal.attempts += 1;
+      if (status) goal.status = status;
+      const nextDoc = canonicalPlanSerializeJson(doc);
+      canonicalPlanWriteRow(db, relGoals, nextDoc, current.sha256);
+      const record = { ts: nowIso(), event, goalId, status: status || goal.status, evidence, attempt: goal.attempts };
+      const appended = canonicalPlanAppendLedger(db, relLedger, record);
+      db.exec('COMMIT');
+      return { goalId, status: goal.status, attempts: goal.attempts };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   const doc = readGoals(cwd, slug);
   if (!doc) throw new Error(`no goals.json for slug ${slug}`);
   const goal = doc.goals.find(g => g.id === goalId);
@@ -334,10 +1244,100 @@ function commandResult(cwd, command) {
     passed: !result.error && result.status === 0, outputHash: createHash('sha256').update(output).digest('hex'), executedAt: nowIso() };
 }
 
+function legacyRunEvidenceId(slug, goalId, role, rawBytes) {
+  return sha256(canonicalJson(['qe-plan-run-legacy-v1', slug, goalId, role, sha256(rawBytes)]));
+}
+
+function archiveRunEvidenceVersion(cwd, slug, goalId, role, rawBytes) {
+  const parsed = readJsonFileLike(rawBytes);
+  const runId = parsed?.runId && typeof parsed.runId === 'string'
+    ? parsed.runId
+    : legacyRunEvidenceId(slug, goalId, role, rawBytes);
+  const historyPath = runEvidenceHistoryPath(cwd, slug, goalId, role, runId);
+  if (existsSync(historyPath)) {
+    const existing = readFileSync(historyPath, 'utf8');
+    if (existing !== rawBytes) throw new Error('evidence run identity conflicts with existing history');
+    return runId;
+  }
+  if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
+  if (!existsSync(join(evidenceDir(cwd, slug), 'runs'))) mkdirSync(join(evidenceDir(cwd, slug), 'runs'), { recursive: true });
+  writeFileSync(historyPath, rawBytes, 'utf8');
+  return runId;
+}
+
+function readJsonFileLike(rawBytes) {
+  try { return JSON.parse(rawBytes); } catch { return null; }
+}
+
 /** Execute every locked Goal command and persist machine-collected evidence. */
 export function runGoalEvidence(cwd, slug, { goalId, role, verifier = '', sessionId: explicitSessionId = '' }) {
   if (!['implementation', 'verification'].includes(role)) throw new Error('run role must be implementation or verification');
   if (role === 'verification' && !nonEmpty(verifier)) throw new Error('verification run requires a verifier identity');
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const relGoals = join(PLANS_DIR, slug, 'goals.json');
+      const relAcceptance = join(PLANS_DIR, slug, 'evidence', `${goalId}.acceptance.json`);
+      const relCurrent = join(PLANS_DIR, slug, 'evidence', `${goalId}.${role}-run.json`);
+      const relHistoryDir = join(PLANS_DIR, slug, 'evidence', 'runs');
+      const currentRow = canonicalPlanReadRow(db, relGoals);
+      if (!currentRow) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `no goals.json for slug ${slug}`); }
+      const doc = JSON.parse(canonicalPlanDecodeRow(currentRow));
+      const goal = doc.goals.find(item => item.id === goalId);
+      if (!goal || goal.status !== 'active') { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', 'evidence runs require the active Goal'); }
+      const sessionId = explicitSessionId || readCurrentSessionId(cwd);
+      if (!sessionId) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', 'machine evidence run requires a current QE session id'); }
+      if (!MACHINE_SESSION_RE.test(sessionId)) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', 'machine evidence run requires a valid full QE session id'); }
+      const contract = validateAcceptanceContract(canonicalPlanReadJson(cwd, relAcceptance), goalId, goal.objective);
+      const acceptanceRow = canonicalPlanReadRow(db, relAcceptance);
+      const acceptanceText = canonicalPlanDecodeRow(acceptanceRow);
+      if (!acceptanceRow || !goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) {
+        db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', 'acceptance contract changed after it was recorded');
+      }
+      const commands = [...contract.requirements, ...contract.scenarios, contract.regression]
+        .map(item => item.command).filter((value, index, values) => values.indexOf(value) === index);
+      const runs = commands.map(command => commandResult(cwd, command));
+      const executedAt = nowIso();
+      const invocationId = randomUUID();
+      const record = {
+        schema: 1,
+        goalId,
+        role,
+        attempt: Number.isSafeInteger(goal.attempts) && goal.attempts >= 0 ? goal.attempts : 0,
+        invocationId,
+        sessionId,
+        verifier: role === 'verification' ? verifier : null,
+        contractHash: goal.acceptance.hash,
+        runs,
+        passed: runs.every(run => run.passed),
+        executedAt,
+      };
+      record.runId = sha256(canonicalJson([
+        'qe-plan-run-v1', slug, goalId, role, record.attempt, invocationId, record.contractHash,
+        sessionId, record.verifier, runs, executedAt,
+      ]));
+      const recordText = canonicalPlanSerializeJson(record);
+      const current = canonicalPlanReadRow(db, relCurrent);
+      if (current) {
+        const previousRaw = canonicalPlanDecodeRow(current);
+        const historyRel = join(relHistoryDir, `${goalId}.${role}.${(JSON.parse(previousRaw).runId) || legacyRunEvidenceId(slug, goalId, role, previousRaw)}.json`);
+        canonicalPlanWriteRow(db, historyRel, previousRaw, null);
+      }
+      canonicalPlanWriteRow(db, relCurrent, recordText, current?.sha256 || null);
+      const event = { ts: nowIso(), event: 'measurement', goalId, status: 'active', evidence: `${role}-run=${join('evidence', `${goalId}.${role}-run.json`)}; passed=${record.passed}`, attempt: goal.attempts };
+      const ledgerRel = join(PLANS_DIR, slug, 'ledger.jsonl');
+      const appended = canonicalPlanAppendLedger(db, ledgerRel, event);
+      const identity = sha256(canonicalJson(['qe-plan-run-write-v1', slug, goalId, role, record.runId, record.contractHash, relCurrent]));
+      canonicalPlanIdentity(db, identity, 'runGoalEvidence', slug, goalId, relCurrent, record.runId, sha256(canonicalPlanSerializeJson(event)), appended.lineCount);
+      db.exec('COMMIT');
+      return { goalId, role, passed: record.passed, runs, runId: record.runId, invocationId, executedAt };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   const doc = readGoals(cwd, slug);
   const goal = doc?.goals?.find(item => item.id === goalId);
   if (!goal || goal.status !== 'active') throw new Error('evidence runs require the active Goal');
@@ -349,11 +1349,34 @@ export function runGoalEvidence(cwd, slug, { goalId, role, verifier = '', sessio
   const commands = [...contract.requirements, ...contract.scenarios, contract.regression]
     .map(item => item.command).filter((value, index, values) => values.indexOf(value) === index);
   const runs = commands.map(command => commandResult(cwd, command));
-  const record = { schema: 1, goalId, role, sessionId, verifier: role === 'verification' ? verifier : null, contractHash: goal.acceptance.hash, runs, passed: runs.every(run => run.passed), executedAt: nowIso() };
+  const executedAt = nowIso();
+  const invocationId = randomUUID();
+  const record = {
+    schema: 1,
+    goalId,
+    role,
+    attempt: Number.isSafeInteger(goal.attempts) && goal.attempts >= 0 ? goal.attempts : 0,
+    invocationId,
+    sessionId,
+    verifier: role === 'verification' ? verifier : null,
+    contractHash: goal.acceptance.hash,
+    runs,
+    passed: runs.every(run => run.passed),
+    executedAt,
+  };
+  record.runId = sha256(canonicalJson([
+    'qe-plan-run-v1', slug, goalId, role, record.attempt, invocationId, record.contractHash,
+    sessionId, record.verifier, runs, executedAt,
+  ]));
   if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
-  atomicWriteJson(runEvidencePath(cwd, slug, goalId, role), record);
+  const currentPath = runEvidencePath(cwd, slug, goalId, role);
+  if (existsSync(currentPath)) {
+    const previousRaw = readFileSync(currentPath, 'utf8');
+    archiveRunEvidenceVersion(cwd, slug, goalId, role, previousRaw);
+  }
+  atomicWriteJson(currentPath, record);
   recordEvent(cwd, slug, { ts: nowIso(), event: 'measurement', goalId, status: 'active', evidence: `${role}-run=${join('evidence', `${goalId}.${role}-run.json`)}; passed=${record.passed}`, attempt: goal.attempts });
-  return { goalId, role, passed: record.passed, runs };
+  return { goalId, role, passed: record.passed, runs, runId: record.runId, invocationId, executedAt };
 }
 
 function requirePassingRuns(cwd, slug, goal, goalId) {
@@ -404,6 +1427,41 @@ function validateCompletionEvidence(evidence, contract, goalId, goalObjective = 
 
 /** Persist a pre-execution, user-outcome-oriented acceptance contract for a pending Goal. */
 export function setGoalAcceptance(cwd, slug, { goalId, file }) {
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const relGoals = join(PLANS_DIR, slug, 'goals.json');
+      const relAcceptance = join(PLANS_DIR, slug, 'evidence', `${goalId}.acceptance.json`);
+      const relLedger = join(PLANS_DIR, slug, 'ledger.jsonl');
+      const current = canonicalPlanReadRow(db, relGoals);
+      if (!current) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `no goals.json for slug ${slug}`); }
+      const doc = JSON.parse(canonicalPlanDecodeRow(current));
+      const goal = doc.goals?.find(item => item.id === goalId);
+      if (!goal) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `unknown goalId: ${goalId}`); }
+      if (goal.status !== 'pending') { db.exec('ROLLBACK'); throw new Error('acceptance contract can only be set before a Goal starts'); }
+      const contract = validateAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId, goal.objective);
+      const contractText = canonicalPlanSerializeJson(contract);
+      const existingAcceptance = canonicalPlanReadRow(db, relAcceptance);
+      if (existingAcceptance && canonicalPlanDecodeRow(existingAcceptance) !== contractText) {
+        db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_CAS_CONFLICT', 'acceptance contract is immutable');
+      }
+      canonicalPlanWriteRow(db, relAcceptance, contractText, existingAcceptance?.sha256 || null);
+      goal.acceptance = { status: 'defined', file: join('evidence', `${goalId}.acceptance.json`), hash: contractHash(contract) };
+      const nextDoc = canonicalPlanSerializeJson(doc);
+      canonicalPlanWriteRow(db, relGoals, nextDoc, current.sha256);
+      const event = { ts: nowIso(), event: 'checkpoint', goalId, status: goal.status, evidence: `acceptance=${goal.acceptance.file}`, attempt: goal.attempts };
+      const appended = canonicalPlanAppendLedger(db, relLedger, event);
+      const identity = sha256(canonicalJson(['qe-plan-acceptance-write-v1', slug, goalId, goal.acceptance.file, goal.acceptance.hash]));
+      canonicalPlanIdentity(db, identity, 'setGoalAcceptance', slug, goalId, relAcceptance, sha256(contractText), sha256(canonicalPlanSerializeJson(event)), appended.lineCount);
+      db.exec('COMMIT');
+      return { goalId, acceptance: goal.acceptance };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   const doc = readGoals(cwd, slug);
   const goal = doc?.goals?.find(item => item.id === goalId);
   if (!goal) throw new Error(`unknown goalId: ${goalId}`);
@@ -419,6 +1477,46 @@ export function setGoalAcceptance(cwd, slug, { goalId, file }) {
 
 /** Persist evidence only when it satisfies the Goal's immutable acceptance contract. */
 export function recordGoalEvidence(cwd, slug, { goalId, file }) {
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const relGoals = join(PLANS_DIR, slug, 'goals.json');
+      const relCompletion = join(PLANS_DIR, slug, 'evidence', `${goalId}.completion.json`);
+      const relLedger = join(PLANS_DIR, slug, 'ledger.jsonl');
+      const current = canonicalPlanReadRow(db, relGoals);
+      if (!current) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `no goals.json for slug ${slug}`); }
+      const doc = JSON.parse(canonicalPlanDecodeRow(current));
+      const goal = doc.goals?.find(item => item.id === goalId);
+      if (!goal) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `unknown goalId: ${goalId}`); }
+      if (goal.status !== 'active') { db.exec('ROLLBACK'); throw new Error('completion evidence can only be recorded for the active Goal'); }
+      const contractFile = acceptancePath(cwd, slug, goalId);
+      const contractRow = canonicalPlanReadRow(db, contractFile);
+      if (!contractRow) { db.exec('ROLLBACK'); throw new Error('Goal has no acceptance contract'); }
+      const contract = validateAcceptanceContract(canonicalPlanReadJson(cwd, contractFile), goalId, goal.objective);
+      if (!goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) { db.exec('ROLLBACK'); throw new Error('acceptance contract changed after it was recorded'); }
+      const evidence = validateCompletionEvidence(readJsonFile(file, 'completion evidence'), contract, goalId, goal.objective);
+      const proofText = canonicalPlanSerializeJson(evidence);
+      const existing = canonicalPlanReadRow(db, relCompletion);
+      if (existing && canonicalPlanDecodeRow(existing) !== proofText) {
+        db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_CAS_CONFLICT', 'completion evidence is immutable');
+      }
+      requirePassingRuns(cwd, slug, goal, goalId);
+      canonicalPlanWriteRow(db, relCompletion, proofText, existing?.sha256 || null);
+      goal.completionEvidence = { status: 'recorded', file: join('evidence', `${goalId}.completion.json`) };
+      canonicalPlanWriteRow(db, relGoals, canonicalPlanSerializeJson(doc), current.sha256);
+      const event = { ts: nowIso(), event: 'measurement', goalId, status: 'active', evidence: `completion=${goal.completionEvidence.file}; verifier=${evidence.independentVerification.verifier}`, attempt: goal.attempts };
+      const appended = canonicalPlanAppendLedger(db, relLedger, event);
+      const identity = sha256(canonicalJson(['qe-plan-completion-write-v1', slug, goalId, relCompletion, sha256(proofText)]));
+      canonicalPlanIdentity(db, identity, 'recordGoalEvidence', slug, goalId, relCompletion, sha256(proofText), sha256(canonicalPlanSerializeJson(event)), appended.lineCount);
+      db.exec('COMMIT');
+      return { goalId, completionEvidence: goal.completionEvidence };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   const doc = readGoals(cwd, slug);
   const goal = doc?.goals?.find(item => item.id === goalId);
   if (!goal) throw new Error(`unknown goalId: ${goalId}`);
@@ -493,6 +1591,61 @@ export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) 
 
 /** Render STATE.md's "## Phase Progress" block from goals.json (derived view). */
 export function renderState(cwd, slug) {
+  if (canonicalPlanRoot(cwd)) {
+    const db = canonicalPlanOpenDb(cwd);
+    if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE', 'canonical store unavailable');
+    try {
+      db.exec('BEGIN IMMEDIATE');
+      const relGoals = join(PLANS_DIR, slug, 'goals.json');
+      const relState = join(PLANS_DIR, slug, 'STATE.md');
+      const current = canonicalPlanReadRow(db, relGoals);
+      if (!current) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `no goals.json for slug ${slug}`); }
+      const doc = JSON.parse(canonicalPlanDecodeRow(current));
+      const allComplete = doc.goals.length > 0 && doc.goals.every(goal => goal.status === 'complete');
+      const hasBlocker = doc.goals.some(goal => goal.status === 'blocked' || goal.status === 'failed');
+      const planStatus = allComplete ? 'complete' : hasBlocker ? 'blocked' : 'active';
+      const currentGoal = doc.goals.find(goal => goal.status === 'active')
+        || doc.goals.find(goal => goal.status === 'blocked')
+        || doc.goals.find(goal => goal.status === 'pending')
+        || doc.goals.find(goal => goal.status === 'failed')
+        || doc.goals.at(-1);
+      const currentPhase = currentGoal?.phase || 'none';
+      const mark = { pending: ' ', active: '>', complete: 'x', failed: '!', blocked: '~' };
+      const byPhase = new Map();
+      for (const g of doc.goals) {
+        if (!byPhase.has(g.phase)) byPhase.set(g.phase, []);
+        byPhase.get(g.phase).push(g);
+      }
+      let block = `${PROGRESS_HEADING}\n\n> 자동 생성 (ledger.mjs render-state) — 직접 수정 금지\n`;
+      for (const [phase, goals] of byPhase) {
+        block += `\n### ${phase}\n`;
+        for (const g of goals) {
+          const w = g.wave && g.wave !== '-' ? `[${g.wave}] ` : '';
+          block += `- [${mark[g.status] || ' '}] ${g.id} ${w}${g.title}\n`;
+        }
+      }
+      const prior = canonicalPlanReadText(cwd, relState) || `# STATE — ${slug}\n`;
+      let next;
+      if (/^Status:.*$/m.test(prior)) next = prior.replace(/^Status:.*$/m, `Status: ${planStatus}`);
+      else next = prior.replace(/^(# .*\n)/, `$1\nStatus: ${planStatus}\n`);
+      if (/^Current phase:.*$/m.test(next)) next = next.replace(/^Current phase:.*$/m, `Current phase: ${currentPhase}`);
+      else next = next.replace(/^(Status:.*\n)/m, `$1Current phase: ${currentPhase}\n`);
+      const idx = next.indexOf(PROGRESS_HEADING);
+      if (idx === -1) next = next.replace(/\n*$/, '\n') + '\n' + block;
+      else {
+        const after = next.slice(idx + PROGRESS_HEADING.length);
+        const nextHeading = after.search(/\n##\s/);
+        const tail = nextHeading === -1 ? '' : after.slice(nextHeading);
+        next = next.slice(0, idx) + block.replace(/\n*$/, '\n') + tail;
+      }
+      canonicalPlanWriteRow(db, relState, next, current?.sha256 || null);
+      db.exec('COMMIT');
+      return { state: join(cwd, relState), phases: byPhase.size };
+    } catch (error) {
+      try { db.exec('ROLLBACK'); } catch {}
+      throw canonicalPlanWriteError(error);
+    } finally { closeSqlite(db); }
+  }
   const doc = readGoals(cwd, slug);
   if (!doc) throw new Error(`no goals.json for slug ${slug}`);
   const allComplete = doc.goals.length > 0 && doc.goals.every(goal => goal.status === 'complete');

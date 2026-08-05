@@ -1,6 +1,6 @@
 ---
 name: Qgoal
-description: Explicit single-Goal alias for Qplan. Use only when the user enters Qgoal with the active client prefix.
+description: Explicit single-Goal alias for Qplan. Use when the user enters Qgoal with the active client prefix.
 invocation_trigger: When the user enters `/Qgoal {goal}` or `$Qgoal {goal}`.
 user_invocable: true
 recommendedModel: haiku

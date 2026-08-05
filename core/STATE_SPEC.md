@@ -154,6 +154,11 @@ Session binding rules:
 - Two live sessions claiming the same lane must render as `blocked` with a
   `blocked_reason`; neither session may claim SIVS completion from that state.
 
+Recovery decisions use `hooks/scripts/lib/process-recovery.mjs`. Runtime lane
+state remains observational: stale or completed lanes are reverified before any
+completion transition, ownership conflicts require an explicit decision, and
+only fresh singly owned evidence-backed work may resume directly.
+
 Cache and evidence edge-case rules:
 
 - Corrupt cache is discarded or marked `degraded`; it is never repaired by

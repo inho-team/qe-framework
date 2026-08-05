@@ -17,7 +17,9 @@ Codex's native execution path, while explicit `/Qplan`/`$Qplan` and
 `/Qgoal`/`$Qgoal` entries activate Full SIVS. Safety guards,
 completion-evidence checks, and QE response style remain enabled on both paths.
 Execution choice (solo, subagent, wave, durable, or isolated) is independent of
-assurance choice.
+assurance choice. See the normative
+[`Progressive Assurance`](core/PROGRESSIVE_ASSURANCE.md) policy and the
+[`Runtime Process Controller`](core/PROCESS_CONTROLLER.md) durability boundary.
 
 ---
 

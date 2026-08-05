@@ -5,6 +5,11 @@ entry and `Qgoal` is its single-Goal alias. The former PSE skills (spec/execute)
 are internal units: calling them directly is hard-blocked unless an existing
 Plan-owned task is continuing.
 
+Normative boundaries are defined in
+[`PROGRESSIVE_ASSURANCE.md`](../core/PROGRESSIVE_ASSURANCE.md). Durable,
+long-running, and high-risk runtime reuse is defined separately in
+[`PROCESS_CONTROLLER.md`](../core/PROCESS_CONTROLLER.md).
+
 ## Breaking change: direct PSE skill calls are blocked
 
 The hard-block set (authoritative source: `PSE_SKILLS` in

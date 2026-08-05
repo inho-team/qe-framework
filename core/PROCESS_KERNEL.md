@@ -102,6 +102,16 @@ status with a nonblank proof. When required, passed status and proof are both
 mandatory. Invalid combinations return `HUMAN_ACCEPTANCE_MISSING`.
 Non-completion and `complete→complete` requests do not evaluate completion data.
 
+## Recovery policy
+
+`hooks/scripts/lib/process-recovery.mjs` derives one safe action from canonical
+process state, the evidence trace, and the latest harness-lane observation:
+`resume`, `reverify`, or `decision-required`. It never returns `complete` and
+never mutates state. A stale or completed lane without current canonical evidence
+routes to `reverify`; conflicting ownership, invalid evidence, and material
+blockers route to `decision-required`. Only a fresh, singly owned, evidence-backed
+nonterminal process may return `resume`.
+
 ## Decision schema and precedence
 
 Every result contains fresh `allowedNextStates` and `missingEvidence` arrays and
