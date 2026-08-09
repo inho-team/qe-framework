@@ -1,0 +1,80 @@
+{
+  "schema": 1,
+  "seed": "progressive-assurance-pilot-v1",
+  "model": "gpt-5.6-sol",
+  "effort": "medium",
+  "repetition": 1,
+  "budget": {
+    "maxInputTokens": 500000,
+    "maxOutputTokens": 50000,
+    "maxWallSeconds": 600,
+    "maxBudgetUsd": 0.5
+  },
+  "tasks": [
+    {
+      "id": "email-normalization",
+      "category": "micro-fix",
+      "prompt": "Work only in pilot-task/. Fix pilot-task/src/normalize-email.mjs. normalizeEmail must trim surrounding whitespace, preserve the local-part's case, lowercase only the domain, and reject malformed addresses or internal whitespace with TypeError. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/normalize-email.mjs": "export function normalizeEmail(value) {\n  return String(value).trim().toLowerCase();\n}\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { normalizeEmail } from '../src/normalize-email.mjs';\ntest('normalizes the domain without changing local-part case', () => {\n  assert.equal(normalizeEmail('  User.Name@Example.COM  '), 'User.Name@example.com');\n});\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from 'node:assert/strict';import{normalizeEmail as n}from'./src/normalize-email.mjs';assert.equal(n('A@EXAMPLE.COM'),'A@example.com');for(const v of ['missing','a@@b.com','a b@c.com','a@ b.com','@b.com','a@'])assert.throws(()=>n(v),TypeError);assert.throws(()=>n(null),TypeError)\""
+      }
+    },
+    {
+      "id": "duration-parser",
+      "category": "feature",
+      "prompt": "Work only in pilot-task/. Implement parseDuration in pilot-task/src/parse-duration.mjs. Accept a positive integer followed by ms, s, or m and return milliseconds. Reject zero, fractions, spaces, unknown units, and values above one hour with RangeError or TypeError. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/parse-duration.mjs": "export function parseDuration(value) {\n  throw new Error('not implemented');\n}\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { parseDuration } from '../src/parse-duration.mjs';\ntest('parses supported duration units', () => {\n  assert.equal(parseDuration('250ms'), 250);\n  assert.equal(parseDuration('5s'), 5000);\n  assert.equal(parseDuration('2m'), 120000);\n});\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{parseDuration as p}from'./src/parse-duration.mjs';assert.equal(p('3600s'),3600000);for(const v of ['0ms','1.5s',' 1s','1 s','1h','3601s','-1s',1,null])assert.throws(()=>p(v))\""
+      }
+    },
+    {
+      "id": "stable-deduplication",
+      "category": "debugging",
+      "prompt": "Work only in pilot-task/. Debug dedupeById in pilot-task/src/dedupe.mjs. It must preserve the first object for each string id, preserve input order, support ids such as __proto__ and constructor, reject non-array input, and never mutate the input. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/dedupe.mjs": "export function dedupeById(items) {\n  const byId = {};\n  for (const item of items) byId[item.id] = item;\n  return Object.values(byId);\n}\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { dedupeById } from '../src/dedupe.mjs';\ntest('keeps the first duplicate in original order', () => {\n  const a = { id: 'a', value: 1 };\n  const b = { id: 'b', value: 2 };\n  assert.deepEqual(dedupeById([a, b, { id: 'a', value: 3 }]), [a, b]);\n});\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{dedupeById as d}from'./src/dedupe.mjs';const p={id:'__proto__',v:1},c={id:'constructor',v:2},x={id:'x',v:3};const input=[p,c,x,{id:'__proto__',v:4}];const copy=[...input];assert.deepEqual(d(input),[p,c,x]);assert.deepEqual(input,copy);assert.throws(()=>d(null),TypeError);assert.throws(()=>d([{id:1}]),TypeError)\""
+      }
+    },
+    {
+      "id": "safe-path-resolution",
+      "category": "security",
+      "prompt": "Work only in pilot-task/. Harden safeJoin in pilot-task/src/safe-join.mjs. It must return an absolute path strictly inside root for a relative child path and reject absolute paths, traversal, the root itself, and sibling-prefix escapes. Do not access the filesystem. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/safe-join.mjs": "import { resolve } from 'node:path';\nexport function safeJoin(root, child) {\n  const target = resolve(root, child);\n  if (!target.startsWith(resolve(root))) throw new Error('outside root');\n  return target;\n}\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { safeJoin } from '../src/safe-join.mjs';\ntest('resolves a nested child', () => {\n  assert.equal(safeJoin('/tmp/base', 'a/file.txt'), '/tmp/base/a/file.txt');\n});\ntest('rejects simple traversal', () => {\n  assert.throws(() => safeJoin('/tmp/base', '../secret'));\n});\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{safeJoin as s}from'./src/safe-join.mjs';assert.equal(s('/tmp/base','x/y'),'/tmp/base/x/y');for(const v of ['','.', '..','../base2/file','/etc/passwd','x/../../base2'])assert.throws(()=>s('/tmp/base',v));assert.throws(()=>s('','x'))\""
+      }
+    },
+    {
+      "id": "bounded-retry",
+      "category": "integration",
+      "prompt": "Work only in pilot-task/. Implement retry in pilot-task/src/retry.mjs. retry(operation, options) must attempt at most maxAttempts times, pass the 1-based attempt number, stop immediately when shouldRetry(error) is false, await sleep(delayMs, attempt) only before a retry, and return the successful value. Validate options. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/retry.mjs": "export async function retry(operation, options = {}) {\n  return operation();\n}\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { retry } from '../src/retry.mjs';\ntest('returns after a transient failure', async () => {\n  let calls = 0;\n  const value = await retry(async () => { if (++calls < 2) throw new Error('temporary'); return 'ok'; }, { maxAttempts: 3, delayMs: 0, shouldRetry: () => true, sleep: async () => {} });\n  assert.equal(value, 'ok');\n  assert.equal(calls, 2);\n});\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{retry}from'./src/retry.mjs';const attempts=[],sleeps=[];const value=await retry(async n=>{attempts.push(n);if(n<3)throw new Error('t');return 7},{maxAttempts:3,delayMs:5,shouldRetry:()=>true,sleep:async(d,n)=>sleeps.push([d,n])});assert.equal(value,7);assert.deepEqual(attempts,[1,2,3]);assert.deepEqual(sleeps,[[5,1],[5,2]]);let calls=0;await assert.rejects(()=>retry(async()=>{calls++;throw new Error('fatal')},{maxAttempts:3,delayMs:0,shouldRetry:()=>false,sleep:async()=>{}}));assert.equal(calls,1);for(const o of [{maxAttempts:0},{maxAttempts:1.5},{maxAttempts:1,delayMs:-1}])await assert.rejects(()=>retry(async()=>1,o))\""
+      }
+    }
+  ]
+}

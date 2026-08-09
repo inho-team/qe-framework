@@ -1,0 +1,812 @@
+{
+  "schema": 1,
+  "budget": {
+    "maxInputTokens": 100000,
+    "maxOutputTokens": 20000,
+    "maxWallSeconds": 300
+  },
+  "runs": [
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.421
+      }
+    },
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.301
+      }
+    },
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.401
+      }
+    },
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "native-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.457
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "native-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.363
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.482
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.392
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.433
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "native-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.346
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.534
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.523
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.432
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "native-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.375
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.344
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.424
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.447
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.672
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.442
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.411
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "native-durable",
+      "result": {
+        "success": false,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.399
+      }
+    }
+  ],
+  "rawRuns": [
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "883b8d7ef4c491a2a1ea1d43879a9a7a1c6cd4f07c53091486c0bd9a7baf75d8",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.421,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "c9d43a0c3bf98e9bb5cf949c2ef66a80840ced7f",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "f001df7605da48b6c936246676c9930b9970b12c948753d70042f0bdfd8d2ee9"
+      }
+    },
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "2f89a576015ec0ad7a046f47839265fbfccc6821a6d89e3e8e2b1eb189ea2a6b",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.301,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "c9d43a0c3bf98e9bb5cf949c2ef66a80840ced7f",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "0d8918f675241fea8ad15734aa7bc52bde5eef1ebdd28749fa08a532309920d8"
+      }
+    },
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "2ded4dc7b0def2913d0fbf591769bac38a605d5d352bb4a5a5716ecb7673dbfd",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.401,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "c9d43a0c3bf98e9bb5cf949c2ef66a80840ced7f",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "5e80012d7d8ba65e418f16fe00c1bfeecb102ea3eb7e23cefa6cf8a9ffa36435"
+      }
+    },
+    {
+      "taskId": "email-normalization",
+      "repetition": 1,
+      "condition": "native-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "ef8e7fbef6c94cc85acc72744c3889bae04711c69a87cdaf4afd4c07885a85a3",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.457,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "c9d43a0c3bf98e9bb5cf949c2ef66a80840ced7f",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "f2de16d8256a5c2d920c0be48d4aa268e45478ece94ba38f166db76953f3345a"
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "native-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "02384e6eaeb6bc5e37656ab0b2739bda461e2c7885d7cd679e8c56ca56881f0d",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.363,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "564d6a1b3020d028f319f1ee0694bf79c3d2c631",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "21c2edf8a49c68c59fe94db49cb97f320e54ef4e992bf757d1338f96e24e10a5"
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "924f26a157c874cd28a077947af718ba04e0409cb6029b5cc63bb5f23087b13e",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.482,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "564d6a1b3020d028f319f1ee0694bf79c3d2c631",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "42d7a4c7c7a6249fda8cdc38729a71663054113aaefbd66945a2e72e0dc141e4"
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "1b94af8c13838ab2a01018f558ccb24fc05477b0a2e425d64b6fd01466e42bf7",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.392,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "564d6a1b3020d028f319f1ee0694bf79c3d2c631",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "d85414585bb0b76d29ddb68a1a43c26467f16237179227dd1dca8f81edd930da"
+      }
+    },
+    {
+      "taskId": "duration-parser",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "673321899fc13287a9b037935ba15cc604776c20b94dca59b8ea2df12ed7af7e",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.433,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "564d6a1b3020d028f319f1ee0694bf79c3d2c631",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "b255158672bd63e1931d9440a523e3576a9ea06eaa18f70bb15c618e2abb4d0d"
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "native-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "30d390c413fc8765aca271f62e2ed5877fb490f5a0753cd7ff69fea8c9846a36",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.346,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "00a2e2fd21de83a4a5b259e7d79394cfba47c3c1",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "d73521c0dfdb126741601f6e36342a6e71311cdc8d54fbe39ed93369a9f56c27"
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "3a4ff0cf3f8da4af2195698d2770368c3042f1abec945b9d8cd343a7e5a4ac7b",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.534,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "00a2e2fd21de83a4a5b259e7d79394cfba47c3c1",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "41f4290e6500e6e4cc8203811a9749f3ae998698af4375147486221b3e758829"
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "8c453c44c6dd755e8fe10711bb7414009bd7fdb8397b24f4320c76dd6839dd0d",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.523,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "00a2e2fd21de83a4a5b259e7d79394cfba47c3c1",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "baa9128c2b41aeed28a88674e6e5ea936f88cc0e2661cd81fb9623c768884c85"
+      }
+    },
+    {
+      "taskId": "stable-deduplication",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "f075bf1b153a5de5de32a24672aa9a9cf84b3a85e7710bdd5088106b12a90fc8",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.432,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "00a2e2fd21de83a4a5b259e7d79394cfba47c3c1",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "7d1dfb8034821b08a0611a18684e910a33f38ccdf3d3d772bb077679f776ae9b"
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "native-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "1decf23e4b44daa4167a4eea5232259a7f95ef3537f967d87d93c261fea67c1d",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.375,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "f10c38cff726b0d5e8bcf0d8c5dfb103ae1891cd",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "ee09dff15f9c85b7d06cd4b923d69696e63eff5da16c8803cd4c5dbe0787917b"
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "2d6221d3d9cc23e2b17a72952150946015a674ea665cc9af2ee5209d66e17e07",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.344,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "f10c38cff726b0d5e8bcf0d8c5dfb103ae1891cd",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "8d3ec7437359d0670cc422e49c522e7a46e5d73edeaee8b580169e644675a9d1"
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "a96a4c3f32129f09410f33c384fdc043cf96a06d12837f7900bd7b34c53e9461",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.424,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "f10c38cff726b0d5e8bcf0d8c5dfb103ae1891cd",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "d3e9d93e24f355c2a6c007dd26e90a56dc431444f98fa268d60183a1706b4b0e"
+      }
+    },
+    {
+      "taskId": "safe-path-resolution",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "da063e940e3922e1cafd7e8c885522537ed3702408c67bbec46306531b7e07ca",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.447,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "f10c38cff726b0d5e8bcf0d8c5dfb103ae1891cd",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "dbae2dbb0cbaf7dcf6ba518e059ee3aaa9e63bf6aae2bde77c40bbb6f3668624"
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "native-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "f3947b3e2fe8cbd235f1582b5f869cc610b2935aae54a26a9a75a5830fb742dd",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.672,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "414b87cab7372e83d60f6a7480af6646a67a2e1b",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "1f7d7db3d6c884ea8d085512b1d45ef5284253caccd79ab681b74b4b12fe3b75"
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "full-sivs-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "fd6b492dfa56b63cc52b516f53cb7c73d5ffa14b9c69e172ec24d8f8d9aa2950",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.442,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "414b87cab7372e83d60f6a7480af6646a67a2e1b",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "1e7b1fc4ebd38fecb78b9dcf12a10eddd5cd4a87f491b8774572e5c3b61e09d5"
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "full-sivs-ephemeral",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "c3005d51dbf8fbe79605ebd065b79b7034fa4a67497d4387382a363876a13799",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.411,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "414b87cab7372e83d60f6a7480af6646a67a2e1b",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "d27d9f05c6253f21c4b24f8097f9260c75bdd8c903aaff23fa83c20a8ce4246a"
+      }
+    },
+    {
+      "taskId": "bounded-retry",
+      "repetition": 1,
+      "condition": "native-durable",
+      "model": "sonnet",
+      "effort": "medium",
+      "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+      "promptDigest": "95996ef89911e325c76d51226fefcfe0fb1bb2bbe3cd33483eadf953d596ba16",
+      "actor": {
+        "ok": false,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.399,
+        "costUsd": 0,
+        "result": "Your organization has disabled Claude subscription access for Claude Code · Use an Anthropic API key instead, or ask your admin to enable access",
+        "exitCode": 1,
+        "starterRevision": "414b87cab7372e83d60f6a7480af6646a67a2e1b",
+        "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "patch": ""
+      },
+      "hiddenAcceptance": {
+        "passed": false,
+        "exitCode": 1,
+        "signal": null,
+        "outputHash": "2f5346e1b379b20a57cc7398f67e3b3c41286cb0bc7e0af984d54954bc55a187"
+      }
+    }
+  ]
+}

@@ -1,0 +1,87 @@
+{
+  "schema": 1,
+  "balancedPairs": 5,
+  "sharedBudget": {
+    "maxInputTokens": 100000,
+    "maxOutputTokens": 20000,
+    "maxWallSeconds": 300
+  },
+  "conditions": {
+    "native-ephemeral": {
+      "runs": 5,
+      "means": {
+        "success": 0,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.46440000000000003
+      }
+    },
+    "native-durable": {
+      "runs": 5,
+      "means": {
+        "success": 0,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.388
+      }
+    },
+    "full-sivs-ephemeral": {
+      "runs": 5,
+      "means": {
+        "success": 0,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.4406
+      }
+    },
+    "full-sivs-durable": {
+      "runs": 5,
+      "means": {
+        "success": 0,
+        "escapedDefects": 1,
+        "humanCorrections": 0,
+        "inputTokens": 0,
+        "outputTokens": 0,
+        "wallSeconds": 0.42679999999999996
+      }
+    }
+  },
+  "effects": {
+    "success": {
+      "assurance": 0,
+      "controller": 0,
+      "interaction": 0
+    },
+    "escapedDefects": {
+      "assurance": 0,
+      "controller": 0,
+      "interaction": 0
+    },
+    "humanCorrections": {
+      "assurance": 0,
+      "controller": 0,
+      "interaction": 0
+    },
+    "inputTokens": {
+      "assurance": 0,
+      "controller": 0,
+      "interaction": 0
+    },
+    "outputTokens": {
+      "assurance": 0,
+      "controller": 0,
+      "interaction": 0
+    },
+    "wallSeconds": {
+      "assurance": 0.007499999999999951,
+      "controller": -0.04510000000000003,
+      "interaction": 0.06259999999999999
+    }
+  }
+}

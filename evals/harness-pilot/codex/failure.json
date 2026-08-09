@@ -1,0 +1,43 @@
+{
+  "schema": 1,
+  "status": "invalid",
+  "reason": "PILOT_INVALID_ACTOR_RUN",
+  "budget": {
+    "maxInputTokens": 500000,
+    "maxOutputTokens": 50000,
+    "maxWallSeconds": 600,
+    "maxBudgetUsd": 0.5
+  },
+  "cell": {
+    "taskId": "email-normalization",
+    "repetition": 1,
+    "condition": "full-sivs-durable"
+  },
+  "model": "gpt-5.6-sol",
+  "effort": "medium",
+  "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+  "actor": {
+    "ok": false,
+    "modelTurn": false,
+    "inputTokens": 0,
+    "outputTokens": 0,
+    "wallSeconds": 600.042,
+    "costUsd": null,
+    "result": "The isolated spec reviewer is still running. Meanwhile, the durable Goal remains active with zero source edits, so an interruption at this point would resume safely from the sealed contract and pending task pair.",
+    "exitCode": 0,
+    "timedOut": true,
+    "signal": null,
+    "controller": {
+      "admitted": true,
+      "admissionCode": "ADMITTED",
+      "initializeCode": "INITIALIZED",
+      "activeCode": "ALLOWED",
+      "terminalCode": "ALLOWED",
+      "processId": "pilot-email-normalization-full-sivs-durable",
+      "auditDigest": "2f5b791708d8fedc8747b9ff876757834c071eedc667b9ec90dfc23292ce3f0f"
+    },
+    "starterRevision": "5de8d3dae765199184361c4ca6d8c8c175eadefc",
+    "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+    "patch": ""
+  }
+}
