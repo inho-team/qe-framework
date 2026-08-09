@@ -37,6 +37,48 @@
  */
 
 import { readUnifiedState, writeUnifiedState } from './state.mjs';
+import { existsSync } from 'node:fs';
+import { join } from 'node:path';
+import { createHash } from 'node:crypto';
+import { createProcessControllerStore } from './process-controller-store.mjs';
+
+function persistentStoreCall(cwd, method, input, options = {}) {
+  const store = createProcessControllerStore(cwd, options);
+  if (!store) return { ok: false, allowed: false, code: 'PERSISTENT_STORE_UNAVAILABLE' };
+  try { return store[method](input); } finally { store.close(); }
+}
+
+/** Acquire a controller-owned completion lease for one full session UUID. */
+export function acquirePersistentCompletionLease(cwd, input, options = {}) {
+  return persistentStoreCall(cwd, 'acquirePersistentLease', input, options);
+}
+
+/** Renew the current generation; stale tokens, fences, and generations fail closed. */
+export function renewPersistentCompletionLease(cwd, input, options = {}) {
+  return persistentStoreCall(cwd, 'renewPersistentLease', input, options);
+}
+
+/**
+ * Resolve controller authority for a Stop hook event. A project with no QE DB
+ * deliberately falls through to the legacy persistent-mode implementation.
+ */
+export function decidePersistentCompletionStop(cwd, event, options = {}) {
+  if (!existsSync(join(cwd, '.qe', 'qe.db'))) {
+    return { ok: true, code: 'PERSISTENT_LEASE_NOT_FOUND', legacy: true };
+  }
+  const sessionId = event?.session_id || event?.sessionId || '';
+  const userText = event?.last_user_message || event?.userText || '';
+  const assistantText = event?.last_assistant_message || event?.assistantText || '';
+  const transcriptPath = event?.transcript_path || event?.transcriptPath || '';
+  const turnId = event?.turn_id || event?.turnId || '';
+  const explicitKey = event?.event_key || event?.eventKey || event?.hook_event_id;
+  const eventKey = explicitKey || createHash('sha256').update(JSON.stringify([
+    'qe-persistent-stop-event-v1', cwd, transcriptPath, turnId, sessionId, userText, assistantText,
+  ])).digest('hex');
+  return persistentStoreCall(cwd, 'decidePersistentStop', {
+    eventKey, cwd, transcriptPath, turnId, userText, assistantText, sessionId,
+  }, options);
+}
 
 /**
  * Enter persistent mode — registers an active pipeline execution that should

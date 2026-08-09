@@ -421,6 +421,36 @@ export function openSqlite(cwd, opts = {}) {
           migrate(db);
         }
       }
+      if (typeof opts.statementObserver === 'function' && typeof db.setAuthorizer === 'function') {
+        const nativePrepare = db.prepare.bind(db);
+        let compiling = null;
+        db.setAuthorizer((action, arg1) => {
+          if (compiling) {
+            if (action === sqlite.constants.SQLITE_SELECT) compiling.selectCount += 1;
+            if (action === sqlite.constants.SQLITE_READ && typeof arg1 === 'string') compiling.tables.add(arg1);
+          }
+          return sqlite.constants.SQLITE_OK;
+        });
+        db.prepare = function observedPrepare(sql) {
+          const fingerprint = { selectCount: 0, tables: new Set() };
+          compiling = fingerprint;
+          let statement;
+          try { statement = nativePrepare(sql); } finally { compiling = null; }
+          const event = Object.freeze({ kind: 'sqlite-statement-execution',
+            selectCount: fingerprint.selectCount,
+            tables: Object.freeze([...fingerprint.tables].sort()) });
+          return new Proxy(statement, { get(target, property) {
+            const value = Reflect.get(target, property, target);
+            if (!['all', 'get', 'iterate'].includes(property) || typeof value !== 'function') {
+              return typeof value === 'function' ? value.bind(target) : value;
+            }
+            return (...args) => {
+              try { opts.statementObserver(event); } catch { /* instrumentation is non-authoritative */ }
+              return value.apply(target, args);
+            };
+          } });
+        };
+      }
       return db;
     } catch (err) {
       closeSqlite(db);

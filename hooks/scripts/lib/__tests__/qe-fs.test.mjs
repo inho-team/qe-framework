@@ -114,3 +114,251 @@ test('reading a missing .qe file throws ENOENT', () => {
   `);
   assert.equal(r.ok, true, r.err);
 });
+
+test('bounded DB reads reject over 1 MiB before preparing a content query', () => {
+  const r = runInSandbox(`
+    assert.equal(typeof fs.readFileBoundedSync, 'function');
+    const p = ROOT + '/.qe/evidence/large.bin';
+    fs.writeFileSync(p, Buffer.alloc(1_048_577, 0x61));
+    const sqlite = await import('node:sqlite');
+    const originalPrepare = sqlite.DatabaseSync.prototype.prepare;
+    const queries = [];
+    sqlite.DatabaseSync.prototype.prepare = function (sql) {
+      queries.push(String(sql));
+      return originalPrepare.call(this, sql);
+    };
+    let code = null;
+    try { fs.readFileBoundedSync(p, 1_048_576); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_FILE_TOO_LARGE');
+    assert.equal(queries.some(sql => /select\\s+content\\b/i.test(sql)), false, queries.join('\\n'));
+  `);
+  assert.equal(r.ok, true, r.err || r.out);
+});
+
+test('bounded DB reads preserve text and binary semantics at the exact limit', () => {
+  const r = runInSandbox(`
+    const text = ROOT + '/.qe/evidence/text.txt';
+    const binary = ROOT + '/.qe/evidence/binary.bin';
+    fs.writeFileSync(text, '한글');
+    fs.writeFileSync(binary, Buffer.from([0, 1, 2, 255]));
+    assert.equal(fs.readFileBoundedSync(text, 6, 'utf8'), '한글');
+    assert.deepEqual(fs.readFileBoundedSync(binary, 4), Buffer.from([0, 1, 2, 255]));
+    const edge = ROOT + '/.qe/evidence/edge.bin';
+    const bytes = Buffer.alloc(1_048_576, 0x7f);
+    fs.writeFileSync(edge, bytes);
+    assert.deepEqual(fs.readFileBoundedSync(edge, 1_048_576), bytes);
+  `);
+  assert.equal(r.ok, true, r.err || r.out);
+});
+
+test('bounded DB reads fail closed on identity races and corrupt storage metadata', () => {
+  const r = runInSandbox(`
+    const sqlite = await import('node:sqlite');
+    const dbPath = ROOT + '/.qe/qe.db';
+    const raced = ROOT + '/.qe/evidence/raced.txt';
+    fs.writeFileSync(raced, 'first');
+    const originalPrepare = sqlite.DatabaseSync.prototype.prepare;
+    let mutate = true;
+    sqlite.DatabaseSync.prototype.prepare = function (sql) {
+      const statement = originalPrepare.call(this, sql);
+      if (!/select\\s+content\\b/i.test(String(sql))) return statement;
+      return new Proxy(statement, { get(target, property) {
+        if (property === 'get') return (...args) => {
+          if (mutate) {
+            mutate = false;
+            const other = new sqlite.DatabaseSync(dbPath);
+            other.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+              .run('second', 6, 'f'.repeat(64), '.qe/evidence/raced.txt');
+            other.close();
+          }
+          return target.get(...args);
+        };
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }});
+    };
+    let code = null;
+    try { fs.readFileBoundedSync(raced, 100); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_FILE_CHANGED_DURING_READ');
+
+    const corrupt = ROOT + '/.qe/evidence/corrupt.txt';
+    fs.writeFileSync(corrupt, 'x');
+    const other = new sqlite.DatabaseSync(dbPath);
+    other.prepare('UPDATE qe_files SET content=?,size=? WHERE path=?')
+      .run('x'.repeat(2_000_000), 1, '.qe/evidence/corrupt.txt');
+    other.close();
+    code = null;
+    try { fs.readFileBoundedSync(corrupt, 1_048_576); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_FILE_CHANGED_DURING_READ');
+  `);
+  assert.equal(r.ok, true, r.err || r.out);
+});
+
+test('bounded DB reads do not materialize a stale-small huge content value', () => {
+  const root = mkdtempSync(join(tmpdir(), 'qe-fs-memory-'));
+  try {
+    mkdirSync(join(root, '.qe'), { recursive: true });
+    const dbPath = join(root, '.qe', 'qe.db');
+    const seed = `
+      import { DatabaseSync } from 'node:sqlite';
+      const db = new DatabaseSync(${JSON.stringify(dbPath)});
+      db.exec(\`CREATE TABLE qe_files(path TEXT PRIMARY KEY, content TEXT, encoding TEXT,
+        size INTEGER, mode INTEGER, mtime_ms INTEGER, sha256 TEXT, migrated_at INTEGER)\`);
+      db.prepare('INSERT INTO qe_files VALUES(?,CAST(zeroblob(67108864) AS TEXT),?,?,?,?,?,?)')
+        .run('.qe/evidence/corrupt.bin', 'base64', 1, 420, 0, ${JSON.stringify('0'.repeat(64))}, 0);
+      db.close();
+    `;
+    const seeded = spawnSync('node', ['--input-type=module', '-e', seed], { encoding: 'utf8' });
+    assert.equal(seeded.status, 0, seeded.stderr);
+    const probePrefix = `
+      process.env.QE_ROOT=${JSON.stringify(root)};
+      process.env.QE_STORE_DB_ONLY='1';
+      const fs = await import(${JSON.stringify(pathToFileURL(SHIM).href)});
+    `;
+    const control = spawnSync('node', ['--input-type=module', '-e', `${probePrefix}
+      fs.statSync(${JSON.stringify(join(root, '.qe/evidence/corrupt.bin'))});
+      console.log(process.resourceUsage().maxRSS);
+    `], { encoding: 'utf8' });
+    assert.equal(control.status, 0, control.stderr);
+    const baselineRSS = Number(control.stdout.trim());
+    const read = `${probePrefix}
+      let code = null;
+      try { fs.readFileBoundedSync(${JSON.stringify(join(root, '.qe/evidence/corrupt.bin'))}, 10); }
+      catch (error) { code = error.code; }
+      console.log(JSON.stringify({ code, maxRSS: process.resourceUsage().maxRSS }));
+    `;
+    const result = spawnSync('node', ['--input-type=module', '-e', read], { encoding: 'utf8' });
+    assert.equal(result.status, 0, result.stderr);
+    const observed = JSON.parse(result.stdout.trim());
+    assert.equal(observed.code, 'ERR_QE_FILE_CHANGED_DURING_READ');
+    assert.ok(observed.maxRSS - baselineRSS < 24 * 1024,
+      `bounded lookup materialized the 64 MiB value (baseline=${baselineRSS} KiB, maxRSS=${observed.maxRSS} KiB)`);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('bounded DB reads bind the first hash and reject malformed stored encodings', () => {
+  const r = runInSandbox(`
+    const sqlite = await import('node:sqlite');
+    const crypto = await import('node:crypto');
+    const dbPath = ROOT + '/.qe/qe.db';
+    const path = ROOT + '/.qe/evidence/identity.txt';
+    fs.writeFileSync(path, 'first');
+    const originalPrepare = sqlite.DatabaseSync.prototype.prepare;
+    let mutate = true;
+    sqlite.DatabaseSync.prototype.prepare = function (sql) {
+      const statement = originalPrepare.call(this, sql);
+      if (!/select\\s+content\\b/i.test(String(sql))) return statement;
+      return new Proxy(statement, { get(target, property) {
+        if (property === 'get') return (...args) => {
+          if (mutate) {
+            mutate = false;
+            const replacement = 'other';
+            const hash = crypto.createHash('sha256').update(replacement).digest('hex');
+            const other = new sqlite.DatabaseSync(dbPath);
+            other.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+              .run(replacement, 5, hash, '.qe/evidence/identity.txt');
+            other.close();
+          }
+          return target.get(...args);
+        };
+        const value = Reflect.get(target, property, target);
+        return typeof value === 'function' ? value.bind(target) : value;
+      }});
+    };
+    let code = null;
+    try { fs.readFileBoundedSync(path, 10); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_FILE_CHANGED_DURING_READ');
+
+    const db = new sqlite.DatabaseSync(dbPath);
+    fs.writeFileSync(ROOT + '/.qe/evidence/encoding.bin', Buffer.from([0]));
+    db.prepare('UPDATE qe_files SET encoding=? WHERE path=?')
+      .run('hex', '.qe/evidence/encoding.bin');
+    code = null;
+    try { fs.readFileBoundedSync(ROOT + '/.qe/evidence/encoding.bin', 10); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_FILE_CORRUPT');
+    db.prepare('UPDATE qe_files SET encoding=?,content=?,size=? WHERE path=?')
+      .run('base64', '!!!!', 1, '.qe/evidence/encoding.bin');
+    db.close();
+    code = null;
+    try { fs.readFileBoundedSync(ROOT + '/.qe/evidence/encoding.bin', 10); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_FILE_CORRUPT');
+  `);
+  assert.equal(r.ok, true, r.err || r.out);
+});
+
+test('bounded reads validate limits first and use metadata-only stat and exists queries', () => {
+  const r = runInSandbox(`
+    const p = ROOT + '/.qe/evidence/a.txt';
+    fs.writeFileSync(p, 'a');
+    for (const invalid of [-1, 1.5, 1_048_577, NaN, Infinity, '1', null]) {
+      let code = null;
+      try { fs.readFileBoundedSync(ROOT + '/missing', invalid); } catch (error) { code = error.code; }
+      assert.equal(code, 'ERR_INVALID_ARG_VALUE');
+    }
+    let pathCode = null;
+    try { fs.readFileBoundedSync(Buffer.from('x'), 1); } catch (error) { pathCode = error.code; }
+    assert.equal(pathCode, 'ERR_INVALID_ARG_TYPE');
+    const empty = ROOT + '/.qe/evidence/empty';
+    fs.writeFileSync(empty, '');
+    assert.deepEqual(fs.readFileBoundedSync(empty, -0), Buffer.alloc(0));
+    const sqlite = await import('node:sqlite');
+    const originalPrepare = sqlite.DatabaseSync.prototype.prepare;
+    const queries = [];
+    sqlite.DatabaseSync.prototype.prepare = function (sql) {
+      queries.push(String(sql));
+      return originalPrepare.call(this, sql);
+    };
+    assert.equal(fs.existsSync(p), true);
+    assert.equal(fs.statSync(p).size, 1);
+    const unsafe = ROOT + '/.qe/evidence/unsafe-size';
+    fs.writeFileSync(unsafe, 'x');
+    const direct = new sqlite.DatabaseSync(ROOT + '/.qe/qe.db');
+    direct.prepare('UPDATE qe_files SET size=? WHERE path=?')
+      .run(9_007_199_254_740_992n, '.qe/evidence/unsafe-size');
+    direct.close();
+    let corruptCode = null;
+    try { fs.readFileBoundedSync(unsafe, 10); } catch (error) { corruptCode = error.code; }
+    assert.equal(corruptCode, 'ERR_QE_FILE_CORRUPT');
+    assert.equal(queries.some(sql => /select\\s+\\*/i.test(sql) || /select[^;]*\\bcontent\\b/i.test(sql)), false, queries.join('\\n'));
+  `);
+  assert.equal(r.ok, true, r.err || r.out);
+});
+
+test('bounded disk reads reject races and non-regular files without blocking', () => {
+  const r = runInSandbox(`
+    const realModule = await import('node:fs');
+    const real = realModule.default;
+    const { syncBuiltinESMExports } = await import('node:module');
+    const child = await import('node:child_process');
+    const file = ROOT + '/outside.txt';
+    real.writeFileSync(file, 'plain');
+    assert.equal(fs.readFileBoundedSync(file, 5, 'utf8'), 'plain');
+    const originalRead = real.readSync;
+    let truncated = false;
+    real.readSync = (...args) => {
+      if (!truncated) { truncated = true; real.truncateSync(file, 1); }
+      return originalRead(...args);
+    };
+    syncBuiltinESMExports();
+    let raceCode = null;
+    try { fs.readFileBoundedSync(file, 5, 'utf8'); } catch (error) { raceCode = error.code; }
+    finally { real.readSync = originalRead; syncBuiltinESMExports(); }
+    assert.equal(raceCode, 'ERR_QE_FILE_CHANGED_DURING_READ');
+    const dir = ROOT + '/directory';
+    real.mkdirSync(dir);
+    let code = null;
+    try { fs.readFileBoundedSync(dir, 10); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_UNSUPPORTED_FILE_TYPE');
+    const fifo = ROOT + '/pipe';
+    const made = child.spawnSync('mkfifo', [fifo]);
+    assert.equal(made.status, 0);
+    const started = Date.now();
+    code = null;
+    try { fs.readFileBoundedSync(fifo, 10); } catch (error) { code = error.code; }
+    assert.equal(code, 'ERR_QE_UNSUPPORTED_FILE_TYPE');
+    assert.ok(Date.now() - started < 1_000);
+  `);
+  assert.equal(r.ok, true, r.err || r.out);
+});

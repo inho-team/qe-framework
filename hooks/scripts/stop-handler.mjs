@@ -4,6 +4,7 @@
 import { readFileSync, existsSync } from './lib/qe-fs.mjs';
 import { join } from 'path';
 import { spawnSync } from 'child_process';
+import { unlinkSync as realUnlinkSync } from 'node:fs';
 import { readState, readStdinJson, getCwd, readUnifiedState, writeUnifiedState } from './lib/state.mjs';
 import { loadConfig } from './lib/config.mjs';
 import {
@@ -11,7 +12,7 @@ import {
   captureFailureQuietly,
   findAbnormalWorkerExit,
 } from './lib/failure-capture.mjs';
-import { isPersistentModeActiveFromState } from './lib/persistent-mode.mjs';
+import { decidePersistentCompletionStop, isPersistentModeActiveFromState } from './lib/persistent-mode.mjs';
 import {
   readRalphState,
   cleanupRalphState,
@@ -58,10 +59,16 @@ function cleanupRegistryForAllowedStop() {
     deliverOnce(cwd, {
       eventType: 'Stop', payload: data, effect: 'allowed-stop-registry-cleanup',
       run: () => {
+        const cleanupFault = process.env.QE_TEST_PERSISTENT_CLEANUP_FAIL_ONCE;
+        if (cleanupFault && existsSync(cleanupFault)) {
+          realUnlinkSync(cleanupFault);
+          throw new Error('injected allowed-stop cleanup failure');
+        }
+        let cleanupError = null;
         try {
           if (currentSid) removeSession(cwd, currentSid);
           else cleanupStaleSessions(cwd);
-        } catch {}
+        } catch (error) { cleanupError = error; }
 
         // Mirror the removal into the store (ADR-027 P2).
         try {
@@ -69,7 +76,8 @@ function cleanupRegistryForAllowedStop() {
             const store = openStore(cwd, { sessionId: currentSid });
             try { store.endSession(currentSid); } finally { store.close(); }
           }
-        } catch {}
+        } catch (error) { cleanupError ||= error; }
+        if (cleanupError) throw cleanupError;
       },
     });
   } catch {
@@ -183,11 +191,41 @@ for (const mode of modes) {
   }
 }
 
+// --- Controller-owned persistent completion lease ---
+// Priority: Ralph and explicit execution modes above; durable controller lease;
+// legacy unified-state persistent mode below. An authoritative allow/deny is a
+// terminal Stop decision and is replay-safe in the controller store.
+let controllerLeaseAllowed = false;
+if (!activeMode) {
+  try {
+    const persistent = decidePersistentCompletionStop(cwd, data);
+    if (!persistent.legacy) {
+      if (persistent.ok && persistent.allow === true) {
+        controllerLeaseAllowed = true;
+      } else {
+        console.log(JSON.stringify({
+          continue: false,
+          decision: 'block',
+          reason: `[QE Persistent] ${persistent.code || 'PERSISTENT_STORE_UNAVAILABLE'}`,
+        }));
+        process.exit(0);
+      }
+    }
+  } catch {
+    console.log(JSON.stringify({
+      continue: false,
+      decision: 'block',
+      reason: '[QE Persistent] PERSISTENT_STORE_UNAVAILABLE',
+    }));
+    process.exit(0);
+  }
+}
+
 // --- Persistent Mode Check (unified-state.json) ---
 // Persistent mode is a separate mechanism from the mode-state files above.
 // It protects multi-step pipelines (SIVS loops, Wave execution, Qexecute)
 // from premature stopping even when no dedicated *-state.json file exists.
-if (!activeMode) {
+if (!activeMode && !controllerLeaseAllowed) {
   try {
     const unifiedState = readUnifiedState(cwd);
     const pm = isPersistentModeActiveFromState(unifiedState);

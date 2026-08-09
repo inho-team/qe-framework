@@ -115,3 +115,42 @@ may be added when the client exposes reliable start/stop events.
 - **Interpretation**: Use it to audit whether Wave and QA delegation follow the
   routing policy. It is dispatch evidence only, not worker completion or latency.
   Do not claim a speedup without lifecycle timing from the active client runtime.
+
+## Controller integrity report
+
+`createProcessController(...).processMetrics()` is the authoritative, read-only
+Controller report. It accepts no caller payload and is available on every
+facade without mutation authority. Its SQLite read transaction first fixes the
+closed-world union of process state/audit and all SIVS binding, proof, and
+remediation tables, then validates every complete process chain before layer
+filtering. Any partial process, malformed identifier, mixed layer, dangling
+auxiliary row, bad proof reference, or remediation/history mismatch fails the
+whole read as `PROCESS_METRICS_CORRUPT`; candidates are never silently dropped.
+
+The exact report domain is `qe-process-metrics-report-v1`, schema `1`, with
+scope `controller-sivs-lifecycle-v1`. Sources expose only identifiers, hashes,
+counts, and logical task identity. Ordered full proof-row digests include
+`created_at`; verification additionally seals the first proof and first full
+row. Remediation validates each event against its immediately paired process
+audit snapshot while the current row is separately bound to the latest overall
+process head. The report digest is:
+
+```text
+sha256(canonicalJson([
+  "qe-process-metrics-report-v1", 1, "controller-sivs-lifecycle-v1",
+  counts, sources, metrics
+]))
+```
+
+The six metric names retain their fixed order. The first five are currently
+explicit unknowns because Controller-owned TaskCreated, code-change, duration,
+A/B cohort, and post-verify-reopen producers do not exist. Pass@1 is measured
+only when every unique bound logical task has observable verification history.
+Duplicate logical identity, any valid unbound SIVS process, missing bound proof
+history, and an empty population produce their stable ambiguity reasons in that
+precedence order. A measured value uses integer basis points with BigInt
+half-up rounding; later proofs and request replay never change the first proof.
+
+The earlier `harnessMetrics` unified-state fields and hook telemetry remain
+useful operational telemetry, but are not inputs to this integrity report and
+cannot authorize or improve a Controller metric value.

@@ -4,11 +4,11 @@
  *
  * Pins the SIVS loop-safety limits (Phase 3 / R005, R006). Three parts:
  *   1. loop-guard.mjs logic self-test in temp-cwd sandboxes (cases a–i).
- *   2. Integration: spawn the REAL pre-tool-use.mjs with REMEDIATION_REQUEST
- *      Write payloads — round 3 allowed, round 4 hard-blocked (exit 2), and a
- *      non-REMEDIATION Write is never loop-blocked (case j, non-wedging).
- *   3. Wiring assertion: pre-tool-use.mjs intercepts REMEDIATION writes and the
- *      gate protocols carry the recordAndCheck depth directive.
+ *   2. Compatibility integration: spawn the REAL pre-tool-use.mjs and prove
+ *      REMEDIATION filenames are telemetry-only, while ordinary writes remain
+ *      non-wedging. Transactional Runtime Controller tests own authorization.
+ *   3. Wiring assertion: pre-tool-use.mjs does not restore filename authority;
+ *      gate protocols still carry the compatibility depth directive.
  * All in temp dirs; the real workspace state is untouched. FAIL on any violation.
  */
 
@@ -160,14 +160,14 @@ function remWrite(cwd, uuid, n) {
   return { tool_name: 'Write', tool_input: { file_path: fp, content: '# remediation' } };
 }
 
-// round 4 REMEDIATION write → hard-block (exit 2)
+// A REMEDIATION filename is compatibility-only and never grants hook authority.
 {
   const d = sandbox();
   seedState(d, { sivs_loops: { 'uuid-int': { reentry: 0, remediation_rounds: 3, stages: [], first_seen: Date.now(), updated_at: Date.now() } } });
   const r = runPre(d, remWrite(d, 'uuid-int', 4));
-  expect(r.code === 2 && /remediation limit reached/i.test(r.stderr), `[int] round 4 REMEDIATION write must hard-block (exit ${r.code})`);
+  expect(r.code !== 2 || !/remediation limit reached/i.test(r.stderr), `[int] filename-only round 4 must not authorize a loop block (exit ${r.code})`);
 }
-// round 3 REMEDIATION write → allowed (not blocked)
+// A within-cap filename is equally non-authoritative.
 {
   const d = sandbox();
   seedState(d, { sivs_loops: { 'uuid-int2': { reentry: 0, remediation_rounds: 2, stages: [], first_seen: Date.now(), updated_at: Date.now() } } });
@@ -185,8 +185,9 @@ function remWrite(cwd, uuid, n) {
 // --- Wiring assertion ---
 {
   const pre = readFileSync(PRE, 'utf8');
-  expect(/REMEDIATION_REQUEST_/.test(pre) && /recordAndCheck/.test(pre) && /loop-guard\.mjs/.test(pre),
-    '[wiring] pre-tool-use.mjs must intercept REMEDIATION writes via loop-guard recordAndCheck');
+  expect(/Remediation filenames and loop-guard counters are compatibility-only telemetry/.test(pre)
+    && !/recordAndCheck\(cwd, remUuid, 'remediation'\)/.test(pre),
+    '[wiring] pre-tool-use.mjs must keep REMEDIATION filenames non-authoritative');
   for (const p of ['skills/Qcritical-review/reference/verify-gate-protocol.md', 'skills/Qcritical-review/reference/supervise-gate-protocol.md']) {
     const txt = readFileSync(join(ROOT, p), 'utf8');
     expect(/recordAndCheck\(cwd, uuid, 'reentry'/.test(txt), `[wiring] ${p} must carry the reentry depth directive`);
@@ -200,5 +201,5 @@ if (failures.length) {
   for (const f of failures) console.error(`  ✗ ${f}`);
   process.exit(1);
 }
-console.log(`check-loop-guard: PASS (logic a-k, hook integration round3/4 + non-REMEDIATION passthrough, wiring; depth=${DEFAULT_DEPTH_LIMIT} remediation=${REMEDIATION_LIMIT})`);
+console.log(`check-loop-guard: PASS (logic a-k, compatibility-only hook passthrough, wiring; depth=${DEFAULT_DEPTH_LIMIT} remediation=${REMEDIATION_LIMIT})`);
 process.exit(0);

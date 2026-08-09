@@ -161,6 +161,12 @@ Promotion reasons reuse the Phase 2 vocabulary from `core/STATE_SPEC.md`:
 Do not add new promotion reason labels in this contract without first updating
 the state specification and validation plan.
 
+Ordinary `solo`, `subagent`, `wave`, and `isolated` routing stays on the
+existing router. Controller-backed admission is only a runtime option when the
+explicit execution metadata resolves to exactly one of `durable`,
+`long-running`, or `high-risk`; it does not rewrite the harness's completion
+authority or make ordinary execution controller-backed by default.
+
 ## Failure And Remediation Routing
 
 Harness failures route back into SIVS. They do not create a separate remediation

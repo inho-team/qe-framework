@@ -237,6 +237,18 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 - `trace-logger.mjs`: Agent decision tracing (.qe/traces/)
 - Claude SessionEnd + TaskCompleted hooks wired to metrics/telemetry
 
+### Runtime Controller verification
+
+- `node scripts/check-runtime-controller.mjs` runs the closed-loop public SIVS
+  E2E proof plus its locked stage, completion, remediation, persistent-lease,
+  and process-metrics regressions.
+- The causal path covers Verify failure, bounded remediation, restart, fresh
+  independent proofs, completion, replay/bypass boundaries, and lease release.
+- The checker is local and deterministic; rollout and deployment qualification
+  are documented as a separate follow-up scope. See
+  [Runtime Controller rollout readiness](RUNTIME_CONTROLLER_ROLLOUT.md) for the
+  local shadow, canary, scale-qualification, abort, and rollback contract.
+
 ### New lib Modules
 | Module | Path | Purpose |
 |--------|------|---------|
