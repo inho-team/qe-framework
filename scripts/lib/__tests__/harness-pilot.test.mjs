@@ -186,6 +186,30 @@ test('classifies equality as valid, separates observed failure, and rejects malf
   );
 });
 
+test('enforces the exact floating-point wall-time ceiling without tolerance', () => {
+  const budget = { ...RUNTIME_BUDGET, maxWallSeconds: 600 };
+  const view = new DataView(new ArrayBuffer(8));
+  const adjacent = direction => {
+    view.setFloat64(0, 600, false);
+    let bits = view.getBigUint64(0, false);
+    bits += direction;
+    view.setBigUint64(0, bits, false);
+    return view.getFloat64(0, false);
+  };
+  const below = adjacent(-1n);
+  const above = adjacent(1n);
+  assert.equal(classifyPilotRun(durableRawRun({ actor: { wallSeconds: below } }), budget).valid, true);
+  assert.equal(classifyPilotRun(durableRawRun({ actor: { wallSeconds: 600 } }), budget).valid, true);
+  assert.deepEqual(
+    classifyPilotRun(durableRawRun({ actor: { wallSeconds: above } }), budget).reasons,
+    ['WALL_SECONDS_EXCEEDED'],
+  );
+  for (const wallSeconds of [below, 600]) {
+    assert.ok(classifyPilotRun(durableRawRun({ actor: { wallSeconds, timedOut: true } }), budget)
+      .reasons.includes('ACTOR_TIMED_OUT'));
+  }
+});
+
 test('fails closed for malformed metrics, controller isolation, and hidden evidence', () => {
   assert.deepEqual(
     classifyPilotRun(durableRawRun({ actor: { inputTokens: Number.NaN } }), RUNTIME_BUDGET),
@@ -575,6 +599,29 @@ test('keeps model and runtime budgets equal while disabling QE control surfaces 
   }
   assert.ok(native.includes('project_doc_max_bytes=0'));
   assert.ok(!full.includes('project_doc_max_bytes=0'));
+
+  const stripNativeTreatment = args => {
+    const output = [];
+    for (let index = 0; index < args.length; index += 1) {
+      if (args[index] === '--disable'
+        && ['plugins', 'hooks', 'goals', 'multi_agent', 'skill_search'].includes(args[index + 1])) {
+        index += 1;
+      } else if (args[index] === '--config' && args[index + 1] === 'project_doc_max_bytes=0') {
+        index += 1;
+      } else output.push(args[index]);
+    }
+    return output;
+  };
+  for (const durability of ['ephemeral', 'durable']) {
+    const nativeArgs = buildCodexArgs({ ...base, condition: `native-${durability}` });
+    const fullArgs = buildCodexArgs({ ...base, condition: `full-sivs-${durability}` });
+    assert.deepEqual(stripNativeTreatment(nativeArgs), fullArgs);
+    for (const feature of ['plugins', 'hooks', 'goals', 'multi_agent', 'skill_search']) {
+      assert.equal(nativeArgs.filter((value, index) => value === '--disable'
+        && nativeArgs[index + 1] === feature).length, 1);
+    }
+    assert.equal(nativeArgs.filter(value => value === 'project_doc_max_bytes=0').length, 1);
+  }
 });
 
 test('actor prompts require same-turn completion and restrict synthetic work to the task directory', () => {
@@ -591,6 +638,32 @@ test('Full prompts bind QE behavior to the archived repository revision while na
   assert.match(full, /repository revision under evaluation/);
   assert.match(full, /skills\/Qplan\/SKILL\.md/);
   assert.doesNotMatch(native, /repository revision under evaluation|skills\/Qplan\/SKILL\.md/);
+});
+
+test('builds byte-exact scale-aware treatment prompts without mutating arbitrary Unicode tasks', () => {
+  const fullAssurance = [
+    '$Qgoal Complete the user task through the repository default Plan-owned Goal path.',
+    'Select the smallest admitted lane that preserves required evidence for this task scale; do not expand ceremony solely because this is a harness treatment.',
+    'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
+  ].join('\n');
+  const nativeAssurance = 'Execute the task directly with native agent behavior.';
+  const durableMode = 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.';
+  const ephemeralMode = 'Execution metadata: durable=false, longRunning=false. Use an ephemeral solo execution path.';
+  const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn.';
+  const task = '한글🙂e\u0301\r\nUser task:\n$Qgoal Full SIVS with independent verification';
+  const expected = (assurance, mode) => `${assurance}\n${mode}\n${completion}\n\nUser task:\n${task}`;
+
+  for (const [condition, assurance, mode] of [
+    ['full-sivs-durable', fullAssurance, durableMode],
+    ['full-sivs-ephemeral', fullAssurance, ephemeralMode],
+    ['native-durable', nativeAssurance, durableMode],
+    ['native-ephemeral', nativeAssurance, ephemeralMode],
+  ]) {
+    const actual = buildActorPrompt(task, condition);
+    assert.ok(Buffer.from(actual, 'utf8').equals(Buffer.from(expected(assurance, mode), 'utf8')));
+  }
+  assert.throws(() => buildActorPrompt('bad\0task', 'full-sivs-durable'), TypeError);
+  assert.throws(() => buildActorPrompt('bad\ud800task', 'full-sivs-durable'), TypeError);
 });
 
 test('rejects a pre-model actor failure before producing a scored dataset', async () => {

@@ -465,13 +465,29 @@ export function cloneBaselineRepository({ repository, revision, workspace }) {
 }
 
 export function buildActorPrompt(taskPrompt, condition) {
+  if (typeof taskPrompt !== 'string' || taskPrompt.includes('\0')) {
+    throw new TypeError('actor task prompt must be a NUL-free well-formed string');
+  }
+  for (let index = 0; index < taskPrompt.length; index += 1) {
+    const unit = taskPrompt.charCodeAt(index);
+    if (unit >= 0xd800 && unit <= 0xdbff) {
+      const next = taskPrompt.charCodeAt(index + 1);
+      if (!(next >= 0xdc00 && next <= 0xdfff)) {
+        throw new TypeError('actor task prompt must be a NUL-free well-formed string');
+      }
+      index += 1;
+    } else if (unit >= 0xdc00 && unit <= 0xdfff) {
+      throw new TypeError('actor task prompt must be a NUL-free well-formed string');
+    }
+  }
   const mode = condition.endsWith('-durable')
     ? 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.'
     : 'Execution metadata: durable=false, longRunning=false. Use an ephemeral solo execution path.';
   const assurance = condition.startsWith('full-sivs-')
     ? [
-      '$Qplan Execute the task through Full SIVS with independent verification before claiming completion.',
-      'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
+      '$Qgoal Complete the user task through the repository default Plan-owned Goal path.',
+      'Select the smallest admitted lane that preserves required evidence for this task scale; do not expand ceremony solely because this is a harness treatment.',
+      'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
     ].join('\n')
     : 'Execute the task directly with native agent behavior.';
   const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn.';

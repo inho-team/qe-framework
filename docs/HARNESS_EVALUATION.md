@@ -100,10 +100,21 @@ effort, workspace sandbox, token ceilings, wall-time ceiling, and user task text
 across conditions. A preregistered condition-specific treatment prefix varies
 the assurance and persistence instructions intentionally. Native conditions disable QE plugins, hooks, goals, project
 instructions, skill routing, and multi-agent control surfaces before executing
-directly. Full SIVS conditions retain those surfaces and invoke `$Qplan`
-while explicitly binding behavior to the QE implementation and contracts in the
-sanitized repository revision, including `skills/Qplan/SKILL.md`; a globally
+directly. Full SIVS conditions retain those surfaces and invoke `$Qgoal`, which
+enters the repository's Plan-owned Goal path and asks for the smallest admitted
+lane that preserves the evidence required for the task's scale. The treatment
+must not expand ceremony merely because it is a harness arm. It remains bound
+to the QE implementation and contracts in the sanitized repository revision,
+including `skills/Qgoal/SKILL.md` and `skills/Qplan/SKILL.md`; a globally
 installed skill copy is not normative for the actor run.
+
+This is an intent-to-treat assignment. The Full arm is defined by its exact
+prompt and enabled QE surfaces, not by an actor-controlled claim about which
+internal lane it followed. Success and smoke admission therefore do not prove
+lane compliance. The smoke establishes runner operability for one
+preregistered Full-durable cell; treatment efficacy across task categories is a
+claim reserved for the balanced study. Smoke observations are excluded from
+that study's dataset.
 Durable arms are wrapped by the adopted Runtime Controller and are
 valid only when admission, initialize, active, terminal, and audit-digest
 evidence is present. Ephemeral arms must contain no Controller evidence.
@@ -145,6 +156,17 @@ the same captured revision, cell identity, and runtime budget.
 The canonical journal has a 1 MiB defensive read bound. If a long-lived pilot
 reaches it, preserve that runtime directory as evidence, select a fresh
 harness-owned output directory, and establish two new smoke successes there.
+
+For a qualification run, start from zero matching attempts for the captured
+revision and cell. Invoke smoke twice sequentially in the same controlling
+launcher, and invoke it a third time neither to rescue a failure nor to seek a
+favorable adjacent pair. The second invocation is allowed only after the first
+CLI has returned with its actor child closed or killed. If the controlling
+launcher itself is lost and leaves one canonical attempt, mark that revision's
+qualification protocol incomplete; do not resume it, and qualify a new revision
+instead. Any non-success among the two attempts leaves admission false. This is
+an audited operator procedure for the pilot, not a new claim that the admission
+function enforces an attempt quota or crash recovery.
 
 Outputs are published as follows:
 
