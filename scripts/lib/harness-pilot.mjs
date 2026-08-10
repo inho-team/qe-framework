@@ -2,6 +2,7 @@ import { createHash } from 'node:crypto';
 import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
+import { isDeepStrictEqual } from 'node:util';
 
 import { CONDITIONS, evaluateHarness } from '../evaluate-harness.mjs';
 
@@ -16,11 +17,353 @@ function finitePositive(value, label) {
   return value;
 }
 
-function validControllerEvidence(condition, value) {
+const PILOT_METRICS = Object.freeze([
+  ['inputTokens', 'maxInputTokens', 'INPUT_TOKENS'],
+  ['outputTokens', 'maxOutputTokens', 'OUTPUT_TOKENS'],
+  ['wallSeconds', 'maxWallSeconds', 'WALL_SECONDS'],
+]);
+
+const RUNTIME_BUDGET_KEYS = Object.freeze(['maxInputTokens', 'maxOutputTokens', 'maxWallSeconds']);
+const CELL_KEYS = Object.freeze(['budgetDigest', 'condition', 'effort', 'model', 'repetition', 'taskId']);
+const HISTORY_KEYS = Object.freeze(['budget', 'events', 'schema']);
+const STARTED_KEYS = Object.freeze([
+  'at', 'cell', 'cellIdentity', 'contextDigest', 'controllerProcessId', 'kind',
+  'attemptId', 'revision', 'sequence', 'workspaceId',
+]);
+const TERMINAL_KEYS = Object.freeze(['at', 'attemptId', 'contextDigest', 'kind', 'run', 'sequence']);
+const RUN_KEYS = Object.freeze([
+  'actor', 'attemptContext', 'condition', 'effort', 'hiddenAcceptance', 'model',
+  'repetition', 'revision', 'taskId',
+]);
+const CONTEXT_KEYS = Object.freeze([
+  'attemptId', 'cell', 'cellIdentity', 'contextDigest', 'controllerProcessId',
+  'revision', 'workspaceId',
+]);
+const CONTROLLER_REQUIRED_KEYS = Object.freeze([
+  'activeCode', 'admissionCode', 'admitted', 'auditDigest', 'initializeCode', 'processId',
+  'terminalCode',
+]);
+const HIDDEN_KEYS = Object.freeze(['exitCode', 'outputHash', 'passed', 'signal']);
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
+const HEX40_RE = /^[0-9a-f]{40}$/;
+const HEX64_RE = /^[0-9a-f]{64}$/;
+
+function plainObject(value) {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+}
+
+function exactKeys(value, keys) {
+  return plainObject(value)
+    && Object.keys(value).sort().join('|') === [...keys].sort().join('|');
+}
+
+function canonicalDigest(payload) {
+  return createHash('sha256').update(Buffer.from(JSON.stringify(payload), 'utf8')).digest('hex');
+}
+
+function validateRuntimeBudget(budget, { exact = true } = {}) {
+  if (!plainObject(budget) || (exact && !exactKeys(budget, RUNTIME_BUDGET_KEYS))) {
+    throw new TypeError('invalid pilot runtime budget');
+  }
+  if (!Number.isSafeInteger(budget.maxInputTokens) || budget.maxInputTokens <= 0
+    || !Number.isSafeInteger(budget.maxOutputTokens) || budget.maxOutputTokens <= 0
+    || !Number.isFinite(budget.maxWallSeconds) || budget.maxWallSeconds <= 0) {
+    throw new TypeError('invalid pilot runtime budget');
+  }
+  return {
+    maxInputTokens: budget.maxInputTokens,
+    maxOutputTokens: budget.maxOutputTokens,
+    maxWallSeconds: budget.maxWallSeconds,
+  };
+}
+
+export function pilotBudgetDigest(budget) {
+  const value = validateRuntimeBudget(budget);
+  return canonicalDigest(['qe-pilot-budget-v1',
+    value.maxInputTokens, value.maxOutputTokens, value.maxWallSeconds]);
+}
+
+/** Project the three observable admission ceilings from a validated launch budget. */
+export function createPilotRuntimeBudget(source) {
+  return validateRuntimeBudget(source, { exact: false });
+}
+
+function validateCell(cell) {
+  if (!exactKeys(cell, CELL_KEYS) || !nonEmpty(cell.taskId)
+    || !Number.isSafeInteger(cell.repetition) || cell.repetition <= 0
+    || !CONDITIONS.includes(cell.condition) || !nonEmpty(cell.model) || !nonEmpty(cell.effort)
+    || !HEX64_RE.test(cell.budgetDigest || '')) {
+    throw new TypeError('invalid pilot cell');
+  }
+  return cell;
+}
+
+export function createPilotCell(source, budget) {
+  if (!plainObject(source)) throw new TypeError('invalid pilot cell source');
+  const cell = {
+    taskId: source.taskId,
+    repetition: source.repetition,
+    condition: source.condition,
+    model: source.model,
+    effort: source.effort,
+    budgetDigest: pilotBudgetDigest(createPilotRuntimeBudget(budget)),
+  };
+  validateCell(cell);
+  return structuredClone(cell);
+}
+
+export function pilotCellIdentity(cell) {
+  const value = validateCell(cell);
+  return canonicalDigest(['qe-pilot-cell-v1', value.taskId, value.repetition,
+    value.condition, value.model, value.effort, value.budgetDigest]);
+}
+
+function canonicalIso(value) {
+  if (typeof value !== 'string') return false;
+  try { return new Date(value).toISOString() === value; } catch { return false; }
+}
+
+export function createPilotAttemptContext(input) {
+  if (!plainObject(input) || !Number.isSafeInteger(input.sequence) || input.sequence < 1
+    || !UUID_RE.test(input.attemptId || '') || !HEX40_RE.test(input.revision || '')) {
+    throw new TypeError('invalid pilot attempt context');
+  }
+  const cellIdentity = pilotCellIdentity(input.cell);
+  const workspaceId = `workspace-${input.attemptId}`;
+  const controllerProcessId = `pilot-${input.attemptId}`;
+  if (input.workspaceId !== workspaceId || input.controllerProcessId !== controllerProcessId
+    || (input.cellIdentity !== undefined && input.cellIdentity !== cellIdentity)) {
+    throw new TypeError('pilot attempt context identity conflict');
+  }
+  const contextDigest = canonicalDigest(['qe-pilot-attempt-v1', input.sequence,
+    input.attemptId, input.revision, cellIdentity, workspaceId, controllerProcessId]);
+  if (input.contextDigest !== undefined && input.contextDigest !== contextDigest) {
+    throw new TypeError('pilot attempt context digest conflict');
+  }
+  return {
+    attemptId: input.attemptId,
+    revision: input.revision,
+    cell: structuredClone(input.cell),
+    cellIdentity,
+    workspaceId,
+    controllerProcessId,
+    contextDigest,
+  };
+}
+
+function validControllerEvidence(condition, value, expectedProcessId = null) {
   if (condition.endsWith('-ephemeral')) return value === null;
-  return value && value.admitted === true && value.initializeCode === 'INITIALIZED'
+  if (!exactKeys(value, CONTROLLER_REQUIRED_KEYS) || value.admissionCode !== 'ADMITTED') return false;
+  return value.admitted === true && value.initializeCode === 'INITIALIZED'
     && value.activeCode === 'ALLOWED' && value.terminalCode === 'ALLOWED'
-    && nonEmpty(value.processId) && /^[0-9a-f]{64}$/.test(value.auditDigest || '');
+    && nonEmpty(value.processId) && (!expectedProcessId || value.processId === expectedProcessId)
+    && HEX64_RE.test(value.auditDigest || '');
+}
+
+/** Classify one raw pilot run against the same ceilings used by the balanced evaluator. */
+export function classifyPilotRun(run, budget, { controllerProcessId = null } = {}) {
+  const reasons = [];
+  let invalid = false;
+  let runtimeBudget = null;
+  try { runtimeBudget = validateRuntimeBudget(budget, { exact: false }); }
+  catch {
+    invalid = true;
+    for (const [, , code] of PILOT_METRICS) reasons.push(`INVALID_BUDGET_${code}`);
+  }
+  const actor = run?.actor;
+  if (!CONDITIONS.includes(run?.condition)) { reasons.push('INVALID_CONDITION'); invalid = true; }
+  if (!plainObject(actor)) {
+    reasons.push('MISSING_ACTOR');
+    invalid = true;
+  } else {
+    if (actor.modelTurn !== true) { reasons.push('NO_MODEL_TURN'); invalid = true; }
+    for (const [metric, ceilingKey, code] of PILOT_METRICS) {
+      const metricValid = metric === 'wallSeconds'
+        ? Number.isFinite(actor[metric]) && actor[metric] >= 0
+        : Number.isSafeInteger(actor[metric]) && actor[metric] >= 0;
+      if (!metricValid) { reasons.push(`INVALID_${code}`); invalid = true; }
+      else if (runtimeBudget && actor[metric] > runtimeBudget[ceilingKey]) {
+        reasons.push(`${code}_EXCEEDED`); invalid = true;
+      }
+    }
+    if (typeof actor.timedOut !== 'boolean') { reasons.push('INVALID_ACTOR_TIMEOUT_STATE'); invalid = true; }
+    else if (actor.timedOut) { reasons.push('ACTOR_TIMED_OUT'); invalid = true; }
+    if (typeof actor.bufferExceeded !== 'boolean') { reasons.push('INVALID_ACTOR_BUFFER_STATE'); invalid = true; }
+    else if (actor.bufferExceeded) { reasons.push('ACTOR_BUFFER_EXCEEDED'); invalid = true; }
+    if (!validControllerEvidence(run?.condition || '', actor.controller, controllerProcessId)) {
+      reasons.push('INVALID_CONTROLLER_EVIDENCE');
+      invalid = true;
+    }
+    if (typeof actor.ok !== 'boolean') { reasons.push('INVALID_ACTOR_OUTCOME'); invalid = true; }
+    else if (actor.ok === false) reasons.push('ACTOR_FAILED');
+  }
+  const hidden = run?.hiddenAcceptance;
+  if (!exactKeys(hidden, HIDDEN_KEYS) || typeof hidden.passed !== 'boolean'
+    || !(Number.isInteger(hidden.exitCode) || hidden.exitCode === null)
+    || !(typeof hidden.signal === 'string' || hidden.signal === null)
+    || !HEX64_RE.test(hidden.outputHash || '')
+    || (hidden.passed === true && (hidden.exitCode !== 0 || hidden.signal !== null))) {
+    reasons.push('MISSING_HIDDEN_ACCEPTANCE');
+    invalid = true;
+  }
+  else if (hidden.passed === false
+    && (!Number.isInteger(hidden.exitCode) || hidden.exitCode === 0 || hidden.signal !== null)) {
+    reasons.push('INVALID_HIDDEN_EXECUTION');
+    invalid = true;
+  }
+  else if (hidden.passed === false) reasons.push('HIDDEN_ACCEPTANCE_FAILED');
+  return { valid: !invalid, success: !invalid && actor?.ok === true && hidden?.passed === true, reasons };
+}
+
+export function createPilotTerminalRun(run, attemptContext) {
+  if (!exactKeys(attemptContext, CONTEXT_KEYS)) throw new TypeError('invalid pilot attempt context');
+  const output = {
+    taskId: run?.taskId,
+    repetition: run?.repetition,
+    condition: run?.condition,
+    model: run?.model,
+    effort: run?.effort,
+    revision: run?.revision,
+    actor: structuredClone(run?.actor),
+    hiddenAcceptance: structuredClone(run?.hiddenAcceptance),
+    attemptContext: structuredClone(attemptContext),
+  };
+  const expectedIdentity = {
+    taskId: attemptContext.cell.taskId,
+    repetition: attemptContext.cell.repetition,
+    condition: attemptContext.cell.condition,
+    model: attemptContext.cell.model,
+    effort: attemptContext.cell.effort,
+    revision: attemptContext.revision,
+  };
+  if (!Object.entries(expectedIdentity).every(([key, value]) => output[key] === value)) {
+    throw new TypeError('pilot terminal run identity conflict');
+  }
+  return output;
+}
+
+function validateStarted(event, expectedSequence, budgetDigest, expectedCell = null) {
+  if (!exactKeys(event, STARTED_KEYS) || event.kind !== 'started'
+    || event.sequence !== expectedSequence || !canonicalIso(event.at)) {
+    throw new TypeError('invalid pilot started event sequence or schema');
+  }
+  validateCell(event.cell);
+  if (event.cell.budgetDigest !== budgetDigest
+    || (expectedCell && !isDeepStrictEqual(event.cell, expectedCell))) {
+    throw new TypeError('pilot started event cell budget conflict');
+  }
+  const context = createPilotAttemptContext(event);
+  if (event.cellIdentity !== context.cellIdentity || event.contextDigest !== context.contextDigest) {
+    throw new TypeError('pilot started event context conflict');
+  }
+  return context;
+}
+
+function validateTerminal(event, started, context, budget) {
+  if (!exactKeys(event, TERMINAL_KEYS) || event.kind !== 'terminal'
+    || event.sequence !== started.sequence || event.attemptId !== started.attemptId
+    || event.contextDigest !== started.contextDigest || !canonicalIso(event.at)
+    || !exactKeys(event.run, RUN_KEYS)) {
+    throw new TypeError('invalid pilot terminal event');
+  }
+  if (Date.parse(event.at) < Date.parse(started.at)) {
+    throw new TypeError('pilot terminal timestamp precedes its start');
+  }
+  if (!isDeepStrictEqual(event.run.attemptContext, context)) {
+    throw new TypeError('pilot terminal run context conflict');
+  }
+  const identity = {
+    taskId: started.cell.taskId,
+    repetition: started.cell.repetition,
+    condition: started.cell.condition,
+    model: started.cell.model,
+    effort: started.cell.effort,
+    revision: started.revision,
+  };
+  if (!Object.entries(identity).every(([key, value]) => event.run[key] === value)) {
+    throw new TypeError('pilot terminal run identity conflict');
+  }
+  const verdict = classifyPilotRun(event.run, budget,
+    { controllerProcessId: started.controllerProcessId });
+  if (!verdict.valid) {
+    throw new TypeError(`invalid pilot terminal run evidence: ${verdict.reasons.join(',')}`);
+  }
+  return verdict;
+}
+
+function replayHistory(history, { expectedBudget = null, expectedCell = null } = {}) {
+  if (!exactKeys(history, HISTORY_KEYS) || history.schema !== 2 || !Array.isArray(history.events)) {
+    throw new TypeError('invalid pilot attempt history schema');
+  }
+  const budget = validateRuntimeBudget(history.budget);
+  if (expectedBudget !== null) {
+    const trusted = validateRuntimeBudget(expectedBudget);
+    if (!isDeepStrictEqual(budget, trusted)) throw new TypeError('pilot history budget conflict');
+  }
+  const budgetDigest = pilotBudgetDigest(budget);
+  if (expectedCell !== null) {
+    validateCell(expectedCell);
+    if (expectedCell.budgetDigest !== budgetDigest) throw new TypeError('pilot expected cell budget conflict');
+  }
+  const attempts = [];
+  let canonicalCell = expectedCell;
+  let active = null;
+  let expectedSequence = 1;
+  let lastTimestamp = -Infinity;
+  const seenAttemptIds = new Set();
+  for (const event of history.events) {
+    if (event?.kind === 'started') {
+      if (Date.parse(event.at) < lastTimestamp) throw new TypeError('pilot event timestamps must be monotonic');
+      if (active) attempts.push({ ...active.started, status: 'interrupted', run: null,
+        verdict: { valid: false, success: false, reasons: ['ATTEMPT_INTERRUPTED'] } });
+      const context = validateStarted(event, expectedSequence, budgetDigest, canonicalCell);
+      if (canonicalCell === null) canonicalCell = structuredClone(event.cell);
+      if (seenAttemptIds.has(event.attemptId)) throw new TypeError('duplicate pilot attempt identity');
+      seenAttemptIds.add(event.attemptId);
+      active = { started: structuredClone(event), context };
+      expectedSequence += 1;
+    } else if (event?.kind === 'terminal') {
+      if (Date.parse(event.at) < lastTimestamp) throw new TypeError('pilot event timestamps must be monotonic');
+      if (!active) throw new TypeError('pilot terminal event has no immediately preceding start');
+      const verdict = validateTerminal(event, active.started, active.context, budget);
+      attempts.push({ ...active.started, status: 'completed', completedAt: event.at,
+        run: structuredClone(event.run), verdict });
+      active = null;
+    } else {
+      throw new TypeError('unknown pilot attempt event');
+    }
+    lastTimestamp = Date.parse(event.at);
+  }
+  if (active) attempts.push({ ...active.started, status: 'interrupted', run: null,
+    verdict: { valid: false, success: false, reasons: ['ATTEMPT_INTERRUPTED'] } });
+  return { budget, attempts };
+}
+
+/** Append one immutable event only after the whole resulting history replays. */
+export function appendPilotAttemptEvent(history, event) {
+  const next = structuredClone(history);
+  if (!plainObject(next) || !Array.isArray(next.events)) throw new TypeError('invalid pilot attempt history');
+  next.events.push(structuredClone(event));
+  replayHistory(next);
+  return next;
+}
+
+/** Project attempts in original event order under trusted budget and cell inputs. */
+export function projectPilotAttempts(history, { cell, expectedBudget }) {
+  return replayHistory(history, { expectedBudget, expectedCell: cell }).attempts;
+}
+
+/** Re-derive admission from the last two adjacent attempts; stored aggregate state is never trusted. */
+export function deriveSmokeAdmission(history, { revision, cell, expectedBudget }) {
+  if (!HEX40_RE.test(revision || '')) throw new TypeError('invalid smoke admission revision');
+  const attempts = projectPilotAttempts(history, { cell, expectedBudget });
+  const selected = attempts.slice(-2);
+  const admitted = cell.condition === 'full-sivs-durable' && selected.length === 2
+    && selected[1].sequence === selected[0].sequence + 1
+    && selected.every(attempt => attempt.revision === revision
+      && attempt.cellIdentity === pilotCellIdentity(cell) && attempt.verdict.success === true);
+  return { admitted, attempts, selectedAttemptIds: selected.map(attempt => attempt.attemptId) };
 }
 
 function safeRelativePath(value) {
@@ -331,16 +674,19 @@ export async function runPilot(input, {
     const prompt = buildActorPrompt(task.prompt, cell.condition);
     const actorResult = await actor({ ...cell, workspace, prompt, model: fixture.model,
       effort: fixture.effort, budget: fixture.budget });
-    if (actorResult?.modelTurn !== true || !Number.isFinite(actorResult.inputTokens)
-      || actorResult.inputTokens <= 0 || !Number.isFinite(actorResult.outputTokens)
-      || !Number.isFinite(actorResult.wallSeconds)
+    if (actorResult?.modelTurn !== true || !Number.isSafeInteger(actorResult.inputTokens)
+      || actorResult.inputTokens < 0 || !Number.isSafeInteger(actorResult.outputTokens)
+      || actorResult.outputTokens < 0 || !Number.isFinite(actorResult.wallSeconds)
+      || actorResult.wallSeconds < 0
       || !validControllerEvidence(cell.condition, actorResult.controller)) {
       throw new PilotInvalidActorError({ cell, model: fixture.model, effort: fixture.effort,
         revision, actor: actorResult });
     }
     const hiddenAcceptance = await scorer({ ...cell, workspace, task, actorResult });
-    const success = actorResult.ok === true && hiddenAcceptance.passed === true;
-    rawRuns[index] = {
+    if (typeof hiddenAcceptance?.passed !== 'boolean') {
+      throw new TypeError('hidden scorer must return a boolean passed value');
+    }
+    const rawRun = {
       ...cell,
       model: fixture.model,
       effort: fixture.effort,
@@ -349,7 +695,9 @@ export async function runPilot(input, {
       actor: actorResult,
       hiddenAcceptance,
     };
-    if (!success && hiddenAcceptance.passed !== false) throw new TypeError('hidden scorer must return a boolean passed value');
+    const verdict = classifyPilotRun(rawRun, fixture.budget);
+    if (!verdict.valid) throw new TypeError(`PILOT_INVALID_RUN_EVIDENCE ${verdict.reasons.join(',')}`);
+    rawRuns[index] = { ...rawRun, verdict };
   };
   const worker = async () => {
     while (cursor < schedule.length) {
@@ -372,7 +720,7 @@ export async function runPilot(input, {
       repetition: run.repetition,
       condition: run.condition,
       result: {
-        success: run.actor.ok === true && run.hiddenAcceptance.passed === true,
+        success: run.verdict.success,
         escapedDefects: run.hiddenAcceptance.passed === true ? 0 : 1,
         humanCorrections: 0,
         inputTokens: run.actor.inputTokens,
