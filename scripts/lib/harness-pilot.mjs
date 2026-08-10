@@ -464,29 +464,33 @@ export function cloneBaselineRepository({ repository, revision, workspace }) {
   return resolve(workspace);
 }
 
-export function buildActorPrompt(taskPrompt, condition) {
-  if (typeof taskPrompt !== 'string' || taskPrompt.includes('\0')) {
-    throw new TypeError('actor task prompt must be a NUL-free well-formed string');
+export function buildActorPrompt(taskPrompt, condition, taskCategory) {
+  if (typeof taskPrompt !== 'string' || taskPrompt.includes('\0')
+    || !/^[a-z0-9][a-z0-9-]{0,63}$/.test(taskCategory || '')) {
+    throw new TypeError('actor task prompt and category must be well-formed');
   }
   for (let index = 0; index < taskPrompt.length; index += 1) {
     const unit = taskPrompt.charCodeAt(index);
     if (unit >= 0xd800 && unit <= 0xdbff) {
       const next = taskPrompt.charCodeAt(index + 1);
       if (!(next >= 0xdc00 && next <= 0xdfff)) {
-        throw new TypeError('actor task prompt must be a NUL-free well-formed string');
+        throw new TypeError('actor task prompt and category must be well-formed');
       }
       index += 1;
     } else if (unit >= 0xdc00 && unit <= 0xdfff) {
-      throw new TypeError('actor task prompt must be a NUL-free well-formed string');
+      throw new TypeError('actor task prompt and category must be well-formed');
     }
   }
   const mode = condition.endsWith('-durable')
     ? 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.'
     : 'Execution metadata: durable=false, longRunning=false. Use an ephemeral solo execution path.';
+  const scaleDirective = taskCategory === 'micro-fix'
+    ? 'Qplan scale: Micro (derived from preregistered category micro-fix). Implement directly, run the focused acceptance command, and do not invoke downstream assurance stages unless a newly discovered high-risk signal requires escalation.'
+    : `Qplan input: preregistered task category=${taskCategory}. Apply the repository Qplan scale gate and use the smallest admitted Plan-owned Goal lane for this task.`;
   const assurance = condition.startsWith('full-sivs-')
     ? [
       '$Qgoal Complete the user task through the repository default Plan-owned Goal path.',
-      'Select the smallest admitted lane that preserves required evidence for this task scale; do not expand ceremony solely because this is a harness treatment.',
+      scaleDirective,
       'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
     ].join('\n')
     : 'Execute the task directly with native agent behavior.';
@@ -687,7 +691,7 @@ export async function runPilot(input, {
         workspace: resolve(cellRoot, task.id) });
     }
     const workspace = materializeTask(cellRoot, task);
-    const prompt = buildActorPrompt(task.prompt, cell.condition);
+    const prompt = buildActorPrompt(task.prompt, cell.condition, task.category);
     const actorResult = await actor({ ...cell, workspace, prompt, model: fixture.model,
       effort: fixture.effort, budget: fixture.budget });
     if (actorResult?.modelTurn !== true || !Number.isSafeInteger(actorResult.inputTokens)

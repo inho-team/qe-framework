@@ -476,6 +476,12 @@ test('runs every cell through an injected actor and hidden scorer with raw prove
 
     assert.equal(actorCalls.length, 20);
     assert.equal(maxActiveActors, 2);
+    assert.match(actorCalls.find(call => call.taskId === 'task-1'
+      && call.condition === 'full-sivs-durable').prompt,
+    /Qplan scale: Micro \(derived from preregistered category micro-fix\)/);
+    assert.match(actorCalls.find(call => call.taskId === 'task-2'
+      && call.condition === 'full-sivs-durable').prompt,
+    /Qplan input: preregistered task category=feature\./);
     assert.equal(output.dataset.runs.length, 20);
     assert.equal(output.rawRuns.length, 20);
     assert.equal(output.report.balancedPairs, 5);
@@ -626,15 +632,15 @@ test('keeps model and runtime budgets equal while disabling QE control surfaces 
 
 test('actor prompts require same-turn completion and restrict synthetic work to the task directory', () => {
   for (const condition of CONDITIONS) {
-    const prompt = buildActorPrompt('Work only in pilot-task/. Implement it.', condition);
+    const prompt = buildActorPrompt('Work only in pilot-task/. Implement it.', condition, 'feature');
     assert.match(prompt, /Do not wait for approval/);
     assert.match(prompt, /pilot-task/);
   }
 });
 
 test('Full prompts bind QE behavior to the archived repository revision while native prompts stay unbound', () => {
-  const full = buildActorPrompt('Work only in pilot-task/. Implement it.', 'full-sivs-durable');
-  const native = buildActorPrompt('Work only in pilot-task/. Implement it.', 'native-durable');
+  const full = buildActorPrompt('Work only in pilot-task/. Implement it.', 'full-sivs-durable', 'micro-fix');
+  const native = buildActorPrompt('Work only in pilot-task/. Implement it.', 'native-durable', 'micro-fix');
   assert.match(full, /repository revision under evaluation/);
   assert.match(full, /skills\/Qplan\/SKILL\.md/);
   assert.doesNotMatch(native, /repository revision under evaluation|skills\/Qplan\/SKILL\.md/);
@@ -643,7 +649,7 @@ test('Full prompts bind QE behavior to the archived repository revision while na
 test('builds byte-exact scale-aware treatment prompts without mutating arbitrary Unicode tasks', () => {
   const fullAssurance = [
     '$Qgoal Complete the user task through the repository default Plan-owned Goal path.',
-    'Select the smallest admitted lane that preserves required evidence for this task scale; do not expand ceremony solely because this is a harness treatment.',
+    'Qplan scale: Micro (derived from preregistered category micro-fix). Implement directly, run the focused acceptance command, and do not invoke downstream assurance stages unless a newly discovered high-risk signal requires escalation.',
     'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
   ].join('\n');
   const nativeAssurance = 'Execute the task directly with native agent behavior.';
@@ -659,11 +665,18 @@ test('builds byte-exact scale-aware treatment prompts without mutating arbitrary
     ['native-durable', nativeAssurance, durableMode],
     ['native-ephemeral', nativeAssurance, ephemeralMode],
   ]) {
-    const actual = buildActorPrompt(task, condition);
+    const actual = buildActorPrompt(task, condition, 'micro-fix');
     assert.ok(Buffer.from(actual, 'utf8').equals(Buffer.from(expected(assurance, mode), 'utf8')));
   }
-  assert.throws(() => buildActorPrompt('bad\0task', 'full-sivs-durable'), TypeError);
-  assert.throws(() => buildActorPrompt('bad\ud800task', 'full-sivs-durable'), TypeError);
+  assert.throws(() => buildActorPrompt('bad\0task', 'full-sivs-durable', 'micro-fix'), TypeError);
+  assert.throws(() => buildActorPrompt('bad\ud800task', 'full-sivs-durable', 'micro-fix'), TypeError);
+  assert.throws(() => buildActorPrompt('task', 'full-sivs-durable', 'bad category'), TypeError);
+});
+
+test('Full prompts carry preregistered non-Micro category into the Qplan scale gate', () => {
+  const prompt = buildActorPrompt('Implement it.', 'full-sivs-ephemeral', 'security');
+  assert.match(prompt, /Qplan input: preregistered task category=security\./);
+  assert.doesNotMatch(prompt, /Qplan scale: Micro/);
 });
 
 test('rejects a pre-model actor failure before producing a scored dataset', async () => {
