@@ -83,17 +83,22 @@ with the frozen five-task pilot:
 node scripts/run-harness-pilot.mjs --dry-run
 
 # Gate the study on the first preregistered Full-durable cell.
+# Run this twice successfully against the same clean captured commit.
 node scripts/run-harness-pilot.mjs --smoke --concurrency 1
 
 # Execute serially to avoid cross-cell resource interference.
 node scripts/run-harness-pilot.mjs --execute --concurrency 1
 ```
 
-The active pilot clones the same QE repository revision and materializes each
-synthetic task under `pilot-task/`. The baseline is a sanitized archive with no
+Active smoke and execute modes require a clean tracked worktree, capture `HEAD`,
+and load the frozen fixture bytes from that commit rather than from the live
+working tree. The active pilot clones the same captured QE repository revision and materializes each
+synthetic task in a temporary per-cell path named
+`<taskId>-<condition>/<taskId>/`. The baseline is a sanitized archive with no
 git history, hidden fixture, or prior evaluation output. It uses the same Codex model, reasoning
-effort, workspace sandbox, token ceilings, wall-time ceiling, and task text
-across conditions. Native conditions disable QE plugins, hooks, goals, project
+effort, workspace sandbox, token ceilings, wall-time ceiling, and user task text
+across conditions. A preregistered condition-specific treatment prefix varies
+the assurance and persistence instructions intentionally. Native conditions disable QE plugins, hooks, goals, project
 instructions, skill routing, and multi-agent control surfaces before executing
 directly. Full SIVS conditions retain those surfaces and invoke `$Qplan`
 while explicitly binding behavior to the QE implementation and contracts in the
@@ -113,16 +118,49 @@ The runner requires a real `turn.completed` usage event. Authentication errors,
 client startup failures, and other zero-token exits invalidate the pilot instead
 of being counted as unsuccessful task runs.
 
-Outputs are written under `evals/harness-pilot/codex/`:
+The default output is the harness-owned runtime directory
+`.qe/runtime/harness-pilot/codex/`. A repository-internal override is accepted
+only below `.qe/runtime/`; an external override must be absolute and point to a
+new dedicated leaf or a directory already carrying the repository-bound
+ownership marker. Existing unmarked external directories, including empty ones,
+are rejected. Filesystem
+root, the user's home, the repository root, symlinked path components, and
+unowned non-empty directories are rejected. One no-follow owner lock serializes
+all smoke and execute mutations. A live or malformed lock fails closed; only a
+provably dead local owner is quarantined and recovered automatically.
+For a malformed or ownerless lock, preserve the directory for diagnosis and
+manually quarantine it only after confirming that no harness process is active;
+the runner will not delete it. Lock authority is local-host only and does not
+coordinate separate machines over a distributed filesystem.
+Programmatic callers of the exported operation seam must also provide the live
+lock authority returned for that exact output root; the CLI supplies it
+automatically.
 
-- `results.json`: balanced evaluator input plus raw per-run provenance, patches,
-  usage, and hidden-score hashes.
-- `report.json`: descriptive four-condition means and factorial contrasts.
-- `RUN.md`: compact human-readable summary.
-- `smoke.json`: one valid preregistered smoke cell; it is never treated as a
-  balanced effectiveness report.
-- `failure.json`: written instead of a dataset when any actor lacks a completed
+Smoke admission is durable state, not a command-line assertion. Before each
+model launch the runner atomically appends a canonical `started` event to
+`smoke-history.json`; a validated terminal event is appended only after scoring.
+An interruption therefore remains visible. `--execute` starts no actor unless
+the final two adjacent attempts are successful `full-sivs-durable` runs bound to
+the same captured revision, cell identity, and runtime budget.
+The canonical journal has a 1 MiB defensive read bound. If a long-lived pilot
+reaches it, preserve that runtime directory as evidence, select a fresh
+harness-owned output directory, and establish two new smoke successes there.
+
+Outputs are published as follows:
+
+- `smoke-history.json`: append-only canonical attempt journal used for admission.
+- `smoke.json`: atomic compatibility view of the latest completed smoke attempt.
+- `generations/<id>/`: immutable `runtime.json`, `results.json`, `report.json`,
+  and `RUN.md`, followed by a hash manifest.
+- `current.json`: authoritative atomic pointer to one complete generation.
+- `failure.json`: atomic diagnostic written when any actor lacks a completed
   model turn; invalid pilots stop immediately and never run the hidden scorer.
+
+Result readers must resolve `current.json`, verify its manifest hash, and then
+verify each artifact hash. Top-level legacy result files are not authoritative.
+Atomic publication uses create-exclusive temporary files, file sync, rename,
+and directory sync. If the platform cannot establish directory durability, the
+runner fails with `PILOT_DURABILITY_UNCERTAIN` instead of claiming publication.
 
 The pilot has one repetition and validates treatment isolation, measurement,
 and scoring mechanics only. It cannot establish QE effectiveness. Promotion or

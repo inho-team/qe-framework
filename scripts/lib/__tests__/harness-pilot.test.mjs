@@ -1,11 +1,12 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { tmpdir } from 'node:os';
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
+import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import * as harnessPilot from '../harness-pilot.mjs';
+import * as pilotCli from '../../run-harness-pilot.mjs';
 
 import {
   CONDITIONS,
@@ -131,6 +132,14 @@ function terminalEvent(start, rawOverrides = {}) {
 
 function history(events = []) {
   return { schema: 2, budget: { ...RUNTIME_BUDGET }, events };
+}
+
+function runHarnessPilotSnippet(source, { cwd = ROOT, env = {} } = {}) {
+  return spawnSync(process.execPath, ['--input-type=module', '-e', source], {
+    cwd,
+    env: { ...process.env, ...env },
+    encoding: 'utf8',
+  });
 }
 
 test('derives golden canonical budget, cell, and attempt digests', () => {
@@ -665,4 +674,293 @@ test('CLI dry-run emits the frozen 20-cell schedule without hidden acceptance te
   assert.equal(output.schedule.length, 20);
   assert.equal(output.model, 'gpt-5.6-sol');
   assert.doesNotMatch(run.stdout, /hiddenAcceptance|process\.exit|node --input-type/);
+});
+
+test('CLI imports expose a canonical runtime output root, fixture capture, lock authority, and generation publish seams', () => {
+  const run = runHarnessPilotSnippet(`
+    import { mkdtempSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync, existsSync } from 'node:fs';
+    import { join } from 'node:path';
+    import { tmpdir } from 'node:os';
+    import { spawnSync } from 'node:child_process';
+    import * as pilotCli from './scripts/run-harness-pilot.mjs';
+    const {
+      resolvePilotOutputRoot,
+      loadCapturedPilotFixture,
+      acquirePilotOutputLock,
+      publishPilotGeneration,
+    } = pilotCli;
+    if (![resolvePilotOutputRoot, loadCapturedPilotFixture, acquirePilotOutputLock,
+      publishPilotGeneration].every(value => typeof value === 'function')) {
+      throw new Error('atomic CLI test seams are not implemented');
+    }
+
+    const repoRoot = process.cwd();
+    const defaultRoot = resolvePilotOutputRoot({ repoRoot });
+    if (!defaultRoot.endsWith('/.qe/runtime/harness-pilot/codex')) {
+      throw new Error(\`unexpected default root: \${defaultRoot}\`);
+    }
+    const allowed = resolvePilotOutputRoot({
+      repoRoot,
+      outputDir: join(repoRoot, '.qe/runtime/harness-pilot/custom'),
+    });
+    if (!allowed.endsWith('/.qe/runtime/harness-pilot/custom')) {
+      throw new Error(\`unexpected allowed root: \${allowed}\`);
+    }
+    let rejected = false;
+    try {
+      resolvePilotOutputRoot({ repoRoot, outputDir: join(repoRoot, 'evals/harness-pilot') });
+    } catch (error) {
+      rejected = /runtime/.test(String(error.message));
+    }
+    if (!rejected) throw new Error('expected non-runtime repo output to be rejected');
+
+    const tempRepo = mkdtempSync(join(tmpdir(), 'qe-harness-fixture-'));
+    try {
+      const fixtureRoot = join(tempRepo, 'fixture-repo');
+      const fixtureDir = join(fixtureRoot, 'scripts/fixtures');
+      const fixturePath = join(fixtureDir, 'harness-pilot.json');
+      const fixtureText = readFileSync(join(repoRoot, 'scripts/fixtures/harness-pilot.json'), 'utf8');
+      mkdirSync(fixtureDir, { recursive: true });
+      writeFileSync(join(fixtureRoot, 'package.json'), '{"type":"module"}\\n', 'utf8');
+      writeFileSync(fixturePath, fixtureText, 'utf8');
+      const init = args => {
+        const result = spawnSync('git', args, { cwd: fixtureRoot, encoding: 'utf8' });
+        if (result.status !== 0) throw new Error(result.stderr || result.stdout);
+        return result;
+      };
+      await init(['init', '-q']);
+      await init(['config', 'user.name', 'QE Harness']);
+      await init(['config', 'user.email', 'qe-harness@example.invalid']);
+      await init(['add', 'package.json', 'scripts/fixtures/harness-pilot.json']);
+      await init(['commit', '-q', '-m', 'fixture']);
+      const revision = (await init(['rev-parse', 'HEAD'])).stdout.trim();
+      writeFileSync(fixturePath, fixtureText.replace('"schema": 1', '"schema": 99'), 'utf8');
+      const loaded = loadCapturedPilotFixture({
+        repoRoot: fixtureRoot,
+        revision,
+        fixturePath,
+      });
+      if (loaded.schema !== 1) throw new Error('fixture bytes were not read from the captured revision');
+    } finally {
+      rmSync(tempRepo, { recursive: true, force: true });
+    }
+
+    const lockRoot = mkdtempSync(join(tmpdir(), 'qe-harness-lock-'));
+    try {
+      const lockResult = acquirePilotOutputLock(lockRoot);
+      if (!existsSync(join(lockRoot, '.pilot-lock', 'owner.json'))) {
+        throw new Error('missing lock owner');
+      }
+      const owner = JSON.parse(readFileSync(join(lockRoot, '.pilot-lock', 'owner.json'), 'utf8'));
+      if (owner.schema !== 1 || typeof owner.pid !== 'number' || typeof owner.token !== 'string') {
+        throw new Error('unexpected lock owner schema');
+      }
+      let locked = false;
+      try { acquirePilotOutputLock(lockRoot); } catch (error) { locked = /PILOT_LOCKED|PILOT_LOCK_INVALID/.test(String(error.message)); }
+      if (!locked) throw new Error('expected a live lock conflict');
+      lockResult.release();
+    } finally {
+      rmSync(lockRoot, { recursive: true, force: true });
+    }
+
+    const outputParent = realpathSync(mkdtempSync(join(tmpdir(), 'qe-harness-output-')));
+    const outputRoot = join(outputParent, 'owned');
+    const outputIdentity = pilotCli.preparePilotOutputRoot({ repoRoot, outputDir: outputRoot });
+    const outputLock = acquirePilotOutputLock(outputRoot);
+    try {
+      const published = publishPilotGeneration({
+        outputIdentity,
+        lockAuthority: outputLock,
+        revision: '0'.repeat(40),
+        generation: 'g-1',
+        runtime: { schema: 1, mode: 'smoke' },
+        results: { schema: 1, runs: [] },
+        report: { schema: 1, balancedPairs: 0 },
+        runSummary: '# Pilot',
+      });
+      if (!existsSync(join(outputRoot, 'current.json'))) throw new Error('missing current pointer');
+      if (!existsSync(join(outputRoot, 'generations', 'g-1', 'results.json'))) throw new Error('missing generation artifacts');
+      if (published.manifestHash.length !== 64) throw new Error('manifest hash must be sha-256');
+    } finally {
+      outputLock.release();
+      rmSync(outputParent, { recursive: true, force: true });
+    }
+  `);
+
+  assert.equal(run.status, 0, run.stderr);
+  assert.doesNotMatch(run.stderr, /choose exactly one of --dry-run, --smoke, or --execute/);
+});
+
+test('atomic CLI boundaries reject broad paths and preserve targets and malformed locks', () => {
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'qe-harness-boundary-')));
+  try {
+    const repoRoot = join(root, 'repo');
+    mkdirSync(repoRoot);
+    assert.throws(() => pilotCli.resolvePilotOutputRoot({ repoRoot, outputDir: repoRoot }),
+      /PILOT_OUTPUT_UNSAFE/);
+    assert.throws(() => pilotCli.resolvePilotOutputRoot({ repoRoot, outputDir: '/' }),
+      /PILOT_OUTPUT_UNSAFE/);
+    assert.throws(() => pilotCli.resolvePilotOutputRoot({ repoRoot, outputDir: homedir() }),
+      /PILOT_OUTPUT_UNSAFE/);
+    const runtime = join(repoRoot, '.qe/runtime');
+    mkdirSync(runtime, { recursive: true });
+    symlinkSync(join(repoRoot, 'tracked-target'), join(runtime, 'alias'));
+    assert.throws(() => pilotCli.resolvePilotOutputRoot({ repoRoot,
+      outputDir: join(runtime, 'alias', 'pilot') }), /symlink component/);
+
+    const unrelated = join(root, 'unrelated');
+    mkdirSync(unrelated);
+    writeFileSync(join(unrelated, 'keep.txt'), 'keep', 'utf8');
+    assert.throws(() => pilotCli.preparePilotOutputRoot({ repoRoot, outputDir: unrelated }),
+      /not harness-owned/);
+    assert.equal(readFileSync(join(unrelated, 'keep.txt'), 'utf8'), 'keep');
+    assert.equal(existsSync(join(unrelated, '.qe-harness-owner.json')), false);
+    const emptyExternal = join(root, 'empty-external');
+    mkdirSync(emptyExternal);
+    assert.throws(() => pilotCli.preparePilotOutputRoot({ repoRoot, outputDir: emptyExternal }),
+      /not harness-owned/);
+    assert.equal(existsSync(join(emptyExternal, '.qe-harness-owner.json')), false);
+    const mismatched = join(root, 'mismatched');
+    mkdirSync(mismatched);
+    writeFileSync(join(mismatched, '.qe-harness-owner.json'), `${JSON.stringify({
+      schema: 1, kind: 'qe-harness-runtime', repository: '/different/repository',
+    })}\n`, 'utf8');
+    assert.throws(() => pilotCli.preparePilotOutputRoot({ repoRoot, outputDir: mismatched }),
+      /marker mismatch/);
+
+    const target = join(root, 'atomic.json');
+    writeFileSync(target, 'old', 'utf8');
+    assert.throws(() => pilotCli.atomicWritePilotFile(target, 'new', {
+      beforeRename: () => { throw new Error('injected pre-rename failure'); },
+    }), /pre-rename/);
+    assert.equal(readFileSync(target, 'utf8'), 'old');
+    assert.throws(() => pilotCli.atomicWritePilotFile(target, 'new', {
+      directorySync: () => {
+        const error = new Error('PILOT_DURABILITY_UNCERTAIN: injected directory failure');
+        error.code = 'PILOT_DURABILITY_UNCERTAIN';
+        throw error;
+      },
+    }), error => error.code === 'PILOT_DURABILITY_UNCERTAIN');
+    assert.equal(readFileSync(target, 'utf8'), 'new');
+
+    const lockRoot = join(root, 'lock-root');
+    mkdirSync(join(lockRoot, '.pilot-lock'), { recursive: true });
+    assert.throws(() => pilotCli.acquirePilotOutputLock(lockRoot), /PILOT_LOCK_INVALID/);
+    assert.equal(existsSync(join(lockRoot, '.pilot-lock')), true);
+
+    const staleRoot = join(root, 'stale-root');
+    mkdirSync(join(staleRoot, '.pilot-lock'), { recursive: true });
+    writeFileSync(join(staleRoot, '.pilot-lock', 'owner.json'), `${JSON.stringify({
+      schema: 1, pid: 2_147_483_647, token: '20000000-0000-4000-8000-000000000001',
+      createdAt: '2026-08-10T00:00:00.000Z',
+    })}\n`, 'utf8');
+    const recovered = pilotCli.acquirePilotOutputLock(staleRoot);
+    assert.notEqual(recovered.owner.token, '20000000-0000-4000-8000-000000000001');
+    recovered.release();
+    assert.equal(existsSync(join(staleRoot, '.pilot-lock')), false);
+
+    const publishRoot = join(repoRoot, '.qe/runtime/publish-root');
+    const escapedRoot = join(root, 'escaped-root');
+    const publishIdentity = pilotCli.preparePilotOutputRoot({ repoRoot, outputDir: publishRoot });
+    mkdirSync(escapedRoot);
+    symlinkSync(escapedRoot, join(publishRoot, 'generations'));
+    const publishLock = pilotCli.acquirePilotOutputLock(publishRoot);
+    try {
+      assert.throws(() => pilotCli.publishPilotGeneration({
+        outputIdentity: publishIdentity, lockAuthority: publishLock,
+        revision: '0'.repeat(40), generation: 'blocked', runtime: {}, results: {},
+        report: {}, runSummary: '# blocked\n',
+      }), /PILOT_OUTPUT_UNSAFE/);
+    } finally { publishLock.release(); }
+    assert.equal(existsSync(join(escapedRoot, 'blocked')), false);
+  } finally {
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('captured operation journals before actor launch and admits execute only after two successes', async () => {
+  const repoRoot = mkdtempSync(join(tmpdir(), 'qe-harness-operation-'));
+  let operationLock = null;
+  try {
+    const git = args => spawnSync('git', args, { cwd: repoRoot, encoding: 'utf8' });
+    writeFileSync(join(repoRoot, 'tracked.txt'), 'captured\n', 'utf8');
+    assert.equal(git(['init', '-q']).status, 0);
+    assert.equal(git(['config', 'user.name', 'QE Harness']).status, 0);
+    assert.equal(git(['config', 'user.email', 'qe-harness@example.invalid']).status, 0);
+    assert.equal(git(['add', 'tracked.txt']).status, 0);
+    assert.equal(git(['commit', '-q', '-m', 'captured']).status, 0);
+    const revision = git(['rev-parse', 'HEAD']).stdout.trim();
+    const input = loadPilotFixture(join(ROOT, 'scripts/fixtures/harness-pilot.json'));
+    const outputIdentity = pilotCli.preparePilotOutputRoot({ repoRoot });
+    operationLock = pilotCli.acquirePilotOutputLock(outputIdentity.path);
+    let prematureExecuteCalls = 0;
+    await assert.rejects(() => pilotCli.runCapturedPilotOperation({ mode: 'execute', repoRoot,
+      fixture: input, revision, outputIdentity, lockAuthority: operationLock,
+      actor: async () => { prematureExecuteCalls += 1; },
+      scorer: async () => ({}), runPilotImpl: async () => { prematureExecuteCalls += 1; } }),
+    /PILOT_SMOKE_NOT_ADMITTED/);
+    assert.equal(prematureExecuteCalls, 0);
+    let actorCalls = 0;
+    const actor = async request => {
+      actorCalls += 1;
+      const historyValue = JSON.parse(readFileSync(join(outputIdentity.path, 'smoke-history.json'), 'utf8'));
+      assert.equal(historyValue.events.at(-1).kind, 'started');
+      return {
+        ok: true, modelTurn: true, inputTokens: 1, outputTokens: 1, wallSeconds: 0.01,
+        timedOut: false, bufferExceeded: false,
+        controller: {
+          admitted: true, admissionCode: 'ADMITTED', initializeCode: 'INITIALIZED',
+          activeCode: 'ALLOWED', terminalCode: 'ALLOWED', processId: request.controllerProcessId,
+          auditDigest: 'a'.repeat(64),
+        },
+      };
+    };
+    const smokeRun = async (fixtureValue, options) => {
+      const first = buildPilotSchedule(fixtureValue)[0];
+      const actorResult = await options.actor({ ...first, model: fixtureValue.model,
+        effort: fixtureValue.effort, budget: fixtureValue.budget });
+      return { dataset: null, report: null, rawRuns: [{ ...first, model: fixtureValue.model,
+        effort: fixtureValue.effort, revision, actor: actorResult,
+        hiddenAcceptance: { passed: true, exitCode: 0, signal: null, outputHash: 'b'.repeat(64) } }] };
+    };
+    const ids = ['10000000-0000-4000-8000-000000000001', '10000000-0000-4000-8000-000000000002'];
+    for (const id of ids) {
+      await pilotCli.runCapturedPilotOperation({ mode: 'smoke', repoRoot, fixture: input,
+        revision, outputIdentity, lockAuthority: operationLock,
+        actor, scorer: async () => ({}), runPilotImpl: smokeRun,
+        attemptIdFactory: () => id });
+    }
+    const historyValue = JSON.parse(readFileSync(join(outputIdentity.path, 'smoke-history.json'), 'utf8'));
+    assert.deepEqual(historyValue.events.map(event => event.kind), ['started', 'terminal', 'started', 'terminal']);
+
+    let executeActorCalls = 0;
+    const balancedRun = async (_fixtureValue, options) => {
+      executeActorCalls += 1;
+      await options.actor({ condition: 'native-ephemeral' });
+      return { dataset: { schema: 1, budget: createPilotRuntimeBudget(input.budget), runs: [] },
+        rawRuns: [], report: { balancedPairs: 0, conditions: {} } };
+    };
+    const executed = await pilotCli.runCapturedPilotOperation({ mode: 'execute', repoRoot,
+      fixture: input, revision, outputIdentity, lockAuthority: operationLock,
+      actor: async () => ({ controller: null }),
+      scorer: async () => ({}), runPilotImpl: balancedRun });
+    assert.equal(executeActorCalls, 1);
+    assert.equal(executed.admission.admitted, true);
+    assert.equal(existsSync(join(outputIdentity.path, 'current.json')), true);
+    assert.equal(actorCalls, 2);
+
+    await assert.rejects(() => pilotCli.runCapturedPilotOperation({ mode: 'smoke', repoRoot,
+      fixture: input, revision, outputIdentity, lockAuthority: operationLock,
+      actor: async request => {
+        writeFileSync(join(repoRoot, 'tracked.txt'), 'drifted\n', 'utf8');
+        return actor(request);
+      }, scorer: async () => ({}), runPilotImpl: smokeRun,
+      attemptIdFactory: () => '10000000-0000-4000-8000-000000000003' }),
+    /PILOT_REPOSITORY_DIRTY/);
+    const interrupted = JSON.parse(readFileSync(join(outputIdentity.path, 'smoke-history.json'), 'utf8'));
+    assert.equal(interrupted.events.at(-1).kind, 'started');
+  } finally {
+    operationLock?.release();
+    rmSync(repoRoot, { recursive: true, force: true });
+  }
 });
