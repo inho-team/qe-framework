@@ -29,7 +29,7 @@ active; prompt size, file count, and risk words never activate this workflow.
 Plan → Goal 1 → Goal 2 → … → Goal N
           │
           ├─ knowledge preflight
-          ├─ spec
+          ├─ assurance lane (bounded micro contract | formal spec)
           ├─ execute
           ├─ verify
           └─ verified knowledge write-back
@@ -106,7 +106,11 @@ must not duplicate its questions, counters, or transitions.
    feature area is a Phase, never a Goal.
 5. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` to assign
    stable Goal IDs.
-6. For every Goal, define a pre-execution acceptance contract from
+6. For every Goal, select its assurance lane after reconnaissance and before
+   activation. A bounded micro Goal includes the exact admission request from
+   `core/GOAL_ACCEPTANCE_CONTRACT.md`; the ledger replaces it with a session-
+   and digest-bound plan-controller admission. Otherwise omit `assurance` and
+   use the formal lane. Then define the pre-execution acceptance contract from
    `core/GOAL_ACCEPTANCE_CONTRACT.md`: verbatim Goal alignment, requirement criteria,
    at least one runnable user-journey scenario, a regression command, risk assessment,
    and whether human acceptance is required. High-impact risk categories (authentication,
@@ -129,8 +133,32 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
 2. **Knowledge preflight:** Run `node scripts/qe-plan-context.mjs "{Goal objective}"`.
    Use the returned reviewed wiki entries and QE artifact paths as pointers. Read only
    the source documents required for the Goal; source files override summaries.
-3. **Internal PSE:** Generate the Goal's TASK_REQUEST and VERIFY_CHECKLIST, execute it,
-   then run the SIVS verification loop. These are internal units, not user commands.
+3. **Assurance lane execution:** consume the immutable lane selected and
+   ledger-validated before activation; prompt length alone never decides it.
+
+   **Bounded micro-Goal lane** applies only when all conditions hold: one low-risk
+   implementation outcome, at most three allowed paths, fewer than three work
+   items, no unresolved material decision, and no authentication, authorization,
+   payment, deployment, migration, destructive-data, security-boundary, or external-
+   integration impact. The stored contract must contain the ledger-issued
+   `assurance` admission defined by `core/GOAL_ACCEPTANCE_CONTRACT.md`; absence
+   or rejection means the formal lane. The immutable Goal
+   acceptance contract is the executable micro spec. Do not create a TASK_REQUEST
+   or run the three-reviewer Spec gate.
+   Execute in the main thread or one bounded worker, apply the Qexecute TDD gate,
+   run the locked commands, and retain the distinct-session independent machine
+   verification and Goal-alignment verdict required by Step 4. Do not run a
+   separate Supervise fan-out unless changed risk evidence requires escalation.
+
+   **Formal Goal lane** applies otherwise. Generate the Goal's TASK_REQUEST and
+   VERIFY_CHECKLIST, execute it, then run the complete SIVS verification loop.
+   These are internal units, not user commands.
+
+   If a micro Goal grows beyond any limit, reveals a high-impact risk, or fails
+   verification, do not mutate its immutable acceptance. Stop before expanded
+   work, block it through the audited Goal transition, and create a new linked
+   formal Plan/Goal with a fresh acceptance contract and dependency on the
+   blocked micro Goal. The original micro Goal cannot later claim completion.
 4. **Completion evidence:** Before completion, record `evidence/{goalId}.completion.json`
    against the immutable acceptance contract. It must show every requirement and
    user-journey scenario passing, a passing regression result, machine re-execution by a

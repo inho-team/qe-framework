@@ -38,6 +38,34 @@ Save this JSON as `.qe/planning/plans/{slug}/evidence/{goalId}.acceptance.json`.
 }
 ```
 
+Formal Goals omit `assurance`. A Qplan-admitted bounded micro Goal adds this
+exact machine-validated declaration:
+
+```json
+"assurance": {
+  "lane": "bounded-micro",
+  "admissionVersion": 1,
+  "materialDecisionsResolved": true,
+  "workItems": 2
+}
+```
+
+This is an admission request, not proof. `set-acceptance` rejects caller-supplied
+provenance, validates the request, and stores a ledger-issued admission containing
+`issuedBy: "qe-ledger"`, `authority: "plan-controller"`, the current full QE
+session ID, and a digest-bound `admissionId`.
+
+The ledger rejects this lane unless it has 1–2 work items, at most three
+allowed paths, risk category `none`, no required human acceptance, and the
+exact versioned request above. Absence of `assurance` means the formal Goal
+lane; downstream execution must never infer micro admission from task size.
+
+A bounded-micro contract is never converted in place. Scope growth, newly
+detected high-impact risk, or verification failure blocks the original Goal
+through the canonical audited transition. Qplan then creates a linked formal
+successor Plan/Goal with a new acceptance contract and no `assurance` request.
+The blocked micro Goal cannot supply completion evidence for the successor.
+
 `goalAlignment.objective` must exactly preserve the Goal objective; it prevents
 an implementation from silently substituting a narrower success definition.
 Every scenario is a `user-journey`, not merely a low-level test description.

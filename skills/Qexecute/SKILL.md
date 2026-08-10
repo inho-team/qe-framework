@@ -99,6 +99,20 @@ Before any implementation worker starts, enforce:
 
 ## Step 3: Execute
 
+### Plan-owned micro-Goal handoff
+
+Qplan may invoke execution without a TASK_REQUEST only when its immutable Goal
+acceptance contract contains the ledger-validated `assurance.lane=bounded-micro`
+declaration defined by `core/GOAL_ACCEPTANCE_CONTRACT.md`. Task size alone is not
+an admission signal.
+That contract replaces only the formal Spec artifact and Spec/Supervise fan-out;
+it does not waive TDD applicability, locked command execution, regression evidence,
+distinct-session machine verification, or Goal-alignment review. Scope growth,
+new high-impact risk, or verification failure returns control to Qplan, which
+blocks the immutable micro Goal and creates a linked formal successor Plan/Goal;
+it never rewrites the original assurance. Direct Qexecute entry never
+self-declares this exception.
+
 ### TDD Applicability Gate (R004 — scale-aware)
 
 For `type: code`, call `judgeTddPolicy()` from `qexecute-tdd-policy.mjs`.

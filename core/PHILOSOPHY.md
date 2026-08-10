@@ -228,13 +228,25 @@ an entry from ordinary prose. Obligations 6–7 are evidence-quality rules for
 both native and Full SIVS work. The Safety Kernel and QE response style also
 remain universal.
 
-1. **Respect the Full SIVS spec.** Within an explicit Full SIVS Plan, do not execute Goal work that has no TASK_REQUEST. Specification is a Plan-owned internal step.
+1. **Respect the selected Full SIVS assurance contract.** Within an explicit
+   Full SIVS Plan, execute only against either a formal TASK_REQUEST or a Qplan-
+   admitted immutable bounded micro-Goal acceptance contract. Specification is
+   Plan-owned; implementation may not invent its own exception.
 
-2. **Do not skip Full SIVS verification.** A planned Goal is not complete until its VERIFY_CHECKLIST items are checked. Marking it complete without checking is a violation.
+2. **Do not skip Full SIVS verification.** A formal Goal is not complete until
+   its VERIFY_CHECKLIST items are checked. An admitted bounded micro Goal is not
+   complete until every immutable acceptance requirement and scenario has
+   implementation and distinct-session verification evidence plus an independent
+   Goal-alignment verdict. Marking either lane complete without its required
+   evidence is a violation.
 
 3. **Parallel first.** If two operations have no data dependency, run them in parallel. Never default to sequential when parallel is possible. This applies to: agent spawning, file reads/writes, analysis tasks, test+review, multi-UUID execution, and wave execution in Etask-executor. Sequential is the fallback, not the default.
 
-4. **Full SIVS remediation is a new spec, not a patch.** When verification fails inside a Plan, generate a proper REMEDIATION_REQUEST with a proper checklist. Do not apply ad-hoc fixes without a spec.
+4. **Full SIVS remediation is a new spec, not a patch.** When formal-lane
+   verification fails, generate a proper REMEDIATION_REQUEST with a proper
+   checklist. A bounded micro verification failure blocks the immutable micro
+   Goal and creates a linked formal successor Plan/Goal before remediation; its
+   lane is never mutated in place. Do not apply ad-hoc fixes without a spec.
 
 5. **The Full SIVS loop is the structured product.** Inside an explicit Plan, features, skills, and agents are means to the Plan-owned end: spec defined → implemented → verified → shipped with confidence.
 
@@ -242,7 +254,15 @@ remain universal.
 
 7. **Verify research before planning.** Web search results, blog posts, and documentation claims must be tested against the actual system before incorporating into plans. Run `--help`, `--version`, or a minimal test to confirm the feature exists. Unverified claims must be tagged `[UNVERIFIED]` in all downstream documents. Never build phases around unverified external capabilities.
 
-8. **Independent verification at every Full SIVS stage.** A stage cannot certify its own output. Every SIVS stage therefore uses structural independence: fresh-context adversarial subagents in distinct cognitive modes (Spec: Structural+Critical, Verify: Critical, Supervise: Meticulous). A gate FAIL routes backward to its cause (Spec→Spec, Verify→Implement/Spec, Supervise→Verify→Implement→Spec) until it passes or the 3-round cap escalates to the user. A degraded inline run cannot claim PASS without later delegated evidence. See `skills/Qcritical-review/reference/{thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
+8. **Independent verification at every executed Full SIVS stage.** A stage
+   cannot certify its own output. The formal Goal lane uses fresh-context
+   adversarial roles at Spec, Verify, and Supervise. The bounded micro-Goal lane
+   intentionally omits formal Spec and routine Supervise stages, but its Verify
+   stage still requires distinct-session machine re-execution and an independent
+   Goal-alignment verdict. A gate FAIL routes backward to its cause until it
+   passes or the round cap escalates. Degraded inline work cannot claim PASS
+   without later independent evidence. See `skills/Qcritical-review/reference/
+   {thinking-modes,spec-gate-protocol,verify-gate-protocol,supervise-gate-protocol}.md`.
 
 ---
 
@@ -275,11 +295,24 @@ See `docs/CLAUDE_CODE_FEATURES.md` for verified feature reference with minimum v
 
 The following are intentional design trade-offs, not violations of the Mandatory Obligations:
 
-### 1. Qexecute -utopia SIMPLE Classification
+### 1. Bounded micro-Goal exception
 
-Tasks classified as SIMPLE (≤3 files, single action, <3 checklist items) may execute without a formal TASK_REQUEST document. This is an intentional trade-off for micro-task velocity. The canonical SIMPLE criteria are defined in `skills/Qexecute/SKILL.md` (`-utopia` section, Single Source of Truth).
+Qplan may admit a low-risk Goal with one implementation outcome, at most three
+allowed paths, fewer than three work items, and no material ambiguity to the
+bounded micro-Goal lane. Its immutable Goal acceptance contract is the executable
+spec, so it may execute without a formal TASK_REQUEST and without Spec/Supervise
+review fan-out. The canonical criteria and escalation rule live in
+`skills/Qplan/SKILL.md`; Qexecute only consumes the Plan-owned handoff.
 
-**Rationale**: Requiring a full spec for a one-line fix would add overhead that exceeds the risk of the change itself.
+Independent final verification, locked regression evidence, TDD when applicable,
+and Goal alignment remain mandatory. Any scope growth, high-impact risk, or
+verification failure blocks the immutable micro Goal and creates a linked formal
+successor Plan/Goal with a fresh acceptance contract.
+
+**Rationale**: Requiring three independent Spec reviewers and a separate routine
+Supervise fan-out for a bounded one-file fix adds latency disproportionate to its
+risk, while an immutable acceptance contract plus independent re-execution still
+guards the completion claim.
 
 ### 2. Qexecute -utopia Retry Loop
 

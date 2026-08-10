@@ -246,6 +246,14 @@ test('actor prompts require same-turn completion and restrict synthetic work to 
   }
 });
 
+test('Full prompts bind QE behavior to the archived repository revision while native prompts stay unbound', () => {
+  const full = buildActorPrompt('Work only in pilot-task/. Implement it.', 'full-sivs-durable');
+  const native = buildActorPrompt('Work only in pilot-task/. Implement it.', 'native-durable');
+  assert.match(full, /repository revision under evaluation/);
+  assert.match(full, /skills\/Qplan\/SKILL\.md/);
+  assert.doesNotMatch(native, /repository revision under evaluation|skills\/Qplan\/SKILL\.md/);
+});
+
 test('rejects a pre-model actor failure before producing a scored dataset', async () => {
   const root = mkdtempSync(join(tmpdir(), 'qe-invalid-actor-'));
   try {

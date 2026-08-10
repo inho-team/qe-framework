@@ -24,21 +24,25 @@ hint, treat it as workflow admission context, not as authorization.
 Step 2 — Resolve the target Plan. Create a one-Goal Plan or add the Goal to an active compatible Plan. If the intent contains multiple independently verifiable outcomes, Qplan may split it into ordered Goals rather than pretending it is atomic.
 
 Step 3 — Enter `Qplan` and run the selected Goal's internal pipeline. `Qgoal` must
-carry the Goal through this sequence before reporting it complete:
+preserve Qplan's machine-validated assurance lane before reporting it complete:
 
 ```text
 Qplan knowledge preflight
-  → Qgenerate-spec (TASK_REQUEST + VERIFY_CHECKLIST)
-  → Qexecute {UUID} (implementation)
-  → Qexecute -verify {UUID} (test, review, fix, retest)
+  → lane selection
+      ├─ bounded micro: immutable acceptance contract → bounded implementation
+      └─ formal: Qgenerate-spec (TASK_REQUEST + VERIFY_CHECKLIST) → Qexecute
+  → independent verification and Goal-alignment evidence
   → Qplan completion evidence and verified knowledge write-back
 ```
 
-`Qgenerate-spec` and both `Qexecute` stages are internal components of the Qgoal path;
-they are not separate user commands or optional handoffs. Preserve the active
-Plan/Goal and generated UUID across the stages. If spec generation, execution,
-or verification fails, keep the Goal active or blocked with its evidence rather
-than continuing to another Goal.
+Formal-lane `Qgenerate-spec` and `Qexecute` stages are internal components, not
+separate user commands. A bounded-micro lane is valid only with the immutable
+ledger admission declared in `core/GOAL_ACCEPTANCE_CONTRACT.md`; Qgoal cannot
+infer or issue it. Preserve the active Plan/Goal and any generated UUID across
+the selected stages. On scope growth, risk discovery, execution failure, or
+verification failure, Qplan blocks the immutable micro Goal through the audited
+transition and creates a linked formal successor Plan/Goal with a fresh contract;
+Qgoal never rewrites the original lane or silently continues.
 
 Qplan is the sole owner of tacit-knowledge intake before this pipeline. Qgoal
 delegates the original intent and client mode unchanged, then consumes Qplan's

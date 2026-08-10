@@ -3060,6 +3060,8 @@ const RISK_SIGNALS = [
 const MAX_GOAL_REQUIREMENTS = 3;
 const MAX_GOAL_SCENARIOS = 2;
 const MAX_GOAL_PATHS = 5;
+const MAX_MICRO_GOAL_PATHS = 3;
+const MAX_MICRO_GOAL_WORK_ITEMS = 2;
 const CODE_PATH_RE = /\.(?:mjs|cjs|js|jsx|ts|tsx|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|php|rb|sh|bash|zsh|sql|vue|svelte)$/iu;
 const MACHINE_SESSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const GOAL_COMMAND_TIMEOUT_MS = 120_000;
@@ -3115,6 +3117,61 @@ function validateGoalShape(shape) {
   return shape;
 }
 
+function validateGoalAssurance(contract) {
+  if (!Object.prototype.hasOwnProperty.call(contract, 'assurance')) return;
+  const assurance = contract.assurance;
+  const keys = assurance && typeof assurance === 'object' && !Array.isArray(assurance)
+    ? Object.keys(assurance).sort() : [];
+  const expected = ['admissionId', 'admissionVersion', 'authority', 'issuedBy', 'lane',
+    'materialDecisionsResolved', 'sessionId', 'workItems'];
+  if (keys.join('|') !== expected.sort().join('|') || assurance.lane !== 'bounded-micro'
+    || assurance.admissionVersion !== 1 || assurance.issuedBy !== 'qe-ledger'
+    || assurance.authority !== 'plan-controller' || !MACHINE_SESSION_RE.test(assurance.sessionId)
+    || !/^[0-9a-f]{64}$/.test(assurance.admissionId)) {
+    throw new Error('bounded-micro assurance requires exact ledger-issued plan-controller admission');
+  }
+  if (assurance.materialDecisionsResolved !== true) {
+    throw new Error('bounded-micro assurance requires resolved material decisions');
+  }
+  if (!Number.isSafeInteger(assurance.workItems) || assurance.workItems < 1
+    || assurance.workItems > MAX_MICRO_GOAL_WORK_ITEMS) {
+    throw new Error(`bounded-micro assurance requires 1-${MAX_MICRO_GOAL_WORK_ITEMS} work items`);
+  }
+  if (contract.goalShape.allowedPaths.length > MAX_MICRO_GOAL_PATHS) {
+    throw new Error(`bounded-micro assurance allows at most ${MAX_MICRO_GOAL_PATHS} allowed paths`);
+  }
+  if (contract.riskAssessment.categories.length !== 1
+    || contract.riskAssessment.categories[0] !== 'none'
+    || contract.humanAcceptance.required !== false) {
+    throw new Error('bounded-micro assurance requires risk category none and no human acceptance');
+  }
+}
+
+function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId) {
+  if (!raw || !Object.prototype.hasOwnProperty.call(raw, 'assurance')) {
+    return validateAcceptanceContract(raw, goalId, goalObjective);
+  }
+  const request = raw.assurance;
+  const keys = request && typeof request === 'object' && !Array.isArray(request)
+    ? Object.keys(request).sort() : [];
+  const expected = ['admissionVersion', 'lane', 'materialDecisionsResolved', 'workItems'];
+  if (keys.join('|') !== expected.sort().join('|') || request.lane !== 'bounded-micro'
+    || request.admissionVersion !== 1) {
+    throw new Error('bounded-micro assurance request must use the exact version 1 request shape');
+  }
+  if (!MACHINE_SESSION_RE.test(sessionId || '')) {
+    throw new Error('bounded-micro assurance admission requires a valid QE session');
+  }
+  const contract = JSON.parse(JSON.stringify(raw));
+  const core = { lane: request.lane, admissionVersion: request.admissionVersion,
+    materialDecisionsResolved: request.materialDecisionsResolved, workItems: request.workItems,
+    issuedBy: 'qe-ledger', authority: 'plan-controller', sessionId };
+  contract.assurance = { ...core, admissionId: sha256(canonicalJson([
+    'qe-bounded-micro-admission-v1', goalId, normalizedText(goalObjective), core,
+  ])) };
+  return validateAcceptanceContract(contract, goalId, goalObjective);
+}
+
 /**
  * Validate the contract written before a Goal starts.  It deliberately names
  * scenarios and requirements separately: a passing test alone must not become
@@ -3144,13 +3201,16 @@ function validateAcceptanceContract(contract, goalId, goalObjective = '') {
       (risk.categories.includes('none') && risk.categories.length !== 1) || !nonEmpty(risk.rationale)) {
     throw new Error('acceptance contract requires a valid risk assessment with categories and rationale');
   }
-  const requiredRisks = requiredRiskCategories(goalObjective);
+  const riskSignalText = [goalObjective, contract.goalShape.primaryOutcome,
+    contract.goalShape.completionMetric, ...contract.goalShape.allowedPaths].join(' ');
+  const requiredRisks = requiredRiskCategories(riskSignalText);
   if (requiredRisks.some(category => !risk.categories.includes(category))) {
     throw new Error(`acceptance contract risk assessment omits detected Goal risk: ${requiredRisks.filter(category => !risk.categories.includes(category)).join(', ')}`);
   }
   if (risk.categories.some(category => category !== 'none') && !contract.humanAcceptance.required) {
     throw new Error('risk-bearing Goals require humanAcceptance.required: true');
   }
+  validateGoalAssurance(contract);
   if (Object.prototype.hasOwnProperty.call(contract, 'traceability')) {
     const traceability = validateTraceabilityDefinition(contract);
     if (!traceability.ok) throw new Error(`acceptance contract traceability is invalid: ${traceability.code}`);
@@ -3425,7 +3485,8 @@ export function setGoalAcceptance(cwd, slug, { goalId, file }) {
       const goal = doc.goals?.find(item => item.id === goalId);
       if (!goal) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `unknown goalId: ${goalId}`); }
       if (goal.status !== 'pending') { db.exec('ROLLBACK'); throw new Error('acceptance contract can only be set before a Goal starts'); }
-      const contract = validateAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId, goal.objective);
+      const contract = prepareAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId,
+        goal.objective, readCurrentSessionId(cwd));
       const contractText = canonicalPlanSerializeJson(contract);
       const artifactSha = sha256(contractText);
       const identity = sha256(canonicalJson(['qe-plan-write-v1', 'setGoalAcceptance', slug, goalId, relAcceptance, artifactSha]));
@@ -3461,7 +3522,8 @@ export function setGoalAcceptance(cwd, slug, { goalId, file }) {
   const goal = doc?.goals?.find(item => item.id === goalId);
   if (!goal) throw new Error(`unknown goalId: ${goalId}`);
   if (goal.status !== 'pending') throw new Error('acceptance contract can only be set before a Goal starts');
-  const contract = validateAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId, goal.objective);
+  const contract = prepareAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId,
+    goal.objective, readCurrentSessionId(cwd));
   if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
   atomicWriteJson(acceptancePath(cwd, slug, goalId), contract);
   goal.acceptance = { status: 'defined', file: join('evidence', `${goalId}.acceptance.json`), hash: contractHash(contract) };

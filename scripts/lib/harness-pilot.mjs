@@ -126,7 +126,10 @@ export function buildActorPrompt(taskPrompt, condition) {
     ? 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.'
     : 'Execution metadata: durable=false, longRunning=false. Use an ephemeral solo execution path.';
   const assurance = condition.startsWith('full-sivs-')
-    ? '$Qplan Execute the task through Full SIVS with independent verification before claiming completion.'
+    ? [
+      '$Qplan Execute the task through Full SIVS with independent verification before claiming completion.',
+      'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
+    ].join('\n')
     : 'Execute the task directly with native agent behavior.';
   const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn.';
   return `${assurance}\n${mode}\n${completion}\n\nUser task:\n${taskPrompt}`;

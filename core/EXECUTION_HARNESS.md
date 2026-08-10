@@ -65,10 +65,12 @@ work. It answers questions like:
 - Did the expected files change?
 - Did the status projection advance?
 
-SIVS completion means the task passed the QE completion contract. It requires:
+SIVS completion means the task passed the selected QE assurance contract. It requires:
 
-- TASK_REQUEST items completed.
-- VERIFY_CHECKLIST items answered with concrete evidence.
+- Formal lane: TASK_REQUEST items completed and VERIFY_CHECKLIST items answered
+  with concrete evidence.
+- Bounded micro lane: ledger-validated acceptance requirements and scenarios
+  have implementation and independent verification runs plus completion evidence.
 - Supervise requirements satisfied when the task requires supervision.
 - Post-verification bookkeeping recorded after the evidence is complete.
 
@@ -104,7 +106,8 @@ whether the stage is complete.
 
 Resolver input source precedence is fixed by artifact class:
 
-1. Active TASK_REQUEST and VERIFY_CHECKLIST artifacts.
+1. Active formal TASK_REQUEST/VERIFY_CHECKLIST artifacts, or an active ledger-
+   validated bounded-micro acceptance artifact.
 2. `.qe/TASK_LOG.md`.
 3. `.qe/planning/` plan, phase, roadmap, and goal state.
 4. `.qe/state/harness-lanes.json`.
@@ -125,7 +128,7 @@ Resolver inputs:
 | session staleness | Whether the active session, lane owner, or mirror state is stale. |
 | evidence availability | Whether the required artifact paths, checks, and results can be produced. |
 | client capability | Whether the active client supports the requested lifecycle/status surface. |
-| canonical artifact status | Whether TASK_REQUEST, VERIFY_CHECKLIST, plan state, and task log agree. |
+| canonical artifact status | Whether the selected lane's formal task/checklist or bounded-micro acceptance/evidence, Plan state, and task log agree. |
 
 Resolver outputs:
 
@@ -174,8 +177,9 @@ path.
 
 | Condition | SIVS result |
 | --- | --- |
-| Missing canonical TASK_REQUEST or VERIFY_CHECKLIST | Verify FAIL. |
-| Incomplete TASK_REQUEST or VERIFY_CHECKLIST | Verify FAIL. |
+| Formal lane is missing canonical TASK_REQUEST or VERIFY_CHECKLIST | Verify FAIL. |
+| Formal TASK_REQUEST or VERIFY_CHECKLIST is incomplete | Verify FAIL. |
+| Bounded-micro lane is missing valid admission, locked runs, or completion evidence | Verify FAIL. |
 | Evidence status is `fail` | Verify FAIL. |
 | Evidence status is `degraded` or `unsupported` | Verify cannot pass; record degraded or unsupported evidence. |
 | Artifact paths or evidence refs are unresolved | Verify cannot pass; record missing evidence and rerun after repair. |
@@ -189,8 +193,8 @@ Backward routing follows the existing SIVS documents:
 - `skills/Qcritical-review/reference/supervise-gate-protocol.md` defines
   nearest-first Supervise FAIL routing: Verify -> Implement -> Spec.
 
-Harness state may recommend a likely cause stage, but it cannot bypass Spec,
-Implement, Verify, or Supervise.
+Harness state may recommend a likely cause stage, but it cannot bypass any stage
+instantiated by the selected assurance lane.
 
 `REMEDIATION_REQUEST` is generated only after Supervise FAIL according to the
 existing remediation protocol. Harness status and Verify FAIL do not directly
@@ -200,7 +204,8 @@ create remediation requests.
 
 Validation must prove the SIVS contract, not only the harness operation.
 
-- Harness completion never replaces VERIFY_CHECKLIST completion.
+- Harness completion never replaces formal VERIFY_CHECKLIST completion or
+  bounded-micro acceptance/completion evidence.
 - Status projection is not completion proof.
 - A lane reporting `completed` is only operationally complete.
 - Evidence claims must include `artifact_paths`, `command_or_check`, `result`,

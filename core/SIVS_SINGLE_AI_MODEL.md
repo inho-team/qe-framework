@@ -19,12 +19,25 @@ it is not represented as provider-pool separation.
 | Verify | High-reasoning critical lead | Prove the change meets its spec through executable evidence; delegate adversarial test/reproduction checks before returning a verdict. |
 | Supervise | High-reasoning critical lead | Consume Verify evidence and decide release readiness from security, business rules, change impact, and operational risk. |
 
+### Micro Goal stage profile
+
+An explicit Qplan/Qgoal entry still selects Full SIVS, but Qplan may admit a Goal
+to its bounded micro-Goal lane under the exact criteria in `skills/Qplan/SKILL.md`.
+For that lane, the ledger-validated immutable acceptance contract is the executable Spec; the
+formal TASK_REQUEST and three-reviewer Spec gate are not instantiated. Implement
+remains bounded, and Verify remains independently owned through distinct-session
+machine re-execution plus a Goal-alignment verdict. Routine Supervise fan-out is
+omitted. Discovered scope, high-impact risk, or failed verification blocks the
+immutable micro Goal and creates a linked formal successor Plan/Goal under the
+stage contract above; it never mutates the original lane before completion.
+
 ## Verify and Supervise boundary
 
-Verify is an **evidence gate**. It owns checklist traceability, tests, static
+Verify is an **evidence gate**. It owns contract traceability, tests, static
 checks, failure reproduction, and implementation defects. Its output is a
-`VERIFY_CHECKLIST` result plus a findings ledger with commands, outcomes, and
-unresolved items.
+`VERIFY_CHECKLIST` result for a formal Goal, or locked acceptance/completion
+evidence for an admitted bounded micro Goal, plus a findings ledger with
+commands, outcomes, and unresolved items.
 
 Supervise is a **release gate**, not a second line-by-line review. It consumes
 the Verify ledger and only reopens a file when it changed after Verify or when a

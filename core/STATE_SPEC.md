@@ -53,7 +53,7 @@ Canonical ownership is split by artifact type:
 | Artifact | Canonical role |
 | --- | --- |
 | `.qe/state/` | Runtime session state, active modes, harness lanes, and status inputs. |
-| `.qe/planning/` | Plan, phase, roadmap, and goal state. |
+| `.qe/planning/` | Plan, phase, roadmap, Goal state, and bounded-micro acceptance/completion evidence. |
 | `.qe/tasks/` | TASK_REQUEST lifecycle and task item completion. |
 | `.qe/checklists/` | VERIFY_CHECKLIST evidence and verification completion. |
 | `.qe/TASK_LOG.md` | Completed-task registry and historical status. |
@@ -144,7 +144,8 @@ Session binding rules:
 - If `session_id` is known, the lane belongs to that session until it completes,
   becomes stale, or is explicitly superseded.
 - A stale session cannot claim completion. Resume must re-check the completed
-  TASK_REQUEST, completed VERIFY_CHECKLIST, and `.qe/TASK_LOG.md`.
+  the selected lane's formal TASK_REQUEST/VERIFY_CHECKLIST or bounded-micro
+  acceptance/completion evidence, and `.qe/TASK_LOG.md`.
 - Unknown `session_id` records may be used for diagnostics, but rebinding them
   to a session must preserve the original `source` and `updated_at` evidence.
 - Duplicate `task_uuid` + `plan_slug` active lanes are a conflict unless they
@@ -163,9 +164,10 @@ Cache and evidence edge-case rules:
 
 - Corrupt cache is discarded or marked `degraded`; it is never repaired by
   trusting adapter-local state over `.qe/` artifacts.
-- Missing canonical TASK_REQUEST or VERIFY_CHECKLIST artifacts block completion
-  claims even if a lane says `completed`.
-- Unreadable task or checklist files force `evidence_status: "degraded"` or
+- A formal lane missing canonical TASK_REQUEST or VERIFY_CHECKLIST artifacts,
+  or a bounded-micro lane missing its ledger admission or locked Goal evidence,
+  blocks completion claims even if a lane says `completed`.
+- Unreadable selected-lane contract or evidence files force `evidence_status: "degraded"` or
   `evidence_status: "unsupported"`.
 - Unresolved artifact paths and broken evidence refs must stay visible in
   `limitations` and block a pass-style status projection.

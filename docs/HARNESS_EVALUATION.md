@@ -96,7 +96,10 @@ effort, workspace sandbox, token ceilings, wall-time ceiling, and task text
 across conditions. Native conditions disable QE plugins, hooks, goals, project
 instructions, skill routing, and multi-agent control surfaces before executing
 directly. Full SIVS conditions retain those surfaces and invoke `$Qplan`
-explicitly. Durable arms are wrapped by the adopted Runtime Controller and are
+while explicitly binding behavior to the QE implementation and contracts in the
+sanitized repository revision, including `skills/Qplan/SKILL.md`; a globally
+installed skill copy is not normative for the actor run.
+Durable arms are wrapped by the adopted Runtime Controller and are
 valid only when admission, initialize, active, terminal, and audit-digest
 evidence is present. Ephemeral arms must contain no Controller evidence.
 This measures Controller-backed persistence as an external execution envelope;
