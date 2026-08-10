@@ -31,6 +31,18 @@
 | `/Qversion` / `$Qversion` | When you need to check the current framework version. | Displays version info and recent changelog. |
 | `/Qcommit` / `$Qcommit` | When changes must be committed. | Human-style commit messages with no AI traces. |
 
+## State Inspection
+
+| Skill | Invocation Trigger | Core Benefit |
+|-------|-------------------|--------------|
+| `/Qdashboard` / `$Qdashboard` | When you need to inspect the local QE DB, stored tasks, plans, sessions, or verification state. | Regenerates and opens the existing read-only QE Inspector. |
+
+## Environment Setup
+
+| Skill | Invocation Trigger | Core Benefit |
+|-------|-------------------|--------------|
+| `/Qcc-setup` / `$Qcc-setup` | When you need Claude Code or Codex terminal shortcuts. | Installs shell aliases with separate confirmation for permission-bypass launchers. |
+
 ## Session & Memory
 
 | Skill | Invocation Trigger | Core Benefit |

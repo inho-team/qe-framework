@@ -156,7 +156,7 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 
 ---
 
-## Skill Library (<!--qe:skills-->10<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->12<!--/qe:skills--> skills)
 
 | Category | Count | Key Skills |
 |----------|-------|------------|
@@ -164,6 +164,8 @@ Delegation Enforcer hook auto-assigns the correct model tier.
 | Quality | 1 | Qcritical-review |
 | Project | 3 | Qcommit, Qupdate, Qversion |
 | Session | 2 | Qcompact, Qresume |
+| Inspection | 1 | Qdashboard |
+| Environment | 1 | Qcc-setup |
 
 ---
 

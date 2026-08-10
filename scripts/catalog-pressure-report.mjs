@@ -20,8 +20,8 @@ const INSTALLED_SKILLS = join(homedir(), '.codex', 'skills');
 const ROUTES_PATH = join(ROOT, 'hooks', 'scripts', 'lib', 'intent-routes.json');
 
 const CORE_AUTO = new Set([
-  'Qgoal', 'Qplan', 'Qgenerate-spec', 'Qexecute', 'Qcritical-review',
-  'Qcommit', 'Qcompact', 'Qresume', 'Qupdate', 'Qversion', 'Qrelease',
+  'Qgoal', 'Qplan', 'Qgenerate-spec', 'Qexecute', 'Qcritical-review', 'Qcc-setup',
+  'Qcommit', 'Qcompact', 'Qdashboard', 'Qresume', 'Qupdate', 'Qversion', 'Qrelease',
 ]);
 const EXPLICIT_ONLY = new Set([
   'Qjira-cli',
@@ -264,7 +264,7 @@ agent-backed delegation contracts. Personal catalog slimming should therefore
 prefer removing or hiding optional domain skills first, while preserving:
 
 - Retained QE commands: Qgoal, Qplan, Qgenerate-spec, Qexecute,
-  Qcritical-review, Qcommit, Qcompact, Qresume, Qupdate, Qversion.
+  Qcritical-review, Qcc-setup, Qcommit, Qcompact, Qdashboard, Qresume, Qupdate, Qversion.
 - Maintainer safety surfaces: Qrelease and the commit/version capability routes.
 - E-agents only behind documented Q/M wrappers unless the route is explicitly
   marked as an expert-only direct-agent fallback.

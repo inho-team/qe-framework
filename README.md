@@ -2,7 +2,7 @@
 
 **Query Execute Framework for Claude Code and Codex**
 
-> <!--qe:skills-->10<!--/qe:skills--> skills | <!--qe:agents-->12<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+> <!--qe:skills-->12<!--/qe:skills--> skills | <!--qe:agents-->12<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
 
 **A transparent, auditable, single-AI quality gate for coding agents.** Three things set QE apart:
 
@@ -327,7 +327,7 @@ Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
 
 ---
 
-## Skill Library (<!--qe:skills-->10<!--/qe:skills--> skills)
+## Skill Library (<!--qe:skills-->12<!--/qe:skills--> skills)
 
 > **Start here.** Claude uses `/Qplan {intent}` and Codex uses `$Qplan {intent}`.
 > Spec and execution remain internal components of the Plan-owned Goal loop.
@@ -345,6 +345,8 @@ install download optional guidance.
 | **Internal PSE stages** | `Qgenerate-spec` `Qexecute` *(not user-invocable)* | 2 |
 | **Quality** | `Qcritical-review` | 1 |
 | **Project** | `Qcommit` `Qupdate` `Qversion` | 3 |
+| **Inspection** | `Qdashboard` | 1 |
+| **Environment** | `Qcc-setup` | 1 |
 | **Session** | `Qcompact` `Qresume` | 2 |
 
 ## Agent Fleet (<!--qe:agents-->12<!--/qe:agents--> agents)
@@ -370,7 +372,7 @@ install download optional guidance.
 
 ```
 qe-framework/
-├── skills/                  # 10 skill definitions (8 public, 2 internal)
+├── skills/                  # 12 skill definitions (10 public, 2 internal)
 ├── agents/                  # 20 agent definitions
 ├── core/                    # Principles, schemas, rules
 ├── scripts/                 # Runtime utilities + shared libs

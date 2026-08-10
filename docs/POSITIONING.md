@@ -2,7 +2,7 @@
 
 Where QE fits, and why it is not the same thing as the tools it is often compared to.
 All counts below are the current, measured framework footprint (2026-07):
-**10 skills** and **12 agents** in the standalone QE Framework package.
+**12 skills** and **12 agents** in the standalone QE Framework package.
 Optional MCP servers and local skill packs are configured separately per user or
 project.
 

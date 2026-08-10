@@ -1,0 +1,4 @@
+interface:
+  display_name: "QE Dashboard"
+  short_description: "Open and inspect the local QE state dashboard"
+  default_prompt: "Use $Qdashboard to refresh and open the local QE state dashboard."

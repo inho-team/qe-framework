@@ -22,6 +22,8 @@
     "update-plugin/upgrade-qe/update-codex/codex-plugin": "Qupdate",
     "quality-loop/code-run-task/test-review-fix/verification loop/검증 루프/테스트하고 리뷰/코드 수정은 끝": "Qplan",
     "show-version/qe-version/check-version/버전/확인": "Qversion",
+    "dashboard/qe-dashboard/inspect-db/view-db/db 화면/상태 보기/대시보드": "Qdashboard",
+    "cc-alias/cx-alias/claude-shortcut/codex-shortcut/shell-alias/terminal-shortcut/쉘 별칭/터미널 단축키": "Qcc-setup",
     "critical-review/adversarial-review/stress-test/devil-advocate": "Qcritical-review",
     "debate/structured-debate/argue/pros-cons/tradeoffs/codex-vs-claude/self-debate": "Qcritical-review",
     "risk-proof/risk-gate/code-risk/high-risk/residual-risk/unknown-risk": "Qcritical-review"

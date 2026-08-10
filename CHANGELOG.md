@@ -28,6 +28,16 @@ All entries should land in `[Unreleased]` until the repository release workflow 
 
 ### Added
 
+- **`Qdashboard` local state viewer.** Adds a public Claude/Codex skill that
+  regenerates the existing read-only QE Inspector from the current project's
+  `.qe/qe.db`, opens it locally by default, and supports status-only,
+  generate-only, and path-only modes without publishing database content.
+
+- **`Qcc-setup` restored to the public framework catalog.** Restores the
+  cross-platform Claude Code and Codex shell-shortcut workflow with idempotent
+  conflict checks. Safe aliases (`cc`, `ccc`, `cx`) and permission-bypass
+  aliases (`ccd`, `cxd`, `cxde`) now require separate confirmation.
+
 - **Action-first response contract enforcement.** Main-session replies, skill summaries,
   and user-facing agent reports now lead task turns with the next action, number
   multi-step work, restate current state, use minute estimates, expose wins, report

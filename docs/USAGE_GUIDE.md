@@ -23,8 +23,18 @@ For goal triage, use `/Qgoal` or `$Qgoal`. Small concrete goals can stay direct;
 | Restore context | `/Qresume` | `$Qresume` |
 | Update framework | `/Qupdate` | `$Qupdate` |
 | Show version | `/Qversion` | `$Qversion` |
+| Inspect local QE state | `/Qdashboard` | `$Qdashboard` |
+| Set up shell shortcuts | `/Qcc-setup` | `$Qcc-setup` |
 
 `Qgenerate-spec` and `Qexecute` are installed internal contracts used by `Qplan`; they are not public entry points.
+
+`Qdashboard` regenerates `.qe/inspector.html` from the current project's
+read-only QE store and opens it locally. Use `--status` for a terminal summary,
+`--no-open` to generate only, or `--path` to print the report location.
+
+`Qcc-setup` installs `cc`, `ccc`, and `cx` launch shortcuts after confirmation.
+Permission-bypass aliases `ccd`, `cxd`, and `cxde` require a separate explicit
+opt-in and are never included by default.
 
 ## Deterministic tacit-knowledge intake
 

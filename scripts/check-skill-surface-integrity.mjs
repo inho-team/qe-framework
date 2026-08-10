@@ -5,10 +5,10 @@ import { join } from 'node:path';
 
 const ROOT = process.cwd();
 const EXPECTED = new Set([
-  'Qcommit', 'Qcompact', 'Qcritical-review', 'Qexecute', 'Qgenerate-spec',
+  'Qcc-setup', 'Qcommit', 'Qcompact', 'Qcritical-review', 'Qdashboard', 'Qexecute', 'Qgenerate-spec',
   'Qgoal', 'Qplan', 'Qresume', 'Qupdate', 'Qversion',
 ]);
-const PUBLIC = new Set(['Qcommit', 'Qcompact', 'Qcritical-review', 'Qgoal', 'Qplan', 'Qresume', 'Qupdate', 'Qversion']);
+const PUBLIC = new Set(['Qcc-setup', 'Qcommit', 'Qcompact', 'Qcritical-review', 'Qdashboard', 'Qgoal', 'Qplan', 'Qresume', 'Qupdate', 'Qversion']);
 const INTERNAL = new Set(['Qgenerate-spec', 'Qexecute']);
 const failures = [];
 
@@ -112,4 +112,4 @@ if (failures.length) {
   for (const failure of failures) console.error(`  ✗ ${failure}`);
   process.exit(1);
 }
-console.log('check-skill-surface-integrity: PASS (10 skills, public/internal boundary, live Q/E targets)');
+console.log('check-skill-surface-integrity: PASS (12 skills, public/internal boundary, live Q/E targets)');

@@ -138,6 +138,26 @@
       "reason": "The user explicitly asks for the current QE Framework version."
     },
     {
+      "id": "state-dashboard-ko",
+      "prompt": "QE DB에 저장된 작업과 세션을 대시보드로 보여줘.",
+      "locale": "ko",
+      "category": "state-inspection",
+      "expected": "Qdashboard",
+      "aliases": ["Qdashboard"],
+      "confidence": 0.99,
+      "reason": "The user explicitly asks for a visual dashboard of the local QE database state."
+    },
+    {
+      "id": "environment-shell-shortcut-ko",
+      "prompt": "Claude Code와 Codex를 빠르게 실행할 cc, cx 쉘 별칭을 설정해줘.",
+      "locale": "ko",
+      "category": "environment",
+      "expected": "Qcc-setup",
+      "aliases": ["Qcc-setup"],
+      "confidence": 0.99,
+      "reason": "The user explicitly asks to configure Claude Code and Codex shell shortcuts."
+    },
+    {
       "id": "research-autoresearch-en",
       "prompt": "Start an autoresearch loop to optimize build time with one benchmark metric.",
       "locale": "en",

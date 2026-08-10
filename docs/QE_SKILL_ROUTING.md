@@ -14,6 +14,8 @@ QE exposes a small public command surface and keeps Plan/Spec/Execute choreograp
 | `Qresume` | Restore saved context |
 | `Qupdate` | Update installed framework assets |
 | `Qversion` | Show installed/source version information |
+| `Qdashboard` | Regenerate and open the local read-only QE state dashboard |
+| `Qcc-setup` | Inspect and install Claude Code and Codex shell shortcuts |
 
 Claude uses `/Q...`; Codex uses `$Q...`.
 

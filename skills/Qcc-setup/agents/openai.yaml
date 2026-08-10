@@ -1,0 +1,4 @@
+interface:
+  display_name: "Claude and Codex Shortcuts"
+  short_description: "Set up safe Claude Code and Codex shell aliases"
+  default_prompt: "Use $Qcc-setup to inspect and install safe Claude Code and Codex shell shortcuts."

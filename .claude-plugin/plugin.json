@@ -1,7 +1,7 @@
 {
   "name": "qe-framework",
   "version": "8.3.0",
-  "description": "QE Framework v8 — Claude/Codex SIVS loop with dual-target assets, lifecycle hooks, 10 skills, and 12 agents.",
+  "description": "QE Framework v8 — Claude/Codex SIVS loop with dual-target assets, lifecycle hooks, 12 skills, and 12 agents.",
   "author": {
     "name": "inho-team"
   },

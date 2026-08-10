@@ -418,6 +418,8 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 | save or restore session context | `Qcompact` / `Qresume` |
 | update installed framework assets | `Qupdate` |
 | read the installed version | `Qversion` |
+| inspect the local QE state database | `Qdashboard` |
+| configure Claude Code and Codex shell shortcuts | `Qcc-setup` |
 
 ## Skills (Q-prefix)
 
@@ -433,6 +435,8 @@ To maintain high reasoning quality and low latency, all agents and skills must a
 | `Qresume` | Saved-context restoration |
 | `Qupdate` | Framework and client-asset update |
 | `Qversion` | Read-only framework version |
+| `Qdashboard` | Read-only local QE database dashboard |
+| `Qcc-setup` | Confirmed shell shortcut setup with bypass aliases opt-in only |
 
 ## Agents (E-prefix: background/sub-agents)
 
