@@ -15,18 +15,19 @@
   },
   "model": "gpt-5.6-sol",
   "effort": "medium",
-  "revision": "96ce6dea08ef72a050d39eba23f296fe48e303fd",
+  "revision": "b0903899007a7405aa8929d5a7a1c6f0a7c3c087",
   "actor": {
     "ok": false,
     "modelTurn": false,
     "inputTokens": 0,
     "outputTokens": 0,
-    "wallSeconds": 600.042,
+    "wallSeconds": 600.051,
     "costUsd": null,
-    "result": "The isolated spec reviewer is still running. Meanwhile, the durable Goal remains active with zero source edits, so an interruption at this point would resume safely from the sealed contract and pending task pair.",
+    "result": "The formal successor is active and its paired spec/checklist are drafted (`f86a4a4b`). Qgenerate-spec now requires three isolated pre-execution reviews—structural consistency, adversarial correctness, and edge cases—so I’m running those in parallel before treating the spec as executable.",
     "exitCode": 0,
     "timedOut": true,
     "signal": null,
+    "bufferExceeded": false,
     "controller": {
       "admitted": true,
       "admissionCode": "ADMITTED",
@@ -34,10 +35,10 @@
       "activeCode": "ALLOWED",
       "terminalCode": "ALLOWED",
       "processId": "pilot-email-normalization-full-sivs-durable",
-      "auditDigest": "2f5b791708d8fedc8747b9ff876757834c071eedc667b9ec90dfc23292ce3f0f"
+      "auditDigest": "e9151432573a146e05d9f59a495ff1e8c66350234e3cc121d0b877db1669623f"
     },
-    "starterRevision": "5de8d3dae765199184361c4ca6d8c8c175eadefc",
-    "patchHash": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-    "patch": ""
+    "starterRevision": "fa3dabaff564cf9c490a196d2ae1fbb1c9a333a9",
+    "patchHash": "8f3c0fa7a7e2682a401c941f79d7c571690c570797864ac59065e271a89ccdd6",
+    "patch": "diff --git a/pilot-task/src/normalize-email.mjs b/pilot-task/src/normalize-email.mjs\nindex 37219ea..7d3fd94 100644\n--- a/pilot-task/src/normalize-email.mjs\n+++ b/pilot-task/src/normalize-email.mjs\n@@ -1,3 +1,38 @@\n+const LOCAL_ATOM = \"[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+\";\n+const LOCAL_PART_PATTERN = new RegExp(`^${LOCAL_ATOM}(?:\\\\.${LOCAL_ATOM})*$`);\n+const DOMAIN_LABEL_PATTERN = /^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?$/;\n+\n export function normalizeEmail(value) {\n-  return String(value).trim().toLowerCase();\n+  if (typeof value !== 'string') {\n+    throw new TypeError('Email address must be a string');\n+  }\n+\n+  const email = value.trim();\n+  const atIndex = email.indexOf('@');\n+\n+  if (\n+    email.length === 0\n+    || email.length > 254\n+    || /\\s/u.test(email)\n+    || atIndex <= 0\n+    || atIndex !== email.lastIndexOf('@')\n+    || atIndex === email.length - 1\n+  ) {\n+    throw new TypeError('Invalid email address');\n+  }\n+\n+  const localPart = email.slice(0, atIndex);\n+  const domain = email.slice(atIndex + 1);\n+  const domainLabels = domain.split('.');\n+\n+  if (\n+    localPart.length > 64\n+    || domain.length > 253\n+    || !LOCAL_PART_PATTERN.test(localPart)\n+    || domainLabels.some((label) => !DOMAIN_LABEL_PATTERN.test(label))\n+  ) {\n+    throw new TypeError('Invalid email address');\n+  }\n+\n+  return `${localPart}@${domain.toLowerCase()}`;\n }\n"
   }
 }

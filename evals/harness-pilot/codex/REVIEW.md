@@ -2,45 +2,68 @@
 
 ## Verdict
 
-**FAIL — operability gate not met.** Do not run the 20-cell pilot or the
-240-run main study yet.
+**FAIL — the bounded lane improved its control contract, but neither observed
+smoke attempt is valid under the preregistered ceilings.** Preserve both
+committed-revision outcomes; do not select the completed attempt as a passing
+retry.
 
-## Resolved integrity findings
+## Verified improvements
 
-- **Hidden scorer isolation: PASS.** Actor baselines are sanitized archives
-  without git history, the hidden fixture, or prior evaluation outputs. The
-  hidden scorer remains outside the actor prompt and workspace.
-- **Durable treatment: PASS.** Durable arms require Runtime Controller
-  admission, initialize, active, terminal, and audit-digest evidence.
-  Ephemeral arms require `controller: null`.
-- **Native/Full isolation: PASS.** Native disables QE control surfaces and
-  project instructions; Full retains them and invokes `$Qplan`. Model, effort,
-  sandbox, source revision, task text, and ceilings remain shared.
-- **Invalid-run handling: PASS.** A missing completed usage event is rejected
-  before hidden scoring or balanced dataset generation.
-- **Stdin regression: PASS.** The actor process closes stdin explicitly, and a
-  regression test proves EOF delivery.
+- **Machine-enforced micro admission: PASS.** The ledger issues a session- and
+  digest-bound plan-controller admission only after validating 1–2 work items,
+  at most three paths, no unresolved material decision, and no high-impact risk.
+  Caller-supplied provenance and hidden risk paths are rejected.
+- **Artifact contract consistency: PASS.** Formal Goals require TASK_REQUEST and
+  VERIFY_CHECKLIST evidence. Admitted bounded micro Goals use immutable acceptance,
+  independent machine re-execution, completion evidence, and Goal alignment.
+- **Revision binding: PASS at prompt level.** Full actors are instructed to use
+  the archived repository revision's `skills/Qplan/SKILL.md` as normative; native
+  actors remain unbound. Actor compliance is evidenced operationally, not by a
+  cryptographic read attestation.
+- **Regression integrity: PASS.** Focused ledger/canonical tests passed 48/48,
+  harness tests passed 16/16, and all 41 repository guards passed.
 
-## Blocking evidence
+## Committed smoke evidence
 
-The preregistered `email-normalization / full-sivs-durable` smoke reached the
-600-second wall-time ceiling with `timedOut=true`, no completed usage event,
-zero recorded model tokens, no source patch, and valid Controller lifecycle
-evidence. The actor's last message said its isolated specification reviewer was
-still running. That message supports but does not prove the reviewer was the
-dominant bottleneck.
+Both observed Full-durable attempts used revision
+`b0903899007a7405aa8929d5a7a1c6f0a7c3c087`, the same task, model, effort,
+sandbox, and 600-second ceiling.
 
-## Interpretation limits
+| Artifact | Outcome | Wall time | Model evidence | Patch | Hidden score |
+|---|---:|---:|---:|---:|---:|
+| `smoke.json` | BUDGET INVALID | 457.395 s | 2,318,389 input / 14,056 output tokens | 1,401 bytes | PASS |
+| `failure.json` | TIMEOUT | 600.051 s | no completed usage event | non-empty | not run |
 
-The Controller is measured as a persistent execution envelope; it does not
-schedule or recover the actor's internal model steps. The smoke contains no
-quality score, so it cannot establish a positive or negative QE quality effect.
+The completed attempt reached implementation, public test, independent
+verification, Goal alignment, and Runtime Controller lifecycle, and its hidden
+acceptance passed. It nevertheless consumed 2,318,389 input tokens, 4.64 times
+the shared 500,000-token ceiling. The smoke runner recorded `status: valid`
+because its single-cell path returns before the balanced evaluator's budget
+check; under the preregistered protocol the attempt is invalid. The timed-out
+attempt implemented a plausible patch but escalated to a formal successor and
+was still running the three-reviewer Spec gate when the wall-time ceiling
+expired.
 
-## Recommendation
+## Decision
 
-Keep native execution for ordinary requests and explicit `Qplan`/`Qgoal` for
-high assurance. Before rerunning, implement and independently verify a bounded
-micro-Goal lane for low-risk, one-file work, then require this same Full-durable
-smoke to pass reliably under the shared ceiling.
+The implementation and regression evidence support a materially stronger
+bounded-assurance control contract. Operability improvement is not established:
+the prior revision's only observed smoke timed out with zero patch, while the new
+revision produced one hidden-acceptance pass outside the token budget and one
+wall-time timeout with a non-empty patch. Both new attempts are invalid under the
+shared ceilings. The sample is also too small to establish a success-rate or
+efficiency improvement. The balanced 20-cell pilot and 240-run main study remain
+blocked.
+
+## Recommended next change
+
+First, make the single-cell smoke path apply the same token, wall-time, and patch
+ceilings as the balanced evaluator so it cannot emit `status: valid` for an
+over-budget run. Keep the immutable bounded contract, but distinguish a
+within-contract implementation defect from a contract/risk failure. Permit one
+bounded fix-and-reverify cycle for the former; create a formal successor only for
+scope, acceptance, or high-impact risk changes. Then require two consecutive
+isolated, budget-valid Full-durable smoke passes before reopening the balanced
+pilot.
 
 Independent reviewer: `critical_review` (fresh review, no code edits).

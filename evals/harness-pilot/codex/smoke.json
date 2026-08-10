@@ -1,0 +1,45 @@
+{
+  "schema": 1,
+  "status": "valid",
+  "revision": "b0903899007a7405aa8929d5a7a1c6f0a7c3c087",
+  "run": {
+    "taskId": "email-normalization",
+    "repetition": 1,
+    "condition": "full-sivs-durable",
+    "model": "gpt-5.6-sol",
+    "effort": "medium",
+    "revision": "b0903899007a7405aa8929d5a7a1c6f0a7c3c087",
+    "promptDigest": "2dfcddc0c7fc3e59807b096d9fcff740fff5bbac5f694e63b3523bbb3b6791ff",
+    "actor": {
+      "ok": true,
+      "modelTurn": true,
+      "inputTokens": 2318389,
+      "outputTokens": 14056,
+      "wallSeconds": 457.395,
+      "costUsd": null,
+      "result": "Implemented [normalize-email.mjs](/private/var/folders/hp/nqxfzfgs7xz_fw2k8lh4gn7c0000gn/T/qe-harness-pilot-dksOg7/email-normalization-full-sivs-durable/email-normalization/pilot-task/src/normalize-email.mjs:1).\n\n- Trims surrounding whitespace.\n- Preserves local-part case.\n- Lowercases only the domain.\n- Throws `TypeError` for malformed addresses, internal whitespace, and non-string input.\n- `node --test pilot-task/test/public.test.mjs`: 1 passed, 0 failed.\n- Independent verifier: PASS, goal alignment confirmed.\n- Full SIVS plan recorded complete; no open agent handles.\n- No files outside `pilot-task/` were changed.",
+      "exitCode": 0,
+      "timedOut": false,
+      "signal": null,
+      "bufferExceeded": false,
+      "controller": {
+        "admitted": true,
+        "admissionCode": "ADMITTED",
+        "initializeCode": "INITIALIZED",
+        "activeCode": "ALLOWED",
+        "terminalCode": "ALLOWED",
+        "processId": "pilot-email-normalization-full-sivs-durable",
+        "auditDigest": "9e24b75fbe9558fca78ae2cdd3ebfe487f3f6e1e61e6d003fe58759ec45611c7"
+      },
+      "starterRevision": "fa3dabaff564cf9c490a196d2ae1fbb1c9a333a9",
+      "patchHash": "8bdbe3c74607685134d98438f17b480983ce534f1692ee9b9fa8db63a30d9128",
+      "patch": "diff --git a/pilot-task/src/normalize-email.mjs b/pilot-task/src/normalize-email.mjs\nindex 37219ea..219a4d5 100644\n--- a/pilot-task/src/normalize-email.mjs\n+++ b/pilot-task/src/normalize-email.mjs\n@@ -1,3 +1,36 @@\n export function normalizeEmail(value) {\n-  return String(value).trim().toLowerCase();\n+  if (typeof value !== 'string') {\n+    throw new TypeError('Email address must be a string');\n+  }\n+\n+  const email = value.trim();\n+\n+  if (email.length === 0 || email.length > 254 || /\\s/u.test(email)) {\n+    throw new TypeError('Invalid email address');\n+  }\n+\n+  const separator = email.indexOf('@');\n+  if (separator <= 0 || separator !== email.lastIndexOf('@') || separator === email.length - 1) {\n+    throw new TypeError('Invalid email address');\n+  }\n+\n+  const localPart = email.slice(0, separator);\n+  const domain = email.slice(separator + 1);\n+  const localPartPattern = /^[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+(?:\\.[A-Za-z0-9!#$%&'*+/=?^_`{|}~-]+)*$/u;\n+  const domainLabels = domain.split('.');\n+\n+  if (\n+    localPart.length > 64\n+    || !localPartPattern.test(localPart)\n+    || domain.length > 253\n+    || domainLabels.some((label) => (\n+      label.length === 0\n+      || label.length > 63\n+      || !/^[A-Za-z0-9](?:[A-Za-z0-9-]*[A-Za-z0-9])?$/u.test(label)\n+    ))\n+  ) {\n+    throw new TypeError('Invalid email address');\n+  }\n+\n+  return `${localPart}@${domain.toLowerCase()}`;\n }\n"
+    },
+    "hiddenAcceptance": {
+      "passed": true,
+      "exitCode": 0,
+      "signal": null,
+      "outputHash": "01ba4719c80b6fe911b091a7c05124b64eeece964e09c058ef8f9805daca546b"
+    }
+  }
+}
