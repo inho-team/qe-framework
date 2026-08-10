@@ -478,7 +478,7 @@ test('runs every cell through an injected actor and hidden scorer with raw prove
     assert.equal(maxActiveActors, 2);
     assert.match(actorCalls.find(call => call.taskId === 'task-1'
       && call.condition === 'full-sivs-durable').prompt,
-    /Qplan scale: Micro \(derived from preregistered category micro-fix\)/);
+    /Harness Micro boundary: Goal\/Plan entry is the only mandatory QE treatment/);
     assert.match(actorCalls.find(call => call.taskId === 'task-2'
       && call.condition === 'full-sivs-durable').prompt,
     /Qplan input: preregistered task category=feature\./);
@@ -639,7 +639,7 @@ test('actor prompts require same-turn completion and restrict synthetic work to 
 });
 
 test('Full prompts bind QE behavior to the archived repository revision while native prompts stay unbound', () => {
-  const full = buildActorPrompt('Work only in pilot-task/. Implement it.', 'full-sivs-durable', 'micro-fix');
+  const full = buildActorPrompt('Work only in pilot-task/. Implement it.', 'full-sivs-durable', 'feature');
   const native = buildActorPrompt('Work only in pilot-task/. Implement it.', 'native-durable', 'micro-fix');
   assert.match(full, /repository revision under evaluation/);
   assert.match(full, /skills\/Qplan\/SKILL\.md/);
@@ -648,9 +648,9 @@ test('Full prompts bind QE behavior to the archived repository revision while na
 
 test('builds byte-exact scale-aware treatment prompts without mutating arbitrary Unicode tasks', () => {
   const fullAssurance = [
-    '$Qgoal Complete the user task through the repository default Plan-owned Goal path.',
-    'Qplan scale: Micro (derived from preregistered category micro-fix). Implement directly, run the focused acceptance command, and do not invoke downstream assurance stages unless a newly discovered high-risk signal requires escalation.',
-    'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
+    '$Qgoal Enter the repository Qplan path for this preregistered Micro harness task, then apply the treatment boundary below.',
+    'Harness Micro boundary: Goal/Plan entry is the only mandatory QE treatment. Do not create QE artifacts, invoke other QE skills or subagents, or run repository-wide checks. Work only in pilot-task/, run exactly the public test named in the user task, and stop after reporting that result.',
+    'This boundary is the controlling Qplan scale decision for this disposable cell. Use the QE implementation in this repository revision under evaluation; do not substitute a globally installed skill copy.',
   ].join('\n');
   const nativeAssurance = 'Execute the task directly with native agent behavior.';
   const durableMode = 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.';
@@ -677,6 +677,14 @@ test('Full prompts carry preregistered non-Micro category into the Qplan scale g
   const prompt = buildActorPrompt('Implement it.', 'full-sivs-ephemeral', 'security');
   assert.match(prompt, /Qplan input: preregistered task category=security\./);
   assert.doesNotMatch(prompt, /Qplan scale: Micro/);
+});
+
+test('Micro treatment forbids downstream QE ceremony while preserving Goal and Plan entry', () => {
+  const prompt = buildActorPrompt('Work only in pilot-task/. Run node --test pilot-task/test/public.test.mjs.',
+    'full-sivs-durable', 'micro-fix');
+  assert.match(prompt, /^\$Qgoal Enter the repository Qplan path/);
+  assert.match(prompt, /Do not create QE artifacts, invoke other QE skills or subagents/);
+  assert.match(prompt, /run exactly the public test named in the user task/);
 });
 
 test('rejects a pre-model actor failure before producing a scored dataset', async () => {

@@ -103,10 +103,13 @@ instructions, skill routing, and multi-agent control surfaces before executing
 directly. Full SIVS conditions retain those surfaces and invoke `$Qgoal`, which
 enters the repository's Plan-owned Goal path. The runner passes the frozen task
 category into that scale decision instead of asking the actor to infer it from
-prose. A preregistered `micro-fix` is explicitly routed to the Micro lane: only
-Goal/Plan entry is mandatory, implementation and focused acceptance run directly,
-and downstream assurance is added only for a newly discovered high-risk signal.
-Other categories still pass through the Qplan scale gate. The treatment remains bound
+prose. A preregistered `micro-fix` is a disposable harness cell whose treatment
+boundary requires Goal/Plan entry but forbids QE artifact creation, other QE
+skills, subagents, and repository-wide checks. It works only in `pilot-task/`,
+runs the public test named by the frozen task, and stops. This is an
+intent-to-treat exposure rule, not evidence that the actor persisted or completed
+the production Qplan lifecycle. Other categories still pass through the Qplan
+scale gate. The treatment remains bound
 to the QE implementation and contracts in the sanitized repository revision,
 including `skills/Qgoal/SKILL.md` and `skills/Qplan/SKILL.md`; a globally
 installed skill copy is not normative for the actor run.

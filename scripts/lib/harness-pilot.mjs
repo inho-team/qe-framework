@@ -484,14 +484,21 @@ export function buildActorPrompt(taskPrompt, condition, taskCategory) {
   const mode = condition.endsWith('-durable')
     ? 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.'
     : 'Execution metadata: durable=false, longRunning=false. Use an ephemeral solo execution path.';
-  const scaleDirective = taskCategory === 'micro-fix'
-    ? 'Qplan scale: Micro (derived from preregistered category micro-fix). Implement directly, run the focused acceptance command, and do not invoke downstream assurance stages unless a newly discovered high-risk signal requires escalation.'
+  const microTreatment = taskCategory === 'micro-fix';
+  const goalEntry = microTreatment
+    ? '$Qgoal Enter the repository Qplan path for this preregistered Micro harness task, then apply the treatment boundary below.'
+    : '$Qgoal Complete the user task through the repository default Plan-owned Goal path.';
+  const scaleDirective = microTreatment
+    ? 'Harness Micro boundary: Goal/Plan entry is the only mandatory QE treatment. Do not create QE artifacts, invoke other QE skills or subagents, or run repository-wide checks. Work only in pilot-task/, run exactly the public test named in the user task, and stop after reporting that result.'
     : `Qplan input: preregistered task category=${taskCategory}. Apply the repository Qplan scale gate and use the smallest admitted Plan-owned Goal lane for this task.`;
+  const revisionBinding = microTreatment
+    ? 'This boundary is the controlling Qplan scale decision for this disposable cell. Use the QE implementation in this repository revision under evaluation; do not substitute a globally installed skill copy.'
+    : 'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.';
   const assurance = condition.startsWith('full-sivs-')
     ? [
-      '$Qgoal Complete the user task through the repository default Plan-owned Goal path.',
+      goalEntry,
       scaleDirective,
-      'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.',
+      revisionBinding,
     ].join('\n')
     : 'Execute the task directly with native agent behavior.';
   const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn.';
