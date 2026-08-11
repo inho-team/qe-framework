@@ -88,6 +88,9 @@ node scripts/run-harness-pilot.mjs --smoke --concurrency 1
 
 # Execute serially to avoid cross-cell resource interference.
 node scripts/run-harness-pilot.mjs --execute --concurrency 1
+
+# Re-verify persisted evidence later without invoking a model or mutating it.
+node scripts/verify-harness-pilot.mjs .qe/runtime/harness-pilot/codex
 ```
 
 Active smoke and execute modes require a clean tracked worktree, capture `HEAD`,
@@ -109,7 +112,10 @@ skills, subagents, and repository-wide checks. It works only in `pilot-task/`,
 runs the public test named by the frozen task, and stops. This is an
 intent-to-treat exposure rule, not evidence that the actor persisted or completed
 the production Qplan lifecycle. Other categories still pass through the Qplan
-scale gate. The treatment remains bound
+scale gate, but only Qgoal and Qplan entry are mandatory; additional QE skills,
+subagents, and repository-wide checks are used only when the selected lane
+requires them. The conclusion-first response contract remains mandatory in
+every Full cell. The treatment remains bound
 to the QE implementation and contracts in the sanitized repository revision,
 including `skills/Qgoal/SKILL.md` and `skills/Qplan/SKILL.md`; a globally
 installed skill copy is not normative for the actor run.
@@ -178,17 +184,38 @@ Outputs are published as follows:
 
 - `smoke-history.json`: append-only canonical attempt journal used for admission.
 - `smoke.json`: atomic compatibility view of the latest completed smoke attempt.
+- `.pilot-execute-claim.json`: write-once execute claim binding the captured
+  revision, fixture, schedule, budget, and qualifying smoke attempts. Its
+  presence permanently consumes that output root for smoke and execute; it also
+  prevents automatic stale-lock recovery.
+- `.pilot-execute-cells/<index>/started.json` and `terminal.json`: write-once
+  per-cell lifecycle evidence. The started record is durable before actor
+  launch; terminal failure evidence retains an observed actor result when one
+  exists.
+- `.pilot-execute-terminal.json`: write-once invocation outcome and exact
+  completed/failed/unstarted index partition. A claim without this record is a
+  deliberately visible nonterminal invocation, not permission to retry.
 - `generations/<id>/`: immutable `runtime.json`, `results.json`, `report.json`,
   and `RUN.md`, followed by a hash manifest.
 - `current.json`: authoritative atomic pointer to one complete generation.
-- `failure.json`: atomic diagnostic written when any actor lacks a completed
-  model turn; invalid pilots stop immediately and never run the hidden scorer.
+- `failure.json`: optional non-authoritative compatibility diagnostic. Execute
+  status is determined only from the claim and invocation/cell evidence above.
 
 Result readers must resolve `current.json`, verify its manifest hash, and then
 verify each artifact hash. Top-level legacy result files are not authoritative.
+The execute CLI performs this independent persisted-evidence verification before
+reporting success; the read-only verifier command above is the canonical check
+for later automation and operator review. `nonterminal` and `corrupt` are never
+successful classifications.
 Atomic publication uses create-exclusive temporary files, file sync, rename,
 and directory sync. If the platform cannot establish directory durability, the
 runner fails with `PILOT_DURABILITY_UNCERTAIN` instead of claiming publication.
+Execute claim and lifecycle records use a stricter no-replace hard-link commit;
+there is no overwrite or rename fallback. A failure after the link becomes
+visible but before its directory sync completes is durability-uncertain and the
+root remains consumed. These guarantees assume a local filesystem with normal
+hard-link and fsync semantics; unsupported or distributed filesystems fail
+closed and are not claimed to be crash-safe.
 
 The pilot has one repetition and validates treatment isolation, measurement,
 and scoring mechanics only. It cannot establish QE effectiveness. Promotion or

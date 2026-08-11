@@ -490,7 +490,7 @@ export function buildActorPrompt(taskPrompt, condition, taskCategory) {
     : '$Qgoal Complete the user task through the repository default Plan-owned Goal path.';
   const scaleDirective = microTreatment
     ? 'Harness Micro boundary: Goal/Plan entry is the only mandatory QE treatment. Do not create QE artifacts, invoke other QE skills or subagents, or run repository-wide checks. Work only in pilot-task/, run exactly the public test named in the user task, and stop after reporting that result.'
-    : `Qplan input: preregistered task category=${taskCategory}. Apply the repository Qplan scale gate and use the smallest admitted Plan-owned Goal lane for this task.`;
+    : `Qplan input: preregistered task category=${taskCategory}. Apply the repository Qplan scale gate and use the smallest admitted Plan-owned Goal lane for this task. Only Qgoal and Qplan entry are mandatory; do not invoke other QE skills, subagents, or repository-wide checks unless that selected lane requires them.`;
   const revisionBinding = microTreatment
     ? 'This boundary is the controlling Qplan scale decision for this disposable cell. Use the QE implementation in this repository revision under evaluation; do not substitute a globally installed skill copy.'
     : 'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.';
@@ -501,7 +501,7 @@ export function buildActorPrompt(taskPrompt, condition, taskCategory) {
       revisionBinding,
     ].join('\n')
     : 'Execute the task directly with native agent behavior.';
-  const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn.';
+  const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn. Keep the final response conclusion-first, separate facts from assumptions, and name the recommended option.';
   return `${assurance}\n${mode}\n${completion}\n\nUser task:\n${taskPrompt}`;
 }
 
@@ -676,6 +676,7 @@ export async function scoreHiddenAcceptance({ workspace, task }, { timeoutMs = 1
 
 export async function runPilot(input, {
   root, revision, actor, scorer, concurrency = 1, baselineRepository = null, cellLimit = null,
+  lifecycle = null,
 }) {
   const fixture = validatePilotFixture(input);
   if (!nonEmpty(root) || !/^[0-9a-f]{40}$/.test(revision || '')
@@ -689,51 +690,86 @@ export async function runPilot(input, {
   const schedule = cellLimit === null ? fullSchedule : fullSchedule.slice(0, cellLimit);
   const rawRuns = new Array(schedule.length);
   let cursor = 0;
+  let fatalError = null;
+  const allocatedIndexes = new Set();
+  const emit = async (name, value) => {
+    const sink = lifecycle?.[name];
+    if (sink) await sink(value);
+  };
   const runCell = async index => {
     const cell = schedule[index];
     const task = tasks.get(cell.taskId);
-    const cellRoot = join(root, `${cell.taskId}-${cell.condition}`);
-    if (baselineRepository) {
-      cloneBaselineRepository({ repository: baselineRepository, revision,
-        workspace: resolve(cellRoot, task.id) });
+    let actorResult = null;
+    let rawRun = null;
+    await emit('started', { index, cell: structuredClone(cell) });
+    try {
+      const cellRoot = join(root, `${cell.taskId}-${cell.condition}`);
+      if (baselineRepository) {
+        cloneBaselineRepository({ repository: baselineRepository, revision,
+          workspace: resolve(cellRoot, task.id) });
+      }
+      const workspace = materializeTask(cellRoot, task);
+      const prompt = buildActorPrompt(task.prompt, cell.condition, task.category);
+      actorResult = await actor({ ...cell, workspace, prompt, model: fixture.model,
+        effort: fixture.effort, budget: fixture.budget });
+      if (actorResult?.modelTurn !== true || !Number.isSafeInteger(actorResult.inputTokens)
+        || actorResult.inputTokens < 0 || !Number.isSafeInteger(actorResult.outputTokens)
+        || actorResult.outputTokens < 0 || !Number.isFinite(actorResult.wallSeconds)
+        || actorResult.wallSeconds < 0
+        || !validControllerEvidence(cell.condition, actorResult.controller)) {
+        throw new PilotInvalidActorError({ cell, model: fixture.model, effort: fixture.effort,
+          revision, actor: actorResult });
+      }
+      const hiddenAcceptance = await scorer({ ...cell, workspace, task, actorResult });
+      if (typeof hiddenAcceptance?.passed !== 'boolean') {
+        throw new TypeError('hidden scorer must return a boolean passed value');
+      }
+      rawRun = {
+        ...cell,
+        model: fixture.model,
+        effort: fixture.effort,
+        revision,
+        promptDigest: createHash('sha256').update(prompt).digest('hex'),
+        actor: actorResult,
+        hiddenAcceptance,
+      };
+      const verdict = classifyPilotRun(rawRun, fixture.budget);
+      if (!verdict.valid) throw new TypeError(`PILOT_INVALID_RUN_EVIDENCE ${verdict.reasons.join(',')}`);
+      rawRuns[index] = { ...rawRun, verdict };
+      await emit('terminal', { index, status: 'completed', run: rawRuns[index] });
+    } catch (error) {
+      const evidence = error?.details || (actorResult ? {
+        cell, model: fixture.model, effort: fixture.effort, revision, actor: actorResult,
+      } : null);
+      try {
+        await emit('terminal', { index, status: 'failed', run: rawRun, evidence,
+          error: { code: error?.code || 'PILOT_CELL_FAILED', message: String(error?.message || error) } });
+      } catch (sinkError) {
+        sinkError.cause = sinkError.cause || error;
+        throw sinkError;
+      }
+      throw error;
     }
-    const workspace = materializeTask(cellRoot, task);
-    const prompt = buildActorPrompt(task.prompt, cell.condition, task.category);
-    const actorResult = await actor({ ...cell, workspace, prompt, model: fixture.model,
-      effort: fixture.effort, budget: fixture.budget });
-    if (actorResult?.modelTurn !== true || !Number.isSafeInteger(actorResult.inputTokens)
-      || actorResult.inputTokens < 0 || !Number.isSafeInteger(actorResult.outputTokens)
-      || actorResult.outputTokens < 0 || !Number.isFinite(actorResult.wallSeconds)
-      || actorResult.wallSeconds < 0
-      || !validControllerEvidence(cell.condition, actorResult.controller)) {
-      throw new PilotInvalidActorError({ cell, model: fixture.model, effort: fixture.effort,
-        revision, actor: actorResult });
-    }
-    const hiddenAcceptance = await scorer({ ...cell, workspace, task, actorResult });
-    if (typeof hiddenAcceptance?.passed !== 'boolean') {
-      throw new TypeError('hidden scorer must return a boolean passed value');
-    }
-    const rawRun = {
-      ...cell,
-      model: fixture.model,
-      effort: fixture.effort,
-      revision,
-      promptDigest: createHash('sha256').update(prompt).digest('hex'),
-      actor: actorResult,
-      hiddenAcceptance,
-    };
-    const verdict = classifyPilotRun(rawRun, fixture.budget);
-    if (!verdict.valid) throw new TypeError(`PILOT_INVALID_RUN_EVIDENCE ${verdict.reasons.join(',')}`);
-    rawRuns[index] = { ...rawRun, verdict };
   };
   const worker = async () => {
-    while (cursor < schedule.length) {
+    while (!fatalError && cursor < schedule.length) {
       const index = cursor;
       cursor += 1;
-      await runCell(index);
+      allocatedIndexes.add(index);
+      try { await runCell(index); }
+      catch (error) { fatalError ||= error; }
     }
   };
-  await Promise.all(Array.from({ length: Math.min(concurrency, schedule.length) }, () => worker()));
+  await Promise.allSettled(Array.from({ length: Math.min(concurrency, schedule.length) }, () => worker()));
+  if (fatalError) {
+    fatalError.pilotEvidence = {
+      completedIndexes: rawRuns.map((run, index) => run ? index : null).filter(Number.isInteger),
+      unstartedIndexes: schedule.map((_, index) => index)
+        .filter(index => !allocatedIndexes.has(index)),
+      scheduledCount: schedule.length,
+    };
+    throw fatalError;
+  }
   if (cellLimit !== null) return { dataset: null, rawRuns, report: null };
   const dataset = {
     schema: 1,

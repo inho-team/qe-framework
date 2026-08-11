@@ -3,7 +3,7 @@
 import { createHash, randomUUID } from 'node:crypto';
 import {
   closeSync, constants as fsConstants, existsSync, fstatSync, fsyncSync, lstatSync,
-  mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync,
+  linkSync, mkdirSync, mkdtempSync, openSync, readFileSync, readSync, readdirSync, realpathSync,
   renameSync, rmSync, rmdirSync, statSync, unlinkSync, writeSync,
 } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
@@ -12,6 +12,7 @@ import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 
 import { createEligibleProcessController } from '../hooks/scripts/lib/process-controller.mjs';
+import { verifyPilotOutput } from './verify-harness-pilot.mjs';
 
 import {
   buildCodexArgs,
@@ -37,6 +38,9 @@ const OWNER_FILE = '.qe-harness-owner.json';
 const LOCK_DIR = '.pilot-lock';
 const LOCK_OWNER = 'owner.json';
 const MAX_LOCK_OWNER_BYTES = 4096;
+const EXECUTE_CLAIM = '.pilot-execute-claim.json';
+const EXECUTE_TERMINAL = '.pilot-execute-terminal.json';
+const EXECUTE_CELLS = '.pilot-execute-cells';
 
 function codedError(code, message) {
   const error = new Error(`${code}: ${message}`);
@@ -130,6 +134,11 @@ function sha256(value) {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function pathEntryExists(path) {
+  try { lstatSync(path); return true; }
+  catch (error) { if (error?.code === 'ENOENT') return false; throw error; }
+}
+
 function syncDirectory(directory) {
   let fd;
   try {
@@ -185,6 +194,73 @@ export function atomicWritePilotFile(target, content, {
 export function atomicWritePilotJson(target, value, options) {
   const serialized = `${JSON.stringify(value, null, 2)}\n`;
   return atomicWritePilotFile(target, serialized, options);
+}
+
+/** Publish once. There is deliberately no rename/overwrite fallback. */
+export function immutableWritePilotFile(target, content, { directorySync = syncDirectory } = {}) {
+  if (typeof content !== 'string') throw new TypeError('immutable pilot content must be a string');
+  const directory = dirname(target);
+  mkdirSync(directory, { recursive: true, mode: 0o700 });
+  const directoryEntry = lstatSync(directory);
+  if (!directoryEntry.isDirectory() || directoryEntry.isSymbolicLink()) {
+    throw codedError('PILOT_OUTPUT_UNSAFE', `${directory}: expected a real directory`);
+  }
+  const temp = join(directory, `.${basename(target)}.${randomUUID()}.tmp`);
+  let fd;
+  let linked = false;
+  try {
+    fd = openSync(temp, fsConstants.O_CREAT | fsConstants.O_EXCL | fsConstants.O_WRONLY, 0o600);
+    const data = Buffer.from(content, 'utf8');
+    let offset = 0;
+    while (offset < data.length) offset += writeSync(fd, data, offset, data.length - offset);
+    fsyncSync(fd);
+    closeSync(fd);
+    fd = undefined;
+    linkSync(temp, target);
+    linked = true;
+    directorySync(directory);
+    unlinkSync(temp);
+    directorySync(directory);
+    return target;
+  } catch (error) {
+    if (error?.code === 'EEXIST') throw codedError('PILOT_EXECUTE_CONSUMED', target);
+    if (linked) throw codedError('PILOT_DURABILITY_UNCERTAIN', `${target}: ${error.message}`);
+    throw error;
+  } finally {
+    if (fd !== undefined) closeSync(fd);
+    if (existsSync(temp)) unlinkSync(temp);
+  }
+}
+
+export function immutableWritePilotJson(target, value, options) {
+  return immutableWritePilotFile(target, `${JSON.stringify(value, null, 2)}\n`, options);
+}
+
+function executeEvidencePaths(outputRoot) {
+  return {
+    claim: join(outputRoot, EXECUTE_CLAIM),
+    terminal: join(outputRoot, EXECUTE_TERMINAL),
+    cells: join(outputRoot, EXECUTE_CELLS),
+    current: join(outputRoot, 'current.json'),
+    generations: join(outputRoot, 'generations'),
+  };
+}
+
+function assertExecuteZeroState(outputRoot) {
+  const paths = executeEvidencePaths(outputRoot);
+  for (const path of [paths.claim, paths.terminal, paths.cells, paths.current]) {
+    if (pathEntryExists(path)) throw codedError('PILOT_EXECUTE_CONSUMED', path);
+  }
+  if (existsSync(paths.generations) && readdirSync(paths.generations).length !== 0) {
+    throw codedError('PILOT_EXECUTE_CONSUMED', paths.generations);
+  }
+  return paths;
+}
+
+function executeDigest(value) {
+  const canonical = JSON.stringify(value, (_, item) => item && typeof item === 'object'
+    && !Array.isArray(item) ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
+  return sha256(Buffer.from(canonical, 'utf8'));
 }
 
 export function preparePilotOutputRoot({ repoRoot = ROOT, outputDir = null } = {}) {
@@ -301,6 +377,9 @@ export function acquirePilotOutputLock(outputRoot) {
     const alive = processAlive(existing.owner.pid);
     if (alive === true) throw codedError('PILOT_LOCKED', `${lockPath} pid=${existing.owner.pid}`);
     if (alive === null) throw codedError('PILOT_LOCK_INVALID', 'lock owner liveness is unknown');
+    if (pathEntryExists(join(outputRoot, EXECUTE_CLAIM))) {
+      throw codedError('PILOT_EXECUTE_CONSUMED', 'execute claim prevents stale-lock recovery');
+    }
     quarantineLock(lockPath, existing.owner.token);
     owner = claim();
   }
@@ -454,15 +533,53 @@ export async function runCapturedPilotOperation({
   if (cell.condition !== 'full-sivs-durable') {
     throw codedError('PILOT_SMOKE_CELL_INVALID', 'first preregistered cell must be full-sivs-durable');
   }
+  const executePaths = executeEvidencePaths(outputIdentity.path);
+  if (mode === 'smoke' && pathEntryExists(executePaths.claim)) {
+    throw codedError('PILOT_EXECUTE_CONSUMED', 'smoke is forbidden after an execute claim');
+  }
+  if (mode === 'execute') assertExecuteZeroState(outputIdentity.path);
   const historyPath = join(outputIdentity.path, 'smoke-history.json');
   const history = readPilotHistory(historyPath, budget);
-  const runRoot = temporaryRootFactory();
+  let runRoot = null;
   try {
     if (mode === 'execute') {
       const admission = deriveSmokeAdmission(history, { revision, cell, expectedBudget: budget });
       if (!admission.admitted) {
         throw codedError('PILOT_SMOKE_NOT_ADMITTED', 'two adjacent successful captured smoke attempts are required');
       }
+      const invocationId = attemptIdFactory();
+      const schedule = buildPilotSchedule(fixture);
+      const claim = {
+        schema: 1, kind: 'execute-claim', invocationId, revision,
+        createdAt: new Date(now()).toISOString(), budget,
+        fixtureDigest: executeDigest(fixture),
+        scheduleDigest: executeDigest(schedule.map((entry, index) => ({ index, ...entry }))),
+        smokeAttemptIds: admission.selectedAttemptIds,
+      };
+      immutableWritePilotJson(executePaths.claim, claim);
+      ensureRealDirectory(executePaths.cells);
+      syncDirectory(outputIdentity.path);
+      const completed = new Set();
+      const failed = new Set();
+      const started = new Set();
+      const lifecycle = {
+        started: async event => {
+          const directory = ensureRealDirectory(join(executePaths.cells, String(event.index).padStart(3, '0')));
+          immutableWritePilotJson(join(directory, 'started.json'), {
+            schema: 1, kind: 'cell-started', invocationId, revision,
+            at: new Date(now()).toISOString(), ...event,
+          });
+          started.add(event.index);
+        },
+        terminal: async event => {
+          const directory = join(executePaths.cells, String(event.index).padStart(3, '0'));
+          immutableWritePilotJson(join(directory, 'terminal.json'), {
+            schema: 1, kind: 'cell-terminal', invocationId, revision,
+            at: new Date(now()).toISOString(), ...event,
+          });
+          (event.status === 'completed' ? completed : failed).add(event.index);
+        },
+      };
       const guardedActor = async request => {
         assertPilotOutputIdentity(outputIdentity);
         assertPilotRevision(repoRoot, revision);
@@ -471,10 +588,28 @@ export async function runCapturedPilotOperation({
         assertPilotRevision(repoRoot, revision);
         return result;
       };
-      const output = await runPilotImpl(fixture, {
-        root: runRoot, revision, concurrency, baselineRepository: repoRoot,
-        actor: guardedActor, scorer,
-      });
+      runRoot = temporaryRootFactory();
+      let output;
+      try {
+        output = await runPilotImpl(fixture, {
+          root: runRoot, revision, concurrency, baselineRepository: repoRoot,
+          actor: guardedActor, scorer, lifecycle,
+        });
+      } catch (error) {
+        const all = schedule.map((_, index) => index);
+        const terminal = {
+          schema: 1, kind: 'execute-terminal', status: 'failed', invocationId, revision,
+          at: new Date(now()).toISOString(), claimDigest: executeDigest(claim),
+          completedIndexes: [...completed].sort((a, b) => a - b),
+          failedIndexes: [...new Set([...failed, ...[...started].filter(index => !completed.has(index))])]
+            .sort((a, b) => a - b),
+          unstartedIndexes: all.filter(index => !started.has(index)),
+          error: { code: error?.code || 'PILOT_EXECUTE_FAILED', message: String(error?.message || error) },
+        };
+        try { immutableWritePilotJson(executePaths.terminal, terminal); }
+        catch (terminalError) { terminalError.cause = terminalError.cause || error; throw terminalError; }
+        throw error;
+      }
       assertPilotOutputIdentity(outputIdentity);
       assertPilotRevision(repoRoot, revision);
       const runtime = { schema: 1, mode, revision, budget,
@@ -488,9 +623,16 @@ export async function runCapturedPilotOperation({
         report: output.report,
         runSummary: markdownSummary(output),
       });
+      immutableWritePilotJson(executePaths.terminal, {
+        schema: 1, kind: 'execute-terminal', status: 'succeeded', invocationId, revision,
+        at: new Date(now()).toISOString(), claimDigest: executeDigest(claim),
+        completedIndexes: [...completed].sort((a, b) => a - b), failedIndexes: [], unstartedIndexes: [],
+        generation: published.generation, manifestHash: published.manifestHash,
+      });
       return { output, published, admission };
     }
 
+    runRoot = temporaryRootFactory();
     const attempts = projectPilotAttempts(history, { cell, expectedBudget: budget });
     const sequence = attempts.length + 1;
     const id = attemptIdFactory();
@@ -531,7 +673,7 @@ export async function runCapturedPilotOperation({
     });
     return { output, attempt: latest };
   } finally {
-    rmSync(runRoot, { recursive: true, force: true });
+    if (runRoot) rmSync(runRoot, { recursive: true, force: true });
   }
 }
 
@@ -706,9 +848,13 @@ async function main() {
         process.stdout.write(`${JSON.stringify({ mode: 'smoke', outputDir: outputIdentity.path,
           attemptId: result.attempt.attemptId, admitted: result.attempt.verdict.success })}\n`);
       } else {
+        const verification = verifyPilotOutput(outputIdentity.path);
+        if (verification.classification !== 'succeeded') {
+          throw codedError('PILOT_POSTRUN_VERIFY_FAILED', JSON.stringify(verification));
+        }
         process.stdout.write(`${JSON.stringify({ mode: 'execute', outputDir: outputIdentity.path,
           generation: result.published.generation, runs: result.output.dataset.runs.length,
-          balancedPairs: result.output.report.balancedPairs })}\n`);
+          balancedPairs: result.output.report.balancedPairs, verification: 'succeeded' })}\n`);
       }
     } catch (error) {
       if (error?.code === 'PILOT_INVALID_ACTOR_RUN') {

@@ -655,7 +655,7 @@ test('builds byte-exact scale-aware treatment prompts without mutating arbitrary
   const nativeAssurance = 'Execute the task directly with native agent behavior.';
   const durableMode = 'Execution metadata: durable=true, longRunning=true. Maintain bounded durable progress and recover safely after interruption.';
   const ephemeralMode = 'Execution metadata: durable=false, longRunning=false. Use an ephemeral solo execution path.';
-  const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn.';
+  const completion = 'Do not wait for approval or stop after planning; implement, verify, and finish in this turn. Keep the final response conclusion-first, separate facts from assumptions, and name the recommended option.';
   const task = '한글🙂e\u0301\r\nUser task:\n$Qgoal Full SIVS with independent verification';
   const expected = (assurance, mode) => `${assurance}\n${mode}\n${completion}\n\nUser task:\n${task}`;
 
@@ -676,6 +676,9 @@ test('builds byte-exact scale-aware treatment prompts without mutating arbitrary
 test('Full prompts carry preregistered non-Micro category into the Qplan scale gate', () => {
   const prompt = buildActorPrompt('Implement it.', 'full-sivs-ephemeral', 'security');
   assert.match(prompt, /Qplan input: preregistered task category=security\./);
+  assert.match(prompt, /Only Qgoal and Qplan entry are mandatory/);
+  assert.match(prompt, /do not invoke other QE skills, subagents, or repository-wide checks unless that selected lane requires them/);
+  assert.match(prompt, /final response conclusion-first, separate facts from assumptions/);
   assert.doesNotMatch(prompt, /Qplan scale: Micro/);
 });
 
@@ -1050,9 +1053,9 @@ test('captured operation journals before actor launch and admits execute only af
         return actor(request);
       }, scorer: async () => ({}), runPilotImpl: smokeRun,
       attemptIdFactory: () => '10000000-0000-4000-8000-000000000003' }),
-    /PILOT_REPOSITORY_DIRTY/);
-    const interrupted = JSON.parse(readFileSync(join(outputIdentity.path, 'smoke-history.json'), 'utf8'));
-    assert.equal(interrupted.events.at(-1).kind, 'started');
+    /PILOT_EXECUTE_CONSUMED/);
+    const unchanged = JSON.parse(readFileSync(join(outputIdentity.path, 'smoke-history.json'), 'utf8'));
+    assert.equal(unchanged.events.at(-1).kind, 'terminal');
   } finally {
     operationLock?.release();
     rmSync(repoRoot, { recursive: true, force: true });
