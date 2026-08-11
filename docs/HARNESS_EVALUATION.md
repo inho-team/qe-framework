@@ -246,3 +246,14 @@ to 808,310 on the partially bounded boundary and 106,416 on the strict Goal-only
 boundary, which completed successfully. The comparison spans different captured
 revisions and model executions, so it supports the boundary decision but is not
 a controlled causal estimate.
+
+<!-- HARNESS_STUDY_AUTHORITY_BEGIN -->
+## Frozen 20-task study authority
+
+- Fixture: `scripts/fixtures/harness-study.json`
+- Fixture digest: `8cbf703085d7bb5b131e389875ad0c0e817a28b9ac285efd31a6d23f840df249`
+- Indexed 240-cell schedule digest: `ab35919e13b0ebda16b31b4f61c68a1073d83816a4fb4e5f9d8c4da162b80da9`
+- Dry run: `node scripts/run-harness-pilot.mjs --dry-run --fixture scripts/fixtures/harness-study.json`
+
+These literal digests are the G002 authority candidate. After Verify/Supervise, Qcommit records the exact three-file source commit; clean implementation and independent machine runs then precede immutable G002 completion evidence `authority:{fixtureDigest,scheduleDigest,commitSha}`. G003 must verify that recorded authority against this fixture, the fixture-test literals, this documentation, and `createPilotExecuteClaim()` before passing the recorded fixture digest to `--fixture-digest`. It must fail if this frozen text changes or if authority is recomputed from the live fixture or claim.
+<!-- HARNESS_STUDY_AUTHORITY_END -->

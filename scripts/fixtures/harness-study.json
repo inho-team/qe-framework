@@ -1,0 +1,275 @@
+{
+  "schema": 1,
+  "seed": "harness-effectiveness-study-v1",
+  "model": "gpt-5.6-sol",
+  "effort": "medium",
+  "repetition": 3,
+  "budget": {
+    "maxInputTokens": 500000,
+    "maxOutputTokens": 50000,
+    "maxWallSeconds": 600,
+    "maxBudgetUsd": 0.5
+  },
+  "tasks": [
+    {
+      "id": "collapse-marker-runs",
+      "category": "micro-fix",
+      "prompt": "Work only in pilot-task/. Implement collapseMarker in pilot-task/src/collapse-marker.mjs. Collapse every repeated mk marker run to one marker while preserving surrounding text. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/collapse-marker.mjs": "export function collapseMarker(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { collapseMarker } from '../src/collapse-marker.mjs';\ntest('public collapse-marker-runs contract', () => { assert.equal(collapseMarker('alphamkmkbeta'), 'alphamkbeta'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{collapseMarker}from'./src/collapse-marker.mjs';assert.equal(collapseMarker('omegamkmkmkzeta'),'omegamkzeta','0f6e53ee4d0a89a4dea6f4bfe58dd752')\""
+      }
+    },
+    {
+      "id": "ensure-single-prefix",
+      "category": "micro-fix",
+      "prompt": "Work only in pilot-task/. Implement ensurePrefix in pilot-task/src/ensure-prefix.mjs. Add the pre prefix exactly once and leave an already-prefixed token unchanged. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/ensure-prefix.mjs": "export function ensurePrefix(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { ensurePrefix } from '../src/ensure-prefix.mjs';\ntest('public ensure-single-prefix contract', () => { assert.equal(ensurePrefix('publicalpha'), 'prepublicalpha'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{ensurePrefix}from'./src/ensure-prefix.mjs';const value='prehiddenomega';assert.equal(ensurePrefix(value),value,'7724c5ae5ff9475c69af231084dd091c');assert.equal(ensurePrefix('secondhidden'),'presecondhidden')\""
+      }
+    },
+    {
+      "id": "strip-terminal-suffix",
+      "category": "micro-fix",
+      "prompt": "Work only in pilot-task/. Implement stripSuffix in pilot-task/src/strip-suffix.mjs. Remove the end suffix only when it occurs at the end of the token. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/strip-suffix.mjs": "export function stripSuffix(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { stripSuffix } from '../src/strip-suffix.mjs';\ntest('public strip-terminal-suffix contract', () => { assert.equal(stripSuffix('publicalphaend'), 'publicalpha'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{stripSuffix}from'./src/strip-suffix.mjs';const value='hiddenendmiddle';assert.equal(stripSuffix(value),value,'a70108b715b70e566e3cc3713ab61ef5');assert.equal(stripSuffix('hiddenomegaend'),'hiddenomega')\""
+      }
+    },
+    {
+      "id": "parse-toggle-token",
+      "category": "micro-fix",
+      "prompt": "Work only in pilot-task/. Implement parseToggle in pilot-task/src/parse-toggle.mjs. Parse the two documented toggle tokens and reject every unknown token with TypeError. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/parse-toggle.mjs": "export function parseToggle() { return false; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { parseToggle } from '../src/parse-toggle.mjs';\ntest('public parse-toggle-token contract', () => { assert.equal(parseToggle('enabled'), true); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{parseToggle}from'./src/parse-toggle.mjs';assert.equal(parseToggle('disabled'),false);assert.throws(()=>parseToggle('invalidtoggle'),'ac803a30adf2708238aa06929424ca91')\""
+      }
+    },
+    {
+      "id": "reverse-delimited-segments",
+      "category": "feature",
+      "prompt": "Work only in pilot-task/. Implement reverseSegments in pilot-task/src/reverse-segments.mjs. Reverse every sep-delimited segment for any positive segment count. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/reverse-segments.mjs": "export function reverseSegments(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { reverseSegments } from '../src/reverse-segments.mjs';\ntest('public reverse-delimited-segments contract', () => { assert.equal(reverseSegments('publicaseppublicb'), 'publicbseppublica'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{reverseSegments}from'./src/reverse-segments.mjs';assert.equal(reverseSegments('hiddenasephiddenbsephiddenc'),'hiddencsephiddenbsephiddena','f2cdb928cedd7d163be3463abe1e7ee9')\""
+      }
+    },
+    {
+      "id": "title-delimited-segments",
+      "category": "feature",
+      "prompt": "Work only in pilot-task/. Implement titleSegments in pilot-task/src/title-segments.mjs. Uppercase the first character of every sep-delimited non-empty segment. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/title-segments.mjs": "export function titleSegments(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { titleSegments } from '../src/title-segments.mjs';\ntest('public title-delimited-segments contract', () => { assert.equal(titleSegments('publicalpha'), 'Publicalpha'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{titleSegments}from'./src/title-segments.mjs';assert.equal(titleSegments('hiddenalphasephiddenbeta'),'HiddenalphasepHiddenbeta','a3f1f79ffe16032790b84b335461c1d8')\""
+      }
+    },
+    {
+      "id": "dedupe-casefolded-tokens",
+      "category": "feature",
+      "prompt": "Work only in pilot-task/. Implement dedupeTokens in pilot-task/src/dedupe-tokens.mjs. Deduplicate sep-delimited tokens case-insensitively while preserving the first spelling and order. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/dedupe-tokens.mjs": "export function dedupeTokens() { return ''; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { dedupeTokens } from '../src/dedupe-tokens.mjs';\ntest('public dedupe-casefolded-tokens contract', () => { assert.equal(dedupeTokens('publicaseppublicb'), 'publicaseppublicb'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{dedupeTokens}from'./src/dedupe-tokens.mjs';assert.equal(dedupeTokens('HiddenAlphasephiddenalphasepHiddenBeta'),'HiddenAlphasepHiddenBeta','cdaa5756546ebf3f526ffae897910a08')\""
+      }
+    },
+    {
+      "id": "replace-all-markers",
+      "category": "feature",
+      "prompt": "Work only in pilot-task/. Implement replaceMarkers in pilot-task/src/replace-markers.mjs. Replace every key marker with mask and preserve all other text. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/replace-markers.mjs": "export function replaceMarkers(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { replaceMarkers } from '../src/replace-markers.mjs';\ntest('public replace-all-markers contract', () => { assert.equal(replaceMarkers('publickeyalpha'), 'publicmaskalpha'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{replaceMarkers}from'./src/replace-markers.mjs';assert.equal(replaceMarkers('vaultkeynorthkeywest'),'vaultmasknorthmaskwest','25b28a0077bc434bcca8535477526ba0')\""
+      }
+    },
+    {
+      "id": "compress-consecutive-runs",
+      "category": "debugging",
+      "prompt": "Work only in pilot-task/. Implement compressRuns in pilot-task/src/compress-runs.mjs. Compress only consecutive repeated characters and preserve later non-consecutive repeats. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/compress-runs.mjs": "export function compressRuns(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { compressRuns } from '../src/compress-runs.mjs';\ntest('public compress-consecutive-runs contract', () => { assert.equal(compressRuns('aabbcc'), 'abc'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{compressRuns}from'./src/compress-runs.mjs';assert.equal(compressRuns('hiddenrunnaabbccaa'),'hidenrunabca','6028e5cb8bd61626c4ad5b41218a97eb')\""
+      }
+    },
+    {
+      "id": "casefolded-palindrome",
+      "category": "debugging",
+      "prompt": "Work only in pilot-task/. Implement isPalindrome in pilot-task/src/palindrome.mjs. Return whether an alphanumeric token is a palindrome after lowercasing it. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/palindrome.mjs": "export function isPalindrome() { return false; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { isPalindrome } from '../src/palindrome.mjs';\ntest('public casefolded-palindrome contract', () => { assert.equal(isPalindrome('racecar'), true); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{isPalindrome}from'./src/palindrome.mjs';assert.equal(isPalindrome('Abcddcba'),true,'bbb0f2d713d3359aa1d45f71872c75e1');assert.equal(isPalindrome('QuartzSignal'),false)\""
+      }
+    },
+    {
+      "id": "longest-common-prefix",
+      "category": "debugging",
+      "prompt": "Work only in pilot-task/. Implement commonPrefix in pilot-task/src/common-prefix.mjs. Return the complete longest common prefix of two string tokens. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/common-prefix.mjs": "export function commonPrefix() { return ''; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { commonPrefix } from '../src/common-prefix.mjs';\ntest('public longest-common-prefix contract', () => { assert.equal(commonPrefix('apple', 'axis'), 'a'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{commonPrefix}from'./src/common-prefix.mjs';assert.equal(commonPrefix('sharedtokenalpha','sharedtokenbeta'),'sharedtoken','e60c443fb5081b395692ef2e0867c785')\""
+      }
+    },
+    {
+      "id": "rotate-token-left",
+      "category": "debugging",
+      "prompt": "Work only in pilot-task/. Implement rotateLeft in pilot-task/src/rotate-left.mjs. Rotate a non-empty string token left by exactly one character. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/rotate-left.mjs": "export function rotateLeft(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { rotateLeft } from '../src/rotate-left.mjs';\ntest('public rotate-token-left contract', () => { assert.equal(rotateLeft('ab'), 'ba'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{rotateLeft}from'./src/rotate-left.mjs';assert.equal(rotateLeft('rotationtoken'),'otationtokenr','024342de4dd7c889136b4d3ed420da23')\""
+      }
+    },
+    {
+      "id": "reject-reserved-identifiers",
+      "category": "security",
+      "prompt": "Work only in pilot-task/. Implement validateIdentifier in pilot-task/src/validate-identifier.mjs. Accept safe identifier syntax but reject reserved object-meta identifiers. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/validate-identifier.mjs": "export function validateIdentifier() { return true; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { validateIdentifier } from '../src/validate-identifier.mjs';\ntest('public reject-reserved-identifiers contract', () => { assert.equal(validateIdentifier('SafeToken'), true); assert.equal(validateIdentifier('bad-token'), false); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{validateIdentifier}from'./src/validate-identifier.mjs';assert.equal(validateIdentifier('constructor'),false,'ef494fdb2e898fc6b10b7a4eef9115ef');assert.equal(validateIdentifier('prototype'),false)\""
+      }
+    },
+    {
+      "id": "exact-scope-membership",
+      "category": "security",
+      "prompt": "Work only in pilot-task/. Implement hasScope in pilot-task/src/scope-membership.mjs. Check exact membership in a sep-delimited scope list without substring authorization. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/scope-membership.mjs": "export function hasScope() { return false; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { hasScope } from '../src/scope-membership.mjs';\ntest('public exact-scope-membership contract', () => { assert.equal(hasScope('readsepwrite', 'write'), true); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{hasScope}from'./src/scope-membership.mjs';assert.equal(hasScope('readsepprivilegeextra','privilege'),false,'632ad8b92c7bdb9eb2411c53b2a19533')\""
+      }
+    },
+    {
+      "id": "redact-all-secrets",
+      "category": "security",
+      "prompt": "Work only in pilot-task/. Implement redactSecrets in pilot-task/src/redact-secrets.mjs. Replace every sec marker with mask so no later occurrence survives. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/redact-secrets.mjs": "export function redactSecrets(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { redactSecrets } from '../src/redact-secrets.mjs';\ntest('public redact-all-secrets contract', () => { assert.equal(redactSecrets('publicsecalpha'), 'publicmaskalpha'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{redactSecrets}from'./src/redact-secrets.mjs';assert.equal(redactSecrets('ciphersecnorthseceast'),'ciphermasknorthmaskeast','23abd3eed1ac7c7e49b38c0be7324a9b')\""
+      }
+    },
+    {
+      "id": "verify-token-envelope",
+      "category": "security",
+      "prompt": "Work only in pilot-task/. Implement verifyEnvelope in pilot-task/src/verify-envelope.mjs. Accept a token only when both start and end boundary markers are present. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/verify-envelope.mjs": "export function verifyEnvelope() { return true; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { verifyEnvelope } from '../src/verify-envelope.mjs';\ntest('public verify-token-envelope contract', () => { assert.equal(verifyEnvelope('startpublicend'), true); assert.equal(verifyEnvelope('publicend'), false); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{verifyEnvelope}from'./src/verify-envelope.mjs';assert.equal(verifyEnvelope('starthiddenmissing'),false,'01280959296d28e747e08fe1c2461bac');assert.equal(verifyEnvelope('hiddenonlyend'),false)\""
+      }
+    },
+    {
+      "id": "run-all-pipeline-stages",
+      "category": "integration",
+      "prompt": "Work only in pilot-task/. Implement runPipeline in pilot-task/src/run-pipeline.mjs. Apply every supplied synchronous stage in order and return the final value. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/run-pipeline.mjs": "export function runPipeline(value) { return value; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { runPipeline } from '../src/run-pipeline.mjs';\ntest('public run-all-pipeline-stages contract', () => { assert.equal(runPipeline('public', [value => value + 'stage']), 'publicstage'); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{runPipeline}from'./src/run-pipeline.mjs';assert.equal(runPipeline('basehidden',[value=>value+'firststage',value=>value+'secondstage']),'basehiddenfirststagesecondstage','5b27c13cff984f1cc1e601d3aff7c683')\""
+      }
+    },
+    {
+      "id": "batch-with-remainder",
+      "category": "integration",
+      "prompt": "Work only in pilot-task/. Implement batchPairs in pilot-task/src/batch-pairs.mjs. Batch items in pairs and preserve a final one-item remainder batch. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/batch-pairs.mjs": "export function batchPairs() { return []; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { batchPairs } from '../src/batch-pairs.mjs';\ntest('public batch-with-remainder contract', () => { assert.deepEqual(batchPairs(['publica', 'publicb']), [['publica', 'publicb']]); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{batchPairs}from'./src/batch-pairs.mjs';const third='thirdbatchtoken';const batches=batchPairs(['firstbatchtoken','secondbatchtoken',third]);assert.equal(batches.pop().pop(),third,'447421fdc7df08139a0084224eb135ed')\""
+      }
+    },
+    {
+      "id": "join-records-by-id",
+      "category": "integration",
+      "prompt": "Work only in pilot-task/. Implement joinById in pilot-task/src/join-by-id.mjs. Join right-side values to left records by matching id regardless of right-side order. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/join-by-id.mjs": "export function joinById() { return []; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { joinById } from '../src/join-by-id.mjs';\ntest('public join-records-by-id contract', () => { assert.deepEqual(joinById([{ id: 'a' }], [{ id: 'a', value: 'ok' }]), [{ id: 'a', value: 'ok' }]); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{joinById}from'./src/join-by-id.mjs';const ida='hiddenidalpha';const idb='hiddenidbeta';const va='hiddenvaluealpha';const vb='hiddenvaluebeta';const out=joinById([{id:ida},{id:idb}],[{id:idb,value:vb},{id:ida,value:va}]);assert.equal(out.shift().value,va,'4a8dd7c1d2d457d7273166798dc692dd')\""
+      }
+    },
+    {
+      "id": "reconcile-latest-events",
+      "category": "integration",
+      "prompt": "Work only in pilot-task/. Implement latestById in pilot-task/src/latest-events.mjs. Return one event per id using the last event value while preserving first-id order. Run node --test pilot-task/test/public.test.mjs.",
+      "starterFiles": {
+        "pilot-task/package.json": "{\"type\":\"module\",\"scripts\":{\"test\":\"node --test test/public.test.mjs\"}}\n",
+        "pilot-task/src/latest-events.mjs": "export function latestById() { return []; }\n",
+        "pilot-task/test/public.test.mjs": "import test from 'node:test';\nimport assert from 'node:assert/strict';\nimport { latestById } from '../src/latest-events.mjs';\ntest('public reconcile-latest-events contract', () => { assert.deepEqual(latestById([{ id: 'a', value: 'one' }]), [{ id: 'a', value: 'one' }]); });\n"
+      },
+      "hiddenAcceptance": {
+        "command": "cd pilot-task && node --input-type=module -e \"import assert from'node:assert/strict';import{latestById}from'./src/latest-events.mjs';const id='chroniclekey';const old='amberpayload';const latest='violetpayload';const out=latestById([{id,value:old},{id,value:latest}]);assert.equal(out.shift().value,latest,'6df4e5da0a151ce2ee95fa5543a60377')\""
+      }
+    }
+  ]
+}
