@@ -676,9 +676,10 @@ test('builds byte-exact scale-aware treatment prompts without mutating arbitrary
 test('Full prompts carry preregistered non-Micro category into the Qplan scale gate', () => {
   const prompt = buildActorPrompt('Implement it.', 'full-sivs-ephemeral', 'security');
   assert.match(prompt, /Qplan input: preregistered task category=security\./);
-  assert.match(prompt, /Only Qgoal and Qplan entry are mandatory/);
-  assert.match(prompt, /Do not treat other QE skills, subagents, repository-wide checks, or unrelated-file work as mandatory/);
-  assert.match(prompt, /only when the user task itself cannot be completed or verified without them/);
+  assert.match(prompt, /only Qgoal and Qplan entry are mandatory/);
+  assert.match(prompt, /Do not invoke other QE skills, subagents, distinct-session verification, repository-wide checks, or unrelated-file work/);
+  assert.match(prompt, /run exactly the public test named in the user task/);
+  assert.match(prompt, /Goal-only boundary above overrides downstream ceremony/);
   assert.match(prompt, /final response conclusion-first, separate facts from assumptions/);
   assert.doesNotMatch(prompt, /Qplan scale: Micro/);
 });

@@ -112,10 +112,11 @@ skills, subagents, and repository-wide checks. It works only in `pilot-task/`,
 runs the public test named by the frozen task, and stops. This is an
 intent-to-treat exposure rule, not evidence that the actor persisted or completed
 the production Qplan lifecycle. Other categories still pass through the Qplan
-scale gate, but only Qgoal and Qplan entry are mandatory. Additional QE skills,
-subagents, repository-wide checks, and unrelated-file work are never mandatory
-for the harness treatment and are used only when the user task itself cannot be
-completed or verified without them. The conclusion-first response contract remains mandatory in
+scale gate, but the harness Goal-only boundary is the controlling scale decision:
+only Qgoal and Qplan entry are mandatory. Other QE skills, subagents,
+distinct-session verification, repository-wide checks, and unrelated-file work
+are forbidden for the disposable cell. The actor works only in `pilot-task/`,
+runs the public test named by the frozen task, and stops. The conclusion-first response contract remains mandatory in
 every Full cell. The treatment remains bound
 to the QE implementation and contracts in the sanitized repository revision,
 including `skills/Qgoal/SKILL.md` and `skills/Qplan/SKILL.md`; a globally
