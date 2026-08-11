@@ -223,3 +223,26 @@ The pilot has one repetition and validates treatment isolation, measurement,
 and scoring mechanics only. It cannot establish QE effectiveness. Promotion or
 deletion decisions require the full preregistered study with at least 20 tasks
 and three repetitions.
+
+### Goal-only boundary pilot (2026-08-11)
+
+Captured revision `81d7d7a33a06be7ecc94183c0b7640fa93af5efb`
+completed the frozen 20-cell schedule after two adjacent successful smoke
+attempts. Invocation `e4454fe0-bc26-4d63-9b1f-96ed5eb59ede` published generation
+`2d76fc40-3d8d-4526-8bc9-954562b23e6f`; the independent verifier classified the
+persisted claim, 20 cell records, terminal, manifest, current pointer, and
+artifacts as `succeeded`.
+
+All four conditions produced the same pilot success mean (`0.6`) and escaped-
+defect mean (`0.4`). Across ten runs per treatment family, Full used 1,567,362
+input tokens and 561.476 seconds; native used 1,229,830 input tokens and 539.448
+seconds. Thus this one-repetition pilot observed 27.4% more input tokens and 4.1%
+more wall time for Goal-only Full, without a success-rate improvement. This is
+descriptive pilot evidence, not a production effectiveness claim.
+
+The strict boundary also repaired the preregistered `duration-parser` Full-
+durable failure path: input tokens fell from 1,704,197 on the original boundary
+to 808,310 on the partially bounded boundary and 106,416 on the strict Goal-only
+boundary, which completed successfully. The comparison spans different captured
+revisions and model executions, so it supports the boundary decision but is not
+a controlled causal estimate.
