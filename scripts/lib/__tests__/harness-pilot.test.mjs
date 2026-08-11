@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
 import { join } from 'node:path';
@@ -39,6 +40,13 @@ const {
 } = harnessPilot;
 
 const ROOT = fileURLToPath(new URL('../../..', import.meta.url));
+
+function fixtureDigest(value) {
+  const canonical = JSON.stringify(value, (_, item) => item && typeof item === 'object'
+    && !Array.isArray(item)
+    ? Object.fromEntries(Object.entries(item).sort(([a], [b]) => a.localeCompare(b))) : item);
+  return createHash('sha256').update(Buffer.from(canonical, 'utf8')).digest('hex');
+}
 
 function fixture() {
   return {
@@ -994,7 +1002,8 @@ test('captured operation journals before actor launch and admits execute only af
     operationLock = pilotCli.acquirePilotOutputLock(outputIdentity.path);
     let prematureExecuteCalls = 0;
     await assert.rejects(() => pilotCli.runCapturedPilotOperation({ mode: 'execute', repoRoot,
-      fixture: input, revision, outputIdentity, lockAuthority: operationLock,
+      fixture: input, expectedFixtureDigest: fixtureDigest(input), revision, outputIdentity,
+      lockAuthority: operationLock,
       actor: async () => { prematureExecuteCalls += 1; },
       scorer: async () => ({}), runPilotImpl: async () => { prematureExecuteCalls += 1; } }),
     /PILOT_SMOKE_NOT_ADMITTED/);
@@ -1039,12 +1048,23 @@ test('captured operation journals before actor launch and admits execute only af
       return { dataset: { schema: 1, budget: createPilotRuntimeBudget(input.budget), runs: [] },
         rawRuns: [], report: { balancedPairs: 0, conditions: {} } };
     };
+    let postrunVerifications = 0;
+    const authorityDigest = fixtureDigest(input);
     const executed = await pilotCli.runCapturedPilotOperation({ mode: 'execute', repoRoot,
-      fixture: input, revision, outputIdentity, lockAuthority: operationLock,
+      fixture: input, expectedFixtureDigest: authorityDigest, revision, outputIdentity,
+      lockAuthority: operationLock,
       actor: async () => ({ controller: null }),
-      scorer: async () => ({}), runPilotImpl: balancedRun });
+      scorer: async () => ({}), runPilotImpl: balancedRun,
+      verifyPilotOutputImpl: (verifiedRoot, authority) => {
+        postrunVerifications += 1;
+        assert.equal(verifiedRoot, outputIdentity.path);
+        assert.equal(authority.fixture, input);
+        assert.equal(authority.expectedFixtureDigest, authorityDigest);
+        return { classification: 'succeeded' };
+      } });
     assert.equal(executeActorCalls, 1);
     assert.equal(executed.admission.admitted, true);
+    assert.equal(postrunVerifications, 1);
     assert.equal(existsSync(join(outputIdentity.path, 'current.json')), true);
     assert.equal(actorCalls, 2);
 

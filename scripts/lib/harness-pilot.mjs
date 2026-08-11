@@ -1,5 +1,5 @@
 import { createHash } from 'node:crypto';
-import { mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
@@ -47,10 +47,35 @@ const HIDDEN_KEYS = Object.freeze(['exitCode', 'outputHash', 'passed', 'signal']
 const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 const HEX40_RE = /^[0-9a-f]{40}$/;
 const HEX64_RE = /^[0-9a-f]{64}$/;
+const MAX_ACTOR_RESULT_CHARS = 8192;
 
 function plainObject(value) {
   return value !== null && typeof value === 'object' && !Array.isArray(value)
     && (Object.getPrototypeOf(value) === Object.prototype || Object.getPrototypeOf(value) === null);
+}
+
+function pathEntryExists(path) {
+  try { lstatSync(path); return true; }
+  catch (error) { if (error?.code === 'ENOENT') return false; throw error; }
+}
+
+function compactPilotActor(actor) {
+  if (!plainObject(actor)) return actor;
+  const bounded = {};
+  for (const key of ['ok', 'modelTurn', 'inputTokens', 'outputTokens', 'wallSeconds',
+    'costUsd', 'exitCode', 'timedOut', 'signal', 'bufferExceeded', 'controller',
+    'starterRevision', 'patchHash']) {
+    if (key in actor) bounded[key] = structuredClone(actor[key]);
+  }
+  const { patch, result } = actor;
+  if (typeof result === 'string') {
+    bounded.result = result.slice(0, MAX_ACTOR_RESULT_CHARS);
+    bounded.resultDigest = canonicalDigest(['qe-pilot-actor-result-v1', result]);
+  }
+  if (typeof patch === 'string' && !HEX64_RE.test(bounded.patchHash || '')) {
+    bounded.patchHash = createHash('sha256').update(patch).digest('hex');
+  }
+  return bounded;
 }
 
 function exactKeys(value, keys) {
@@ -382,11 +407,18 @@ export class PilotInvalidActorError extends Error {
   }
 }
 
+/**
+ * Validate and clone one of the closed 5x1 pilot or 20x3 study fixture profiles.
+ * @param {object} input - Candidate fixture with tasks, repetitions, budget, model, and effort.
+ * @returns {object} A detached validated fixture.
+ */
 export function validatePilotFixture(input) {
   if (!input || input.schema !== 1 || !nonEmpty(input.seed) || !nonEmpty(input.model)
-    || !nonEmpty(input.effort) || input.repetition !== 1 || !Array.isArray(input.tasks)
-    || input.tasks.length !== 5) {
-    throw new TypeError('pilot fixture must define schema, seed, model, effort, repetition 1, and exactly five tasks');
+    || !nonEmpty(input.effort) || !Number.isSafeInteger(input.repetition)
+    || !Array.isArray(input.tasks)
+    || !((input.tasks.length === 5 && input.repetition === 1)
+      || (input.tasks.length === 20 && input.repetition === 3))) {
+    throw new TypeError('pilot fixture must use the closed 5x1 or 20x3 profile');
   }
   const budget = input.budget || {};
   finitePositive(budget.maxInputTokens, 'budget.maxInputTokens');
@@ -421,12 +453,31 @@ function orderDigest(seed, taskId, repetition, condition) {
   return createHash('sha256').update(`${seed}\0${taskId}\0${repetition}\0${condition}`).digest('hex');
 }
 
+/**
+ * Build the deterministic task/repetition/condition schedule for a validated fixture.
+ * @param {object} input - Closed-profile fixture.
+ * @returns {Array<{taskId: string, repetition: number, condition: string}>} Ordered cells.
+ */
 export function buildPilotSchedule(input) {
   const fixture = validatePilotFixture(input);
-  return fixture.tasks.flatMap(task => CONDITIONS
-    .map(condition => ({ taskId: task.id, repetition: fixture.repetition, condition }))
-    .sort((left, right) => orderDigest(fixture.seed, task.id, fixture.repetition, left.condition)
-      .localeCompare(orderDigest(fixture.seed, task.id, fixture.repetition, right.condition))));
+  return fixture.tasks.flatMap(task => Array.from({ length: fixture.repetition }, (_, index) => index + 1)
+    .flatMap(repetition => CONDITIONS
+      .map((condition, conditionIndex) => ({ taskId: task.id, repetition, condition, conditionIndex }))
+      .sort((left, right) => orderDigest(fixture.seed, task.id, repetition, left.condition)
+        .localeCompare(orderDigest(fixture.seed, task.id, repetition, right.condition))
+        || left.conditionIndex - right.conditionIndex)
+      .map(({ conditionIndex, ...cell }) => cell)));
+}
+
+/** Select the first preregistered durable Full-SIVS cell without assuming index zero. */
+export function selectPilotSmokeCell(input) {
+  const fixture = validatePilotFixture(input);
+  const durable = buildPilotSchedule(fixture)
+    .filter(cell => cell.condition === 'full-sivs-durable');
+  if (durable.length !== fixture.tasks.length * fixture.repetition) {
+    throw new TypeError('pilot schedule has an invalid durable smoke-cell population');
+  }
+  return structuredClone(durable[0]);
 }
 
 export function materializeTask(root, task) {
@@ -674,20 +725,37 @@ export async function scoreHiddenAcceptance({ workspace, task }, { timeoutMs = 1
   };
 }
 
+/**
+ * Execute preregistered cells with bounded concurrency and isolated workspaces.
+ * `cellIndexes` selects exact schedule indexes and is mutually exclusive with `cellLimit`.
+ * A selected run returns raw evidence without a balanced dataset/report.
+ */
 export async function runPilot(input, {
   root, revision, actor, scorer, concurrency = 1, baselineRepository = null, cellLimit = null,
-  lifecycle = null,
+  cellIndexes = null, lifecycle = null,
 }) {
   const fixture = validatePilotFixture(input);
   if (!nonEmpty(root) || !/^[0-9a-f]{40}$/.test(revision || '')
     || typeof actor !== 'function' || typeof scorer !== 'function'
-    || !Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4
-    || (cellLimit !== null && (!Number.isInteger(cellLimit) || cellLimit < 1 || cellLimit > 20))) {
+    || !Number.isInteger(concurrency) || concurrency < 1 || concurrency > 4) {
     throw new TypeError('runPilot requires root, a 40-character revision, actor, and scorer');
   }
   const tasks = new Map(fixture.tasks.map(task => [task.id, task]));
   const fullSchedule = buildPilotSchedule(fixture);
-  const schedule = cellLimit === null ? fullSchedule : fullSchedule.slice(0, cellLimit);
+  if (cellIndexes !== null && (cellLimit !== null || !Array.isArray(cellIndexes)
+    || cellIndexes.length === 0 || new Set(cellIndexes).size !== cellIndexes.length
+    || !cellIndexes.every(index => Number.isSafeInteger(index)
+      && index >= 0 && index < fullSchedule.length))) {
+    throw new TypeError('runPilot cellIndexes must select unique preregistered cells');
+  }
+  if (cellLimit !== null
+    && (!Number.isInteger(cellLimit) || cellLimit < 1 || cellLimit > fullSchedule.length)) {
+    throw new TypeError('runPilot cellLimit must be within the preregistered schedule');
+  }
+  const scheduleIndexes = cellIndexes ?? (cellLimit === null
+    ? fullSchedule.map((_, index) => index)
+    : fullSchedule.slice(0, cellLimit).map((_, index) => index));
+  const schedule = scheduleIndexes.map(index => fullSchedule[index]);
   const rawRuns = new Array(schedule.length);
   let cursor = 0;
   let fatalError = null;
@@ -701,9 +769,14 @@ export async function runPilot(input, {
     const task = tasks.get(cell.taskId);
     let actorResult = null;
     let rawRun = null;
+    const cellRoot = join(root,
+      `${String(scheduleIndexes[index]).padStart(3, '0')}-${cell.taskId}-r${cell.repetition}-${cell.condition}`);
+    let ownsCellRoot = false;
     await emit('started', { index, cell: structuredClone(cell) });
     try {
-      const cellRoot = join(root, `${cell.taskId}-${cell.condition}`);
+      if (pathEntryExists(cellRoot)) throw new Error(`pilot workspace root already exists: ${cellRoot}`);
+      mkdirSync(cellRoot, { mode: 0o700 });
+      ownsCellRoot = true;
       if (baselineRepository) {
         cloneBaselineRepository({ repository: baselineRepository, revision,
           workspace: resolve(cellRoot, task.id) });
@@ -730,7 +803,7 @@ export async function runPilot(input, {
         effort: fixture.effort,
         revision,
         promptDigest: createHash('sha256').update(prompt).digest('hex'),
-        actor: actorResult,
+        actor: compactPilotActor(actorResult),
         hiddenAcceptance,
       };
       const verdict = classifyPilotRun(rawRun, fixture.budget);
@@ -739,7 +812,8 @@ export async function runPilot(input, {
       await emit('terminal', { index, status: 'completed', run: rawRuns[index] });
     } catch (error) {
       const evidence = error?.details || (actorResult ? {
-        cell, model: fixture.model, effort: fixture.effort, revision, actor: actorResult,
+        cell, model: fixture.model, effort: fixture.effort, revision,
+        actor: compactPilotActor(actorResult),
       } : null);
       try {
         await emit('terminal', { index, status: 'failed', run: rawRun, evidence,
@@ -749,6 +823,8 @@ export async function runPilot(input, {
         throw sinkError;
       }
       throw error;
+    } finally {
+      if (ownsCellRoot) rmSync(cellRoot, { recursive: true, force: true });
     }
   };
   const worker = async () => {
@@ -770,7 +846,7 @@ export async function runPilot(input, {
     };
     throw fatalError;
   }
-  if (cellLimit !== null) return { dataset: null, rawRuns, report: null };
+  if (cellLimit !== null || cellIndexes !== null) return { dataset: null, rawRuns, report: null };
   const dataset = {
     schema: 1,
     budget: {

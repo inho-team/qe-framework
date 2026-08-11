@@ -15,6 +15,7 @@ import { createEligibleProcessController } from '../hooks/scripts/lib/process-co
 import { verifyPilotOutput } from './verify-harness-pilot.mjs';
 
 import {
+  CONDITIONS,
   buildCodexArgs,
   buildPilotSchedule,
   appendPilotAttemptEvent,
@@ -25,10 +26,13 @@ import {
   deriveSmokeAdmission,
   loadPilotFixture,
   parseCodexResult,
+  pilotBudgetDigest,
+  pilotCellIdentity,
   projectPilotAttempts,
   runPilot,
   runBoundedProcess,
   scoreHiddenAcceptance,
+  selectPilotSmokeCell,
   validatePilotFixture,
 } from './lib/harness-pilot.mjs';
 
@@ -41,6 +45,7 @@ const MAX_LOCK_OWNER_BYTES = 4096;
 const EXECUTE_CLAIM = '.pilot-execute-claim.json';
 const EXECUTE_TERMINAL = '.pilot-execute-terminal.json';
 const EXECUTE_CELLS = '.pilot-execute-cells';
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/;
 
 function codedError(code, message) {
   const error = new Error(`${code}: ${message}`);
@@ -263,6 +268,48 @@ function executeDigest(value) {
   return sha256(Buffer.from(canonical, 'utf8'));
 }
 
+/**
+ * Create an immutable schema-2 claim binding the validated fixture, budget, and full schedule.
+ * @returns {object} Exact-key claim suitable for durable publication and independent replay.
+ */
+export function createPilotExecuteClaim({
+  fixture: input, invocationId, revision, createdAt, smokeAttemptIds,
+}) {
+  const fixture = validatePilotFixture(input);
+  if (!UUID_RE.test(invocationId || '')
+    || !/^[0-9a-f]{40}$/.test(revision || '') || !canonicalIso(createdAt)
+    || !Array.isArray(smokeAttemptIds) || smokeAttemptIds.length !== 2
+    || !smokeAttemptIds.every(id => UUID_RE.test(id))) {
+    throw new TypeError('invalid pilot execute claim input');
+  }
+  const budget = createPilotRuntimeBudget(fixture.budget);
+  const schedule = buildPilotSchedule(fixture);
+  const scheduleManifest = {
+    schema: 1,
+    seed: fixture.seed,
+    orderedTaskIds: fixture.tasks.map(task => task.id),
+    repetition: fixture.repetition,
+    conditions: [...CONDITIONS],
+    model: fixture.model,
+    effort: fixture.effort,
+    budgetDigest: pilotBudgetDigest(budget),
+  };
+  return {
+    schema: 2,
+    kind: 'execute-claim',
+    invocationId,
+    revision,
+    createdAt,
+    budget,
+    fixtureDigest: executeDigest(fixture),
+    scheduleManifest,
+    expectedCellCount: schedule.length,
+    scheduleDigest: executeDigest(schedule.map((entry, index) => ({ index, ...entry }))),
+    smokeAttemptIds: [...smokeAttemptIds],
+  };
+}
+
+/** Create or validate the harness-owned output root and return its stable filesystem identity. */
 export function preparePilotOutputRoot({ repoRoot = ROOT, outputDir = null } = {}) {
   const target = resolvePilotOutputRoot({ repoRoot, outputDir });
   const repo = realpathSync(resolve(repoRoot));
@@ -294,6 +341,7 @@ export function preparePilotOutputRoot({ repoRoot = ROOT, outputDir = null } = {
   return { path: realTarget, dev: identity.dev, ino: identity.ino };
 }
 
+/** Revalidate that an output root still refers to the originally admitted directory. */
 export function assertPilotOutputIdentity(identity) {
   const current = statSync(identity.path);
   if (!current.isDirectory() || current.dev !== identity.dev || current.ino !== identity.ino
@@ -517,22 +565,33 @@ function readPilotHistory(path, budget) {
 /** Run one captured smoke attempt or an admitted balanced generation. */
 export async function runCapturedPilotOperation({
   mode, repoRoot = ROOT, fixture, revision, outputIdentity, concurrency = 1,
-  lockAuthority, actor, scorer, runPilotImpl = runPilot, now = () => Date.now(), attemptIdFactory = randomUUID,
+  lockAuthority, actor, scorer, expectedFixtureDigest, runPilotImpl = runPilot,
+  verifyPilotOutputImpl = verifyPilotOutput, now = () => Date.now(), attemptIdFactory = randomUUID,
   temporaryRootFactory = () => mkdtempSync(join(tmpdir(), 'qe-harness-pilot-')),
 }) {
   if (!['smoke', 'execute'].includes(mode) || !fixture || !/^[0-9a-f]{40}$/.test(revision || '')
     || !outputIdentity || typeof actor !== 'function' || typeof scorer !== 'function') {
     throw new TypeError('invalid captured pilot operation');
   }
+  if (mode === 'execute') {
+    if (!/^[0-9a-f]{64}$/.test(expectedFixtureDigest || '')) {
+      throw codedError('PILOT_FIXTURE_AUTHORITY_REQUIRED',
+        'execute requires a separate 64-character fixture digest');
+    }
+    if (executeDigest(fixture) !== expectedFixtureDigest) {
+      throw codedError('PILOT_FIXTURE_AUTHORITY_MISMATCH',
+        'the supplied fixture does not match its trusted digest');
+    }
+  }
   assertPilotOutputIdentity(outputIdentity);
   assertPilotLockAuthority(lockAuthority, outputIdentity.path);
   assertPilotRevision(repoRoot, revision);
   const budget = createPilotRuntimeBudget(fixture.budget);
-  const first = buildPilotSchedule(fixture)[0];
-  const cell = createPilotCell({ ...first, model: fixture.model, effort: fixture.effort }, budget);
-  if (cell.condition !== 'full-sivs-durable') {
-    throw codedError('PILOT_SMOKE_CELL_INVALID', 'first preregistered cell must be full-sivs-durable');
-  }
+  const smokeCell = selectPilotSmokeCell(fixture);
+  const smokeCellIndex = buildPilotSchedule(fixture)
+    .findIndex(entry => JSON.stringify(entry) === JSON.stringify(smokeCell));
+  if (smokeCellIndex < 0) throw codedError('PILOT_SMOKE_CELL_INVALID', 'durable smoke cell is absent');
+  const cell = createPilotCell({ ...smokeCell, model: fixture.model, effort: fixture.effort }, budget);
   const executePaths = executeEvidencePaths(outputIdentity.path);
   if (mode === 'smoke' && pathEntryExists(executePaths.claim)) {
     throw codedError('PILOT_EXECUTE_CONSUMED', 'smoke is forbidden after an execute claim');
@@ -549,15 +608,12 @@ export async function runCapturedPilotOperation({
       }
       const invocationId = attemptIdFactory();
       const schedule = buildPilotSchedule(fixture);
-      const claim = {
-        schema: 1, kind: 'execute-claim', invocationId, revision,
-        createdAt: new Date(now()).toISOString(), budget,
-        fixtureDigest: executeDigest(fixture),
-        scheduleDigest: executeDigest(schedule.map((entry, index) => ({ index, ...entry }))),
-        smokeAttemptIds: admission.selectedAttemptIds,
-      };
-      immutableWritePilotJson(executePaths.claim, claim);
       ensureRealDirectory(executePaths.cells);
+      const claim = createPilotExecuteClaim({
+        fixture, invocationId, revision, createdAt: new Date(now()).toISOString(),
+        smokeAttemptIds: admission.selectedAttemptIds,
+      });
+      immutableWritePilotJson(executePaths.claim, claim);
       syncDirectory(outputIdentity.path);
       const completed = new Set();
       const failed = new Set();
@@ -565,18 +621,29 @@ export async function runCapturedPilotOperation({
       const lifecycle = {
         started: async event => {
           const directory = ensureRealDirectory(join(executePaths.cells, String(event.index).padStart(3, '0')));
+          const fullCell = createPilotCell({ ...event.cell,
+            model: fixture.model, effort: fixture.effort }, budget);
           immutableWritePilotJson(join(directory, 'started.json'), {
-            schema: 1, kind: 'cell-started', invocationId, revision,
-            at: new Date(now()).toISOString(), ...event,
+            schema: 2, kind: 'cell-started', invocationId, revision,
+            at: new Date(now()).toISOString(), index: event.index, cell: fullCell,
+            cellIdentity: pilotCellIdentity(fullCell),
           });
           started.add(event.index);
         },
         terminal: async event => {
           const directory = join(executePaths.cells, String(event.index).padStart(3, '0'));
-          immutableWritePilotJson(join(directory, 'terminal.json'), {
-            schema: 1, kind: 'cell-terminal', invocationId, revision,
-            at: new Date(now()).toISOString(), ...event,
-          });
+          const fullCell = createPilotCell({ ...schedule[event.index],
+            model: fixture.model, effort: fixture.effort }, budget);
+          const terminal = {
+            schema: 2, kind: 'cell-terminal', invocationId, revision,
+            at: new Date(now()).toISOString(), index: event.index, cell: fullCell,
+            cellIdentity: pilotCellIdentity(fullCell), status: event.status, run: event.run,
+          };
+          if (event.status === 'failed') {
+            terminal.evidence = event.evidence;
+            terminal.error = event.error;
+          }
+          immutableWritePilotJson(join(directory, 'terminal.json'), terminal);
           (event.status === 'completed' ? completed : failed).add(event.index);
         },
       };
@@ -598,7 +665,7 @@ export async function runCapturedPilotOperation({
       } catch (error) {
         const all = schedule.map((_, index) => index);
         const terminal = {
-          schema: 1, kind: 'execute-terminal', status: 'failed', invocationId, revision,
+          schema: 2, kind: 'execute-terminal', status: 'failed', invocationId, revision,
           at: new Date(now()).toISOString(), claimDigest: executeDigest(claim),
           completedIndexes: [...completed].sort((a, b) => a - b),
           failedIndexes: [...new Set([...failed, ...[...started].filter(index => !completed.has(index))])]
@@ -624,12 +691,18 @@ export async function runCapturedPilotOperation({
         runSummary: markdownSummary(output),
       });
       immutableWritePilotJson(executePaths.terminal, {
-        schema: 1, kind: 'execute-terminal', status: 'succeeded', invocationId, revision,
+        schema: 2, kind: 'execute-terminal', status: 'succeeded', invocationId, revision,
         at: new Date(now()).toISOString(), claimDigest: executeDigest(claim),
         completedIndexes: [...completed].sort((a, b) => a - b), failedIndexes: [], unstartedIndexes: [],
         generation: published.generation, manifestHash: published.manifestHash,
       });
-      return { output, published, admission };
+      const verification = verifyPilotOutputImpl(outputIdentity.path, {
+        fixture, expectedFixtureDigest,
+      });
+      if (verification?.classification !== 'succeeded') {
+        throw codedError('PILOT_POSTRUN_VERIFY_FAILED', JSON.stringify(verification));
+      }
+      return { output, published, admission, verification };
     }
 
     runRoot = temporaryRootFactory();
@@ -655,7 +728,8 @@ export async function runCapturedPilotOperation({
       return result;
     };
     const output = await runPilotImpl(fixture, {
-      root: runRoot, revision, concurrency: 1, baselineRepository: repoRoot, cellLimit: 1,
+      root: runRoot, revision, concurrency: 1, baselineRepository: repoRoot,
+      cellIndexes: [smokeCellIndex],
       actor: guardedActor, scorer,
     });
     assertPilotOutputIdentity(outputIdentity);
@@ -679,13 +753,14 @@ export async function runCapturedPilotOperation({
 
 function parseArgs(argv) {
   const out = { dryRun: false, execute: false, smoke: false, fixture: DEFAULT_FIXTURE,
-    outputDir: null, concurrency: 2 };
+    fixtureDigest: null, outputDir: null, concurrency: 2 };
   for (let index = 0; index < argv.length; index += 1) {
     const arg = argv[index];
     if (arg === '--dry-run') out.dryRun = true;
     else if (arg === '--execute') out.execute = true;
     else if (arg === '--smoke') out.smoke = true;
     else if (arg === '--fixture') out.fixture = resolve(argv[++index] || '');
+    else if (arg === '--fixture-digest') out.fixtureDigest = argv[++index] || '';
     else if (arg === '--output-dir') out.outputDir = argv[++index] || '';
     else if (arg === '--concurrency') out.concurrency = Number(argv[++index]);
     else throw new TypeError(`unknown argument: ${arg}`);
@@ -695,6 +770,10 @@ function parseArgs(argv) {
   }
   if (!Number.isInteger(out.concurrency) || out.concurrency < 1 || out.concurrency > 4) {
     throw new TypeError('--concurrency must be an integer from 1 to 4');
+  }
+  if (out.execute && !/^[0-9a-f]{64}$/.test(out.fixtureDigest || '')) {
+    throw codedError('PILOT_FIXTURE_AUTHORITY_REQUIRED',
+      '--execute requires --fixture-digest <64 lowercase hex characters>');
   }
   return out;
 }
@@ -814,7 +893,10 @@ function markdownSummary(output) {
     const means = result.means;
     lines.push(`| ${condition} | ${means.success.toFixed(3)} | ${means.inputTokens.toFixed(1)} | ${means.outputTokens.toFixed(1)} | ${means.wallSeconds.toFixed(1)} |`);
   }
-  lines.push('', '> Pilot only: one repetition cannot establish production effectiveness.', '');
+  const repetitions = new Set(output.dataset.runs.map(run => run.repetition)).size;
+  lines.push('', repetitions === 1
+    ? '> Pilot only: one repetition cannot establish production effectiveness.'
+    : `> Study run: ${repetitions} repetitions per task; interpret results with the preregistered limitations.`, '');
   return lines.join('\n');
 }
 
@@ -841,6 +923,7 @@ async function main() {
         outputIdentity,
         lockAuthority: lock,
         concurrency: options.concurrency,
+        expectedFixtureDigest: options.fixtureDigest,
         actor: createCodexActor(),
         scorer: request => scoreHiddenAcceptance(request),
       });
@@ -848,13 +931,10 @@ async function main() {
         process.stdout.write(`${JSON.stringify({ mode: 'smoke', outputDir: outputIdentity.path,
           attemptId: result.attempt.attemptId, admitted: result.attempt.verdict.success })}\n`);
       } else {
-        const verification = verifyPilotOutput(outputIdentity.path);
-        if (verification.classification !== 'succeeded') {
-          throw codedError('PILOT_POSTRUN_VERIFY_FAILED', JSON.stringify(verification));
-        }
         process.stdout.write(`${JSON.stringify({ mode: 'execute', outputDir: outputIdentity.path,
           generation: result.published.generation, runs: result.output.dataset.runs.length,
-          balancedPairs: result.output.report.balancedPairs, verification: 'succeeded' })}\n`);
+          balancedPairs: result.output.report.balancedPairs,
+          verification: result.verification.classification })}\n`);
       }
     } catch (error) {
       if (error?.code === 'PILOT_INVALID_ACTOR_RUN') {
