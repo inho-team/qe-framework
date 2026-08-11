@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { createHash } from 'node:crypto';
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, symlinkSync, writeFileSync } from 'node:fs';
 import { homedir, tmpdir } from 'node:os';
-import { join } from 'node:path';
+import { join, parse } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { spawnSync } from 'node:child_process';
 import * as harnessPilot from '../harness-pilot.mjs';
@@ -419,15 +419,93 @@ test('materializes only starter files and never exposes the hidden acceptance co
 });
 
 test('materializes a sanitized QE baseline without git history or hidden fixture', () => {
-  const root = mkdtempSync(join(tmpdir(), 'qe-harness-baseline-'));
-  const revision = spawnSync('git', ['rev-parse', 'HEAD'], { cwd: ROOT, encoding: 'utf8' }).stdout.trim();
+  const root = realpathSync(mkdtempSync(join(tmpdir(), 'qe-harness-baseline-')));
+  const repository = join(root, 'repository');
+  const git = args => spawnSync('git', args, { cwd: repository, encoding: 'utf8' });
   try {
+    mkdirSync(join(repository, 'scripts/fixtures'), { recursive: true });
+    mkdirSync(join(repository, 'scripts/lib/__tests__'), { recursive: true });
+    mkdirSync(join(repository, 'evals/harness-pilot'), { recursive: true });
+    writeFileSync(join(repository, 'AGENTS.md'), '# QE\n', 'utf8');
+    writeFileSync(join(repository, 'scripts/fixtures/harness-pilot.json'), 'pilot-secret\n', 'utf8');
+    writeFileSync(join(repository, 'scripts/fixtures/harness-study.json'), 'study-secret\n', 'utf8');
+    writeFileSync(join(repository, 'scripts/fixtures/keep.json'), 'keep-fixture\n', 'utf8');
+    writeFileSync(join(repository, 'scripts/lib/__tests__/harness-study-fixture.test.mjs'),
+      'test-only-oracle\n', 'utf8');
+    writeFileSync(join(repository, 'scripts/lib/__tests__/keep.test.mjs'), 'keep-test\n', 'utf8');
+    writeFileSync(join(repository, 'evals/harness-pilot/result.json'), 'pilot-result\n', 'utf8');
+    writeFileSync(join(repository, 'evals/keep.txt'), 'keep-eval\n', 'utf8');
+    assert.equal(git(['init', '-q']).status, 0);
+    assert.equal(git(['config', 'user.name', 'QE Harness']).status, 0);
+    assert.equal(git(['config', 'user.email', 'qe-harness@example.invalid']).status, 0);
+    assert.equal(git(['add', '.']).status, 0);
+    assert.equal(git(['commit', '-q', '-m', 'baseline fixture']).status, 0);
+    const revision = git(['rev-parse', 'HEAD']).stdout.trim();
+    const sourceStatus = git(['status', '--short', '--untracked-files=all']).stdout;
+    const sourceBytes = readFileSync(join(repository, 'scripts/fixtures/harness-study.json'), 'utf8');
+    for (const sensitiveRoot of [parse(repository).root, homedir(), repository]) {
+      assert.throws(() => cloneBaselineRepository({ repository, revision, workspace: sensitiveRoot }),
+        /baseline workspace must not equal a sensitive root/);
+    }
+    const unrelatedArchive = join(root, '.qe-harness-baseline.tar');
+    writeFileSync(unrelatedArchive, 'preserve-unrelated-archive\n', 'utf8');
     const workspace = join(root, 'workspace');
-    cloneBaselineRepository({ repository: ROOT, revision, workspace });
+    cloneBaselineRepository({ repository, revision, workspace });
     assert.match(readFileSync(join(workspace, 'AGENTS.md'), 'utf8'), /QE/);
     assert.equal(existsSync(join(workspace, '.git')), false);
     assert.equal(existsSync(join(workspace, 'scripts/fixtures/harness-pilot.json')), false);
+    assert.equal(existsSync(join(workspace, 'scripts/fixtures/harness-study.json')), false);
     assert.equal(existsSync(join(workspace, 'evals/harness-pilot')), false);
+    assert.equal(existsSync(join(workspace,
+      'scripts/lib/__tests__/harness-study-fixture.test.mjs')), false);
+    assert.equal(readFileSync(join(workspace, 'scripts/fixtures/keep.json'), 'utf8'), 'keep-fixture\n');
+    assert.equal(readFileSync(join(workspace, 'scripts/lib/__tests__/keep.test.mjs'), 'utf8'), 'keep-test\n');
+    assert.equal(readFileSync(join(workspace, 'evals/keep.txt'), 'utf8'), 'keep-eval\n');
+    assert.equal(git(['status', '--short', '--untracked-files=all']).stdout, sourceStatus);
+    assert.equal(readFileSync(join(repository, 'scripts/fixtures/harness-study.json'), 'utf8'), sourceBytes);
+    assert.equal(readFileSync(unrelatedArchive, 'utf8'), 'preserve-unrelated-archive\n');
+
+    const outsideEvals = join(root, 'outside-evals');
+    mkdirSync(join(outsideEvals, 'harness-pilot'), { recursive: true });
+    writeFileSync(join(outsideEvals, 'harness-pilot/marker.txt'), 'preserve-outside\n', 'utf8');
+    assert.equal(git(['rm', '-q', '-r', 'evals']).status, 0);
+    symlinkSync(outsideEvals, join(repository, 'evals'));
+    assert.equal(git(['add', 'evals']).status, 0);
+    assert.equal(git(['commit', '-q', '-m', 'malicious evals symlink']).status, 0);
+    const maliciousRevision = git(['rev-parse', 'HEAD']).stdout.trim();
+    assert.throws(() => cloneBaselineRepository({ repository, revision: maliciousRevision,
+      workspace: join(root, 'malicious-workspace') }), /baseline hidden path traverses a symlink/);
+    assert.equal(readFileSync(join(outsideEvals, 'harness-pilot/marker.txt'), 'utf8'),
+      'preserve-outside\n');
+
+    const existingFile = join(root, 'existing-file');
+    writeFileSync(existingFile, 'preserve\n', 'utf8');
+    assert.throws(() => cloneBaselineRepository({ repository, revision, workspace: existingFile }),
+      /baseline workspace must not exist/);
+    assert.equal(readFileSync(existingFile, 'utf8'), 'preserve\n');
+
+    const existingDirectory = join(root, 'existing-directory');
+    mkdirSync(existingDirectory);
+    writeFileSync(join(existingDirectory, 'preserve.txt'), 'preserve\n', 'utf8');
+    assert.throws(() => cloneBaselineRepository({ repository, revision, workspace: existingDirectory }),
+      /baseline workspace must not exist/);
+    assert.equal(readFileSync(join(existingDirectory, 'preserve.txt'), 'utf8'), 'preserve\n');
+
+    const symlinkTarget = join(root, 'symlink-target');
+    mkdirSync(symlinkTarget);
+    const workspaceSymlink = join(root, 'workspace-symlink');
+    symlinkSync(symlinkTarget, workspaceSymlink);
+    assert.throws(() => cloneBaselineRepository({ repository, revision, workspace: workspaceSymlink }),
+      /baseline workspace must not exist/);
+    assert.deepEqual(existsSync(join(symlinkTarget, 'AGENTS.md')), false);
+
+    const realParent = join(root, 'real-parent');
+    mkdirSync(realParent);
+    const linkedParent = join(root, 'linked-parent');
+    symlinkSync(realParent, linkedParent);
+    assert.throws(() => cloneBaselineRepository({ repository, revision,
+      workspace: join(linkedParent, 'workspace') }), /baseline workspace parent must be a real directory/);
+    assert.equal(existsSync(join(realParent, 'workspace')), false);
   } finally {
     rmSync(root, { recursive: true, force: true });
   }

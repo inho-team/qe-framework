@@ -1,5 +1,6 @@
 import { createHash } from 'node:crypto';
-import { lstatSync, mkdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { lstatSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from 'node:fs';
+import { homedir } from 'node:os';
 import { isAbsolute, join, relative, resolve } from 'node:path';
 import { spawn, spawnSync } from 'node:child_process';
 import { isDeepStrictEqual } from 'node:util';
@@ -57,6 +58,23 @@ function plainObject(value) {
 function pathEntryExists(path) {
   try { lstatSync(path); return true; }
   catch (error) { if (error?.code === 'ENOENT') return false; throw error; }
+}
+
+function removeBaselineHiddenPath(root, hiddenPath) {
+  const segments = hiddenPath.split('/');
+  let current = root;
+  for (const [index, segment] of segments.entries()) {
+    current = resolve(current, segment);
+    let stat;
+    try { stat = lstatSync(current); }
+    catch (error) { if (error?.code === 'ENOENT') return; throw error; }
+    const terminal = index === segments.length - 1;
+    if (!terminal && stat.isSymbolicLink()) {
+      throw new Error(`baseline hidden path traverses a symlink: ${hiddenPath}`);
+    }
+    if (!terminal && !stat.isDirectory()) return;
+    if (terminal) rmSync(current, { recursive: stat.isDirectory(), force: true });
+  }
 }
 
 function compactPilotActor(actor) {
@@ -496,23 +514,41 @@ export function cloneBaselineRepository({ repository, revision, workspace }) {
   if (!nonEmpty(repository) || !/^[0-9a-f]{40}$/.test(revision || '') || !nonEmpty(workspace)) {
     throw new TypeError('baseline clone requires repository, revision, and workspace');
   }
-  const parent = resolve(workspace, '..');
-  const archivePath = join(parent, '.qe-harness-baseline.tar');
-  mkdirSync(resolve(workspace), { recursive: true });
-  const archive = spawnSync('git', ['archive', '--format=tar', `--output=${archivePath}`, revision], {
-    cwd: resolve(repository), encoding: 'utf8',
-  });
-  if (archive.status !== 0) throw new Error(`baseline archive failed: ${archive.stderr || archive.stdout}`);
+  const repositoryRoot = resolve(repository);
+  const target = resolve(workspace);
+  const parent = resolve(target, '..');
+  if (new Set([resolve('/'), resolve(homedir()), repositoryRoot]).has(target)) {
+    throw new TypeError('baseline workspace must not equal a sensitive root');
+  }
+  if (pathEntryExists(target)) throw new TypeError('baseline workspace must not exist');
+  let parentStat;
+  try { parentStat = lstatSync(parent); }
+  catch { throw new TypeError('baseline workspace parent must be a real directory'); }
+  if (!parentStat.isDirectory() || parentStat.isSymbolicLink() || realpathSync(parent) !== parent) {
+    throw new TypeError('baseline workspace parent must be a real directory');
+  }
+  mkdirSync(target, { mode: 0o700 });
+  const archiveRoot = mkdtempSync(join(parent, '.qe-harness-baseline-'));
+  const archivePath = join(archiveRoot, 'baseline.tar');
   try {
+    const archive = spawnSync('git', ['archive', '--format=tar', `--output=${archivePath}`, revision], {
+      cwd: repositoryRoot, encoding: 'utf8',
+    });
+    if (archive.status !== 0) throw new Error(`baseline archive failed: ${archive.stderr || archive.stdout}`);
     const extract = spawnSync('tar', ['-xf', archivePath, '-C', resolve(workspace)], { encoding: 'utf8' });
     if (extract.status !== 0) throw new Error(`baseline extract failed: ${extract.stderr || extract.stdout}`);
   } finally {
-    rmSync(archivePath, { force: true });
+    rmSync(archiveRoot, { recursive: true, force: true });
   }
-  for (const hiddenPath of ['scripts/fixtures/harness-pilot.json', 'evals/harness-pilot']) {
-    rmSync(resolve(workspace, hiddenPath), { recursive: true, force: true });
+  for (const hiddenPath of [
+    'scripts/fixtures/harness-pilot.json',
+    'evals/harness-pilot',
+    'scripts/fixtures/harness-study.json',
+    'scripts/lib/__tests__/harness-study-fixture.test.mjs',
+  ]) {
+    removeBaselineHiddenPath(target, hiddenPath);
   }
-  return resolve(workspace);
+  return target;
 }
 
 export function buildActorPrompt(taskPrompt, condition, taskCategory) {
