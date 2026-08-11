@@ -677,7 +677,8 @@ test('Full prompts carry preregistered non-Micro category into the Qplan scale g
   const prompt = buildActorPrompt('Implement it.', 'full-sivs-ephemeral', 'security');
   assert.match(prompt, /Qplan input: preregistered task category=security\./);
   assert.match(prompt, /Only Qgoal and Qplan entry are mandatory/);
-  assert.match(prompt, /do not invoke other QE skills, subagents, or repository-wide checks unless that selected lane requires them/);
+  assert.match(prompt, /Do not treat other QE skills, subagents, repository-wide checks, or unrelated-file work as mandatory/);
+  assert.match(prompt, /only when the user task itself cannot be completed or verified without them/);
   assert.match(prompt, /final response conclusion-first, separate facts from assumptions/);
   assert.doesNotMatch(prompt, /Qplan scale: Micro/);
 });

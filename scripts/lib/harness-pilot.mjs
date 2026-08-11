@@ -490,7 +490,7 @@ export function buildActorPrompt(taskPrompt, condition, taskCategory) {
     : '$Qgoal Complete the user task through the repository default Plan-owned Goal path.';
   const scaleDirective = microTreatment
     ? 'Harness Micro boundary: Goal/Plan entry is the only mandatory QE treatment. Do not create QE artifacts, invoke other QE skills or subagents, or run repository-wide checks. Work only in pilot-task/, run exactly the public test named in the user task, and stop after reporting that result.'
-    : `Qplan input: preregistered task category=${taskCategory}. Apply the repository Qplan scale gate and use the smallest admitted Plan-owned Goal lane for this task. Only Qgoal and Qplan entry are mandatory; do not invoke other QE skills, subagents, or repository-wide checks unless that selected lane requires them.`;
+    : `Qplan input: preregistered task category=${taskCategory}. Apply the repository Qplan scale gate and use the smallest admitted Plan-owned Goal lane for this task. Only Qgoal and Qplan entry are mandatory. Do not treat other QE skills, subagents, repository-wide checks, or unrelated-file work as mandatory; use them only when the user task itself cannot be completed or verified without them.`;
   const revisionBinding = microTreatment
     ? 'This boundary is the controlling Qplan scale decision for this disposable cell. Use the QE implementation in this repository revision under evaluation; do not substitute a globally installed skill copy.'
     : 'Use the QE implementation and contracts in this repository revision under evaluation as normative, including skills/Qgoal/SKILL.md and skills/Qplan/SKILL.md; do not substitute a globally installed skill copy.';
