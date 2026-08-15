@@ -28,7 +28,7 @@
 
 import { appendFileSync, readFileSync, writeFileSync, renameSync, existsSync, mkdirSync, openSync, readSync, closeSync, fstatSync } from './qe-fs.mjs';
 import { join } from 'path';
-import { realpathSync as nativeRealpathSync } from 'node:fs';
+import { lstatSync as nativeLstatSync, realpathSync as nativeRealpathSync } from 'node:fs';
 import { createHash, randomUUID } from 'crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'url';
@@ -3093,16 +3093,34 @@ function idsAreUnique(items) {
 
 function isBoundedPath(value) {
   return typeof value === 'string' && value.length <= 180 && value.trim() !== '' &&
-    !value.startsWith('/') && !value.includes('..') && !/[\\*]/.test(value);
+    !value.startsWith('/') && !value.includes('..') && !/[\\*\0\r\n]/.test(value);
 }
 
 function microScopeIgnored(path) {
-  return path === '.qe' || path.startsWith('.qe/')
-    || /(?:^|\/)[^/]+\.(?:acceptance|completion)\.json$/.test(path);
+  return path === '.qe' || path.startsWith('.qe/');
 }
 
 function microScopeError(code, message) {
   const error = new Error(message); error.code = code; return error;
+}
+
+function assertMicroScopePathIsLocal(cwd, path) {
+  if (!isBoundedPath(path)) {
+    throw microScopeError('MICRO_SCOPE_UNAVAILABLE', `bounded-micro scope contains an unsafe path: ${path}`);
+  }
+  let cursor = cwd;
+  for (const segment of path.split('/').filter(Boolean)) {
+    cursor = join(cursor, segment);
+    try {
+      if (nativeLstatSync(cursor).isSymbolicLink()) {
+        throw microScopeError('MICRO_SCOPE_UNAVAILABLE',
+          `bounded-micro scope cannot traverse symbolic links: ${path}`);
+      }
+    } catch (error) {
+      if (error?.code === 'ENOENT') break;
+      throw error;
+    }
+  }
 }
 
 function gitScopeSnapshot(cwd) {
@@ -3127,17 +3145,32 @@ function gitScopeSnapshot(cwd) {
     }
   }
   if (paths.size > 512) throw microScopeError('MICRO_SCOPE_UNAVAILABLE', 'bounded-micro scope baseline exceeds 512 changed paths');
-  const entries = [];
-  for (const path of [...paths].sort()) {
-    if (!isBoundedPath(path)) throw microScopeError('MICRO_SCOPE_UNAVAILABLE', `bounded-micro scope contains an unsafe path: ${path}`);
-    const hashed = spawnSync('git', ['hash-object', '--no-filters', '--', path], {
-      cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
-    });
-    const digest = hashed.status === 0 && /^[0-9a-f]{40,64}$/.test(hashed.stdout.trim())
-      ? hashed.stdout.trim() : 'deleted';
-    entries.push({ path, digest });
+  const sortedPaths = [...paths].sort();
+  const entriesByPath = new Map();
+  const existingPaths = [];
+  for (const path of sortedPaths) {
+    assertMicroScopePathIsLocal(cwd, path);
+    try {
+      nativeLstatSync(join(cwd, path));
+      existingPaths.push(path);
+    } catch (error) {
+      if (error?.code !== 'ENOENT') throw error;
+      entriesByPath.set(path, 'deleted');
+    }
   }
-  return { schema: 1, entries };
+  if (existingPaths.length) {
+    const hashed = spawnSync('git', ['hash-object', '--stdin-paths'], {
+      cwd, encoding: 'utf8', input: `${existingPaths.join('\n')}\n`,
+      timeout: 30_000, maxBuffer: 128 * 1024,
+    });
+    const digests = hashed.status === 0 ? hashed.stdout.trim().split('\n') : [];
+    if (digests.length !== existingPaths.length
+      || digests.some(digest => !/^[0-9a-f]{40,64}$/.test(digest))) {
+      throw microScopeError('MICRO_SCOPE_UNAVAILABLE', 'bounded-micro Git content hashing failed');
+    }
+    existingPaths.forEach((path, index) => entriesByPath.set(path, digests[index]));
+  }
+  return { schema: 1, entries: sortedPaths.map(path => ({ path, digest: entriesByPath.get(path) })) };
 }
 
 function validateMicroScope(cwd, contract) {
@@ -3280,6 +3313,7 @@ function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId, cwd) {
     throw new Error('bounded-micro assurance admission requires a valid QE session');
   }
   const contract = JSON.parse(JSON.stringify(raw));
+  for (const path of contract.goalShape?.allowedPaths || []) assertMicroScopePathIsLocal(cwd, path);
   const core = { lane: request.lane, admissionVersion: request.admissionVersion,
     materialDecisionsResolved: request.materialDecisionsResolved, workItems: request.workItems,
     issuedBy: 'qe-ledger', authority: 'plan-controller', sessionId,

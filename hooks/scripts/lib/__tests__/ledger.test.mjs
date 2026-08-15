@@ -1,6 +1,6 @@
 import { test } from 'node:test';
 import assert from 'node:assert';
-import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync } from 'node:fs';
+import { mkdtempSync, rmSync, mkdirSync, writeFileSync, readFileSync, existsSync, readdirSync, symlinkSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -509,6 +509,41 @@ test('bounded micro assurance is admitted only with exact machine-verifiable lim
     rmSync(isolated, { recursive: true, force: true });
   }
   rmSync(cwd, { recursive: true, force: true });
+});
+
+test('bounded micro snapshots application evidence-suffix files and rejects symlink paths', () => {
+  const cwd = makeProject();
+  initializeGit(cwd);
+  writeFileSync(path.join(cwd, 'runtime.acceptance.json'), '{"mode":"safe"}\n', 'utf8');
+  assert.equal(spawnSync('git', ['add', '-f', 'runtime.acceptance.json'], { cwd }).status, 0);
+  assert.equal(spawnSync('git', ['-c', 'user.name=QE', '-c', 'user.email=qe@example.invalid',
+    'commit', '-q', '-m', 'tracked application config'], { cwd }).status, 0);
+  writeFileSync(path.join(cwd, 'runtime.acceptance.json'), '{"mode":"unsafe"}\n', 'utf8');
+  createGoals(cwd, SLUG, ['Micro::change runtime behavior']);
+  const bounded = acceptance('G001', false, 'change runtime behavior');
+  bounded.assurance = { lane: 'bounded-micro', admissionVersion: 1,
+    materialDecisionsResolved: true, workItems: 1 };
+  setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'bounded-suffix.json', bounded) });
+  const stored = JSON.parse(readFileSync(path.join(cwd, '.qe', 'planning', 'plans', SLUG,
+    'evidence', 'G001.acceptance.json'), 'utf8'));
+  assert.equal(stored.assurance.scopeBaseline.entries.some(
+    entry => entry.path === 'runtime.acceptance.json' && /^[0-9a-f]{40,64}$/.test(entry.digest)), true);
+
+  const symlinkCwd = makeProject('symlink-plan');
+  initializeGit(symlinkCwd);
+  writeFileSync(path.join(symlinkCwd, 'real.mjs'), 'export default true;\n', 'utf8');
+  symlinkSync('real.mjs', path.join(symlinkCwd, 'linked.mjs'));
+  createGoals(symlinkCwd, 'symlink-plan', ['Micro::change runtime behavior']);
+  const linked = acceptance('G001', false, 'change runtime behavior');
+  linked.goalShape.allowedPaths = ['linked.mjs'];
+  linked.assurance = { lane: 'bounded-micro', admissionVersion: 1,
+    materialDecisionsResolved: true, workItems: 1 };
+  assert.throws(() => setGoalAcceptance(symlinkCwd, 'symlink-plan', {
+    goalId: 'G001', file: writeJson(symlinkCwd, 'bounded-symlink.json', linked),
+  }), /cannot traverse symbolic links/);
+
+  rmSync(cwd, { recursive: true, force: true });
+  rmSync(symlinkCwd, { recursive: true, force: true });
 });
 
 // Controller-bound queue, completion, immutable evidence, distinct-session,
