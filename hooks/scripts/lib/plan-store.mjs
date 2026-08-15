@@ -36,6 +36,13 @@ function sessionValue(value) {
   return value.toLowerCase();
 }
 
+function takeoverReason(value) {
+  if (typeof value !== 'string' || !value.trim() || value.length > 1024 || /[\0\r\n]/.test(value)) {
+    fail('PLAN_INPUT_INVALID', 'takeover reason must be one non-empty line under 1024 characters');
+  }
+  return value.trim();
+}
+
 function planPaths(slug) {
   const base = `${ROOT}/plans/${slug}`;
   return {
@@ -200,6 +207,61 @@ export function bindPlan(cwd, { slug, sessionId }) {
     db.exec('COMMIT');
     return { ok: true, code: changedPaths.length ? 'PLAN_BOUND' : 'PLAN_BINDING_REPLAYED',
       slug, sessionId, changedPaths };
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch {}
+    if (String(error?.code || '').startsWith('PLAN_')) throw error;
+    fail('PLAN_STORE_UNAVAILABLE');
+  } finally { closeSqlite(db); }
+}
+
+export function takeoverGoalOwnership(cwd, { slug, sessionId, previousSessionId, reason }) {
+  slug = slugValue(slug);
+  sessionId = sessionValue(sessionId);
+  previousSessionId = sessionValue(previousSessionId);
+  reason = takeoverReason(reason);
+  if (sessionId === previousSessionId) fail('PLAN_INPUT_INVALID', 'takeover requires a different session');
+  const paths = planPaths(slug);
+  const db = openSqlite(cwd);
+  if (!db) fail('PLAN_STORE_UNAVAILABLE');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    assertNoDiskSplitBrain(cwd, paths, db);
+    assertNoDiskBinding(cwd, db, sessionId);
+    const goalsRow = row(db, paths.goals);
+    const ledgerRow = row(db, paths.ledger);
+    if (!goalsRow || !ledgerRow) fail('PLAN_NOT_FOUND');
+    let doc;
+    try { doc = JSON.parse(goalsRow.content); } catch { fail('PLAN_STORE_CORRUPT'); }
+    const active = Array.isArray(doc?.goals)
+      ? doc.goals.filter(goal => goal?.status === 'active') : [];
+    if (active.length !== 1) fail('PLAN_GOAL_NOT_ACTIVE', 'takeover requires exactly one active Goal');
+    const goal = active[0];
+    const reasonHash = sha256(reason);
+    if (goal.executionOwnerSession === sessionId
+      && goal.ownershipTransfer?.previousSessionId === previousSessionId
+      && goal.ownershipTransfer?.sessionId === sessionId
+      && goal.ownershipTransfer?.reasonHash === reasonHash) {
+      db.exec('COMMIT');
+      return { ok: true, code: 'PLAN_GOAL_TAKEOVER_REPLAYED', slug, goalId: goal.id,
+        previousSessionId, sessionId, changedPaths: [] };
+    }
+    if (goal.executionOwnerSession !== previousSessionId) {
+      fail('PLAN_GOAL_OWNER_CONFLICT', 'active Goal owner no longer matches --previous-session');
+    }
+    const at = new Date().toISOString();
+    goal.executionOwnerSession = sessionId;
+    goal.ownershipTransfer = { previousSessionId, previousOwnerStatus: 'abandoned',
+      sessionId, reasonHash, at };
+    const event = canonicalJson({ ts: at, event: 'checkpoint', goalId: goal.id,
+      status: 'active', evidence: `ownership-takeover ${previousSessionId} -> ${sessionId}; ${reason}`,
+      attempt: goal.attempts });
+    const changedPaths = [];
+    if (writeRow(db, paths.goals, serialize(doc))) changedPaths.push(paths.goals);
+    if (writeRow(db, paths.ledger, `${ledgerRow.content}${event}\n`)) changedPaths.push(paths.ledger);
+    changedPaths.push(...bindInTransaction(db, slug, sessionId, paths));
+    db.exec('COMMIT');
+    return { ok: true, code: 'PLAN_GOAL_TAKEN_OVER', slug, goalId: goal.id,
+      previousSessionId, sessionId, changedPaths };
   } catch (error) {
     try { db.exec('ROLLBACK'); } catch {}
     if (String(error?.code || '').startsWith('PLAN_')) throw error;

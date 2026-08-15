@@ -122,7 +122,7 @@ must not duplicate its questions, counters, or transitions.
    `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
    Stored schema 1 contracts may resume, but never create a new schema 1 contract.
    Do not let tests or implementation retrospectively define what success means.
-6. On resume, run `node scripts/qe-plan.mjs bind --slug {slug} --session {full UUID}`.
+6. On resume, run `node scripts/qe-plan.mjs bind --slug {slug} --session {full UUID}`; if an active Goal's prior session ended, use the explicit CAS `takeover` protocol in `core/PLAN_INITIALIZATION_CONTRACT.md`.
 7. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
    the `## Phase Progress` block.
 

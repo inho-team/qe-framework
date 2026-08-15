@@ -109,11 +109,53 @@ test('bind preserves session metadata and rejects missing or disk-only Plans', (
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
+test('takeover atomically transfers an active Goal with explicit CAS evidence and replays safely', () => {
+  const cwd = fixture();
+  try {
+    runPlanCli(['init', '--slug', 'takeover-plan', '--session', SESSION,
+      '--input', inputFile(cwd)], cwd);
+    const db = openSqlite(cwd);
+    const goalsPath = '.qe/planning/plans/takeover-plan/goals.json';
+    const current = db.prepare('SELECT content FROM qe_files WHERE path=?').get(goalsPath);
+    const goals = JSON.parse(current.content);
+    goals.goals[0].status = 'active';
+    goals.goals[0].attempts = 1;
+    goals.goals[0].executionOwnerSession = SESSION;
+    const content = `${JSON.stringify(goals, null, 2)}\n`; const now = Date.now();
+    db.prepare('UPDATE qe_files SET content=?,size=?,mtime_ms=?,sha256=?,migrated_at=? WHERE path=?')
+      .run(content, Buffer.byteLength(content), now, sha256(content), now, goalsPath);
+    closeSqlite(db);
+
+    const result = runPlanCli(['takeover', '--slug', 'takeover-plan', '--session', OTHER_SESSION,
+      '--previous-session', SESSION, '--reason', 'previous process terminated before handoff'], cwd);
+    assert.equal(result.code, 'PLAN_GOAL_TAKEN_OVER');
+    assert.equal(result.goalId, 'G001');
+    const stored = rows(cwd);
+    const transferred = JSON.parse(stored[goalsPath]).goals[0];
+    assert.equal(transferred.executionOwnerSession, OTHER_SESSION);
+    assert.equal(transferred.ownershipTransfer.previousSessionId, SESSION);
+    assert.equal(transferred.ownershipTransfer.previousOwnerStatus, 'abandoned');
+    assert.equal(transferred.ownershipTransfer.sessionId, OTHER_SESSION);
+    assert.match(transferred.ownershipTransfer.reasonHash, /^[0-9a-f]{64}$/);
+    assert.equal(JSON.parse(stored[`.qe/planning/.sessions/${OTHER_SESSION}.json`]).activePlanSlug, 'takeover-plan');
+    assert.match(stored['.qe/planning/plans/takeover-plan/ledger.jsonl'], /ownership-takeover/);
+
+    const replay = runPlanCli(['takeover', '--slug', 'takeover-plan', '--session', OTHER_SESSION,
+      '--previous-session', SESSION, '--reason', 'previous process terminated before handoff'], cwd);
+    assert.equal(replay.code, 'PLAN_GOAL_TAKEOVER_REPLAYED');
+    assert.throws(() => runPlanCli(['takeover', '--slug', 'takeover-plan', '--session', SESSION,
+      '--previous-session', '33333333-3333-4333-8333-333333333333', '--reason', 'stale guess'], cwd),
+    error => error.code === 'PLAN_GOAL_OWNER_CONFLICT');
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
+});
+
 test('CLI rejects malformed options and input before opening the store', () => {
   const cwd = fixture();
   try {
     assert.throws(() => runPlanCli(['init', '--slug', 'x'], cwd), error => error.code === 'PLAN_CLI_USAGE');
     assert.throws(() => runPlanCli(['retrospective', '--slug', 'x', '--session', SESSION], cwd),
+      error => error.code === 'PLAN_CLI_USAGE');
+    assert.throws(() => runPlanCli(['takeover', '--slug', 'x', '--session', SESSION], cwd),
       error => error.code === 'PLAN_CLI_USAGE');
     assert.throws(() => runPlanCli(['bind', '--slug', 'x', '--session', 'short'], cwd),
       error => error.code === 'PLAN_INPUT_INVALID');

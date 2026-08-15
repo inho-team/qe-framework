@@ -426,6 +426,17 @@ function canonicalPlanParseGoalsRow(row, slug) {
       && !MACHINE_SESSION_RE.test(goal.executionOwnerSession)) {
       throw canonicalPlanError('CANONICAL_STORE_INVALID');
     }
+    if (goal.ownershipTransfer !== undefined
+      && (!lifecyclePlainObject(goal.ownershipTransfer)
+        || !MACHINE_SESSION_RE.test(goal.ownershipTransfer.previousSessionId)
+        || goal.ownershipTransfer.previousOwnerStatus !== 'abandoned'
+        || !MACHINE_SESSION_RE.test(goal.ownershipTransfer.sessionId)
+        || goal.ownershipTransfer.sessionId !== goal.executionOwnerSession
+        || !/^[0-9a-f]{64}$/.test(goal.ownershipTransfer.reasonHash)
+        || typeof goal.ownershipTransfer.at !== 'string'
+        || Number.isNaN(Date.parse(goal.ownershipTransfer.at)))) {
+      throw canonicalPlanError('CANONICAL_STORE_INVALID');
+    }
   }
   if (mutable > 1) throw canonicalPlanError('CANONICAL_STORE_INVALID');
   return doc;

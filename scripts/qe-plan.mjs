@@ -2,7 +2,7 @@
 import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
-import { bindPlan, initializePlan } from '../hooks/scripts/lib/plan-store.mjs';
+import { bindPlan, initializePlan, takeoverGoalOwnership } from '../hooks/scripts/lib/plan-store.mjs';
 import { runPhaseRetrospective } from '../hooks/scripts/lib/ledger.mjs';
 
 class CliError extends Error {
@@ -15,7 +15,7 @@ function parseArgs(argv) {
     const token = argv[index];
     if (!token.startsWith('--')) { out._.push(token); continue; }
     const key = token.slice(2);
-    if (!['slug', 'session', 'input', 'cwd'].includes(key) || key in out) {
+    if (!['slug', 'session', 'previous-session', 'reason', 'input', 'cwd'].includes(key) || key in out) {
       throw new CliError('PLAN_CLI_USAGE', `unknown or duplicate option: ${token}`);
     }
     const value = argv[++index];
@@ -34,8 +34,8 @@ function readInput(path) {
 
 export function runPlanCli(argv, defaultCwd = process.cwd()) {
   const args = parseArgs(argv); const operation = args._[0];
-  if (!['init', 'bind', 'retrospective'].includes(operation) || args._.length !== 1 || !args.slug || !args.session) {
-    throw new CliError('PLAN_CLI_USAGE', 'usage: qe-plan init|bind|retrospective --slug <slug> --session <uuid> [--input <json>]');
+  if (!['init', 'bind', 'retrospective', 'takeover'].includes(operation) || args._.length !== 1 || !args.slug || !args.session) {
+    throw new CliError('PLAN_CLI_USAGE', 'usage: qe-plan init|bind|retrospective|takeover --slug <slug> --session <uuid> [--input <json>]');
   }
   const cwd = args.cwd || defaultCwd;
   if (operation === 'init') {
@@ -44,6 +44,13 @@ export function runPlanCli(argv, defaultCwd = process.cwd()) {
   if (operation === 'retrospective') {
     return runPhaseRetrospective(cwd, args.slug,
       { sessionId: args.session, input: readInput(args.input) });
+  }
+  if (operation === 'takeover') {
+    if (!args['previous-session'] || !args.reason || args.input) {
+      throw new CliError('PLAN_CLI_USAGE', 'takeover requires --previous-session <uuid> and --reason <text>');
+    }
+    return takeoverGoalOwnership(cwd, { slug: args.slug, sessionId: args.session,
+      previousSessionId: args['previous-session'], reason: args.reason });
   }
   return bindPlan(cwd, { slug: args.slug, sessionId: args.session });
 }
