@@ -96,18 +96,17 @@ must not duplicate its questions, counters, or transitions.
    has an unresolved material decision. Reach `confirmed`, or block and return
    without finalizing a Plan. A bounded intent with no material gap may use the
    documented omission path.
-4. Only after confirmed intake (or a recorded safe omission), create or update
-   the logical DB paths `.qe/planning/plans/{slug}/ROADMAP.md`,
-   `REQUIREMENTS.md`, and `STATE.md` through the QE state/store utilities. Do not
-   create `.qe/planning/` directories or write these paths with raw filesystem
-   tools. Full Plans must divide work into ordered,
+4. Only after confirmed intake (or a recorded safe omission), build the exact
+   input from `core/PLAN_INITIALIZATION_CONTRACT.md` and run
+   `node scripts/qe-plan.mjs init --slug {slug} --session {full UUID} --input {path}`.
+   This atomically creates the DB-authoritative Plan documents, Goal ledger,
+   active pointer, and session binding. Do not write canonical planning paths
+   with raw filesystem tools. Full Plans must divide work into ordered,
    independently verifiable Wave bullets; these become Goals. Split until every
    Goal has one user-visible outcome, 1–5 allowed paths, at most three criteria,
    at most two journeys, explicit dependencies, and explicit non-goals. A broad
    feature area is a Phase, never a Goal.
-5. Run `node hooks/scripts/lib/ledger.mjs create-goals --slug {slug}` to assign
-   stable Goal IDs.
-6. For every Goal, select its assurance lane after reconnaissance and before
+5. For every Goal, select its assurance lane after reconnaissance and before
    activation. A bounded micro Goal includes the exact admission request from
    `core/GOAL_ACCEPTANCE_CONTRACT.md`; the ledger replaces it with a session-
    and digest-bound plan-controller admission. Otherwise omit `assurance` and
@@ -120,8 +119,8 @@ must not duplicate its questions, counters, or transitions.
    Save it as `evidence/{goalId}.acceptance.json`, then run
    `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
    Do not let tests or implementation retrospectively define what success means.
-7. Bind the Plan through `.qe/planning/ACTIVE_PLAN` and the current session binding.
-8. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
+6. On resume, run `node scripts/qe-plan.mjs bind --slug {slug} --session {full UUID}`.
+7. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
    the `## Phase Progress` block.
 
 ## Internal Goal loop

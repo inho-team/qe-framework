@@ -444,9 +444,9 @@ dependency while preserving a reproducible stored identity.
 
 Rollback is non-destructive: retain adapter intents, controller audit, receipts,
 proofs, and debt history, revert runtime code, and use a separately approved
-maintenance procedure for any schema removal. The adapter does not add PSE/SIVS
-evidence mapping, remediation policy, runtime metrics, release, or deployment;
-those remain explicit later-Goal responsibilities.
+maintenance procedure for any schema removal. Formal Goal completion maps the
+Goal to its completed SIVS controller proof; remediation policy, runtime metrics,
+release, and deployment remain explicit later-Goal responsibilities.
 
 ## Plan evidence generations
 
