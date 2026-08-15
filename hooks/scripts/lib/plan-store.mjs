@@ -107,8 +107,19 @@ function validatePlanInput(input) {
     || input.schema !== 1 || !Array.isArray(input.goals) || input.goals.length < 1 || input.goals.length > 128) {
     fail('PLAN_INPUT_INVALID', 'Plan input must contain schema, three documents, and 1-128 Goals');
   }
+  const goals = input.goals.map(validateGoalInput);
+  let previousPhase = 0;
+  for (const [index, goal] of goals.entries()) {
+    const match = /^Phase ([1-9]\d*)$/.exec(goal.phase);
+    if (!match) fail('PLAN_INPUT_INVALID', `Goal ${index + 1} phase must use "Phase N"`);
+    const phase = Number(match[1]);
+    if (phase < previousPhase || phase > previousPhase + 1 || (index === 0 && phase !== 1)) {
+      fail('PLAN_INPUT_INVALID', 'Goal phases must start at Phase 1 and advance contiguously');
+    }
+    previousPhase = phase;
+  }
   return { roadmap: text(input.roadmap, 'roadmap'), requirements: text(input.requirements, 'requirements'),
-    state: text(input.state, 'state'), goals: input.goals.map(validateGoalInput) };
+    state: text(input.state, 'state'), goals };
 }
 
 function parseBinding(current) {

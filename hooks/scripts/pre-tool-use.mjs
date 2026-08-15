@@ -4,6 +4,7 @@
 import { readFileSync, existsSync, readdirSync, unlinkSync, statSync } from './lib/qe-fs.mjs';
 import { join, dirname } from 'path';
 import { fileURLToPath, pathToFileURL } from 'url';
+import { createHash } from 'node:crypto';
 import { loadConfig } from './lib/config.mjs';
 import { atomicWriteJson, readUnifiedState, writeUnifiedState, incrementBlockedReads, getBlockedReads } from './lib/state.mjs';
 import { openMemo, memoScope } from './lib/store-memo.mjs';
@@ -14,6 +15,7 @@ import { readCurrentSid, readCurrentSessionId, readSessionPlan } from './lib/ses
 import { appendTelemetry, initMetrics, recordDelegationRequest } from './lib/metrics.mjs';
 import { evaluateStaleEditPayload } from './lib/pre-tool-use-handler.mjs';
 import { checkStaleEditPrecondition, staleEditPreconditionFromToolInput } from '../../scripts/lib/stale-edit-guard.mjs';
+import { closeSqlite, openSqlite } from './lib/store-sqlite.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -189,6 +191,30 @@ function hasFreshPipelineMarker(root, sessionId, now) {
 function hasActivePlanPipeline(root, sessionId) {
   if (!sessionId) return false;
   try {
+    const db = openSqlite(root, { readOnly: true });
+    if (db) {
+      try {
+        const bindingPath = `.qe/planning/.sessions/${sessionId}.json`;
+        const bindingRow = db.prepare('SELECT content,sha256 FROM qe_files WHERE path=?').get(bindingPath);
+        if (bindingRow) {
+          const digest = value => createHash('sha256').update(value).digest('hex');
+          if (typeof bindingRow.content !== 'string' || bindingRow.sha256 !== digest(bindingRow.content)) return false;
+          const binding = JSON.parse(bindingRow.content);
+          const slug = typeof binding?.activePlanSlug === 'string' ? binding.activePlanSlug.trim() : '';
+          if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)) return false;
+          const goalsPath = `.qe/planning/plans/${slug}/goals.json`;
+          const goalsRow = db.prepare('SELECT content,sha256 FROM qe_files WHERE path=?').get(goalsPath);
+          if (!goalsRow || typeof goalsRow.content !== 'string'
+            || goalsRow.sha256 !== digest(goalsRow.content)) return false;
+          const doc = JSON.parse(goalsRow.content);
+          if ((doc?.planSlug ?? doc?.slug) !== slug || !Array.isArray(doc?.goals)) return false;
+          const active = doc.goals.filter(goal => goal?.status === 'active');
+          return active.length === 1 && active[0]?.acceptance?.status === 'defined'
+            && typeof active[0]?.acceptance?.hash === 'string'
+            && /^[0-9a-f]{64}$/.test(active[0].acceptance.hash);
+        }
+      } finally { closeSqlite(db); }
+    }
     const slug = readSessionPlan(root, sessionId);
     if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)) return false;
     const file = join(root, '.qe', 'planning', 'plans', slug, 'goals.json');

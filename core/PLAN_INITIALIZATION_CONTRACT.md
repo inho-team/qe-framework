@@ -37,6 +37,11 @@ One `BEGIN IMMEDIATE` transaction creates `ROADMAP.md`, `REQUIREMENTS.md`,
 `ledger.jsonl`, `.qe/planning/ACTIVE_PLAN`, and the full-session binding. A
 failure leaves none of those writes committed.
 
+Every Goal phase must use the exact `Phase N` form. The ordered Goal list starts
+at `Phase 1`, may repeat a phase, and may advance only to the immediately next
+number. Initialization rejects named, reversed, or skipped phases so a Plan
+cannot be accepted and later become irreparable at a retrospective boundary.
+
 Exact re-execution is idempotent. Partial Plans, divergent content, malformed
 canonical hashes, and disk-only paths without migrated DB rows fail closed.
 Initialization never overwrites an existing Plan.

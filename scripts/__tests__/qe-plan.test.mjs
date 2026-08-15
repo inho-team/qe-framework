@@ -161,6 +161,20 @@ test('CLI rejects malformed options and input before opening the store', () => {
       error => error.code === 'PLAN_INPUT_INVALID');
     assert.throws(() => runPlanCli(['init', '--slug', '../x', '--session', SESSION,
       '--input', inputFile(cwd)], cwd), error => error.code === 'PLAN_INPUT_INVALID');
+    const namedPhases = input({ goals: [
+      { title: 'Discover', objective: 'Discover', phase: 'Discovery', wave: 'Wave 1' },
+      { title: 'Deliver', objective: 'Deliver', phase: 'Delivery', wave: 'Wave 1' },
+    ] });
+    assert.throws(() => runPlanCli(['init', '--slug', 'named-phases', '--session', SESSION,
+      '--input', inputFile(cwd, namedPhases, 'named-phases.json')], cwd),
+    error => error.code === 'PLAN_INPUT_INVALID');
+    const skippedPhase = input({ goals: [
+      { title: 'First', objective: 'First', phase: 'Phase 1', wave: 'Wave 1' },
+      { title: 'Third', objective: 'Third', phase: 'Phase 3', wave: 'Wave 1' },
+    ] });
+    assert.throws(() => runPlanCli(['init', '--slug', 'skipped-phase', '--session', SESSION,
+      '--input', inputFile(cwd, skippedPhase, 'skipped-phase.json')], cwd),
+    error => error.code === 'PLAN_INPUT_INVALID');
     assert.equal(Object.keys(rows(cwd)).length, 0);
   } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
