@@ -37,6 +37,7 @@ import { resolveActivePlanSlug } from './plan-resolver.mjs';
 import { readCurrentSessionId } from './session-resolver.mjs';
 import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
 import { isAllowlistCommand, isBehavioralEvidenceCommand } from './verification-evidence-gate.mjs';
+import { detectHighImpactRisks } from './assurance-policy.mjs';
 import { buildProcessTrace, validateTraceabilityDefinition } from './process-trace.mjs';
 import { closeSqlite, openSqlite } from './store-sqlite.mjs';
 import { canonicalJson, createProcessControllerStore, PROCESS_CONTROLLER_DOMAINS, sha256 } from './process-controller-store.mjs';
@@ -3063,17 +3064,6 @@ const RISK_CATEGORIES = new Set([
   'data-migration', 'destructive-data-change', 'external-integration', 'security',
 ]);
 
-const RISK_SIGNALS = [
-  ['authentication', /\bauth(?:entication)?\b|로그인|인증/iu],
-  ['authorization', /\bauthori[sz]ation\b|\bpermission(?:s)?\b|권한/iu],
-  ['payment', /\bpayment(?:s)?\b|\bbilling\b|결제/iu],
-  ['deployment', /\bdeploy(?:ment)?\b|\brelease\b|배포|릴리스/iu],
-  ['data-migration', /\bmigrat(?:e|ion)\b|\bschema\b|\bdatabase\b|\bdb\b|마이그레이션|스키마|데이터베이스/iu],
-  ['destructive-data-change', /\bdelete\b|\bpurge\b|\bdrop\b|삭제|파기/iu],
-  ['external-integration', /\bexternal\s+api\b|\bthird[- ]party\b|외부\s*(?:api|연동)|서드파티/iu],
-  ['security', /\bsecurity\b|\bencrypt(?:ion)?\b|보안|암호화/iu],
-];
-
 const MAX_GOAL_REQUIREMENTS = 3;
 const MAX_GOAL_SCENARIOS = 2;
 const MAX_GOAL_PATHS = 5;
@@ -3093,12 +3083,6 @@ function contractTouchesCode(contract) {
 function contractHasBehavioralEvidence(contract) {
   return [...contract.requirements, ...contract.scenarios, contract.regression]
     .some(item => isBehavioralEvidenceCommand(item.command));
-}
-
-function requiredRiskCategories(goalObjective) {
-  return RISK_SIGNALS
-    .filter(([, pattern]) => pattern.test(String(goalObjective ?? '')))
-    .map(([category]) => category);
 }
 
 function idsAreUnique(items) {
@@ -3305,7 +3289,7 @@ function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   }
   const riskSignalText = [goalObjective, contract.goalShape.primaryOutcome,
     contract.goalShape.completionMetric, ...contract.goalShape.allowedPaths].join(' ');
-  const requiredRisks = requiredRiskCategories(riskSignalText);
+  const requiredRisks = detectHighImpactRisks(riskSignalText);
   if (requiredRisks.some(category => !risk.categories.includes(category))) {
     throw new Error(`acceptance contract risk assessment omits detected Goal risk: ${requiredRisks.filter(category => !risk.categories.includes(category)).join(', ')}`);
   }

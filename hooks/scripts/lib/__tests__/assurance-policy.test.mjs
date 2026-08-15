@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 
-import { ASSURANCE_MODE, resolveAssurancePolicy } from '../assurance-policy.mjs';
+import { ASSURANCE_MODE, detectHighImpactRisks, resolveAssurancePolicy } from '../assurance-policy.mjs';
 import { triageGoal } from '../goal-router.mjs';
 
 test('only active-prefix Qplan and Qgoal entries activate Full SIVS', () => {
@@ -58,4 +58,19 @@ test('natural-language goals stay on the native path even when historically full
     assert.equal(route.route, 'direct', input);
     assert.equal(route.reason, 'native-default', input);
   }
+});
+
+test('high-impact wording stays native but carries an explicit Qplan recommendation', () => {
+  const route = triageGoal('Implement a database migration and authorization fix in migration.js safely');
+  assert.equal(route.route, 'direct');
+  assert.equal(route.reason, 'native-default');
+  assert.deepEqual(route.riskCategories, ['authorization', 'data-migration']);
+  assert.match(route.instruction, /Recommend explicit \$Qplan or \/Qplan/);
+  assert.match(route.instruction, /does not activate it/);
+});
+
+test('risk detection is deterministic and ignores empty input', () => {
+  assert.deepEqual(detectHighImpactRisks('결제 API 삭제와 보안 암호화'), ['payment', 'destructive-data-change', 'security']);
+  assert.deepEqual(detectHighImpactRisks(''), []);
+  assert.deepEqual(detectHighImpactRisks(null), []);
 });

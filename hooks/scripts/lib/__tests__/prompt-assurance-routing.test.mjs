@@ -50,7 +50,16 @@ test('risk wording alone cannot activate Full SIVS', () => {
   const { result, output } = runPrompt('Implement a database migration and authorization fix in migration.js safely');
   assert.equal(result.status, 0, output);
   assert.match(output, /Use native execution/);
+  assert.match(output, /High-impact signals: authorization, data-migration/);
+  assert.match(output, /Recommend explicit \$Qplan or \/Qplan/);
   assert.doesNotMatch(output, /Enter Qplan Full SIVS/);
+});
+
+test('risk signals inside code or quote blocks do not create a recommendation', () => {
+  const { result, output } = runPrompt('fix README.md\n```\ndatabase migration authorization\n```\n> payment deployment');
+  assert.equal(result.status, 0, output);
+  assert.match(output, /Use native execution/);
+  assert.doesNotMatch(output, /High-impact signals/);
 });
 
 test('explicit Qplan and Qgoal create same-session pipeline markers', () => {

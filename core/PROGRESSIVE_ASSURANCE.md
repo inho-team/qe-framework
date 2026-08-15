@@ -15,6 +15,14 @@ detection do not activate Full SIVS. An ordinary high-risk request stays on the
 native path while deterministic safety controls apply and QE may recommend an
 explicit Qplan; a recommendation is not an activation.
 
+For an ordinary goal-like request, the advisory router scans visible prose for
+the same high-impact categories enforced by Goal acceptance: authentication,
+authorization, payment, deployment, data migration, destructive data change,
+external integration, and security. A match adds an explicit Qplan
+recommendation to the native-path hint. It does not issue a pipeline marker,
+change execution mode, or treat examples inside fenced code and quote blocks as
+user intent.
+
 ## Always-on invariants
 
 - Safety Kernel controls remain active in native and Full SIVS modes.

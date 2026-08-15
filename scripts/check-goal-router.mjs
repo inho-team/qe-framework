@@ -49,6 +49,7 @@ const routeCases = [
   ['mixed ko-en small', 'goal-router.mjs에 verify 로직 추가해줘', { detected: true, route: 'direct', scale: 'Small' }],
   ['full by file count stays native', 'a.mjs b.mjs c.mjs d.mjs 구현해줘', { detected: true, route: 'direct', scale: 'Full', reason: 'native-default' }],
   ['workflow scale stays native', '대규모 리팩터링을 구현하고 테스트와 문서와 배포 마이그레이션까지 진행해줘', { detected: true, route: 'direct', scale: 'Workflow', reason: 'native-default' }],
+  ['risk recommendation stays native', 'authorization database migration을 구현해줘', { detected: true, route: 'direct', reason: 'native-default' }],
   ['non-goal question', 'what does this repository actually do?', { detected: false }],
   ['verb substring (fix vs fixture)', 'fixture cleanup discussion', { detected: false }],
   ['override leading direct remains native', '!direct a.mjs b.mjs c.mjs d.mjs 구현해줘', { detected: true, route: 'direct', reason: 'native-default' }],
@@ -63,6 +64,12 @@ for (const [name, message, expected] of routeCases) {
     for (const [key, value] of Object.entries(expected)) assert.equal(result[key], value, `${key}: ${result[key]} !== ${value}`);
   });
 }
+
+ok('risk recommendation is advisory only', () => {
+  const result = triageGoal('authorization database migration을 구현해줘');
+  assert.deepEqual(result.riskCategories, ['authorization', 'data-migration']);
+  assert.match(result.instruction, /Recommend explicit \$Qplan or \/Qplan/);
+});
 
 ok('override mid-sentence ignored + kept in goalText', () => {
   const result = triageGoal('이 문장 중간의 !full 토큰은 무시하고 x.mjs 수정해줘');

@@ -24,6 +24,25 @@ const EXECUTION_MODES = new Set(Object.values(EXECUTION_MODE));
 
 const EXPLICIT_ENTRY = /^\s*[$/](Qplan|Qgoal)(?=$|\s)/i;
 
+const HIGH_IMPACT_RISK_SIGNALS = Object.freeze([
+  ['authentication', /\bauth(?:entication)?\b|로그인|인증/iu],
+  ['authorization', /\bauthori[sz]ation\b|\bpermission(?:s)?\b|권한/iu],
+  ['payment', /\bpayment(?:s)?\b|\bbilling\b|결제/iu],
+  ['deployment', /\bdeploy(?:ment)?\b|\brelease\b|배포|릴리스/iu],
+  ['data-migration', /\bmigrat(?:e|ion)\b|\bschema\b|\bdatabase\b|\bdb\b|마이그레이션|스키마|데이터베이스/iu],
+  ['destructive-data-change', /\bdelete\b|\bpurge\b|\bdrop\b|삭제|파기/iu],
+  ['external-integration', /\bexternal\s+api\b|\bthird[- ]party\b|외부\s*(?:api|연동)|서드파티/iu],
+  ['security', /\bsecurity\b|\bencrypt(?:ion)?\b|보안|암호화/iu],
+]);
+
+/** Deterministic advisory classifier shared by native routing and Goal acceptance. */
+export function detectHighImpactRisks(message) {
+  if (typeof message !== 'string' || message.trim() === '') return Object.freeze([]);
+  return Object.freeze(HIGH_IMPACT_RISK_SIGNALS
+    .filter(([, pattern]) => pattern.test(message))
+    .map(([category]) => category));
+}
+
 /** Resolve the workflow entry without interpreting the request's semantics. */
 export function resolveAssurancePolicy(message) {
   const match = typeof message === 'string' ? EXPLICIT_ENTRY.exec(message) : null;

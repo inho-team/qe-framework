@@ -4,7 +4,7 @@
  */
 import { createHash } from 'node:crypto';
 import { getNamespace, setNamespace } from './state.mjs';
-import { ASSURANCE_MODE, resolveAssurancePolicy } from './assurance-policy.mjs';
+import { ASSURANCE_MODE, detectHighImpactRisks, resolveAssurancePolicy } from './assurance-policy.mjs';
 
 export const GOAL_SCAN_LIMIT = 2000;
 export const GOAL_TAIL_LIMIT = 200;
@@ -180,6 +180,7 @@ export function triageGoal(message, options = {}) {
   const goalText = stripBoundaryOverrides(intent.goalText);
   const visible = maskedMarkdown(goalText); const files = fileMentions(maskedForFiles(goalText), !exceedsCodePoints(message, GOAL_SCAN_LIMIT));
   const groups = verbGroups(visible); const length = codePoints(goalText).length;
+  const riskCategories = detectHighImpactRisks(visible);
   const concrete = files.size > 0 || (groups > 0 && (visible.match(/[가-힣A-Za-z0-9]{2,}/g) || []).some((w) => !STOP_WORDS.has(w.toLowerCase())));
   let scale = 'Micro'; let reason = 'micro-scale';
   if (!concrete) { reason = 'ambiguous-default-direct'; }
@@ -194,8 +195,12 @@ export function triageGoal(message, options = {}) {
   reason = explicit ? 'explicit-full-sivs' : 'native-default';
   const instruction = explicit
     ? 'Enter Qplan Full SIVS for this explicit Goal.'
-    : 'Use native execution; Safety Kernel and QE response style remain active.';
-  return { detected: true, source: intent.source, goalText, route, reason, instruction, scale, override, assuranceMode: assurance.mode, fileCount: files.size, verbGroups: groups, length };
+    : riskCategories.length > 0
+      ? `Use native execution; Safety Kernel and QE response style remain active. High-impact signals: ${riskCategories.join(', ')}. Recommend explicit $Qplan or /Qplan for Full SIVS; this recommendation does not activate it.`
+      : 'Use native execution; Safety Kernel and QE response style remain active.';
+  return { detected: true, source: intent.source, goalText, route, reason, instruction,
+    scale, override, assuranceMode: assurance.mode, riskCategories,
+    fileCount: files.size, verbGroups: groups, length };
 }
 
 /** Produces the bounded hook payload; marker persistence remains the caller's choice. */
