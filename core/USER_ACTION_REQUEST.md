@@ -39,6 +39,9 @@ Requested by: Codex
 Client: codex
 Created: 2026-06-29T02:30:00.000Z
 Category: permissions
+Plan: secure-plan
+Goal: G001
+Acceptance hash: 0123456789abcdef0123456789abcdef0123456789abcdef0123456789abcdef
 
 ## Why This Is Needed
 
@@ -75,6 +78,12 @@ Run `qe-framework-install`, then retry `/hooks`.
 
 Move files between status directories instead of duplicating them. When changing
 status, preserve the original content and append a resolution note with the time.
+
+For human Goal acceptance, create the UAR with an `approvalBinding` containing
+the exact `planSlug`, `goalId`, and immutable `acceptanceHash`. These render as
+the `Plan`, `Goal`, and `Acceptance hash` metadata above. Completion accepts only
+the exact path of that bound UAR after it is moved to `done`; unrelated or
+pending UARs and free-form approval strings fail closed.
 
 ## Agent Rules
 

@@ -28,7 +28,8 @@
 
 import { appendFileSync, readFileSync, writeFileSync, renameSync, existsSync, mkdirSync, openSync, readSync, closeSync, fstatSync } from './qe-fs.mjs';
 import { join } from 'path';
-import { lstatSync as nativeLstatSync, realpathSync as nativeRealpathSync } from 'node:fs';
+import { existsSync as nativeExistsSync, lstatSync as nativeLstatSync,
+  readFileSync as nativeReadFileSync, realpathSync as nativeRealpathSync } from 'node:fs';
 import { createHash, randomUUID } from 'crypto';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'url';
@@ -3084,6 +3085,7 @@ const OUTCOME_ID_RE = /^O[0-9]{3}$/;
 const CODE_PATH_RE = /\.(?:mjs|cjs|js|jsx|ts|tsx|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|php|rb|sh|bash|zsh|sql|vue|svelte)$/iu;
 const MACHINE_SESSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const GOAL_COMMAND_TIMEOUT_MS = 120_000;
+const GOAL_COMMAND_MAX_BUFFER_BYTES = 4 * 1024 * 1024;
 const intrinsicStringify = JSON.stringify;
 
 function normalizedText(value) { return String(value ?? '').replace(/\s+/g, ' ').trim(); }
@@ -3369,7 +3371,10 @@ function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   }
   const outcome = contract.schema === 2 ? contract.goalShape.outcomes[0] : contract.goalShape;
   const riskSignalText = [goalObjective, outcome.statement ?? outcome.primaryOutcome,
-    outcome.completionMetric, ...contract.goalShape.allowedPaths].join(' ');
+    outcome.completionMetric, ...contract.goalShape.allowedPaths,
+    ...contract.requirements.flatMap(item => [item.criterion, item.command]),
+    ...contract.scenarios.flatMap(item => [item.scenario, item.expected, item.command]),
+    contract.regression.scope, contract.regression.command].join(' ');
   const requiredRisks = detectHighImpactRisks(riskSignalText);
   if (requiredRisks.some(category => !risk.categories.includes(category))) {
     throw new Error(`acceptance contract risk assessment omits detected Goal risk: ${requiredRisks.filter(category => !risk.categories.includes(category)).join(', ')}`);
@@ -3391,7 +3396,8 @@ function isGoalRunnerCommand(command) {
 
 function commandResult(cwd, command) {
   const parts = command.trim().split(/\s+/);
-  const result = spawnSync(parts[0], parts.slice(1), { cwd, encoding: 'utf8', timeout: GOAL_COMMAND_TIMEOUT_MS, maxBuffer: 64 * 1024 });
+  const result = spawnSync(parts[0], parts.slice(1), { cwd, encoding: 'utf8',
+    timeout: GOAL_COMMAND_TIMEOUT_MS, maxBuffer: GOAL_COMMAND_MAX_BUFFER_BYTES });
   const output = `${result.stdout || ''}\n${result.stderr || ''}`.trim();
   return { command, exitCode: Number.isInteger(result.status) ? result.status : null, signal: result.signal || null,
     passed: !result.error && result.status === 0, outputHash: createHash('sha256').update(output).digest('hex'), executedAt: nowIso() };
@@ -3418,7 +3424,7 @@ function phaseRetrospectivePaths(slug, phaseNumber) {
     report: join(PLANS_DIR, slug, 'reports', `PHASE_${phaseNumber}_REPORT.md`) };
 }
 
-function phaseGoalProofs(db, slug, goalIds) {
+function phaseGoalProofIndex(db, slug) {
   const rows = db.prepare(`SELECT proof_json,proof_hash FROM lifecycle_plan_goal_proofs
     WHERE slug=? AND kind='goal' ORDER BY goal_id,proof_id`).all(slug);
   const byGoal = new Map();
@@ -3426,11 +3432,14 @@ function phaseGoalProofs(db, slug, goalIds) {
     if (sha256(row.proof_json) !== row.proof_hash) throw canonicalPlanError('CANONICAL_STORE_INVALID');
     let proof;
     try { proof = JSON.parse(row.proof_json); } catch { throw canonicalPlanError('CANONICAL_STORE_INVALID'); }
-    if (goalIds.includes(proof.goalId)) {
-      if (byGoal.has(proof.goalId)) throw canonicalPlanError('CANONICAL_STORE_INVALID');
-      byGoal.set(proof.goalId, { goalId: proof.goalId, proofId: proof.proofId, proofDigest: proof.proofDigest });
-    }
+    if (byGoal.has(proof.goalId)) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+    byGoal.set(proof.goalId, { goalId: proof.goalId, proofId: proof.proofId, proofDigest: proof.proofDigest });
   }
+  return byGoal;
+}
+
+function phaseGoalProofs(db, slug, goalIds, proofIndex = null) {
+  const byGoal = proofIndex || phaseGoalProofIndex(db, slug);
   const result = goalIds.map(goalId => byGoal.get(goalId));
   if (result.some(item => !item || !/^[0-9a-f]{64}$/.test(item.proofId)
     || !/^[0-9a-f]{64}$/.test(item.proofDigest))) return null;
@@ -3456,7 +3465,8 @@ function phaseCompletionGoalsSha(db, slug, boundary) {
     ? rows[0].post_goals_sha256 : null;
 }
 
-function phaseRetrospectiveGate(db, slug, doc, goalsRow, nextGoal, { historical = false } = {}) {
+function phaseRetrospectiveGate(db, slug, doc, goalsRow, nextGoal,
+  { historical = false, proofIndex = null } = {}) {
   const boundary = phaseBoundary(doc, nextGoal, { requirePending: !historical });
   if (!boundary) return { required: false };
   if (boundary.invalid) return { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_INVALID' };
@@ -3468,7 +3478,7 @@ function phaseRetrospectiveGate(db, slug, doc, goalsRow, nextGoal, { historical 
   let artifact;
   try { artifact = JSON.parse(canonicalPlanDecodeRow(proofRow)); }
   catch { return { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_INVALID', boundary }; }
-  const expectedProofs = phaseGoalProofs(db, slug, boundary.completedGoalIds);
+  const expectedProofs = phaseGoalProofs(db, slug, boundary.completedGoalIds, proofIndex);
   const exactKeys = ['schema', 'issuedBy', 'slug', 'phase', 'nextPhase', 'phaseNumber',
     'completedGoalIds', 'completedGoalProofs', 'sourceGoalsSha256', 'reportPath', 'reportSha256',
     'retrospectivePath', 'retrospectiveSha256', 'regression', 'summary', 'gaps', 'lessons',
@@ -3503,10 +3513,11 @@ function phaseRetrospectiveGate(db, slug, doc, goalsRow, nextGoal, { historical 
 }
 
 function historicalRetrospectivesValid(db, slug, doc, goalsRow) {
+  const proofIndex = phaseGoalProofIndex(db, slug);
   for (let index = 1; index < doc.goals.length; index += 1) {
     const goal = doc.goals[index]; const previous = doc.goals[index - 1];
     if (goal.phase === previous.phase || goal.status === 'pending') continue;
-    const gate = phaseRetrospectiveGate(db, slug, doc, goalsRow, goal, { historical: true });
+    const gate = phaseRetrospectiveGate(db, slug, doc, goalsRow, goal, { historical: true, proofIndex });
     if (!gate.required || !gate.valid) return false;
   }
   return true;
@@ -3818,7 +3829,38 @@ function evidenceCovers(contractItems, evidenceItems, label) {
 }
 
 /** Validate a completion record against the pre-existing acceptance contract. */
-function validateCompletionEvidence(evidence, contract, goalId, goalObjective = '') {
+export function validateHumanAcceptanceProof(cwd, { slug, goalId, acceptanceHash, evidence }, db = null) {
+  const match = /^\.qe\/user-actions\/done\/([a-z0-9][a-z0-9-]{0,95})\.md$/.exec(evidence || '');
+  if (!match || !LIFECYCLE_SLUG_RE.test(slug) || !/^G\d{3,}$/.test(goalId)
+    || !/^[0-9a-f]{64}$/.test(acceptanceHash)) {
+    throw new Error('human acceptance requires a Goal-bound completed UAR path');
+  }
+  let text; let digest;
+  if (db) {
+    const row = canonicalPlanReadRow(db, evidence);
+    if (row) { text = canonicalPlanDecodeRow(row); digest = row.sha256; }
+  }
+  if (text === undefined) {
+    const path = join(cwd, evidence);
+    if (!nativeExistsSync(path)) throw new Error('human acceptance UAR does not exist');
+    text = nativeReadFileSync(path, 'utf8');
+    digest = sha256(text);
+  }
+  const expected = {
+    status: text.match(/^Status:\s*(\S+)\s*$/m)?.[1],
+    id: text.match(/^ID:\s*(\S+)\s*$/m)?.[1],
+    plan: text.match(/^Plan:\s*(\S+)\s*$/m)?.[1],
+    goal: text.match(/^Goal:\s*(\S+)\s*$/m)?.[1],
+    acceptance: text.match(/^Acceptance hash:\s*(\S+)\s*$/m)?.[1],
+  };
+  if (expected.status !== 'done' || expected.id !== match[1] || expected.plan !== slug
+    || expected.goal !== goalId || expected.acceptance !== acceptanceHash) {
+    throw new Error('human acceptance UAR is not done or is bound to a different Goal');
+  }
+  return { evidence, proofRef: `qe-uar:${digest}` };
+}
+
+function validateCompletionEvidence(evidence, contract, goalId, goalObjective = '', context = {}) {
   if (!evidence || typeof evidence !== 'object' || Array.isArray(evidence)) throw new Error('completion evidence must be an object');
   if (evidence.schema !== 1 || evidence.goalId !== goalId) throw new Error(`completion evidence must declare schema: 1 and goalId: ${goalId}`);
   evidenceCovers(contract.requirements, evidence.requirements, 'requirements');
@@ -3838,6 +3880,10 @@ function validateCompletionEvidence(evidence, contract, goalId, goalObjective = 
   const human = evidence.humanAcceptance;
   if (!human || (contract.humanAcceptance.required ? human.status !== 'passed' || !nonEmpty(human.evidence) : human.status !== 'not-required' && human.status !== 'passed')) {
     throw new Error('completion evidence does not satisfy human acceptance requirement');
+  }
+  if (human.status === 'passed' && contract.schema === 2) {
+    validateHumanAcceptanceProof(context.cwd, { slug: context.slug, goalId,
+      acceptanceHash: contractHash(contract), evidence: human.evidence }, context.db);
   }
   if (!Array.isArray(evidence.limitations)) throw new Error('completion evidence requires limitations array (use [] when none)');
   return evidence;
@@ -3932,7 +3978,8 @@ export function recordGoalEvidence(cwd, slug, { goalId, file }) {
       catch { throw canonicalPlanError('CANONICAL_STORE_INVALID'); }
       const contract = validateAcceptanceContract(parsedContract, goalId, goal.objective);
       if (!goal.acceptance?.hash || goal.acceptance.hash !== contractHash(contract)) { db.exec('ROLLBACK'); throw new Error('acceptance contract changed after it was recorded'); }
-      const evidence = validateCompletionEvidence(readJsonFile(file, 'completion evidence'), contract, goalId, goal.objective);
+      const evidence = validateCompletionEvidence(readJsonFile(file, 'completion evidence'), contract,
+        goalId, goal.objective, { cwd, slug, db });
       const proofText = canonicalPlanSerializeJson(evidence);
       const artifactSha = sha256(proofText);
       const identity = sha256(canonicalJson(['qe-plan-write-v1', 'recordGoalEvidence', slug, goalId, relCompletion, artifactSha]));
@@ -4656,7 +4703,8 @@ function planGoalAdapterGoalProof(cwd, db, slug, goal, controllerRevision) {
   try {
     const implementation = canonicalPlanValidateRunRecord(JSON.parse(implementationRow.content), slug, goal.id, 'implementation');
     const verification = canonicalPlanValidateRunRecord(JSON.parse(verificationRow.content), slug, goal.id, 'verification');
-    const completion = validateCompletionEvidence(JSON.parse(completionRow.content), acceptance.contract, goal.id, goal.objective);
+    const completion = validateCompletionEvidence(JSON.parse(completionRow.content), acceptance.contract,
+      goal.id, goal.objective, { cwd, slug, db });
     if (!implementation.passed || !verification.passed || implementation.attempt !== goal.attempts
       || verification.attempt !== goal.attempts || implementation.sessionId === verification.sessionId
       || completion.independentVerification.verifier !== verification.verifier
@@ -4680,8 +4728,11 @@ function planGoalAdapterGoalProof(cwd, db, slug, goal, controllerRevision) {
       independentVerification: entry(sourceRef, verification.verifier, verification.sessionId, verification.runId),
       goalAlignment: entry(sourceRef, verification.verifier, verification.sessionId, completionRow.sha256),
     };
+    const humanProof = acceptance.contract.humanAcceptance.required
+      ? validateHumanAcceptanceProof(cwd, { slug, goalId: goal.id,
+        acceptanceHash: goal.acceptance.hash, evidence: completion.humanAcceptance.evidence }, db) : null;
     const humanAcceptance = acceptance.contract.humanAcceptance.required
-      ? { required: true, status: completion.humanAcceptance.status, proofRef: completion.humanAcceptance.evidence }
+      ? { required: true, status: completion.humanAcceptance.status, proofRef: humanProof.proofRef }
       : { required: false, status: 'not-required' };
     const core = { schema: 1, kind: 'goal', slug, goalId: goal.id, attempt: goal.attempts,
       controllerRevision, acceptanceSha256: acceptance.row.sha256, acceptanceIdentity: acceptance.identity,

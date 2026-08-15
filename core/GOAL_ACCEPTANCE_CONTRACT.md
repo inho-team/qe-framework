@@ -117,7 +117,10 @@ these risk signals in the Goal objective and rejects a contract that omits them.
 
 Save this JSON as `.qe/planning/plans/{slug}/evidence/{goalId}.completion.json`.
 Every declared requirement and scenario must have a passing entry. If human
-acceptance is required, record a completed UAR or equivalent inspectable proof.
+acceptance is required for a new schema 2 contract, `humanAcceptance.evidence`
+must be the exact `.qe/user-actions/done/{id}.md` path of a completed UAR bound
+to this Plan slug, Goal ID, and immutable acceptance hash. Arbitrary approval
+text is not proof. Stored schema 1 contracts retain their resume compatibility.
 
 ```json
 {
@@ -132,6 +135,10 @@ acceptance is required, record a completed UAR or equivalent inspectable proof.
   "limitations": []
 }
 ```
+
+When the contract requires human acceptance, replace that field with
+`{"status":"passed","evidence":".qe/user-actions/done/{id}.md"}` after the
+bound UAR reaches `done`.
 
 Every requirement and scenario must declare either a canonical structural command
 or one command from the recognized behavioral runner families above. For

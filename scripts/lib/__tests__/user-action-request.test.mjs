@@ -34,6 +34,14 @@ test('renderUserActionRequest validates required fields', () => {
   assert.match(text, /^Blocking: yes$/m);
   assert.match(text, /^Client: codex$/m);
   assert.match(text, /Run \/hooks/);
+  const approval = renderUserActionRequest({ title: 'Approve Goal', action: 'Review the result.',
+    approvalBinding: { planSlug: 'secure-plan', goalId: 'G001', acceptanceHash: 'a'.repeat(64) } });
+  assert.match(approval, /^Plan: secure-plan$/m);
+  assert.match(approval, /^Goal: G001$/m);
+  assert.match(approval, new RegExp(`^Acceptance hash: ${'a'.repeat(64)}$`, 'm'));
+  assert.throws(() => renderUserActionRequest({ title: 'Approve Goal', action: 'Review.',
+    approvalBinding: { planSlug: '../escape', goalId: 'G001', acceptanceHash: 'a'.repeat(64) } }),
+  /approvalBinding/);
 });
 
 test('create, list, find, and update a user action request', (t) => {

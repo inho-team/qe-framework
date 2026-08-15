@@ -71,6 +71,11 @@ test('high-impact wording stays native but carries an explicit Qplan recommendat
 
 test('risk detection is deterministic and ignores empty input', () => {
   assert.deepEqual(detectHighImpactRisks('결제 API 삭제와 보안 암호화'), ['payment', 'destructive-data-change', 'security']);
+  assert.deepEqual(detectHighImpactRisks('rotate production credentials'),
+    ['authentication', 'deployment', 'security']);
+  assert.deepEqual(detectHighImpactRisks('change ACLs and access roles'), ['authorization']);
+  assert.deepEqual(detectHighImpactRisks('send card charges'), ['payment']);
+  assert.deepEqual(detectHighImpactRisks('erase every customer record'), ['destructive-data-change']);
   assert.deepEqual(detectHighImpactRisks(''), []);
   assert.deepEqual(detectHighImpactRisks(null), []);
 });

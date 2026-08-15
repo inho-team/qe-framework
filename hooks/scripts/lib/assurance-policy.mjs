@@ -25,14 +25,14 @@ const EXECUTION_MODES = new Set(Object.values(EXECUTION_MODE));
 const EXPLICIT_ENTRY = /^\s*[$/](Qplan|Qgoal)(?=$|\s)/i;
 
 const HIGH_IMPACT_RISK_SIGNALS = Object.freeze([
-  ['authentication', /\bauth(?:entication)?\b|로그인|인증/iu],
-  ['authorization', /\bauthori[sz]ation\b|\bpermission(?:s)?\b|권한/iu],
-  ['payment', /\bpayment(?:s)?\b|\bbilling\b|결제/iu],
-  ['deployment', /\bdeploy(?:ment)?\b|\brelease\b|배포|릴리스/iu],
+  ['authentication', /\bauth(?:entication|n)?\b|\bcredential(?:s)?\b|\bpassword(?:s)?\b|\bmfa\b|\bsso\b|로그인|인증|자격\s*증명/iu],
+  ['authorization', /\bauthori[sz]ation\b|\bpermission(?:s)?\b|\bacls?\b|\brbac\b|\baccess[- ]control\b|\b(?:admin|privilege|role)(?:s|d)?\b|tenant[- ]isolation|권한|관리자|접근\s*제어/iu],
+  ['payment', /\bpayment(?:s)?\b|\bbilling\b|\bcard\s+charge(?:s)?\b|\brefund(?:s)?\b|\bpayout(?:s)?\b|결제|청구|환불/iu],
+  ['deployment', /\bdeploy(?:ment)?\b|\brelease\b|\bproduction\b|\bprod\b|\brollout\b|배포|릴리스|운영계/iu],
   ['data-migration', /\bmigrat(?:e|ion)\b|\bschema\b|\bdatabase\b|\bdb\b|마이그레이션|스키마|데이터베이스/iu],
-  ['destructive-data-change', /\bdelete\b|\bpurge\b|\bdrop\b|삭제|파기/iu],
+  ['destructive-data-change', /\bdelet(?:e|ion)\b|\bpurge\b|\bdrop\b|\berase\b|\bwipe\b|\btruncate\b|\bdestroy\b|irreversible|삭제|파기|말소|초기화|되돌릴\s*수\s*없/iu],
   ['external-integration', /\bexternal\s+api\b|\bthird[- ]party\b|외부\s*(?:api|연동)|서드파티/iu],
-  ['security', /\bsecurity\b|\bencrypt(?:ion)?\b|보안|암호화/iu],
+  ['security', /\bsecurity\b|\bencrypt(?:ion)?\b|\bsecret(?:s)?\b|\bapi[- ]key(?:s)?\b|\bcredentials?\s+rotat(?:e|ion)\b|\brotat(?:e|ing|ion)\s+(?:production\s+)?credentials?\b|\bvulnerabilit(?:y|ies)\b|보안|암호화|비밀|키\s*로테이션/iu],
 ]);
 
 /** Deterministic advisory classifier shared by native routing and Goal acceptance. */

@@ -50,6 +50,17 @@ function normalizeBlock(value, fallback) {
   return text || fallback;
 }
 
+function renderApprovalBinding(value) {
+  if (value === undefined) return '';
+  if (!value || typeof value !== 'object' || Array.isArray(value)
+    || Object.keys(value).sort().join('|') !== 'acceptanceHash|goalId|planSlug'
+    || !/^[a-z0-9][a-z0-9-]{0,39}$/.test(value.planSlug)
+    || !/^G\d{3,}$/.test(value.goalId) || !/^[0-9a-f]{64}$/.test(value.acceptanceHash)) {
+    throw new Error('approvalBinding requires planSlug, goalId, and acceptanceHash');
+  }
+  return `Plan: ${value.planSlug}\nGoal: ${value.goalId}\nAcceptance hash: ${value.acceptanceHash}\n`;
+}
+
 export function renderUserActionRequest(input = {}) {
   const title = normalizeBlock(input.title, '');
   const action = normalizeBlock(input.action, '');
@@ -62,6 +73,7 @@ export function renderUserActionRequest(input = {}) {
   const requestedBy = normalizeBlock(input.requestedBy, 'QE');
   const client = normalizeBlock(input.client, 'unknown');
   const category = normalizeBlock(input.category, 'general');
+  const approvalBinding = renderApprovalBinding(input.approvalBinding);
 
   return `# User Action Request: ${title}
 
@@ -72,6 +84,7 @@ Requested by: ${requestedBy}
 Client: ${client}
 Created: ${created.toISOString()}
 Category: ${category}
+${approvalBinding}
 
 ## Why This Is Needed
 

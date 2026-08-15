@@ -468,6 +468,23 @@ test('code-changing Goal contracts require behavioral test evidence', () => {
   rmSync(cwd, { recursive: true, force: true });
 });
 
+test('evidence runner accepts successful verbose suites above the former 64 KiB buffer', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['Verbose::run a verbose behavioral suite']);
+  writeFileSync(path.join(cwd, 'verbose.test.mjs'), `console.log('x'.repeat(70 * 1024));\n`, 'utf8');
+  const contract = acceptance('G001', false, 'run a verbose behavioral suite');
+  contract.goalShape.allowedPaths = ['verbose.test.mjs'];
+  contract.requirements[0].command = 'node --test verbose.test.mjs';
+  contract.scenarios[0].command = 'node --test verbose.test.mjs';
+  contract.regression.command = 'node --test verbose.test.mjs';
+  setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'verbose-acceptance.json', contract) });
+  append(cwd, SLUG, { goalId: 'G001', event: 'started', status: 'active' });
+  const result = ledgerModule.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation' });
+  assert.equal(result.passed, true);
+  assert.equal(result.runs.length, 1);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
 test('bounded micro assurance is admitted only with exact machine-verifiable limits', () => {
   const cwd = makeProject();
   initializeGit(cwd);
@@ -497,6 +514,7 @@ test('bounded micro assurance is admitted only with exact machine-verifiable lim
     ['unresolved', value => { value.assurance.materialDecisionsResolved = false; }, /resolved material decisions/],
     ['risk', value => { value.riskAssessment = { categories: ['security'], rationale: 'Security boundary.' }; value.humanAcceptance.required = true; }, /risk category none/],
     ['hidden-risk-path', value => { value.goalShape.allowedPaths = ['scripts/deploy.mjs']; }, /omits detected Goal risk: deployment/],
+    ['hidden-risk-scenario', value => { value.scenarios[0].scenario = 'Erase every customer record'; }, /omits detected Goal risk: destructive-data-change/],
   ]) {
     const isolated = makeProject(`${SLUG}-${name}`);
     initializeGit(isolated);
@@ -508,6 +526,24 @@ test('bounded micro assurance is admitted only with exact machine-verifiable lim
     }), message);
     rmSync(isolated, { recursive: true, force: true });
   }
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('human acceptance proof requires a done UAR bound to the exact Goal and acceptance hash', () => {
+  const cwd = makeProject();
+  const id = '20260815-120000-approve-goal';
+  const relative = `.qe/user-actions/done/${id}.md`;
+  mkdirSync(path.dirname(path.join(cwd, relative)), { recursive: true });
+  writeFileSync(path.join(cwd, relative), `# User Action Request: Approve Goal\n\nStatus: done\nID: ${id}\n`
+    + `Plan: ${SLUG}\nGoal: G001\nAcceptance hash: ${'a'.repeat(64)}\n`, 'utf8');
+  const proof = ledgerModule.validateHumanAcceptanceProof(cwd, { slug: SLUG, goalId: 'G001',
+    acceptanceHash: 'a'.repeat(64), evidence: relative });
+  assert.equal(proof.evidence, relative);
+  assert.match(proof.proofRef, /^qe-uar:[0-9a-f]{64}$/);
+  assert.throws(() => ledgerModule.validateHumanAcceptanceProof(cwd, { slug: SLUG, goalId: 'G002',
+    acceptanceHash: 'a'.repeat(64), evidence: relative }), /different Goal/);
+  assert.throws(() => ledgerModule.validateHumanAcceptanceProof(cwd, { slug: SLUG, goalId: 'G001',
+    acceptanceHash: 'a'.repeat(64), evidence: `approved:${id}` }), /completed UAR path/);
   rmSync(cwd, { recursive: true, force: true });
 });
 
