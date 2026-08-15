@@ -3,7 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtempSync, mkdirSync, rmSync, writeFileSync } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
-import { spawn } from 'node:child_process';
+import { spawn, spawnSync } from 'node:child_process';
 
 import * as ledger from '../ledger.mjs';
 import { createProcessController } from '../process-controller.mjs';
@@ -11,10 +11,19 @@ import { canonicalJson, sha256 } from '../process-controller-store.mjs';
 import { closeSqlite, openSqlite } from '../store-sqlite.mjs';
 
 const SLUG = 'adapter-plan';
+const CONTROLLER_SESSION = '99999999-9999-4999-8999-999999999999';
 
 function makeProject() {
   const cwd = mkdtempSync(join(tmpdir(), 'lifecycle-plan-goal-adapter-'));
+  writeFileSync(join(cwd, '.gitignore'), '.qe/\n*.acceptance.json\n*.completion.json\n', 'utf8');
+  assert.equal(spawnSync('git', ['init', '-q'], { cwd }).status, 0);
+  assert.equal(spawnSync('git', ['add', '.gitignore'], { cwd }).status, 0);
+  assert.equal(spawnSync('git', ['-c', 'user.name=QE', '-c', 'user.email=qe@example.invalid',
+    'commit', '-q', '-m', 'fixture'], { cwd }).status, 0);
   mkdirSync(join(cwd, '.qe', 'planning', 'plans', SLUG), { recursive: true });
+  mkdirSync(join(cwd, '.qe', 'state'), { recursive: true });
+  writeFileSync(join(cwd, '.qe', 'state', 'current-session.json'),
+    JSON.stringify({ session_id: CONTROLLER_SESSION }), 'utf8');
   return cwd;
 }
 
@@ -46,6 +55,8 @@ function acceptanceFor(goalId, objective) {
     schema: 1, goalId,
     goalShape: { primaryOutcome: `Complete ${goalId}`, completionMetric: `${goalId} is complete`,
       allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
+    assurance: { lane: 'bounded-micro', admissionVersion: 1,
+      materialDecisionsResolved: true, workItems: 1 },
     requirements: [{ id: 'R001', criterion: 'Complete safely', command: 'node --test --help' }],
     scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Complete', expected: 'Complete', command: 'node --test --help' }],
     regression: { scope: 'existing behavior', command: 'node --test --help' },
@@ -173,6 +184,13 @@ test('accepted next bootstraps controllers and atomically projects one Goal acti
       const replay = ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' });
       assert.equal(replay.code, 'REPLAYED');
       assert.equal(replay.receiptId, projected.receiptId);
+      const foreignSession = '88888888-8888-4888-8888-888888888888';
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG,
+        { action: 'next', sessionId: foreignSession }),
+      { ok: false, code: 'GOAL_OWNED_BY_OTHER_SESSION', audited: false });
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG,
+        { action: 'block', evidence: 'foreign session must not mutate the Goal', sessionId: foreignSession }),
+      { ok: false, code: 'GOAL_OWNED_BY_OTHER_SESSION', audited: false });
 
       const db = openSqlite(cwd, { readOnly: true });
       const goals = JSON.parse(db.prepare('SELECT content FROM qe_files WHERE path=?')
@@ -181,6 +199,7 @@ test('accepted next bootstraps controllers and atomically projects one Goal acti
         .get(`.qe/planning/plans/${SLUG}/ledger.jsonl`).content.trim().split('\n');
       assert.equal(goals.goals[0].status, 'active');
       assert.equal(goals.goals[0].attempts, 1);
+      assert.equal(goals.goals[0].executionOwnerSession, CONTROLLER_SESSION);
       assert.equal(JSON.parse(ledgerLines.at(-1)).receiptId, projected.receiptId);
       assert.equal(db.prepare("SELECT COUNT(*) AS count FROM lifecycle_plan_goal_receipts WHERE kind='projected'").get().count, 1);
       const intent = JSON.parse(db.prepare('SELECT intent_json FROM lifecycle_plan_goal_intents').get().intent_json);
@@ -439,6 +458,41 @@ test('block then fail follows the controller recovery matrix without changing at
   }
 });
 
+test('legacy active Goal without an owner can be recovered only through an audited block', { concurrency: false }, () => {
+  const cwd = makeProject();
+  try {
+    withRoot(cwd, () => {
+      ledger.createGoals(cwd, SLUG, ['Legacy::legacy active objective']);
+      ledger.renderState(cwd, SLUG);
+      const db = openSqlite(cwd);
+      const path = `.qe/planning/plans/${SLUG}/goals.json`;
+      const row = db.prepare('SELECT content FROM qe_files WHERE path=?').get(path);
+      const doc = JSON.parse(row.content);
+      doc.goals[0].status = 'active';
+      doc.goals[0].attempts = 1;
+      const content = `${JSON.stringify(doc, null, 2)}\n`;
+      db.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+        .run(content, Buffer.byteLength(content), sha256(content), path);
+      closeSqlite(db);
+
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG,
+        { action: 'complete', sessionId: CONTROLLER_SESSION }),
+      { ok: false, code: 'GOAL_OWNER_MISSING', audited: false });
+      const blocked = ledger.executePlanGoalTransition(cwd, SLUG,
+        { action: 'block', evidence: 'migrate legacy owner safely', sessionId: CONTROLLER_SESSION });
+      assert.equal(blocked.code, 'PROJECTED', JSON.stringify(blocked));
+      const readDb = openSqlite(cwd, { readOnly: true });
+      const stored = JSON.parse(readDb.prepare('SELECT content FROM qe_files WHERE path=?')
+        .get(path).content).goals[0];
+      closeSqlite(readDb);
+      assert.equal(stored.status, 'blocked');
+      assert.equal(stored.executionOwnerSession, CONTROLLER_SESSION);
+    });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
 test('durable intent resumes after a committed-intent response cut', { concurrency: false }, () => {
   const cwd = makeProject();
   const fault = Symbol.for('qe.lifecycle-plan-goal-adapter.fault-injector');
@@ -543,6 +597,8 @@ test('complete derives repository proof and closes both Goal and Plan controller
         schema: 1, goalId: 'G001',
         goalShape: { primaryOutcome: 'Complete safely', completionMetric: 'Goal and Plan complete',
           allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
+        assurance: { lane: 'bounded-micro', admissionVersion: 1,
+          materialDecisionsResolved: true, workItems: 1 },
         requirements: [{ id: 'R001', criterion: 'Complete safely', command: 'node --test --help' }],
         scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Complete', expected: 'Complete', command: 'node --test --help' }],
         regression: { scope: 'existing behavior', command: 'node --test --help' },
@@ -553,6 +609,8 @@ test('complete derives repository proof and closes both Goal and Plan controller
       }), 'utf8');
       ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
       assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).code, 'PROJECTED');
+      mkdirSync(join(cwd, 'hooks', 'scripts', 'lib'), { recursive: true });
+      writeFileSync(join(cwd, 'hooks', 'scripts', 'lib', 'ledger.mjs'), 'export const changed = true;\n', 'utf8');
       ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation',
         sessionId: '11111111-1111-4111-8111-111111111111' });
       ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'verification', verifier: 'adapter-independent',
@@ -602,6 +660,61 @@ test('complete derives repository proof and closes both Goal and Plan controller
   } finally {
     rmSync(cwd, { recursive: true, force: true });
   }
+});
+
+test('formal Goal cannot complete from ledger evidence without a completed SIVS controller', { concurrency: false }, () => {
+  const cwd = makeProject();
+  try {
+    withRoot(cwd, () => {
+      ledger.createGoals(cwd, SLUG, ['First::first objective']);
+      ledger.renderState(cwd, SLUG);
+      const contract = acceptanceFor('G001', 'first objective');
+      delete contract.assurance;
+      const acceptanceFile = join(cwd, 'formal.acceptance.json');
+      writeFileSync(acceptanceFile, JSON.stringify(contract), 'utf8');
+      ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
+      assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).code, 'PROJECTED');
+      ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation',
+        sessionId: '11111111-1111-4111-8111-111111111111' });
+      ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'verification', verifier: 'formal-reviewer',
+        sessionId: '22222222-2222-4222-8222-222222222222' });
+      const completionFile = join(cwd, 'formal.completion.json');
+      writeFileSync(completionFile, JSON.stringify(completionFor('G001', 'first objective', 'formal-reviewer')), 'utf8');
+      ledger.recordGoalEvidence(cwd, SLUG, { goalId: 'G001', file: completionFile });
+
+      const denied = ledger.executePlanGoalTransition(cwd, SLUG, { action: 'complete' });
+      assert.deepEqual([denied.ok, denied.code, denied.audited], [false, 'EVIDENCE_INCOMPLETE', true]);
+      const db = openSqlite(cwd, { readOnly: true });
+      const goals = JSON.parse(db.prepare('SELECT content FROM qe_files WHERE path=?')
+        .get(`.qe/planning/plans/${SLUG}/goals.json`).content);
+      assert.equal(goals.goals[0].status, 'active');
+      closeSqlite(db);
+    });
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
+});
+
+test('bounded micro Goal rejects machine-observed changes outside allowedPaths', { concurrency: false }, () => {
+  const cwd = makeProject();
+  try {
+    withRoot(cwd, () => {
+      ledger.createGoals(cwd, SLUG, ['First::first objective']);
+      ledger.renderState(cwd, SLUG);
+      const acceptanceFile = join(cwd, 'G001.acceptance.json');
+      writeFileSync(acceptanceFile, JSON.stringify(acceptanceFor('G001', 'first objective')), 'utf8');
+      ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
+      assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).code, 'PROJECTED');
+      writeFileSync(join(cwd, 'outside.txt'), 'scope growth\n', 'utf8');
+      ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation',
+        sessionId: '11111111-1111-4111-8111-111111111111' });
+      ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'verification', verifier: 'scope-reviewer',
+        sessionId: '22222222-2222-4222-8222-222222222222' });
+      const completionFile = join(cwd, 'G001.completion.json');
+      writeFileSync(completionFile, JSON.stringify(completionFor('G001', 'first objective', 'scope-reviewer')), 'utf8');
+      assert.throws(() => ledger.recordGoalEvidence(cwd, SLUG, {
+        goalId: 'G001', file: completionFile,
+      }), /changed paths exceed allowedPaths: outside\.txt/);
+    });
+  } finally { rmSync(cwd, { recursive: true, force: true }); }
 });
 
 test('legacy all-complete Plan reconstructs complete Goal and Plan controller authority before no-op', { concurrency: false }, () => {
@@ -873,7 +986,8 @@ test('two-process next race converges to one projection and an immutable replay'
         const ledger = await import(${JSON.stringify(moduleUrl)});
         let result;
         for (let attempt=0; attempt<100; attempt+=1) {
-          result=ledger.executePlanGoalTransition(process.env.ADAPTER_CWD, ${JSON.stringify(SLUG)}, {action:'next'});
+          result=ledger.executePlanGoalTransition(process.env.ADAPTER_CWD, ${JSON.stringify(SLUG)},
+            {action:'next',sessionId:${JSON.stringify(CONTROLLER_SESSION)}});
           if (!['OPERATION_IN_PROGRESS','STORE_UNAVAILABLE'].includes(result.code)) break;
           Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 5);
         }

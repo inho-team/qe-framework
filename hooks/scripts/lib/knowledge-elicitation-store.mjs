@@ -79,6 +79,12 @@ function validateRecord(record, slug) {
     || !record.intake || record.intake.schema !== 1 || !Array.isArray(record.intake.history)) {
     fail('INTAKE_STORE_CORRUPT', 'Stored intake record has an invalid schema');
   }
+  if (record.ownershipHistory !== undefined && (!Array.isArray(record.ownershipHistory)
+    || record.ownershipHistory.some((event) => !event || !SESSION_RE.test(event.fromSession ?? '')
+      || !SESSION_RE.test(event.toSession ?? '') || !Number.isSafeInteger(event.atRevision)
+      || event.atRevision < 2))) {
+    fail('INTAKE_STORE_CORRUPT', 'Stored intake ownership history is invalid');
+  }
   return record;
 }
 
@@ -178,5 +184,38 @@ export function mutateIntakeRecord(cwd, slug, options) {
     const record = { ...current, revision: current.revision + 1, intake: next };
     putRow(db, path, record);
     return { changed: true, record: clone(record, 'record'), result };
+  });
+}
+
+/** Explicit CAS ownership handoff for crash/restart recovery. */
+export function transferIntakeOwnership(cwd, slug, options) {
+  const normalizedSlug = assertSlug(slug);
+  const previousOwner = assertSession(options?.previousOwnerSession);
+  const nextOwner = assertSession(options?.nextOwnerSession);
+  const expectedRevision = assertRevision(options?.expectedRevision);
+  if (previousOwner === nextOwner) {
+    fail('INTAKE_STORE_INVALID_TRANSFER', 'Ownership transfer requires a different next session');
+  }
+  return transact(cwd, (db) => {
+    const path = relativeIntakePath(normalizedSlug);
+    const row = db.prepare('SELECT content,encoding FROM qe_files WHERE path=?').get(path);
+    if (!row) fail('INTAKE_STORE_NOT_FOUND', `No intake exists for ${normalizedSlug}`);
+    const current = validateRecord(decodeRow(row).record, normalizedSlug);
+    if (current.ownerSession.toLowerCase() !== previousOwner) {
+      fail('INTAKE_STORE_OWNER_CONFLICT', 'The observed intake owner changed before transfer');
+    }
+    if (current.revision !== expectedRevision) {
+      fail('INTAKE_STORE_STALE_REVISION', `Expected revision ${expectedRevision}, found ${current.revision}`);
+    }
+    if (['confirmed', 'blocked', 'split-required'].includes(current.intake.status)) {
+      fail('INTAKE_STORE_TERMINAL', 'Terminal intake ownership cannot be transferred');
+    }
+    const atRevision = current.revision + 1;
+    const ownershipHistory = [...(current.ownershipHistory ?? []), {
+      fromSession: previousOwner, toSession: nextOwner, atRevision,
+    }];
+    const record = { ...current, ownerSession: nextOwner, revision: atRevision, ownershipHistory };
+    putRow(db, path, record);
+    return { changed: true, record: clone(record, 'record') };
   });
 }

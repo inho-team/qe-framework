@@ -9,6 +9,7 @@ import { spawnSync } from 'node:child_process';
 const HERE = dirname(fileURLToPath(import.meta.url));
 const CLI = join(HERE, '..', 'qe-intake.mjs');
 const OWNER = '33333333-3333-4333-8333-333333333333';
+const OTHER = '44444444-4444-4444-8444-444444444444';
 
 function project() {
   const cwd = mkdtempSync(join(tmpdir(), 'qe-intake-cli-'));
@@ -49,14 +50,18 @@ test('CLI initializes, issues, answers, pauses, resumes, and reports status', ()
   result = run(cwd, ['pause', '--slug', 'demo', '--session', OWNER, '--expected-revision', '3']);
   assert.equal(result.json.record.intake.status, 'paused');
   assert.equal(result.json.record.intake.earliestUnresolvedLabel, '[2/2]');
-  result = run(cwd, ['resume', '--slug', 'demo', '--session', OWNER, '--expected-revision', '4']);
+  result = run(cwd, ['claim', '--slug', 'demo', '--session', OTHER,
+    '--previous-session', OWNER, '--expected-revision', '4']);
+  assert.equal(result.json.record.ownerSession, OTHER);
+  assert.equal(result.json.record.revision, 5);
+  result = run(cwd, ['resume', '--slug', 'demo', '--session', OTHER, '--expected-revision', '5']);
   assert.equal(result.json.record.intake.status, 'questioning');
   assert.equal(result.json.record.intake.earliestUnresolvedLabel, '[2/2]');
 
   result = run(cwd, ['status', '--slug', 'demo']);
   assert.equal(result.status, 0);
   assert.equal(result.json.changed, false);
-  assert.equal(result.json.record.revision, 5);
+  assert.equal(result.json.record.revision, 6);
 });
 
 test('CLI returns structured nonzero failures without changing accepted state', () => {

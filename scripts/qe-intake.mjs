@@ -7,7 +7,7 @@ import {
   skipQuestion, stopIntake, synthesizeIntake,
 } from '../hooks/scripts/lib/knowledge-elicitation.mjs';
 import {
-  initializeIntakeRecord, mutateIntakeRecord, readIntakeRecord,
+  initializeIntakeRecord, mutateIntakeRecord, readIntakeRecord, transferIntakeOwnership,
 } from '../hooks/scripts/lib/knowledge-elicitation-store.mjs';
 
 class CliError extends Error {
@@ -20,7 +20,7 @@ function parseArgs(argv) {
     const token = argv[index];
     if (!token.startsWith('--')) { args._.push(token); continue; }
     const key = token.slice(2);
-    if (!['slug', 'session', 'expected-revision', 'input'].includes(key) || key in args) {
+    if (!['slug', 'session', 'previous-session', 'expected-revision', 'input'].includes(key) || key in args) {
       throw new CliError('INTAKE_CLI_USAGE', `Unknown or duplicate option: ${token}`);
     }
     const value = argv[++index];
@@ -85,6 +85,16 @@ export function runIntakeCli(argv, cwd = process.cwd()) {
   }
   if (!args['expected-revision'] || !/^\d+$/.test(args['expected-revision'])) {
     throw new CliError('INTAKE_CLI_USAGE', '--expected-revision is required and must be an integer');
+  }
+  if (operation === 'claim') {
+    if (!args['previous-session']) {
+      throw new CliError('INTAKE_CLI_USAGE', '--previous-session is required for claim');
+    }
+    const mutation = transferIntakeOwnership(cwd, args.slug, {
+      previousOwnerSession: args['previous-session'], nextOwnerSession: args.session,
+      expectedRevision: Number(args['expected-revision']),
+    });
+    return { ok: true, operation, ...mutation };
   }
   const payload = inputJson(args.input, ['answer', 'skip', 'correct', 'rebaseline', 'synthesize'].includes(operation));
   const mutation = mutateIntakeRecord(cwd, args.slug, {

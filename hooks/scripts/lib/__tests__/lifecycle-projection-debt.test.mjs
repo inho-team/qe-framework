@@ -96,7 +96,8 @@ test('projection debt APIs are exported and quarantine blocks completion', { con
         riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
       }), 'utf8');
       assert.equal(ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile }).acceptance.status, 'defined');
-      assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).code, 'PROJECTED');
+      assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next',
+        sessionId: '11111111-1111-4111-8111-111111111111' }).code, 'PROJECTED');
       ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'implementation',
         sessionId: '11111111-1111-4111-8111-111111111111' });
       ledger.runGoalEvidence(cwd, SLUG, { goalId: 'G001', role: 'verification', verifier: 'fresh reviewer',

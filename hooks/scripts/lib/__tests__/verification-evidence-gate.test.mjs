@@ -134,7 +134,7 @@ test('evidence commands distinguish structural checks from behavioral tests', ()
   assert.equal(evidenceCommandKind('npm run qe:validate'), 'structural');
   assert.equal(evidenceCommandKind('node scripts/check-all.mjs'), 'structural');
   assert.equal(evidenceCommandKind('node --test hooks/foo.test.mjs'), 'behavioral');
-  assert.equal(evidenceCommandKind('npm test'), null);
+  assert.equal(evidenceCommandKind('npm test'), 'behavioral');
   assert.equal(isBehavioralEvidenceCommand('node --test hooks/foo.test.mjs'), true);
   assert.equal(isBehavioralEvidenceCommand('node scripts/check-all.mjs'), false);
 });
@@ -159,12 +159,21 @@ test('isAllowlistCommand: chained double-cd does not match', () => {
 });
 
 test('isAllowlistCommand: non-allowlist commands → false', () => {
-  assert.equal(isAllowlistCommand('npm test'), false);
-  assert.equal(isAllowlistCommand('npm run test'), false);
   assert.equal(isAllowlistCommand('jest'), false);
   assert.equal(isAllowlistCommand('mocha'), false);
   assert.equal(isAllowlistCommand(''), false);
   assert.equal(isAllowlistCommand(null), false);
+});
+
+test('isAllowlistCommand: recognizes portable project test runners', () => {
+  for (const command of [
+    'npm test', 'npm run test:unit', 'pnpm test', 'yarn test',
+    'pytest', 'python -m pytest tests/test_api.py', 'go test ./...', 'cargo test',
+    'dotnet test', './gradlew test', './mvnw test', 'bundle exec rspec spec/models',
+  ]) assert.equal(isAllowlistCommand(command), true, command);
+  for (const command of ['pytest || true', 'go test ./...; echo ok', 'cargo test > result.txt']) {
+    assert.equal(isAllowlistCommand(command), false, command);
+  }
 });
 
 test('isAllowlistCommand: node --test without a path argument → false', () => {
@@ -328,12 +337,12 @@ test('hasVerificationEvidence: allowlist Bash interrupted:true → false', () =>
   assert.equal(hasVerificationEvidence(events), false);
 });
 
-test('hasVerificationEvidence: non-allowlist Bash success → false', () => {
+test('hasVerificationEvidence: portable project test success → true', () => {
   const events = [
     makeToolUseEvent('tid5', 'npm test'),
     makeToolResultEvent('tid5', { text: 'passed' }),
   ];
-  assert.equal(hasVerificationEvidence(events), false);
+  assert.equal(hasVerificationEvidence(events), true);
 });
 
 test('hasVerificationEvidence: no events → false', () => {

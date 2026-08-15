@@ -154,6 +154,11 @@ Session binding rules:
   before the new lane claims ownership.
 - Two live sessions claiming the same lane must render as `blocked` with a
   `blocked_reason`; neither session may claim SIVS completion from that state.
+- Plan-owned Goals bind `executionOwnerSession` on the first canonical `next`.
+  A different session receives `GOAL_OWNED_BY_OTHER_SESSION` before any Goal or
+  controller mutation. A legacy active Goal without this field cannot complete;
+  it must first be recovered through an audited `block` or `fail`. Retries after
+  `failed` may establish a new owner.
 
 Recovery decisions use `hooks/scripts/lib/process-recovery.mjs`. Runtime lane
 state remains observational: stale or completed lanes are reverified before any

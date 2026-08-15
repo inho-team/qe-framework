@@ -5,6 +5,7 @@ import { tmpdir } from 'node:os';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import { createHash } from 'node:crypto';
+import { spawnSync } from 'node:child_process';
 
 import { createGoals, append, setGoalAcceptance, status, renderState, readGoals, recordEvent, tailLedger } from '../ledger.mjs';
 import * as ledgerModule from '../ledger.mjs';
@@ -25,6 +26,14 @@ function setSession(cwd, sessionId) {
   const stateDir = path.join(cwd, '.qe', 'state');
   mkdirSync(stateDir, { recursive: true });
   writeFileSync(path.join(stateDir, 'current-session.json'), JSON.stringify({ session_id: sessionId }), 'utf8');
+}
+
+function initializeGit(cwd) {
+  writeFileSync(path.join(cwd, '.gitignore'), '.qe/\n*.json\n', 'utf8');
+  assert.equal(spawnSync('git', ['init', '-q'], { cwd }).status, 0);
+  assert.equal(spawnSync('git', ['add', '.gitignore'], { cwd }).status, 0);
+  assert.equal(spawnSync('git', ['-c', 'user.name=QE', '-c', 'user.email=qe@example.invalid',
+    'commit', '-q', '-m', 'fixture'], { cwd }).status, 0);
 }
 
 function ledgerLines(cwd, slug = SLUG) {
@@ -188,6 +197,36 @@ test('create-goals is idempotent (preserves existing history)', () => {
   const res = createGoals(cwd, SLUG, ['B::b']);
   assert.ok(res.skipped);
   assert.equal(readGoals(cwd, SLUG).goals.length, 1);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('create-goals fails before persistence for an empty Plan or empty Goal fields', () => {
+  for (const goals of [[], ['::'], ['Title::   '], ['   ::Objective']]) {
+    const cwd = makeProject();
+    assert.throws(() => createGoals(cwd, SLUG, goals), /requires at least one|must be non-empty/);
+    assert.equal(existsSync(path.join(cwd, '.qe', 'planning', 'plans', SLUG, 'goals.json')), false);
+    rmSync(cwd, { recursive: true, force: true });
+  }
+});
+
+test('acceptance dependencies must exist and point only to earlier Goals', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['A::first objective', 'B::second objective']);
+  for (const [goalId, dependencies, pattern] of [
+    ['G001', ['G002'], /earlier Goal/],
+    ['G002', ['G999'], /does not exist/],
+  ]) {
+    const contract = acceptance(goalId, false, goalId === 'G001' ? 'first objective' : 'second objective');
+    contract.goalShape.dependencies = dependencies;
+    assert.throws(() => setGoalAcceptance(cwd, SLUG, {
+      goalId, file: writeJson(cwd, `${goalId}.invalid-dependency.json`, contract),
+    }), pattern);
+  }
+  const valid = acceptance('G002', false, 'second objective');
+  valid.goalShape.dependencies = ['G001'];
+  assert.equal(setGoalAcceptance(cwd, SLUG, {
+    goalId: 'G002', file: writeJson(cwd, 'G002.valid-dependency.json', valid),
+  }).goalId, 'G002');
   rmSync(cwd, { recursive: true, force: true });
 });
 
@@ -370,13 +409,14 @@ test('code-changing Goal contracts require behavioral test evidence', () => {
       goalId: 'G001',
       file: writeJson(cwd, 'structural-only.json', structuralOnly),
     }),
-    /requires at least one behavioral node --test command/,
+    /requires at least one behavioral test-runner command/,
   );
   rmSync(cwd, { recursive: true, force: true });
 });
 
 test('bounded micro assurance is admitted only with exact machine-verifiable limits', () => {
   const cwd = makeProject();
+  initializeGit(cwd);
   createGoals(cwd, SLUG, ['Micro::change runtime behavior']);
   const bounded = acceptance('G001', false, 'change runtime behavior');
   bounded.assurance = {
@@ -393,6 +433,7 @@ test('bounded micro assurance is admitted only with exact machine-verifiable lim
   assert.equal(stored.assurance.issuedBy, 'qe-ledger');
   assert.equal(stored.assurance.authority, 'plan-controller');
   assert.equal(stored.assurance.sessionId, '11111111-1111-1111-1111-111111111111');
+  assert.deepEqual(stored.assurance.scopeBaseline, { schema: 1, entries: [] });
   assert.match(stored.assurance.admissionId, /^[0-9a-f]{64}$/);
 
   for (const [name, mutate, message] of [
@@ -404,6 +445,7 @@ test('bounded micro assurance is admitted only with exact machine-verifiable lim
     ['hidden-risk-path', value => { value.goalShape.allowedPaths = ['scripts/deploy.mjs']; }, /omits detected Goal risk: deployment/],
   ]) {
     const isolated = makeProject(`${SLUG}-${name}`);
+    initializeGit(isolated);
     createGoals(isolated, `${SLUG}-${name}`, ['Micro::change runtime behavior']);
     const candidate = structuredClone(bounded);
     mutate(candidate);

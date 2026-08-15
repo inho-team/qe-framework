@@ -10,7 +10,7 @@ import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { emitBlock } from './lib/block-emitter.mjs';
 import { executableView, matchesExecutable, deobfuscateShellTokens, shellDashCArgs } from './lib/shell-scanner.mjs';
 import { BUILD_BLOCK_MESSAGE, checkBuildAdmission, deriveBuildLockMetadata, isHeavyBuildCommand } from './lib/build-admission.mjs';
-import { readCurrentSid, readCurrentSessionId } from './lib/session-resolver.mjs';
+import { readCurrentSid, readCurrentSessionId, readSessionPlan } from './lib/session-resolver.mjs';
 import { appendTelemetry, initMetrics, recordDelegationRequest } from './lib/metrics.mjs';
 import { evaluateStaleEditPayload } from './lib/pre-tool-use-handler.mjs';
 import { checkStaleEditPrecondition, staleEditPreconditionFromToolInput } from '../../scripts/lib/stale-edit-guard.mjs';
@@ -183,6 +183,25 @@ function hasFreshPipelineMarker(root, sessionId, now) {
   // Multiplicity is order-irrelevant for admission: any qualifying entry passes,
   // so "latest issuedAt wins" needs no sort here (documented for G011 readers).
   return valid.length > 0;
+}
+
+/** Durable continuation for a session-bound Plan after the short prompt marker expires. */
+function hasActivePlanPipeline(root, sessionId) {
+  if (!sessionId) return false;
+  try {
+    const slug = readSessionPlan(root, sessionId);
+    if (!/^[a-z0-9][a-z0-9-]{0,63}$/.test(slug)) return false;
+    const file = join(root, '.qe', 'planning', 'plans', slug, 'goals.json');
+    if (!existsSync(file)) return false;
+    const doc = JSON.parse(readFileSync(file, 'utf8'));
+    if ((doc?.planSlug ?? doc?.slug) !== slug || !Array.isArray(doc?.goals)) return false;
+    const active = doc.goals.filter(goal => goal?.status === 'active');
+    return active.length === 1 && active[0]?.acceptance?.status === 'defined'
+      && typeof active[0]?.acceptance?.hash === 'string'
+      && /^[0-9a-f]{64}$/.test(active[0].acceptance.hash);
+  } catch {
+    return false;
+  }
 }
 
 // A real PSE invocation carries at most a handful of task UUIDs; cap the
@@ -383,6 +402,7 @@ if (toolName === 'Skill') {
       const sessionId = data.session_id || data.sessionId || readCurrentSessionId(cwd) || readCurrentSid(cwd);
       const permitted =
         hasFreshPipelineMarker(cwd, sessionId, now) ||
+        hasActivePlanPipeline(cwd, sessionId) ||
         hasTaskArtifactContinuity(cwd, skillInput.args || skillInput.arguments || skillInput.input || '') ||
         hasFreshUtopiaOptIn(cwd, now) ||
         hasAllowDirectOptIn(cwd);

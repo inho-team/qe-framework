@@ -16,7 +16,8 @@
  *     Negation patterns and code-fence/quote embedding are excluded before matching.
  *   - Evidence scope = same-turn (after the last real human user message),
  *     identical boundary to extractLastAssistantText in style-gate.mjs.
- *   - Allowlist is closed-world: only the three canonical commands match.
+ *   - Allowlist is closed-world: only canonical framework checks and recognized
+ *     test-runner command families match.
  *   - Fail-open everywhere: any parse/IO error returns fire=false so the gate
  *     can never hard-crash the Stop hook.
  *   - The completionLike export replaces the inline regex in evaluateCodeRiskReportGate
@@ -98,6 +99,17 @@ const ALLOWLIST_EXACT = [
 ];
 
 const ALLOWLIST_PREFIX_RE = /^node\s+--test\s+\S/;
+const BEHAVIORAL_COMMANDS = [
+  /^(?:python(?:3(?:\.\d+)?)?\s+-m\s+pytest|pytest)(?:\s+\S.*)?$/,
+  /^go\s+test(?:\s+\S.*)?$/,
+  /^cargo\s+test(?:\s+\S.*)?$/,
+  /^dotnet\s+test(?:\s+\S.*)?$/,
+  /^(?:\.\/)?(?:gradle|gradlew)\s+test(?:\s+\S.*)?$/,
+  /^(?:\.\/)?(?:mvn|mvnw)\s+test(?:\s+\S.*)?$/,
+  /^(?:npm|pnpm|yarn)\s+(?:run\s+)?test(?::[A-Za-z0-9_.-]+)?(?:\s+\S.*)?$/,
+  /^bundle\s+exec\s+rspec(?:\s+\S.*)?$/,
+];
+const UNSAFE_SHELL_RE = /(?:&&|\|\||[;|<>`]|\$\(|[\r\n])/;
 
 /**
  * Classify a command by the kind of assurance it provides.
@@ -113,8 +125,8 @@ export function evidenceCommandKind(input) {
   if (!input || typeof input !== 'string') return null;
   const cmd = stripCdPrefix(input).trim();
   if (ALLOWLIST_EXACT.includes(cmd)) return 'structural';
-  if (ALLOWLIST_PREFIX_RE.test(cmd) &&
-      !TRAILING_COMPOUND_RE.test(cmd) && !TRAILING_SEMICOLON_RE.test(cmd)) {
+  if (!UNSAFE_SHELL_RE.test(cmd) && (ALLOWLIST_PREFIX_RE.test(cmd)
+      || BEHAVIORAL_COMMANDS.some(pattern => pattern.test(cmd)))) {
     return 'behavioral';
   }
   return null;
@@ -136,13 +148,6 @@ function stripCdPrefix(cmd) {
   if (typeof cmd !== 'string') return '';
   return cmd.replace(/^cd\s+\S+\s*&&\s*/, '').trim();
 }
-
-// Trailing compound operators that disqualify a prefix-matched allowlist command (F3).
-// Matches `&&`, `||`, or `;` anywhere in the stripped command after the allowlist prefix.
-// A command like `node --test x || true` or `node --test x; echo ok` cannot be trusted
-// as atomic verification because an unknown secondary command follows.
-const TRAILING_COMPOUND_RE = /&&|\|\|/;
-const TRAILING_SEMICOLON_RE = /;/;
 
 /**
  * Return true if the command (after stripping one leading `cd X &&`) is on the allowlist.
@@ -178,7 +183,9 @@ export function agentResultContainsTrace(text, { requireBehavioral = false } = {
     /npm\s+run\s+qe:validate/.test(text) ||
     /node\s+scripts\/check-all\.mjs/.test(text);
   const hasBehavioralCmd = /node\s+--test\s+\S/.test(text);
-  const hasCmd = requireBehavioral ? hasBehavioralCmd : hasStructuralCmd || hasBehavioralCmd;
+  const hasPortableBehavioralCmd = /(?:pytest|python\S*\s+-m\s+pytest|go\s+test|cargo\s+test|dotnet\s+test|(?:gradle|gradlew|mvn|mvnw)\s+test|(?:npm|pnpm|yarn)\s+(?:run\s+)?test|bundle\s+exec\s+rspec)/.test(text);
+  const hasCmd = requireBehavioral ? hasBehavioralCmd || hasPortableBehavioralCmd
+    : hasStructuralCmd || hasBehavioralCmd || hasPortableBehavioralCmd;
 
   if (!hasCmd) return false;
 

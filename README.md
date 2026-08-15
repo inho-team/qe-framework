@@ -254,7 +254,9 @@ The Plan is the user workflow; Spec, Execute, and Verify are internal per-Goal s
 | **Knowledge** | internal | internal | Retrieve relevant QE evidence and project wiki pointers |
 | **Spec / Execute / Verify** | internal | internal | Generate evidence, implement, test, review, and gate the active Goal |
 
-Only verified Goal outcomes are added to the derived project wiki; QE documents remain the source of truth and qe.db remains the lookup index.
+Only verified Goal outcomes are added to the derived project wiki. Canonical QE
+document rows in `qe.db` remain the source of truth; derived index tables are the
+lookup layer.
 
 ### Store schema and upgrades
 

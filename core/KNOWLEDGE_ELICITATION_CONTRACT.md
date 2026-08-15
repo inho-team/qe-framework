@@ -73,6 +73,11 @@ Answer correction preserves the predecessor record by changing its projection ki
 
 Liveness is conditional on fair caller choice: in `questioning`, callers eventually answer, skip, stop, request re-baseline, or synthesize; in `paused`, resume or stop; in `awaiting-rebaseline`, accept, decline, or stop; and in `awaiting-confirmation`, correct, confirm, or stop. Read-only status calls and unanswered redelivery are not liveness mutations. All mutating cycles are bounded by the policy above.
 
+A replacement session may explicitly claim a non-terminal intake with
+`qe-intake claim` only when it supplies the exact previous owner UUID and current
+revision. The transfer consumes one revision and records `ownershipHistory`;
+stale owner, stale revision, same-owner, and terminal transfers fail closed.
+
 ## Stable error codes and terminal reasons
 
 Thrown validation/transition codes are part of the public API:

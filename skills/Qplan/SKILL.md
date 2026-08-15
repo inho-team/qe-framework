@@ -37,8 +37,9 @@ Plan → Goal 1 → Goal 2 → … → Goal N
 
 - **Plan** is the durable contract: roadmap, requirements, phases, and ordered Goals.
 - **Goal** is the smallest independently verifiable Plan outcome.
-- `.qe/` documents are evidence; `qe.db` is their lookup index; `.qe/wiki/` is a
-  derived project knowledge layer. Do not treat a DB row or LLM summary as the source of truth.
+- Canonical `.qe/` document rows in `qe.db` are evidence; derived index tables and
+  `.qe/wiki/` projections are lookup/knowledge layers. Do not treat an index row
+  or LLM summary as the source of truth.
 - Only a verified Goal with explicit evidence may write back to the wiki.
 
 ## Deterministic tacit-knowledge intake
@@ -128,8 +129,10 @@ must not duplicate its questions, counters, or transitions.
 Run this loop until the Plan is complete, blocked, or needs a material user decision.
 Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied next-command handoff.
 
-1. **Select:** Run `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action next`.
-   It starts only the first pending Goal; an active or blocked Goal prevents skipping.
+1. **Select:** Run `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action next --session {current full session UUID}`.
+   It starts only the first pending Goal and binds that Goal to the execution-owner
+   session. An active or blocked Goal prevents skipping, and another live session
+   cannot continue, block, fail, or complete the owned Goal.
 2. **Knowledge preflight:** Run `node scripts/qe-plan-context.mjs "{Goal objective}"`.
    Use the returned reviewed wiki entries and QE artifact paths as pointers. Read only
    the source documents required for the Goal; source files override summaries.
@@ -144,7 +147,9 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
    `assurance` admission defined by `core/GOAL_ACCEPTANCE_CONTRACT.md`; absence
    or rejection means the formal lane. The immutable Goal
    acceptance contract is the executable micro spec. Do not create a TASK_REQUEST
-   or run the three-reviewer Spec gate.
+   or run the three-reviewer Spec gate. The ledger seals a Git scope baseline at
+   admission and rejects evidence or completion when observed changes escape
+   `allowedPaths`; without a Git worktree the bounded-micro lane is unavailable.
    Execute in the main thread or one bounded worker, apply the Qexecute TDD gate,
    run the locked commands, and retain the distinct-session independent machine
    verification and Goal-alignment verdict required by Step 4. Do not run a
@@ -168,12 +173,14 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
    and again from a distinct QE session for `verification --verifier {identity}`;
    then run `record-evidence`.
 5. **Gate:** If verification fails, evidence is incomplete, or a required decision is unresolved, keep the Goal
-   active or call `advance --action block --evidence "{specific blocker}"`; do not start
+   active or call `advance --action block --evidence "{specific blocker}" --session {owner UUID}`; do not start
    another Goal. Ask the user only for a material scope, risk, or irreversible choice.
 6. **Complete:** Only after the acceptance evidence has been recorded, run
-   `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action complete`.
-   This records the lifecycle event, updates STATE, and writes a provenance-linked
-   reviewed project-wiki page.
+   `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action complete --session {owner UUID}`.
+   Formal Goals are accepted only when a Goal-bound SIVS controller has already
+   reached `complete` with matching TASK_REQUEST, VERIFY_CHECKLIST, Verify, and
+   Supervise proof. This records the lifecycle event, updates STATE, and writes a
+   provenance-linked reviewed project-wiki page.
 7. Repeat at Step 1. When `advance --action next` returns `complete`, report the Plan
    outcome, remaining risks, and evidence.
 8. At each completed Phase boundary, generate the retrospective from
@@ -181,7 +188,8 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
 
 ## Goal quality rules
 
-- One active Goal at a time unless the Plan explicitly models a safe parallel Wave.
+- One active Goal at a time. A safe parallel Wave is internal execution within
+  that Goal; it never creates multiple active Goals.
 - A Goal must state its verbatim objective alignment, one primary outcome, bounded file scope, explicit non-goals, dependencies, at most three requirement criteria, at most two user-journey scenarios, regression scope, risk assessment, and evidence before work starts.
 - Draft plans, model hypotheses, and unverified research never become reviewed project knowledge.
 - Use source-backed contracts, tests, verification reports, and decisions as first-class evidence.

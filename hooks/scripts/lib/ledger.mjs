@@ -39,7 +39,7 @@ import { writeVerifiedGoalKnowledge } from './plan-knowledge.mjs';
 import { isAllowlistCommand, isBehavioralEvidenceCommand } from './verification-evidence-gate.mjs';
 import { buildProcessTrace, validateTraceabilityDefinition } from './process-trace.mjs';
 import { closeSqlite, openSqlite } from './store-sqlite.mjs';
-import { canonicalJson, createProcessControllerStore, sha256 } from './process-controller-store.mjs';
+import { canonicalJson, createProcessControllerStore, PROCESS_CONTROLLER_DOMAINS, sha256 } from './process-controller-store.mjs';
 import { createProcessController } from './process-controller.mjs';
 import { types as utilTypes } from 'node:util';
 
@@ -421,6 +421,10 @@ function canonicalPlanParseGoalsRow(row, slug) {
       || goal.completionEvidence.status !== 'recorded' || typeof goal.completionEvidence.file !== 'string')) {
       throw canonicalPlanError('CANONICAL_STORE_INVALID');
     }
+    if (goal.executionOwnerSession !== undefined
+      && !MACHINE_SESSION_RE.test(goal.executionOwnerSession)) {
+      throw canonicalPlanError('CANONICAL_STORE_INVALID');
+    }
   }
   if (mutable > 1) throw canonicalPlanError('CANONICAL_STORE_INVALID');
   return doc;
@@ -543,7 +547,8 @@ function canonicalPlanWriteError(error) {
   if (['CANONICAL_CAS_CONFLICT', 'CANONICAL_STORE_INVALID', 'CANONICAL_BACKEND_CONFLICT',
     'ACCEPTANCE_CONFLICT', 'COMPLETION_EVIDENCE_CONFLICT', 'EVIDENCE_RUN_STALE',
     'EVIDENCE_RUN_CONFLICT', 'PROJECTION_DEBT_OUTSTANDING', 'PROJECTION_DEBT_CORRUPT',
-    'PROJECTION_DEBT_UNAVAILABLE', 'DIRECT_TRANSITION_DENIED'].includes(error?.code)) {
+    'PROJECTION_DEBT_UNAVAILABLE', 'DIRECT_TRANSITION_DENIED', 'MICRO_SCOPE_UNAVAILABLE',
+    'MICRO_SCOPE_VIOLATION'].includes(error?.code)) {
     return error;
   }
   if (/SQLITE_(?:BUSY|LOCKED)|database is (?:busy|locked)/i.test(String(error?.code || '') + String(error?.message || ''))) {
@@ -2939,12 +2944,18 @@ export function createGoals(cwd, slug, explicitGoals = []) {
         return { skipped: true, reason: 'goals.json exists' };
       }
       let goals = explicitGoals.map((g, i) => {
-        const [title, objective] = String(g).split('::');
-        return { id: `G${String(i + 1).padStart(3, '0')}`, title: (title || g).trim(),
-          objective: (objective || title || g).trim(), status: 'pending', attempts: 0,
+        const raw = String(g); const separator = raw.indexOf('::');
+        const title = (separator >= 0 ? raw.slice(0, separator) : raw).trim();
+        const objective = (separator >= 0 ? raw.slice(separator + 2) : raw).trim();
+        if (!title || !objective) throw new Error('Goal title and objective must be non-empty');
+        return { id: `G${String(i + 1).padStart(3, '0')}`, title,
+          objective, status: 'pending', attempts: 0,
           phase: 'Phase 1', wave: '-' };
       });
       if (goals.length === 0) goals = parseRoadmapGoals(cwd, slug);
+      if (goals.length === 0 || goals.some(goal => !nonEmpty(goal.title) || !nonEmpty(goal.objective))) {
+        throw new Error('A Plan requires at least one non-empty Goal');
+      }
       const doc = { planSlug: slug, schema: 1, createdAt: nowIso(), goals };
       const goalsText = canonicalPlanSerializeJson(doc);
       canonicalPlanWriteRow(db, relGoals, goalsText, null);
@@ -2962,12 +2973,18 @@ export function createGoals(cwd, slug, explicitGoals = []) {
   if (readGoals(cwd, slug)) return { skipped: true, reason: 'goals.json exists' };
 
   let goals = explicitGoals.map((g, i) => {
-    const [title, objective] = String(g).split('::');
-    return { id: `G${String(i + 1).padStart(3, '0')}`, title: (title || g).trim(),
-      objective: (objective || title || g).trim(), status: 'pending', attempts: 0,
+    const raw = String(g); const separator = raw.indexOf('::');
+    const title = (separator >= 0 ? raw.slice(0, separator) : raw).trim();
+    const objective = (separator >= 0 ? raw.slice(separator + 2) : raw).trim();
+    if (!title || !objective) throw new Error('Goal title and objective must be non-empty');
+    return { id: `G${String(i + 1).padStart(3, '0')}`, title,
+      objective, status: 'pending', attempts: 0,
       phase: 'Phase 1', wave: '-' };
   });
   if (goals.length === 0) goals = parseRoadmapGoals(cwd, slug);
+  if (goals.length === 0 || goals.some(goal => !nonEmpty(goal.title) || !nonEmpty(goal.objective))) {
+    throw new Error('A Plan requires at least one non-empty Goal');
+  }
 
   const doc = { planSlug: slug, schema: 1, createdAt: nowIso(), goals };
   writeGoals(cwd, slug, doc);
@@ -3094,6 +3111,65 @@ function isBoundedPath(value) {
     !value.startsWith('/') && !value.includes('..') && !/[\\*]/.test(value);
 }
 
+function microScopeIgnored(path) {
+  return path === '.qe' || path.startsWith('.qe/')
+    || /(?:^|\/)[^/]+\.(?:acceptance|completion)\.json$/.test(path);
+}
+
+function microScopeError(code, message) {
+  const error = new Error(message); error.code = code; return error;
+}
+
+function gitScopeSnapshot(cwd) {
+  const inside = spawnSync('git', ['rev-parse', '--is-inside-work-tree'], {
+    cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
+  });
+  if (inside.status !== 0 || inside.stdout.trim() !== 'true') {
+    throw microScopeError('MICRO_SCOPE_UNAVAILABLE',
+      'bounded-micro assurance requires a Git worktree for scope verification');
+  }
+  const commands = [
+    ['diff', '--name-only', '-z'],
+    ['diff', '--cached', '--name-only', '-z'],
+    ['ls-files', '--others', '--exclude-standard', '-z'],
+  ];
+  const paths = new Set();
+  for (const args of commands) {
+    const result = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 1024 * 1024 });
+    if (result.status !== 0) throw microScopeError('MICRO_SCOPE_UNAVAILABLE', 'bounded-micro Git scope snapshot failed');
+    for (const path of result.stdout.split('\0').filter(Boolean)) {
+      if (!microScopeIgnored(path)) paths.add(path);
+    }
+  }
+  if (paths.size > 512) throw microScopeError('MICRO_SCOPE_UNAVAILABLE', 'bounded-micro scope baseline exceeds 512 changed paths');
+  const entries = [];
+  for (const path of [...paths].sort()) {
+    if (!isBoundedPath(path)) throw microScopeError('MICRO_SCOPE_UNAVAILABLE', `bounded-micro scope contains an unsafe path: ${path}`);
+    const hashed = spawnSync('git', ['hash-object', '--no-filters', '--', path], {
+      cwd, encoding: 'utf8', timeout: 5000, maxBuffer: 64 * 1024,
+    });
+    const digest = hashed.status === 0 && /^[0-9a-f]{40,64}$/.test(hashed.stdout.trim())
+      ? hashed.stdout.trim() : 'deleted';
+    entries.push({ path, digest });
+  }
+  return { schema: 1, entries };
+}
+
+function validateMicroScope(cwd, contract) {
+  if (contract.assurance?.lane !== 'bounded-micro') return { changedPaths: [] };
+  const baseline = contract.assurance.scopeBaseline;
+  const current = gitScopeSnapshot(cwd);
+  const before = new Map(baseline.entries.map(item => [item.path, item.digest]));
+  const after = new Map(current.entries.map(item => [item.path, item.digest]));
+  const changedPaths = [...new Set([...before.keys(), ...after.keys()])]
+    .filter(path => before.get(path) !== after.get(path)).sort();
+  const allowed = path => contract.goalShape.allowedPaths.some(base => path === base || path.startsWith(`${base}/`));
+  const outside = changedPaths.filter(path => !allowed(path));
+  if (outside.length) throw microScopeError('MICRO_SCOPE_VIOLATION',
+    `bounded-micro changed paths exceed allowedPaths: ${outside.join(', ')}`);
+  return { changedPaths };
+}
+
 /**
  * A Goal is deliberately smaller than a Phase: one observable outcome, a
  * bounded write surface, and explicit non-goals prevent a broad request from
@@ -3117,13 +3193,30 @@ function validateGoalShape(shape) {
   return shape;
 }
 
+function validateGoalDependencies(doc, goal, contract, { requireComplete = false } = {}) {
+  const currentIndex = doc.goals.findIndex(item => item.id === goal.id);
+  if (currentIndex < 0) throw new Error(`unknown goalId: ${goal.id}`);
+  const byId = new Map(doc.goals.map((item, index) => [item.id, { item, index }]));
+  for (const dependencyId of contract.goalShape.dependencies) {
+    const dependency = byId.get(dependencyId);
+    if (!dependency) throw new Error(`Goal dependency does not exist: ${dependencyId}`);
+    if (dependency.index >= currentIndex) {
+      throw new Error(`Goal dependency must reference an earlier Goal: ${dependencyId}`);
+    }
+    if (requireComplete && dependency.item.status !== 'complete') {
+      throw new Error(`Goal dependency is not complete: ${dependencyId}`);
+    }
+  }
+  return true;
+}
+
 function validateGoalAssurance(contract) {
   if (!Object.prototype.hasOwnProperty.call(contract, 'assurance')) return;
   const assurance = contract.assurance;
   const keys = assurance && typeof assurance === 'object' && !Array.isArray(assurance)
     ? Object.keys(assurance).sort() : [];
   const expected = ['admissionId', 'admissionVersion', 'authority', 'issuedBy', 'lane',
-    'materialDecisionsResolved', 'sessionId', 'workItems'];
+    'materialDecisionsResolved', 'scopeBaseline', 'sessionId', 'workItems'];
   if (keys.join('|') !== expected.sort().join('|') || assurance.lane !== 'bounded-micro'
     || assurance.admissionVersion !== 1 || assurance.issuedBy !== 'qe-ledger'
     || assurance.authority !== 'plan-controller' || !MACHINE_SESSION_RE.test(assurance.sessionId)
@@ -3140,6 +3233,14 @@ function validateGoalAssurance(contract) {
   if (contract.goalShape.allowedPaths.length > MAX_MICRO_GOAL_PATHS) {
     throw new Error(`bounded-micro assurance allows at most ${MAX_MICRO_GOAL_PATHS} allowed paths`);
   }
+  const baseline = assurance.scopeBaseline;
+  if (!baseline || baseline.schema !== 1 || !Array.isArray(baseline.entries)
+    || baseline.entries.length > 512
+    || baseline.entries.some((entry) => !entry || !isBoundedPath(entry.path)
+      || !(entry.digest === 'deleted' || /^[0-9a-f]{40,64}$/.test(entry.digest)))
+    || new Set(baseline.entries.map(entry => entry.path)).size !== baseline.entries.length) {
+    throw new Error('bounded-micro assurance requires a ledger-issued Git scope baseline');
+  }
   if (contract.riskAssessment.categories.length !== 1
     || contract.riskAssessment.categories[0] !== 'none'
     || contract.humanAcceptance.required !== false) {
@@ -3147,7 +3248,7 @@ function validateGoalAssurance(contract) {
   }
 }
 
-function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId) {
+function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId, cwd) {
   if (!raw || !Object.prototype.hasOwnProperty.call(raw, 'assurance')) {
     return validateAcceptanceContract(raw, goalId, goalObjective);
   }
@@ -3165,7 +3266,8 @@ function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId) {
   const contract = JSON.parse(JSON.stringify(raw));
   const core = { lane: request.lane, admissionVersion: request.admissionVersion,
     materialDecisionsResolved: request.materialDecisionsResolved, workItems: request.workItems,
-    issuedBy: 'qe-ledger', authority: 'plan-controller', sessionId };
+    issuedBy: 'qe-ledger', authority: 'plan-controller', sessionId,
+    scopeBaseline: gitScopeSnapshot(cwd) };
   contract.assurance = { ...core, admissionId: sha256(canonicalJson([
     'qe-bounded-micro-admission-v1', goalId, normalizedText(goalObjective), core,
   ])) };
@@ -3189,7 +3291,7 @@ function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   if (contract.scenarios.length > MAX_GOAL_SCENARIOS) throw new Error(`acceptance contract allows at most ${MAX_GOAL_SCENARIOS} user journeys; split broad work into Goals`);
   if (!contract.regression || !nonEmpty(contract.regression.scope) || !isGoalRunnerCommand(contract.regression.command)) throw new Error('acceptance contract requires regression scope and runnable command');
   if (contractTouchesCode(contract) && !contractHasBehavioralEvidence(contract)) {
-    throw new Error('code-changing Goal acceptance requires at least one behavioral node --test command');
+    throw new Error('code-changing Goal acceptance requires at least one behavioral test-runner command');
   }
   if (!contract.humanAcceptance || typeof contract.humanAcceptance.required !== 'boolean') throw new Error('acceptance contract requires humanAcceptance.required');
   if (!contract.goalAlignment || normalizedText(contract.goalAlignment.objective) !== normalizedText(goalObjective) || !nonEmpty(contract.goalAlignment.rationale)) {
@@ -3486,7 +3588,8 @@ export function setGoalAcceptance(cwd, slug, { goalId, file }) {
       if (!goal) { db.exec('ROLLBACK'); throw canonicalPlanError('CANONICAL_STORE_INVALID', `unknown goalId: ${goalId}`); }
       if (goal.status !== 'pending') { db.exec('ROLLBACK'); throw new Error('acceptance contract can only be set before a Goal starts'); }
       const contract = prepareAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId,
-        goal.objective, readCurrentSessionId(cwd));
+        goal.objective, readCurrentSessionId(cwd), cwd);
+      validateGoalDependencies(doc, goal, contract);
       const contractText = canonicalPlanSerializeJson(contract);
       const artifactSha = sha256(contractText);
       const identity = sha256(canonicalJson(['qe-plan-write-v1', 'setGoalAcceptance', slug, goalId, relAcceptance, artifactSha]));
@@ -3523,7 +3626,8 @@ export function setGoalAcceptance(cwd, slug, { goalId, file }) {
   if (!goal) throw new Error(`unknown goalId: ${goalId}`);
   if (goal.status !== 'pending') throw new Error('acceptance contract can only be set before a Goal starts');
   const contract = prepareAcceptanceContract(readJsonFile(file, 'acceptance contract'), goalId,
-    goal.objective, readCurrentSessionId(cwd));
+    goal.objective, readCurrentSessionId(cwd), cwd);
+  validateGoalDependencies(doc, goal, contract);
   if (!existsSync(evidenceDir(cwd, slug))) mkdirSync(evidenceDir(cwd, slug), { recursive: true });
   atomicWriteJson(acceptancePath(cwd, slug, goalId), contract);
   goal.acceptance = { status: 'defined', file: join('evidence', `${goalId}.acceptance.json`), hash: contractHash(contract) };
@@ -3565,6 +3669,7 @@ export function recordGoalEvidence(cwd, slug, { goalId, file }) {
         db.exec('ROLLBACK'); throw canonicalPlanError('COMPLETION_EVIDENCE_CONFLICT');
       }
       requirePassingRuns(cwd, slug, goal, goalId, db);
+      validateMicroScope(cwd, contract);
       debtAssertionInTransaction(db, slug);
       if (existing) {
         const binding = goal.completionEvidence;
@@ -3632,8 +3737,11 @@ function canonicalCompleteGoal(cwd, slug, goalId, evidenceText) {
  * `complete` requires evidence for the sole active Goal and writes a reviewed,
  * provenance-linked knowledge page. This is the only normal write-back path.
  */
-export function advanceGoal(cwd, slug, { action = 'next', evidence = '' } = {}) {
-  const input = action === 'block' || action === 'fail' ? { action, evidence } : { action };
+export function advanceGoal(cwd, slug, { action = 'next', evidence = '', sessionId = '' } = {}) {
+  const ownerSession = sessionId || readCurrentSessionId(cwd);
+  const input = action === 'block' || action === 'fail'
+    ? { action, evidence, sessionId: ownerSession }
+    : { action, sessionId: ownerSession };
   return executePlanGoalTransition(cwd, slug, input);
 }
 
@@ -4196,7 +4304,74 @@ function planGoalAdapterProofDigest(body) {
   return sha256(canonicalJson(normalized));
 }
 
-function planGoalAdapterGoalProof(db, slug, goal, controllerRevision) {
+function planGoalAdapterFormalSivsCompletion(db, slug, goal, acceptance, evidenceRows) {
+  if (acceptance.contract.assurance?.lane === 'bounded-micro') {
+    return { required: false, lane: 'bounded-micro' };
+  }
+  const bindingRows = db.prepare('SELECT * FROM process_controller_sivs_task_binding ORDER BY process_id').all();
+  const matches = [];
+  for (const bindingRow of bindingRows) {
+    let payload;
+    try { payload = JSON.parse(bindingRow.payload_json); } catch { continue; }
+    if (payload?.planSlug !== slug || payload?.goalId !== goal.id
+      || payload?.goalAttempt !== goal.attempts || payload?.acceptanceHash !== goal.acceptance?.hash) continue;
+    const bindingDigest = sha256(canonicalJson(['qe-sivs-task-binding-v1', bindingRow.process_id,
+      bindingRow.controller_identity, bindingRow.token_sha256, payload]));
+    if (bindingRow.binding_digest !== bindingDigest || sha256(bindingRow.token_text) !== bindingRow.token_sha256) continue;
+
+    const stateRow = db.prepare('SELECT * FROM process_controller_state WHERE process_id=?').get(bindingRow.process_id);
+    let snapshot;
+    try { snapshot = JSON.parse(stateRow?.snapshot_json); } catch { continue; }
+    if (stateRow?.layer !== 'sivs' || snapshot?.state !== 'complete'
+      || snapshot.revision !== stateRow.revision || stateRow.last_audit_seq < 1) continue;
+    const auditRows = db.prepare('SELECT * FROM process_controller_audit WHERE process_id=? ORDER BY audit_seq')
+      .all(bindingRow.process_id);
+    if (auditRows.length !== stateRow.last_audit_seq + 1) continue;
+    let previous = '0'.repeat(64); let validChain = true;
+    for (let index = 0; index < auditRows.length; index += 1) {
+      const row = auditRows[index];
+      let event;
+      try { event = JSON.parse(row.event_json); } catch { validChain = false; break; }
+      const expected = sha256(canonicalJson([PROCESS_CONTROLLER_DOMAINS.process,
+        bindingRow.process_id, index, previous, event]));
+      if (row.audit_seq !== index || row.prev_hash !== previous || row.event_hash !== expected) {
+        validChain = false; break;
+      }
+      previous = row.event_hash;
+    }
+    if (!validChain || previous !== stateRow.last_audit_hash) continue;
+    const finalRow = auditRows.at(-1); let event;
+    try { event = JSON.parse(finalRow.event_json); } catch { continue; }
+    const projection = event?.request?.completionEvidenceProjection;
+    if (event?.operation !== 'sivs-stage-transition' || event.allowed !== true
+      || event.result?.to !== 'complete' || event.snapshotAfter?.state !== 'complete'
+      || projection?.planSlug !== slug || projection?.goalId !== goal.id
+      || projection?.goalAttempt !== goal.attempts || projection?.acceptanceHash !== goal.acceptance?.hash
+      || projection.goalRowSha256 !== evidenceRows.goal.sha256
+      || projection.acceptanceRowSha256 !== evidenceRows.acceptance.sha256
+      || projection.completionRowSha256 !== evidenceRows.completion.sha256
+      || projection.implementationRowSha256 !== evidenceRows.implementation.sha256
+      || projection.verificationRowSha256 !== evidenceRows.verification.sha256
+      || event.request.completionEvidenceDigest !== sha256(canonicalJson([
+        'qe-sivs-completion-evidence-v1', projection]))) continue;
+    const supervision = db.prepare(`SELECT proof_json,proof_digest FROM process_controller_sivs_supervision_proof
+      WHERE process_id=? AND proof_digest=?`).get(bindingRow.process_id, projection.supervisionProofDigest);
+    let supervisionProof;
+    try { supervisionProof = JSON.parse(supervision?.proof_json); } catch { continue; }
+    if (!supervision || !['PASS', 'WARN'].includes(supervisionProof?.verdict)
+      || supervisionProof.planSlug !== slug || supervisionProof.goalId !== goal.id
+      || supervisionProof.goalAttempt !== goal.attempts
+      || supervisionProof.acceptanceHash !== goal.acceptance?.hash) continue;
+    matches.push({ required: true, lane: 'formal', processId: bindingRow.process_id,
+      auditSeq: finalRow.audit_seq, auditHash: finalRow.event_hash,
+      completionEvidenceDigest: event.request.completionEvidenceDigest,
+      supervisionProofDigest: projection.supervisionProofDigest,
+      taskPath: payload.taskPath, checklistPath: payload.checklistPath });
+  }
+  return matches.length === 1 ? matches[0] : null;
+}
+
+function planGoalAdapterGoalProof(cwd, db, slug, goal, controllerRevision) {
   const acceptance = planGoalAdapterAcceptance(db, slug, goal);
   const base = join(PLANS_DIR, slug, 'evidence');
   const implementationRow = canonicalPlanReadRow(db, join(base, `${goal.id}.implementation-run.json`));
@@ -4216,6 +4391,13 @@ function planGoalAdapterGoalProof(db, slug, goal, controllerRevision) {
       || completion.goalAlignment.verifier !== verification.verifier) {
       return null;
     }
+    validateMicroScope(cwd, acceptance.contract);
+    const sivsCompletion = planGoalAdapterFormalSivsCompletion(db, slug, goal, acceptance, {
+      goal: canonicalPlanReadRow(db, join(PLANS_DIR, slug, 'goals.json')),
+      acceptance: acceptance.row, completion: completionRow,
+      implementation: implementationRow, verification: verificationRow,
+    });
+    if (!sivsCompletion) return null;
     const entry = (proofRef, issuedBy, sessionId, digest) => ({ status: 'valid', subject: 'goal',
       revision: controllerRevision, proofRef, issuedBy, sessionId, digest });
     const sourceRef = 'qe-plan-goal-proof:self';
@@ -4232,7 +4414,7 @@ function planGoalAdapterGoalProof(db, slug, goal, controllerRevision) {
     const core = { schema: 1, kind: 'goal', slug, goalId: goal.id, attempt: goal.attempts,
       controllerRevision, acceptanceSha256: acceptance.row.sha256, acceptanceIdentity: acceptance.identity,
       implementationRunId: implementation.runId, verificationRunId: verification.runId,
-      completionSha256: completionRow.sha256, attestations, humanAcceptance };
+      completionSha256: completionRow.sha256, sivsCompletion, attestations, humanAcceptance };
     const proofDigest = planGoalAdapterProofDigest(core);
     const proofId = sha256(canonicalJson(['qe-plan-goal-proof-v1', 'goal', slug, goal.id,
       goal.attempts, controllerRevision, proofDigest]));
@@ -4511,12 +4693,18 @@ export function executePlanGoalTransition(cwd, slug, input) {
     return { ok: false, code: 'INVALID_INPUT', audited: false };
   }
   if (action === 'block' || action === 'fail') {
-    if (keys.join('|') !== 'action|evidence'
-      || !lifecycleBoundedString(input.evidence, 48 * 1024)) {
+    if (!['action|evidence', 'action|evidence|sessionId'].includes(keys.join('|'))
+      || !lifecycleBoundedString(input.evidence, 48 * 1024)
+      || (input.sessionId !== undefined && !MACHINE_SESSION_RE.test(input.sessionId))) {
       return { ok: false, code: 'INVALID_INPUT', audited: false };
     }
-  } else if (keys.join('|') !== 'action') {
+  } else if (!['action', 'action|sessionId'].includes(keys.join('|'))
+    || (input.sessionId !== undefined && !MACHINE_SESSION_RE.test(input.sessionId))) {
     return { ok: false, code: 'INVALID_INPUT', audited: false };
+  }
+  const ownerSession = input.sessionId || readCurrentSessionId(cwd);
+  if (!MACHINE_SESSION_RE.test(ownerSession || '')) {
+    return { ok: false, code: 'SESSION_REQUIRED', audited: false };
   }
   if (!canonicalPlanRoot(cwd)) {
     return { ok: false, code: 'STORE_UNAVAILABLE', audited: false };
@@ -4554,7 +4742,8 @@ export function executePlanGoalTransition(cwd, slug, input) {
       ? 'ADAPTER_STORE_CORRUPT' : 'CANONICAL_STATE_INVALID';
     return { ok: false, code, audited: false };
   }
-  const requestCore = { schema: 1, slug, action, evidence: action === 'block' || action === 'fail' ? input.evidence : '' };
+  const requestCore = { schema: 1, slug, action, ownerSession,
+    evidence: action === 'block' || action === 'fail' ? input.evidence : '' };
   const requestDigest = sha256(canonicalJson(['qe-plan-goal-request-v1', requestCore]));
   let db = canonicalPlanOpenDb(cwd);
   if (!db) return { ok: false, code: 'STORE_UNAVAILABLE', audited: false };
@@ -4606,9 +4795,18 @@ export function executePlanGoalTransition(cwd, slug, input) {
     }
 
     if (action === 'next' && queue.current?.status === 'active') {
+      if (!queue.current.executionOwnerSession) {
+        db.exec('COMMIT');
+        return { ok: false, code: 'GOAL_OWNER_MISSING', audited: false };
+      }
+      if (queue.current.executionOwnerSession !== ownerSession) {
+        db.exec('COMMIT');
+        return { ok: false, code: 'GOAL_OWNED_BY_OTHER_SESSION', audited: false };
+      }
       db.exec('COMMIT');
       return { ok: true, code: 'CONTINUE', audited: false, action: 'next',
-        goal: { id: queue.current.id, status: queue.current.status, attempts: queue.current.attempts } };
+        goal: { id: queue.current.id, status: queue.current.status, attempts: queue.current.attempts,
+          executionOwnerSession: queue.current.executionOwnerSession } };
     }
     if (action === 'next' && queue.current?.status === 'blocked') {
       db.exec('COMMIT');
@@ -4648,6 +4846,18 @@ export function executePlanGoalTransition(cwd, slug, input) {
       db.exec('COMMIT');
       return { ok: false, code: 'NO_ACTIVE_GOAL', audited: false };
     }
+    if (action !== 'next' && !bootstrapOnly) {
+      if (!goal.executionOwnerSession) {
+        if (action === 'complete') {
+          db.exec('COMMIT');
+          return { ok: false, code: 'GOAL_OWNER_MISSING', audited: false };
+        }
+      }
+      if (goal.executionOwnerSession && goal.executionOwnerSession !== ownerSession) {
+        db.exec('COMMIT');
+        return { ok: false, code: 'GOAL_OWNED_BY_OTHER_SESSION', audited: false };
+      }
+    }
     if (action === 'next' && !bootstrapOnly && !['pending', 'failed'].includes(goal.status)) {
       throw new Error('CANONICAL_STATE_INVALID');
     }
@@ -4665,10 +4875,14 @@ export function executePlanGoalTransition(cwd, slug, input) {
     }
     catch { throw new Error('CONTROLLER_STATE_CONFLICT'); }
     const goalProof = action === 'complete' || bootstrapOnly
-      ? planGoalAdapterGoalProof(db, slug, goal, controllerRevision) : null;
+      ? planGoalAdapterGoalProof(cwd, db, slug, goal, controllerRevision) : null;
     if ((action === 'complete' || bootstrapOnly) && goalProof) actionEvidence = goalProof.proofRef;
     const acceptanceSnapshot = planGoalAdapterAcceptanceSnapshot(db, slug, goal);
-    const acceptance = action === 'next' ? acceptanceSnapshot.acceptance : { valid: true };
+    let acceptance = action === 'next' ? acceptanceSnapshot.acceptance : { valid: true };
+    if (action === 'next' && acceptance) {
+      try { validateGoalDependencies(rows.doc, goal, acceptance.contract, { requireComplete: true }); }
+      catch { acceptance = null; }
+    }
     const evidenceSnapshot = planGoalAdapterEvidenceSnapshot(db, slug, goal.id, goal.attempts);
     const evidenceDigest = action === 'next'
       ? acceptanceSnapshot.digest
@@ -4687,7 +4901,7 @@ export function executePlanGoalTransition(cwd, slug, input) {
           .get(`qe-plan:${slug}:goal:${item.id}`) : null;
       let revision = 1;
       try { if (stateRow) revision = Math.max(1, JSON.parse(stateRow.snapshot_json).revision - 1); } catch {}
-      const proof = planGoalAdapterGoalProof(db, slug, item, revision);
+      const proof = planGoalAdapterGoalProof(cwd, db, slug, item, revision);
       if (!proof) { bootstrapEvidenceComplete = false; break; }
       bootstrapGoalProofs.push(proof);
     }
@@ -4705,7 +4919,7 @@ export function executePlanGoalTransition(cwd, slug, input) {
         let revision = 1;
         try { if (stateRow) revision = JSON.parse(stateRow.snapshot_json).revision; } catch {}
         const peerProof = bootstrapGoalProofs.find(proof => proof.proof.goalId === item.id)
-          || planGoalAdapterGoalProof(db, slug, item, revision);
+          || planGoalAdapterGoalProof(cwd, db, slug, item, revision);
         if (!peerProof) { aggregateGoalProofs.length = 0; break; }
         aggregateGoalProofs.push(peerProof);
       }
@@ -4785,7 +4999,7 @@ export function executePlanGoalTransition(cwd, slug, input) {
       : []);
     const bootstrapContext = { goals: bootstrapGoals, planSnapshotCore, planSnapshotDigest,
       planProofDigest, existingBootstraps, authorizedRequestIds };
-    let semanticKey = sha256(canonicalJson(['qe-plan-goal-adapter-v2', slug, action, goal.id,
+    let semanticKey = sha256(canonicalJson(['qe-plan-goal-adapter-v2', slug, action, goal.id, ownerSession,
       goal.attempts, goalRevision, planRevision, rows.baseHashes, evidenceDigest,
       goalProofDigest, planProofDigest, debt.liabilityDigest, debt.authorityDigest]));
     let reservationId = sha256(canonicalJson(['qe-plan-goal-reservation-v1', slug, semanticKey,
@@ -4908,7 +5122,7 @@ export function executePlanGoalTransition(cwd, slug, input) {
       }
       eventAt = stored.eventAt;
     }
-    const intent = { schema: 1, slug, semanticKey, reservationId, operationId, action,
+    const intent = { schema: 1, slug, semanticKey, reservationId, operationId, action, ownerSession,
       goalId: goal.id, requestDigest, baseHashes: rows.baseHashes, evidenceSnapshot, evidenceDigest, debt,
       goalProofDigest, planProofDigest, generation, carryFromReceiptId, carriedHeadSnapshots,
       ownerPid: process.pid, eventAt };
@@ -5005,7 +5219,7 @@ export function executePlanGoalTransition(cwd, slug, input) {
     canonicalPlanCommit(db);
     planGoalAdapterFault('intent-committed');
     planGoalAdapterFault('proof-ready');
-    prepared = { rows, goal, action, semanticKey, reservationId, operationId, eventAt, requestDigest,
+    prepared = { rows, goal, action, ownerSession, semanticKey, reservationId, operationId, eventAt, requestDigest,
       evidenceDigest, debt, includePlan: action === 'next' && !planActive,
       targetStatus, eventName, actionEvidence, goalProof, goalProofDigest, planProofDigest,
       completePlan, planAttestations, planProof, generation, carryFromReceiptId, carriedHeadSnapshots,
@@ -5253,7 +5467,12 @@ export function executePlanGoalTransition(cwd, slug, input) {
     const targetDoc = JSON.parse(JSON.stringify(current.doc));
     const targetGoal = targetDoc.goals.find(item => item.id === prepared.goal.id);
     targetGoal.status = prepared.targetStatus;
-    if (action === 'next') targetGoal.attempts += 1;
+    if (action === 'next') {
+      targetGoal.attempts += 1;
+      targetGoal.executionOwnerSession = prepared.ownerSession;
+    } else if (!targetGoal.executionOwnerSession) {
+      targetGoal.executionOwnerSession = prepared.ownerSession;
+    }
     planGoalAdapterQueue(targetDoc);
     const targetGoalsText = canonicalPlanSerializeJson(targetDoc);
     const targetStateText = projectionRenderState(current.state.content, targetDoc);
@@ -6445,7 +6664,9 @@ function main() {
     else if (cmd === 'set-acceptance') res = setGoalAcceptance(cwd, slug, { goalId: args['goal-id'], file: args.file });
     else if (cmd === 'record-evidence') res = recordGoalEvidence(cwd, slug, { goalId: args['goal-id'], file: args.file });
     else if (cmd === 'run-evidence') res = runGoalEvidence(cwd, slug, { goalId: args['goal-id'], role: args.role, verifier: args.verifier, sessionId: args.session });
-    else if (cmd === 'advance') res = advanceGoal(cwd, slug, { action: args.action, evidence: args.evidence });
+    else if (cmd === 'advance') res = advanceGoal(cwd, slug, {
+      action: args.action, evidence: args.evidence, sessionId: args.session,
+    });
     else if (cmd === 'stage-projection') res = stageLifecycleProjection(cwd, slug, {
       operationId: args['operation-id'], recipe: JSON.parse(readFileSync(args.file, 'utf8')),
     });

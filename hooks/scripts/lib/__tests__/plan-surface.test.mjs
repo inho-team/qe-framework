@@ -14,7 +14,7 @@ test('public QE skill metadata matches the supported command surface', () => {
     .filter((name) => readFileSync(join(skillsDir, name, 'SKILL.md'), 'utf8').includes('user_invocable: true'))
     .sort();
   assert.deepEqual(publicSkills, [
-    'Qcommit', 'Qcompact', 'Qcritical-review', 'Qgoal',
-    'Qplan', 'Qresume', 'Qupdate', 'Qversion',
+    'Qcc-setup', 'Qcommit', 'Qcompact', 'Qcritical-review', 'Qdashboard',
+    'Qgoal', 'Qplan', 'Qresume', 'Qupdate', 'Qversion',
   ]);
 });

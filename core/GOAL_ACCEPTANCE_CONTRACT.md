@@ -53,7 +53,11 @@ exact machine-validated declaration:
 This is an admission request, not proof. `set-acceptance` rejects caller-supplied
 provenance, validates the request, and stores a ledger-issued admission containing
 `issuedBy: "qe-ledger"`, `authority: "plan-controller"`, the current full QE
-session ID, and a digest-bound `admissionId`.
+session ID, a Git working-tree `scopeBaseline`, and a digest-bound `admissionId`.
+Bounded-micro admission is unavailable outside a Git worktree. At evidence record
+and final completion, QE compares the current tracked, staged, and untracked
+working-tree fingerprints with the sealed baseline; any new change outside
+`allowedPaths` blocks completion.
 
 The ledger rejects this lane unless it has 1–2 work items, at most three
 allowed paths, risk category `none`, no required human acceptance, and the
@@ -72,9 +76,11 @@ Every scenario is a `user-journey`, not merely a low-level test description.
 
 The runner classifies `npm run qe:validate` and `node scripts/check-all.mjs` as
 **structural evidence**. They establish configuration and repository invariants,
-but do not by themselves prove changed runtime behavior. Any contract whose
-`allowedPaths` includes a code file must also lock at least one focused
-`node --test <path>` command as **behavioral evidence**.
+but do not by themselves prove changed runtime behavior. Behavioral evidence may
+use a closed recognized runner family: `node --test`, npm/pnpm/yarn test scripts,
+pytest, `go test`, `cargo test`, `dotnet test`, Gradle, Maven, or RSpec. Shell
+composition and redirection remain forbidden. A code-changing contract must lock
+at least one such behavioral command.
 
 ## Goal size gate
 
@@ -110,10 +116,10 @@ acceptance is required, record a completed UAR or equivalent inspectable proof.
 }
 ```
 
-Every requirement and scenario must declare a closed-world runnable command:
-`npm run qe:validate`, `node scripts/check-all.mjs`, or `node --test <path>`.
-For code-changing Goals, the command set must contain `node --test <path>`;
-structural checks remain regression evidence rather than behavioral proof.
+Every requirement and scenario must declare either a canonical structural command
+or one command from the recognized behavioral runner families above. For
+code-changing Goals, the command set must contain behavioral evidence; structural
+checks remain regression evidence rather than behavioral proof.
 Run `ledger.mjs run-evidence` once with `--role implementation`, then again
 from a different QE session with `--role verification --verifier {fresh reviewer
 identity}`. The ledger captures the session ID, exit status, and an output hash;
@@ -125,6 +131,12 @@ cryptographic identity proof.
 Concurrent runners should pass their own full UUID with `--session {uuid}`.
 This avoids attributing evidence through the project-global current-session
 pointer, which another live session may update while commands are running.
+The same rule applies to `ledger.mjs advance`. The first successful `next`
+stores `executionOwnerSession` on the Goal. Until that Goal reaches a terminal
+state, only the owner may continue it or issue block, fail, and complete
+transitions. Implementation workers may execute locked commands on behalf of
+the owner, while verification must still use a session distinct from the
+implementation evidence session.
 
 The independent verifier must additionally issue the `goalAlignment` verdict.
 Its verifier identity must match `independentVerification.verifier`, and it must

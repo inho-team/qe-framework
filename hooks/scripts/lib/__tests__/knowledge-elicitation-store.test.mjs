@@ -6,6 +6,7 @@ import { join } from 'node:path';
 import { createIntake, issueNextBatch, pauseIntake } from '../knowledge-elicitation.mjs';
 import {
   IntakeStoreError, initializeIntakeRecord, mutateIntakeRecord, readIntakeRecord,
+  transferIntakeOwnership,
 } from '../knowledge-elicitation-store.mjs';
 import { loadSqliteModule } from '../store-sqlite.mjs';
 
@@ -65,6 +66,42 @@ test('stale revision and competing owner preserve prior bytes', () => {
     ownerSession: OTHER, expectedRevision: 1, transition: pauseIntake,
   }), (error) => error.code === 'INTAKE_STORE_OWNER_CONFLICT');
   assert.equal(rowBytes(cwd), before);
+});
+
+test('explicit CAS transfer lets a replacement session resume without impersonating the old owner', () => {
+  const cwd = project();
+  initializeIntakeRecord(cwd, 'demo', OWNER, createIntake({ inventory: [question] }));
+  const transferred = transferIntakeOwnership(cwd, 'demo', {
+    previousOwnerSession: OWNER, nextOwnerSession: OTHER, expectedRevision: 1,
+  });
+  assert.equal(transferred.record.ownerSession, OTHER);
+  assert.equal(transferred.record.revision, 2);
+  assert.deepEqual(transferred.record.ownershipHistory, [{
+    fromSession: OWNER, toSession: OTHER, atRevision: 2,
+  }]);
+  assert.throws(() => mutateIntakeRecord(cwd, 'demo', {
+    ownerSession: OWNER, expectedRevision: 2, transition: pauseIntake,
+  }), (error) => error.code === 'INTAKE_STORE_OWNER_CONFLICT');
+  const resumed = mutateIntakeRecord(cwd, 'demo', {
+    ownerSession: OTHER, expectedRevision: 2, transition: pauseIntake,
+  });
+  assert.equal(resumed.record.intake.status, 'paused');
+});
+
+test('ownership transfer fails closed on stale owner, stale revision, same owner, and terminal intake', () => {
+  for (const variant of ['owner', 'revision', 'same', 'terminal']) {
+    const cwd = project();
+    const state = JSON.parse(JSON.stringify(createIntake({ inventory: [question] })));
+    if (variant === 'terminal') state.status = 'blocked';
+    initializeIntakeRecord(cwd, 'demo', OWNER, state);
+    const before = rowBytes(cwd);
+    assert.throws(() => transferIntakeOwnership(cwd, 'demo', {
+      previousOwnerSession: variant === 'owner' ? OTHER : OWNER,
+      nextOwnerSession: variant === 'same' ? OWNER : OTHER,
+      expectedRevision: variant === 'revision' ? 2 : 1,
+    }), (error) => error instanceof IntakeStoreError);
+    assert.equal(rowBytes(cwd), before);
+  }
 });
 
 test('rejects history rewrite and unsafe identifiers without changing bytes', () => {

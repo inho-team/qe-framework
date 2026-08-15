@@ -107,6 +107,30 @@ ok('expired marker plus existing UUID artifact passes', () => {
   writeFileSync(join(root, '.qe', 'tasks', 'in-progress', 'TASK_REQUEST_deadbeef.md'), 'task');
   expectPass(root, 'Qexecute', { args: 'deadbeef' });
 });
+ok('expired marker plus session-bound active Plan passes', () => {
+  const root = fixtureRoot();
+  writeJson(root, '.qe/state/unified-state.json', { goalRuntime: { version: 1,
+    entries: [marker('fixture-session', { expiresAt: NOW - 1 })] } });
+  writeJson(root, '.qe/planning/.sessions/fixtures.json', { activePlanSlug: 'long-plan' });
+  writeJson(root, '.qe/planning/plans/long-plan/goals.json', { schema: 1, planSlug: 'long-plan', goals: [{
+    id: 'G001', status: 'active', acceptance: { status: 'defined', hash: 'a'.repeat(64) },
+  }] });
+  expectPass(root, 'Qgenerate-spec');
+});
+ok('session-bound Plan does not admit a different session or a non-active Goal', () => {
+  const other = fixtureRoot();
+  writeJson(other, '.qe/planning/.sessions/otherses.json', { activePlanSlug: 'long-plan' });
+  writeJson(other, '.qe/planning/plans/long-plan/goals.json', { schema: 1, planSlug: 'long-plan', goals: [{
+    id: 'G001', status: 'active', acceptance: { status: 'defined', hash: 'a'.repeat(64) },
+  }] });
+  expectBlock(other, 'Qgenerate-spec');
+  const pending = fixtureRoot();
+  writeJson(pending, '.qe/planning/.sessions/fixtures.json', { activePlanSlug: 'long-plan' });
+  writeJson(pending, '.qe/planning/plans/long-plan/goals.json', { schema: 1, planSlug: 'long-plan', goals: [{
+    id: 'G001', status: 'pending', acceptance: { status: 'defined', hash: 'a'.repeat(64) },
+  }] });
+  expectBlock(pending, 'Qgenerate-spec');
+});
 ok('UUID any-match passes and longer hex run does not', () => {
   const root = fixtureRoot();
   mkdirSync(join(root, '.qe', 'tasks', 'pending'), { recursive: true });
