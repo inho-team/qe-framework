@@ -252,9 +252,10 @@ export function takeoverGoalOwnership(cwd, { slug, sessionId, previousSessionId,
       && goal.ownershipTransfer?.previousSessionId === previousSessionId
       && goal.ownershipTransfer?.sessionId === sessionId
       && goal.ownershipTransfer?.reasonHash === reasonHash) {
+      const changedPaths = bindInTransaction(db, slug, sessionId, paths);
       db.exec('COMMIT');
       return { ok: true, code: 'PLAN_GOAL_TAKEOVER_REPLAYED', slug, goalId: goal.id,
-        previousSessionId, sessionId, changedPaths: [] };
+        previousSessionId, sessionId, changedPaths };
     }
     if (goal.executionOwnerSession !== previousSessionId) {
       fail('PLAN_GOAL_OWNER_CONFLICT', 'active Goal owner no longer matches --previous-session');

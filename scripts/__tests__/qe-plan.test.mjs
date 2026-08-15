@@ -140,9 +140,15 @@ test('takeover atomically transfers an active Goal with explicit CAS evidence an
     assert.equal(JSON.parse(stored[`.qe/planning/.sessions/${OTHER_SESSION}.json`]).activePlanSlug, 'takeover-plan');
     assert.match(stored['.qe/planning/plans/takeover-plan/ledger.jsonl'], /ownership-takeover/);
 
+    const damaged = openSqlite(cwd);
+    damaged.prepare('DELETE FROM qe_files WHERE path=?')
+      .run(`.qe/planning/.sessions/${OTHER_SESSION}.json`);
+    closeSqlite(damaged);
     const replay = runPlanCli(['takeover', '--slug', 'takeover-plan', '--session', OTHER_SESSION,
       '--previous-session', SESSION, '--reason', 'previous process terminated before handoff'], cwd);
     assert.equal(replay.code, 'PLAN_GOAL_TAKEOVER_REPLAYED');
+    assert.equal(JSON.parse(rows(cwd)[`.qe/planning/.sessions/${OTHER_SESSION}.json`]).activePlanSlug,
+      'takeover-plan');
     assert.throws(() => runPlanCli(['takeover', '--slug', 'takeover-plan', '--session', SESSION,
       '--previous-session', '33333333-3333-4333-8333-333333333333', '--reason', 'stale guess'], cwd),
     error => error.code === 'PLAN_GOAL_OWNER_CONFLICT');
