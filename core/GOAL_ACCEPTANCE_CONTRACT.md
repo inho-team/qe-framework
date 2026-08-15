@@ -10,25 +10,31 @@ Save this JSON as `.qe/planning/plans/{slug}/evidence/{goalId}.acceptance.json`.
 
 ```json
 {
-  "schema": 1,
+  "schema": 2,
   "goalId": "G001",
   "goalShape": {
-    "primaryOutcome": "A user can complete one named primary flow.",
-    "completionMetric": "The primary user-journey test exits successfully.",
+    "outcomes": [
+      {
+        "id": "O001",
+        "statement": "A user can complete one named primary flow.",
+        "completionMetric": "The primary user-journey test exits successfully."
+      }
+    ],
     "allowedPaths": ["src/feature.mjs", "test/feature.test.mjs"],
     "nonGoals": ["No unrelated UI, migration, deployment, or documentation redesign."],
     "dependencies": []
   },
   "requirements": [
-    { "id": "R001", "criterion": "The user can complete the requested action.", "command": "node --test test/user-flow.test.mjs" }
+    { "id": "R001", "outcomeId": "O001", "criterion": "The user can complete the requested action.", "command": "node --test test/user-flow.test.mjs" }
   ],
   "scenarios": [
-    { "id": "S001", "kind": "user-journey", "scenario": "A user follows the primary flow.", "expected": "The requested result is observable.", "command": "node --test test/user-flow.test.mjs" }
+    { "id": "S001", "outcomeId": "O001", "kind": "user-journey", "scenario": "A user follows the primary flow.", "expected": "The requested result is observable.", "command": "node --test test/user-flow.test.mjs" }
   ],
-  "regression": { "scope": "Affected existing behavior", "command": "npm run qe:validate" },
+  "regression": { "outcomeId": "O001", "scope": "Affected existing behavior", "command": "npm run qe:validate" },
   "humanAcceptance": { "required": false },
   "goalAlignment": {
     "objective": "The exact, verbatim Goal objective from goals.json.",
+    "outcomeId": "O001",
     "rationale": "R001 and S001 together demonstrate that objective."
   },
   "riskAssessment": {
@@ -37,6 +43,16 @@ Save this JSON as `.qe/planning/plans/{slug}/evidence/{goalId}.acceptance.json`.
   }
 }
 ```
+
+New contracts must use schema 2. `goalShape.outcomes` must contain exactly one
+`O001`-shaped outcome, and every requirement, user journey, regression, and
+alignment declaration must carry that same `outcomeId`. This is a structural
+split gate: a second independently verifiable result requires a second Goal,
+not a second outcome in the same contract.
+
+Stored schema 1 contracts are resume-only compatibility artifacts. QE continues
+to validate their immutable hash, run evidence, and completion path, but
+`set-acceptance` never creates or replaces a contract with schema 1.
 
 Formal Goals omit `assurance`. A Qplan-admitted bounded micro Goal adds this
 exact machine-validated declaration:
@@ -85,10 +101,11 @@ at least one such behavioral command.
 ## Goal size gate
 
 A Goal represents **one user-visible outcome**, not a feature area or Phase.
-The ledger rejects a contract unless it has a `goalShape` with 1–5 relative
-`allowedPaths`, one primary outcome and completion metric, explicit `nonGoals`,
-and declared dependencies. It also permits at most three requirements and two
-user journeys. Split anything broader into ordered Goals before starting it.
+The ledger rejects a new contract unless it has a `goalShape` with 1–5 relative
+`allowedPaths`, exactly one structured outcome and completion metric, explicit
+`nonGoals`, and declared dependencies. Every acceptance assertion must map to
+that outcome. It also permits at most three requirements and two user journeys.
+Split anything broader into ordered Goals before starting it.
 
 `riskAssessment.categories` is one or more of `none`, `authentication`,
 `authorization`, `payment`, `deployment`, `data-migration`,
@@ -110,7 +127,7 @@ acceptance is required, record a completed UAR or equivalent inspectable proof.
   "scenarios": [{ "id": "S001", "outcome": "pass", "evidence": "Executed user-flow evidence" }],
   "regression": { "outcome": "pass", "evidence": "Fresh regression command and result" },
   "independentVerification": { "verifier": "fresh reviewer", "mode": "machine-reexecution", "outcome": "pass", "evidence": "Separate machine re-execution record" },
-  "goalAlignment": { "objective": "The exact, verbatim Goal objective from goals.json.", "verifier": "fresh reviewer", "outcome": "pass", "evidence": "The independent verifier mapped every declared result to the unchanged Goal objective." },
+  "goalAlignment": { "objective": "The exact, verbatim Goal objective from goals.json.", "outcomeId": "O001", "verifier": "fresh reviewer", "outcome": "pass", "evidence": "The independent verifier mapped every declared result to the unchanged Goal objective." },
   "humanAcceptance": { "status": "not-required" },
   "limitations": []
 }
@@ -140,6 +157,6 @@ implementation evidence session.
 
 The independent verifier must additionally issue the `goalAlignment` verdict.
 Its verifier identity must match `independentVerification.verifier`, and it must
-name the unchanged Goal objective. This makes a passing command insufficient on
+name the unchanged Goal objective and immutable outcome ID. This makes a passing command insufficient on
 its own: the reviewer must attest that the recorded evidence proves the intended
 user outcome.

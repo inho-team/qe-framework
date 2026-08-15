@@ -3069,6 +3069,7 @@ const MAX_GOAL_SCENARIOS = 2;
 const MAX_GOAL_PATHS = 5;
 const MAX_MICRO_GOAL_PATHS = 3;
 const MAX_MICRO_GOAL_WORK_ITEMS = 2;
+const OUTCOME_ID_RE = /^O[0-9]{3}$/;
 const CODE_PATH_RE = /\.(?:mjs|cjs|js|jsx|ts|tsx|py|go|rs|java|kt|kts|swift|c|cc|cpp|h|hpp|cs|php|rb|sh|bash|zsh|sql|vue|svelte)$/iu;
 const MACHINE_SESSION_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/iu;
 const GOAL_COMMAND_TIMEOUT_MS = 120_000;
@@ -3159,10 +3160,24 @@ function validateMicroScope(cwd, contract) {
  * bounded write surface, and explicit non-goals prevent a broad request from
  * being certified by a shallow set of tests.
  */
-function validateGoalShape(shape) {
+function validateGoalShape(shape, schema) {
   if (!shape || typeof shape !== 'object' || Array.isArray(shape)) throw new Error('acceptance contract requires goalShape');
-  if (!nonEmpty(shape.primaryOutcome) || !nonEmpty(shape.completionMetric)) {
-    throw new Error('goalShape requires one primaryOutcome and one completionMetric');
+  if (schema === 1) {
+    if (!nonEmpty(shape.primaryOutcome) || !nonEmpty(shape.completionMetric)) {
+      throw new Error('legacy goalShape requires one primaryOutcome and one completionMetric');
+    }
+  } else {
+    if (Object.prototype.hasOwnProperty.call(shape, 'primaryOutcome')
+      || Object.prototype.hasOwnProperty.call(shape, 'completionMetric')
+      || !Array.isArray(shape.outcomes) || shape.outcomes.length !== 1) {
+      throw new Error('acceptance v2 goalShape requires exactly one structured outcome');
+    }
+    const outcome = shape.outcomes[0];
+    if (!lifecycleExact(outcome, ['id', 'statement', 'completionMetric'])
+      || !OUTCOME_ID_RE.test(outcome.id) || !nonEmpty(outcome.statement)
+      || !nonEmpty(outcome.completionMetric)) {
+      throw new Error('acceptance v2 outcome requires id O001, statement, and completionMetric');
+    }
   }
   if (!Array.isArray(shape.allowedPaths) || shape.allowedPaths.length === 0 || shape.allowedPaths.length > MAX_GOAL_PATHS ||
       !shape.allowedPaths.every(isBoundedPath) || new Set(shape.allowedPaths).size !== shape.allowedPaths.length) {
@@ -3175,6 +3190,20 @@ function validateGoalShape(shape) {
     throw new Error('goalShape dependencies must be an array of non-empty Goal IDs or []');
   }
   return shape;
+}
+
+function acceptanceOutcomeId(contract) {
+  return contract.schema === 2 ? contract.goalShape.outcomes[0].id : null;
+}
+
+function validateOutcomeBindings(contract) {
+  if (contract.schema !== 2) return;
+  const outcomeId = acceptanceOutcomeId(contract);
+  const mapped = [...contract.requirements, ...contract.scenarios, contract.regression];
+  if (mapped.some(item => item?.outcomeId !== outcomeId)
+    || contract.goalAlignment?.outcomeId !== outcomeId) {
+    throw new Error(`acceptance v2 must map every requirement, scenario, regression, and alignment to ${outcomeId}`);
+  }
 }
 
 function validateGoalDependencies(doc, goal, contract, { requireComplete = false } = {}) {
@@ -3233,6 +3262,9 @@ function validateGoalAssurance(contract) {
 }
 
 function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId, cwd) {
+  if (raw?.schema !== 2) {
+    throw new Error('new acceptance contracts require schema: 2; schema: 1 is resume-only');
+  }
   if (!raw || !Object.prototype.hasOwnProperty.call(raw, 'assurance')) {
     return validateAcceptanceContract(raw, goalId, goalObjective);
   }
@@ -3265,8 +3297,10 @@ function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId, cwd) {
  */
 function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   if (!contract || typeof contract !== 'object' || Array.isArray(contract)) throw new Error('acceptance contract must be an object');
-  if (contract.schema !== 1 || contract.goalId !== goalId) throw new Error(`acceptance contract must declare schema: 1 and goalId: ${goalId}`);
-  validateGoalShape(contract.goalShape);
+  if (![1, 2].includes(contract.schema) || contract.goalId !== goalId) {
+    throw new Error(`acceptance contract must declare schema: 1 or 2 and goalId: ${goalId}`);
+  }
+  validateGoalShape(contract.goalShape, contract.schema);
   if (!Array.isArray(contract.requirements) || contract.requirements.length === 0 || !idsAreUnique(contract.requirements) ||
       !contract.requirements.every(item => nonEmpty(item.criterion) && isGoalRunnerCommand(item.command))) throw new Error('acceptance contract requires uniquely identified requirements with criteria and runnable commands');
   if (contract.requirements.length > MAX_GOAL_REQUIREMENTS) throw new Error(`acceptance contract allows at most ${MAX_GOAL_REQUIREMENTS} requirements; split broad work into Goals`);
@@ -3281,14 +3315,16 @@ function validateAcceptanceContract(contract, goalId, goalObjective = '') {
   if (!contract.goalAlignment || normalizedText(contract.goalAlignment.objective) !== normalizedText(goalObjective) || !nonEmpty(contract.goalAlignment.rationale)) {
     throw new Error('acceptance contract must preserve the Goal objective verbatim and explain requirement/scenario coverage');
   }
+  validateOutcomeBindings(contract);
   const risk = contract.riskAssessment;
   if (!risk || !Array.isArray(risk.categories) || risk.categories.length === 0 || !new Set(risk.categories).size ||
       !risk.categories.every(category => RISK_CATEGORIES.has(category)) ||
       (risk.categories.includes('none') && risk.categories.length !== 1) || !nonEmpty(risk.rationale)) {
     throw new Error('acceptance contract requires a valid risk assessment with categories and rationale');
   }
-  const riskSignalText = [goalObjective, contract.goalShape.primaryOutcome,
-    contract.goalShape.completionMetric, ...contract.goalShape.allowedPaths].join(' ');
+  const outcome = contract.schema === 2 ? contract.goalShape.outcomes[0] : contract.goalShape;
+  const riskSignalText = [goalObjective, outcome.statement ?? outcome.primaryOutcome,
+    outcome.completionMetric, ...contract.goalShape.allowedPaths].join(' ');
   const requiredRisks = detectHighImpactRisks(riskSignalText);
   if (requiredRisks.some(category => !risk.categories.includes(category))) {
     throw new Error(`acceptance contract risk assessment omits detected Goal risk: ${requiredRisks.filter(category => !risk.categories.includes(category)).join(', ')}`);
@@ -3750,6 +3786,9 @@ function validateCompletionEvidence(evidence, contract, goalId, goalObjective = 
   if (!alignment || alignment.outcome !== 'pass' || normalizedText(alignment.objective) !== normalizedText(goalObjective) ||
       alignment.verifier !== independent.verifier || !nonEmpty(alignment.evidence)) {
     throw new Error('completion evidence requires the independent verifier to pass Goal-to-evidence alignment');
+  }
+  if (contract.schema === 2 && alignment.outcomeId !== acceptanceOutcomeId(contract)) {
+    throw new Error('completion evidence alignment must name the immutable acceptance outcome');
   }
   const human = evidence.humanAcceptance;
   if (!human || (contract.humanAcceptance.required ? human.status !== 'passed' || !nonEmpty(human.evidence) : human.status !== 'not-required' && human.status !== 'passed')) {

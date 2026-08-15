@@ -225,6 +225,21 @@ test('buildProcessTrace returns a canonical complete report for a valid syntheti
   assert.equal(result.goalAlignment.status, 'pass');
 });
 
+test('buildProcessTrace preserves the schema 2 single-outcome mapping', () => {
+  const fixture = makeFixture();
+  fixture.acceptance.schema = 2;
+  fixture.acceptance.goalShape = { outcomes: [{ id: 'O001' }] };
+  fixture.acceptance.requirements[0].outcomeId = 'O001';
+  fixture.acceptance.scenarios[0].outcomeId = 'O001';
+  fixture.acceptance.regression.outcomeId = 'O001';
+  fixture.completion.goalAlignment.outcomeId = 'O001';
+  assert.equal(runProcessTrace(fixture).status, 'complete');
+
+  fixture.completion.goalAlignment.outcomeId = 'O999';
+  assertInvalidTraceReport(runProcessTrace(fixture), 'GOAL_ALIGNMENT_MISMATCH',
+    'trace', '$global', 'align-goal');
+});
+
 test('buildProcessTrace marks missing traceability as incomplete relation gaps', () => {
   const result = runProcessTrace(
     makeFixture({

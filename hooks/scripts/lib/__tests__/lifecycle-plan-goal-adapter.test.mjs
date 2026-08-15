@@ -53,19 +53,26 @@ function childResult(source, env) {
 
 function acceptanceFor(goalId, objective) {
   return {
-    schema: 1, goalId,
-    goalShape: { primaryOutcome: `Complete ${goalId}`, completionMetric: `${goalId} is complete`,
+    schema: 2, goalId,
+    goalShape: { outcomes: [{ id: 'O001', statement: `Complete ${goalId}`,
+      completionMetric: `${goalId} is complete` }],
       allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
     assurance: { lane: 'bounded-micro', admissionVersion: 1,
       materialDecisionsResolved: true, workItems: 1 },
-    requirements: [{ id: 'R001', criterion: 'Complete safely', command: 'node --test --help' }],
-    scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Complete', expected: 'Complete', command: 'node --test --help' }],
-    regression: { scope: 'existing behavior', command: 'node --test --help' },
+    requirements: [{ id: 'R001', outcomeId: 'O001', criterion: 'Complete safely', command: 'node --test --help' }],
+    scenarios: [{ id: 'S001', outcomeId: 'O001', kind: 'user-journey', scenario: 'Complete', expected: 'Complete', command: 'node --test --help' }],
+    regression: { outcomeId: 'O001', scope: 'existing behavior', command: 'node --test --help' },
     traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
     humanAcceptance: { required: false },
-    goalAlignment: { objective, rationale: 'The scenario observes completion.' },
+    goalAlignment: { objective, outcomeId: 'O001', rationale: 'The scenario observes completion.' },
     riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
   };
+}
+
+function formalAcceptanceFor(goalId, objective) {
+  const contract = acceptanceFor(goalId, objective);
+  delete contract.assurance;
+  return contract;
 }
 
 function completionFor(goalId, objective, verifier) {
@@ -75,7 +82,7 @@ function completionFor(goalId, objective, verifier) {
     scenarios: [{ id: 'S001', outcome: 'pass', evidence: 'scenario passed' }],
     regression: { outcome: 'pass', evidence: 'regression passed' },
     independentVerification: { verifier, mode: 'machine-reexecution', outcome: 'pass', evidence: 'fresh session passed' },
-    goalAlignment: { objective, verifier, outcome: 'pass', evidence: 'aligned' },
+    goalAlignment: { objective, outcomeId: 'O001', verifier, outcome: 'pass', evidence: 'aligned' },
     humanAcceptance: { status: 'not-required', evidence: '' }, limitations: [],
   };
 }
@@ -158,24 +165,7 @@ test('accepted next bootstraps controllers and atomically projects one Goal acti
       ledger.createGoals(cwd, SLUG, ['First::first objective']);
       ledger.renderState(cwd, SLUG);
       const acceptanceFile = join(cwd, 'G001.acceptance.json');
-      writeFileSync(acceptanceFile, JSON.stringify({
-        schema: 1,
-        goalId: 'G001',
-        goalShape: {
-          primaryOutcome: 'The first Goal starts only through the controller adapter',
-          completionMetric: 'The canonical Goal is active with one attempt',
-          allowedPaths: ['hooks/scripts/lib/ledger.mjs'],
-          nonGoals: ['No release behavior'],
-          dependencies: [],
-        },
-        requirements: [{ id: 'R001', criterion: 'Requested behavior works', command: 'node --test --help' }],
-        scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'A user starts the Goal', expected: 'The Goal is active', command: 'node --test --help' }],
-        regression: { scope: 'existing behavior', command: 'node --test --help' },
-        traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
-        humanAcceptance: { required: false },
-        goalAlignment: { objective: 'first objective', rationale: 'The scenario observes the requested Goal activation.' },
-        riskAssessment: { categories: ['none'], rationale: 'The fixture has no external product risk.' },
-      }), 'utf8');
+      writeFileSync(acceptanceFile, JSON.stringify(formalAcceptanceFor('G001', 'first objective')), 'utf8');
       ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
 
       const projected = ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' });
@@ -428,18 +418,7 @@ test('block then fail follows the controller recovery matrix without changing at
       ledger.createGoals(cwd, SLUG, ['First::first objective']);
       ledger.renderState(cwd, SLUG);
       const acceptanceFile = join(cwd, 'G001.acceptance.json');
-      writeFileSync(acceptanceFile, JSON.stringify({
-        schema: 1, goalId: 'G001',
-        goalShape: { primaryOutcome: 'Start safely', completionMetric: 'Goal becomes active',
-          allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
-        requirements: [{ id: 'R001', criterion: 'Start safely', command: 'node --test --help' }],
-        scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Start', expected: 'Active', command: 'node --test --help' }],
-        regression: { scope: 'existing behavior', command: 'node --test --help' },
-        traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
-        humanAcceptance: { required: false },
-        goalAlignment: { objective: 'first objective', rationale: 'The scenario observes the objective.' },
-        riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
-      }), 'utf8');
+      writeFileSync(acceptanceFile, JSON.stringify(formalAcceptanceFor('G001', 'first objective')), 'utf8');
       ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
       assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).code, 'PROJECTED');
 
@@ -594,20 +573,7 @@ test('complete derives repository proof and closes both Goal and Plan controller
       ledger.createGoals(cwd, SLUG, ['First::first objective']);
       ledger.renderState(cwd, SLUG);
       const acceptanceFile = join(cwd, 'G001.acceptance.json');
-      writeFileSync(acceptanceFile, JSON.stringify({
-        schema: 1, goalId: 'G001',
-        goalShape: { primaryOutcome: 'Complete safely', completionMetric: 'Goal and Plan complete',
-          allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
-        assurance: { lane: 'bounded-micro', admissionVersion: 1,
-          materialDecisionsResolved: true, workItems: 1 },
-        requirements: [{ id: 'R001', criterion: 'Complete safely', command: 'node --test --help' }],
-        scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Complete', expected: 'Complete', command: 'node --test --help' }],
-        regression: { scope: 'existing behavior', command: 'node --test --help' },
-        traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
-        humanAcceptance: { required: false },
-        goalAlignment: { objective: 'first objective', rationale: 'The scenario observes completion.' },
-        riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
-      }), 'utf8');
+      writeFileSync(acceptanceFile, JSON.stringify(acceptanceFor('G001', 'first objective')), 'utf8');
       ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
       assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).code, 'PROJECTED');
       mkdirSync(join(cwd, 'hooks', 'scripts', 'lib'), { recursive: true });
@@ -623,7 +589,7 @@ test('complete derives repository proof and closes both Goal and Plan controller
         scenarios: [{ id: 'S001', outcome: 'pass', evidence: 'scenario passed' }],
         regression: { outcome: 'pass', evidence: 'regression passed' },
         independentVerification: { verifier: 'adapter-independent', mode: 'machine-reexecution', outcome: 'pass', evidence: 'fresh session passed' },
-        goalAlignment: { objective: 'first objective', verifier: 'adapter-independent', outcome: 'pass', evidence: 'aligned' },
+        goalAlignment: { objective: 'first objective', outcomeId: 'O001', verifier: 'adapter-independent', outcome: 'pass', evidence: 'aligned' },
         humanAcceptance: { status: 'not-required', evidence: '' }, limitations: [],
       }), 'utf8');
       ledger.recordGoalEvidence(cwd, SLUG, { goalId: 'G001', file: completionFile });
@@ -832,18 +798,7 @@ test('trustworthy outstanding projection debt is audited and blocks controller e
       ledger.createGoals(cwd, SLUG, ['First::first objective']);
       ledger.renderState(cwd, SLUG);
       const acceptanceFile = join(cwd, 'G001.acceptance.json');
-      writeFileSync(acceptanceFile, JSON.stringify({
-        schema: 1, goalId: 'G001',
-        goalShape: { primaryOutcome: 'Start safely', completionMetric: 'Goal becomes active',
-          allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
-        requirements: [{ id: 'R001', criterion: 'Start safely', command: 'node --test --help' }],
-        scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Start', expected: 'Active', command: 'node --test --help' }],
-        regression: { scope: 'existing behavior', command: 'node --test --help' },
-        traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
-        humanAcceptance: { required: false },
-        goalAlignment: { objective: 'first objective', rationale: 'The scenario observes the objective.' },
-        riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
-      }), 'utf8');
+      writeFileSync(acceptanceFile, JSON.stringify(formalAcceptanceFor('G001', 'first objective')), 'utf8');
       ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
       const operationId = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa';
       const processId = `qe-plan:${SLUG}:goal:G001`;
@@ -969,18 +924,7 @@ test('two-process next race converges to one projection and an immutable replay'
       ledger.createGoals(cwd, SLUG, ['First::first objective']);
       ledger.renderState(cwd, SLUG);
       const acceptanceFile = join(cwd, 'G001.acceptance.json');
-      writeFileSync(acceptanceFile, JSON.stringify({
-        schema: 1, goalId: 'G001',
-        goalShape: { primaryOutcome: 'Start safely', completionMetric: 'Goal becomes active',
-          allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
-        requirements: [{ id: 'R001', criterion: 'Start safely', command: 'node --test --help' }],
-        scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'Start', expected: 'Active', command: 'node --test --help' }],
-        regression: { scope: 'existing behavior', command: 'node --test --help' },
-        traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
-        humanAcceptance: { required: false },
-        goalAlignment: { objective: 'first objective', rationale: 'The scenario observes the objective.' },
-        riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
-      }), 'utf8');
+      writeFileSync(acceptanceFile, JSON.stringify(formalAcceptanceFor('G001', 'first objective')), 'utf8');
       ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile });
       const moduleUrl = new URL('../ledger.mjs', import.meta.url).href;
       const source = `

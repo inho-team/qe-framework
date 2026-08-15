@@ -128,10 +128,19 @@ function captureAcceptance(raw) {
   const requirementsRaw = arrayValues(own(object, 'requirements').value, 1, 3);
   const scenariosRaw = arrayValues(own(object, 'scenarios').value, 1, 2);
   const regressionRaw = captureObject(own(object, 'regression').value);
-  if (schema !== 1) throw new TypeError('invalid schema');
+  if (![1, 2].includes(schema)) throw new TypeError('invalid schema');
+  let outcomeId = null;
+  if (schema === 2) {
+    const goalShape = captureObject(own(object, 'goalShape').value);
+    const outcomes = arrayValues(own(goalShape, 'outcomes').value, 1, 1);
+    const outcome = captureObject(outcomes[0]);
+    outcomeId = id(own(outcome, 'id').value);
+    if (!/^O[0-9]{3}$/.test(outcomeId)) throw new TypeError('invalid outcome id');
+  }
 
   const requirements = requirementsRaw.map((entry) => {
     const item = captureObject(entry);
+    if (schema === 2 && own(item, 'outcomeId').value !== outcomeId) throw new TypeError('invalid requirement outcome');
     return {
       id: id(own(item, 'id').value),
       criterion: string(own(item, 'criterion').value, 512),
@@ -140,6 +149,7 @@ function captureAcceptance(raw) {
   });
   const scenarios = scenariosRaw.map((entry) => {
     const item = captureObject(entry);
+    if (schema === 2 && own(item, 'outcomeId').value !== outcomeId) throw new TypeError('invalid scenario outcome');
     const kind = own(item, 'kind').value;
     if (kind !== 'user-journey') throw new TypeError('invalid scenario kind');
     return {
@@ -154,6 +164,7 @@ function captureAcceptance(raw) {
     scope: string(own(regressionRaw, 'scope').value, 512),
     command: string(own(regressionRaw, 'command').value, 512, { command: true }),
   };
+  if (schema === 2 && own(regressionRaw, 'outcomeId').value !== outcomeId) throw new TypeError('invalid regression outcome');
   if (new Set(requirements.map((item) => item.id)).size !== requirements.length) {
     throw new TypeError('duplicate requirement id');
   }
@@ -164,7 +175,7 @@ function captureAcceptance(raw) {
   const traceProperty = own(object, 'traceability', true);
   let traceability = null;
   if (traceProperty.present) traceability = captureRelations(traceProperty.value);
-  return { schema, goalId, requirements, scenarios, regression, traceability };
+  return { schema, goalId, outcomeId, requirements, scenarios, regression, traceability };
 }
 
 function captureRelations(raw) {
@@ -289,6 +300,8 @@ function captureGlobalVerdict(raw, type) {
   }
   return {
     objective: string(own(object, 'objective').value, 512, { nonblank: false }),
+    outcomeId: own(object, 'outcomeId', true).present
+      ? string(own(object, 'outcomeId').value, 64, { nonblank: false }) : null,
     verifier: string(own(object, 'verifier').value, 128, { nonblank: false }),
     outcome: string(own(object, 'outcome').value, 32, { nonblank: false }),
     evidence: string(own(object, 'evidence').value, 2048, { nonblank: false }),
@@ -509,6 +522,7 @@ export function buildProcessTrace(rawInput) {
     if (alignmentPass && (
       collapsed(alignment.objective) !== collapsed(goal.objective)
       || (independentPass && alignment.verifier !== independent.verifier)
+      || (acceptance.outcomeId && alignment.outcomeId !== acceptance.outcomeId)
     )) {
       return invalidReport('GOAL_ALIGNMENT_MISMATCH');
     }

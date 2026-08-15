@@ -111,13 +111,16 @@ must not duplicate its questions, counters, or transitions.
    `core/GOAL_ACCEPTANCE_CONTRACT.md`; the ledger replaces it with a session-
    and digest-bound plan-controller admission. Otherwise omit `assurance` and
    use the formal lane. Then define the pre-execution acceptance contract from
-   `core/GOAL_ACCEPTANCE_CONTRACT.md`: verbatim Goal alignment, requirement criteria,
+   `core/GOAL_ACCEPTANCE_CONTRACT.md`: schema 2 with exactly one structured outcome,
+   the same `outcomeId` on every requirement, journey, regression, and alignment,
+   verbatim Goal alignment, requirement criteria,
    at least one runnable user-journey scenario, a regression command, risk assessment,
    and whether human acceptance is required. High-impact risk categories (authentication,
    authorization, payment, deployment, data migration, destructive data changes, external
    integrations, or security) require human acceptance.
    Save it as `evidence/{goalId}.acceptance.json`, then run
    `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
+   Stored schema 1 contracts may resume, but never create a new schema 1 contract.
    Do not let tests or implementation retrospectively define what success means.
 6. On resume, run `node scripts/qe-plan.mjs bind --slug {slug} --session {full UUID}`.
 7. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit

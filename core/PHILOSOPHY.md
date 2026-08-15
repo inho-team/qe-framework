@@ -312,7 +312,9 @@ review fan-out. The canonical criteria and escalation rule live in
 `skills/Qplan/SKILL.md`; Qexecute only consumes the Plan-owned handoff.
 
 Independent final verification, locked regression evidence, TDD when applicable,
-and Goal alignment remain mandatory. Any scope growth, high-impact risk, or
+and Goal alignment remain mandatory. New acceptance schema 2 contracts bind
+every criterion, journey, regression, and final alignment to one immutable
+outcome ID; existing schema 1 contracts are resume-only. Any scope growth, high-impact risk, or
 verification failure blocks the immutable micro Goal and creates a linked formal
 successor Plan/Goal with a fresh acceptance contract.
 

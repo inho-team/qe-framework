@@ -1442,7 +1442,7 @@ export function createProcessControllerStore(cwd, options = {}) {
     if (Object.entries(rows).some(([key, row]) => !['completion', 'goal'].includes(key) && !row.ok)) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     const acceptance = parseJson(rows.acceptance.text);
     if (!acceptance || rows.acceptance.text !== `${JSON.stringify(acceptance, null, 2)}\n`
-      || acceptance.schema !== 1 || acceptance.goalId !== p.goalId) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
+      || ![1, 2].includes(acceptance.schema) || acceptance.goalId !== p.goalId) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     const cover = (source, actual) => Array.isArray(source) && Array.isArray(actual)
       && new Set(actual.map(item => item?.id)).size === actual.length
       && source.every(item => actual.filter(value => value?.id === item.id && value.outcome === 'pass'
@@ -1454,7 +1454,11 @@ export function createProcessControllerStore(cwd, options = {}) {
       || completion.goalAlignment?.outcome !== 'pass'
       || completion.goalAlignment?.verifier !== completion.independentVerification.verifier
       || String(completion.goalAlignment?.objective || '').replace(/\s+/g, ' ').trim()
-        !== String(goal.objective || '').replace(/\s+/g, ' ').trim()) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
+        !== String(goal.objective || '').replace(/\s+/g, ' ').trim()
+      || (acceptance.schema === 2
+        && completion.goalAlignment?.outcomeId !== acceptance.goalShape?.outcomes?.[0]?.id)) {
+      return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
+    }
     const impl = runValue(rows.implementation, p.planSlug, p.goalId, 'implementation');
     const verify = runValue(rows.verification, p.planSlug, p.goalId, 'verification');
     if (!impl || !verify || !impl.run.passed || !verify.run.passed || impl.run.sessionId === verify.run.sessionId

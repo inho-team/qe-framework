@@ -83,16 +83,17 @@ test('projection debt APIs are exported and quarantine blocks completion', { con
       ledger.renderState(cwd, SLUG);
       const acceptanceFile = join(cwd, 'G001.acceptance.json');
       writeFileSync(acceptanceFile, JSON.stringify({
-        schema: 1,
+        schema: 2,
         goalId: 'G001',
-        goalShape: { primaryOutcome: 'Complete safely', completionMetric: 'Goal completion remains debt-gated',
+        goalShape: { outcomes: [{ id: 'O001', statement: 'Complete safely',
+          completionMetric: 'Goal completion remains debt-gated' }],
           allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['No release'], dependencies: [] },
-        requirements: [{ id: 'R001', criterion: 'Requested behavior works', command: 'node --test --help' }],
-        scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
-        regression: { scope: 'existing behavior', command: 'node --test --help' },
+        requirements: [{ id: 'R001', outcomeId: 'O001', criterion: 'Requested behavior works', command: 'node --test --help' }],
+        scenarios: [{ id: 'S001', outcomeId: 'O001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
+        regression: { outcomeId: 'O001', scope: 'existing behavior', command: 'node --test --help' },
         traceability: [{ requirementId: 'R001', scenarioIds: ['S001'] }],
         humanAcceptance: { required: false },
-        goalAlignment: { objective: 'first objective', rationale: 'The scenario observes the objective.' },
+        goalAlignment: { objective: 'first objective', outcomeId: 'O001', rationale: 'The scenario observes the objective.' },
         riskAssessment: { categories: ['none'], rationale: 'Fixture only.' },
       }), 'utf8');
       assert.equal(ledger.setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: acceptanceFile }).acceptance.status, 'defined');
@@ -148,7 +149,7 @@ test('projection debt APIs are exported and quarantine blocks completion', { con
         scenarios: [{ id: 'S001', outcome: 'pass', evidence: 'primary user flow executed successfully' }],
         regression: { outcome: 'pass', evidence: 'node --test passed' },
         independentVerification: { verifier: 'fresh reviewer', mode: 'machine-reexecution', outcome: 'pass', evidence: 'machine reran the locked acceptance commands' },
-        goalAlignment: { objective: 'first objective', verifier: 'fresh reviewer', outcome: 'pass', evidence: 'The independent verifier confirmed each result covers the unchanged Goal objective.' },
+        goalAlignment: { objective: 'first objective', outcomeId: 'O001', verifier: 'fresh reviewer', outcome: 'pass', evidence: 'The independent verifier confirmed each result covers the unchanged Goal objective.' },
         humanAcceptance: { status: 'not-required' },
         limitations: [],
       }), 'utf8');

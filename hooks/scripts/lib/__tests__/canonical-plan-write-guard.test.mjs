@@ -31,24 +31,28 @@ function spawnNode(source, env) {
   });
 }
 
-function defineAcceptance(cwd) {
-  const contract = {
-    schema: 1,
+function acceptanceContract() {
+  return {
+    schema: 2,
     goalId: 'G001',
     goalShape: {
-      primaryOutcome: 'first objective',
-      completionMetric: 'node --test --help passes',
+      outcomes: [{ id: 'O001', statement: 'first objective',
+        completionMetric: 'node --test --help passes' }],
       allowedPaths: ['hooks/scripts/lib/ledger.mjs'],
       nonGoals: ['no extra scope'],
       dependencies: [],
     },
-    requirements: [{ id: 'R001', criterion: 'runs', command: 'node --test --help' }],
-    scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'a user runs the goal', expected: 'evidence is recorded', command: 'node --test --help' }],
-    regression: { scope: 'ledger evidence', command: 'node --test --help' },
+    requirements: [{ id: 'R001', outcomeId: 'O001', criterion: 'runs', command: 'node --test --help' }],
+    scenarios: [{ id: 'S001', outcomeId: 'O001', kind: 'user-journey', scenario: 'a user runs the goal', expected: 'evidence is recorded', command: 'node --test --help' }],
+    regression: { outcomeId: 'O001', scope: 'ledger evidence', command: 'node --test --help' },
     humanAcceptance: { required: false },
-    goalAlignment: { objective: 'first objective', rationale: 'keeps the objective stable' },
+    goalAlignment: { objective: 'first objective', outcomeId: 'O001', rationale: 'keeps the objective stable' },
     riskAssessment: { categories: ['none'], rationale: 'no added risk' },
   };
+}
+
+function defineAcceptance(cwd) {
+  const contract = acceptanceContract();
   const file = join(cwd, 'acceptance.json');
   writeFileSync(file, JSON.stringify(contract), 'utf8');
   setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file });
@@ -61,7 +65,7 @@ test('run evidence reruns create a new generation and archive the prior current 
     process.env.QE_ROOT = cwd;
     createGoals(cwd, SLUG, ['First::first objective']);
     defineAcceptance(cwd);
-    advanceGoal(cwd, SLUG);
+    advanceGoal(cwd, SLUG, { sessionId: '11111111-1111-4111-8111-111111111111' });
 
     const first = runGoalEvidence(cwd, SLUG, {
       goalId: 'G001',
@@ -163,23 +167,7 @@ test('recordEvent rejects accessor-backed records before JSONL append', () => {
 test('canonical root plan writes goals, ledger, state, and evidence identities inside one DB-authoritative transaction', () => {
   const cwd = makeProject();
   try {
-    const acceptance = {
-      schema: 1,
-      goalId: 'G001',
-      goalShape: {
-        primaryOutcome: 'first objective',
-        completionMetric: 'node --test --help passes',
-        allowedPaths: ['hooks/scripts/lib/ledger.mjs'],
-        nonGoals: ['no extra scope'],
-        dependencies: [],
-      },
-      requirements: [{ id: 'R001', criterion: 'runs', command: 'node --test --help' }],
-      scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'a user runs the goal', expected: 'evidence is recorded', command: 'node --test --help' }],
-      regression: { scope: 'ledger evidence', command: 'node --test --help' },
-      humanAcceptance: { required: false },
-      goalAlignment: { objective: 'first objective', rationale: 'keeps the objective stable' },
-      riskAssessment: { categories: ['none'], rationale: 'no added risk' },
-    };
+    const acceptance = acceptanceContract();
     writeFileSync(join(cwd, 'acceptance.json'), JSON.stringify(acceptance), 'utf8');
     const completion = {
       schema: 1, goalId: 'G001',
@@ -187,7 +175,7 @@ test('canonical root plan writes goals, ledger, state, and evidence identities i
       scenarios: [{ id: 'S001', outcome: 'pass', evidence: 'scenario passed' }],
       regression: { outcome: 'pass', evidence: 'regression passed' },
       independentVerification: { verifier: 'root-test-verifier', mode: 'machine-reexecution', outcome: 'pass', evidence: 'fresh session passed' },
-      goalAlignment: { objective: 'first objective', verifier: 'root-test-verifier', outcome: 'pass', evidence: 'aligned' },
+      goalAlignment: { objective: 'first objective', outcomeId: 'O001', verifier: 'root-test-verifier', outcome: 'pass', evidence: 'aligned' },
       humanAcceptance: { status: 'not-required', evidence: '' }, limitations: [],
     };
     writeFileSync(join(cwd, 'completion.json'), JSON.stringify(completion), 'utf8');
@@ -245,17 +233,7 @@ test('canonical root serializes concurrent append and run-evidence generations w
   const cwd = makeProject();
   try {
     const ledgerUrl = new URL('../ledger.mjs', import.meta.url).href;
-    const acceptance = {
-      schema: 1, goalId: 'G001',
-      goalShape: { primaryOutcome: 'first objective', completionMetric: 'node --test --help passes',
-        allowedPaths: ['hooks/scripts/lib/ledger.mjs'], nonGoals: ['no extra scope'], dependencies: [] },
-      requirements: [{ id: 'R001', criterion: 'runs', command: 'node --test --help' }],
-      scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'run', expected: 'pass', command: 'node --test --help' }],
-      regression: { scope: 'ledger evidence', command: 'node --test --help' },
-      humanAcceptance: { required: false },
-      goalAlignment: { objective: 'first objective', rationale: 'stable' },
-      riskAssessment: { categories: ['none'], rationale: 'none' },
-    };
+    const acceptance = acceptanceContract();
     writeFileSync(join(cwd, 'acceptance.json'), JSON.stringify(acceptance), 'utf8');
     const setup = `
       process.env.QE_ROOT=process.env.CWD;

@@ -162,22 +162,75 @@ function makeCliReport(status, goalId = 'G001') {
 
 function acceptance(goalId = 'G001', humanRequired = false, goalObjective = 'first objective') {
   return {
-    schema: 1, goalId,
+    schema: 2, goalId,
     goalShape: {
-      primaryOutcome: 'The user completes the requested primary flow.',
-      completionMetric: 'The locked user-journey command exits successfully.',
+      outcomes: [{ id: 'O001', statement: 'The user completes the requested primary flow.',
+        completionMetric: 'The locked user-journey command exits successfully.' }],
       allowedPaths: ['src/primary-flow.mjs', 'test/primary-flow.test.mjs'],
       nonGoals: ['No unrelated UI, API, migration, or deployment work.'],
       dependencies: [],
     },
-    requirements: [{ id: 'R001', criterion: 'Requested behavior works', command: 'node --test --help' }],
-    scenarios: [{ id: 'S001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
-    regression: { scope: 'existing behavior', command: 'node --test --help' },
+    requirements: [{ id: 'R001', outcomeId: 'O001', criterion: 'Requested behavior works', command: 'node --test --help' }],
+    scenarios: [{ id: 'S001', outcomeId: 'O001', kind: 'user-journey', scenario: 'A user completes the primary flow', expected: 'The requested result is visible', command: 'node --test --help' }],
+    regression: { outcomeId: 'O001', scope: 'existing behavior', command: 'node --test --help' },
     humanAcceptance: { required: humanRequired },
-    goalAlignment: { objective: goalObjective, rationale: 'R001 and S001 together demonstrate the requested user outcome.' },
+    goalAlignment: { objective: goalObjective, outcomeId: 'O001', rationale: 'R001 and S001 together demonstrate the requested user outcome.' },
     riskAssessment: { categories: ['none'], rationale: 'The Goal has no detected high-impact operational or security change.' },
   };
 }
+
+test('new acceptance rejects resume-only v1 and requires one fully mapped v2 outcome', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['A::first objective']);
+  const legacy = acceptance('G001', false, 'first objective');
+  legacy.schema = 1;
+  legacy.goalShape = { primaryOutcome: legacy.goalShape.outcomes[0].statement,
+    completionMetric: legacy.goalShape.outcomes[0].completionMetric,
+    allowedPaths: legacy.goalShape.allowedPaths, nonGoals: legacy.goalShape.nonGoals, dependencies: [] };
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, {
+    goalId: 'G001', file: writeJson(cwd, 'legacy-v1.json', legacy),
+  }), /schema: 2.*resume-only/);
+
+  const multi = acceptance('G001', false, 'first objective');
+  multi.goalShape.outcomes.push({ id: 'O002', statement: 'A second independent result.',
+    completionMetric: 'A second metric passes.' });
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, {
+    goalId: 'G001', file: writeJson(cwd, 'multi-outcome-v2.json', multi),
+  }), /exactly one structured outcome/);
+
+  const unmapped = acceptance('G001', false, 'first objective');
+  unmapped.scenarios[0].outcomeId = 'O999';
+  assert.throws(() => setGoalAcceptance(cwd, SLUG, {
+    goalId: 'G001', file: writeJson(cwd, 'unmapped-v2.json', unmapped),
+  }), /map every requirement, scenario, regression, and alignment to O001/);
+  rmSync(cwd, { recursive: true, force: true });
+});
+
+test('stored acceptance v1 remains readable for resume without permitting new v1 writes', () => {
+  const cwd = makeProject();
+  createGoals(cwd, SLUG, ['A::first objective']);
+  const legacy = acceptance('G001', false, 'first objective');
+  legacy.schema = 1;
+  legacy.goalShape = { primaryOutcome: legacy.goalShape.outcomes[0].statement,
+    completionMetric: legacy.goalShape.outcomes[0].completionMetric,
+    allowedPaths: legacy.goalShape.allowedPaths, nonGoals: legacy.goalShape.nonGoals, dependencies: [] };
+  for (const item of [...legacy.requirements, ...legacy.scenarios]) delete item.outcomeId;
+  delete legacy.regression.outcomeId;
+  delete legacy.goalAlignment.outcomeId;
+  const planDir = path.join(cwd, '.qe', 'planning', 'plans', SLUG);
+  const evidenceDir = path.join(planDir, 'evidence');
+  mkdirSync(evidenceDir, { recursive: true });
+  writeFileSync(path.join(evidenceDir, 'G001.acceptance.json'), JSON.stringify(legacy), 'utf8');
+  const goals = readGoals(cwd, SLUG);
+  goals.goals[0].acceptance = { status: 'defined', file: 'evidence/G001.acceptance.json',
+    hash: createHash('sha256').update(JSON.stringify(legacy)).digest('hex') };
+  writeFileSync(path.join(planDir, 'goals.json'), `${JSON.stringify(goals, null, 2)}\n`, 'utf8');
+
+  const report = ledgerModule.traceGoal(cwd, SLUG, { goalId: 'G001' });
+  assert.equal(report.status, 'incomplete');
+  assert.ok(report.gaps.some(gap => gap.code === 'MISSING_IMPLEMENTATION_RUN'));
+  rmSync(cwd, { recursive: true, force: true });
+});
 
 test('create-goals writes ordered microgoals + one created event each', () => {
   const cwd = makeProject();
@@ -392,7 +445,8 @@ test('broad Goal contracts are rejected before execution and must be split', () 
   broad.goalShape.allowedPaths = ['a.mjs', 'b.mjs', 'c.mjs', 'd.mjs', 'e.mjs', 'f.mjs'];
   assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'broad-paths.json', broad) }), /1-5 unique relative paths/);
   broad.goalShape.allowedPaths = ['a.mjs'];
-  broad.requirements = Array.from({ length: 4 }, (_, index) => ({ id: `R${index + 1}`, criterion: `criterion ${index + 1}`, command: 'node --test --help' }));
+  broad.requirements = Array.from({ length: 4 }, (_, index) => ({ id: `R${index + 1}`,
+    outcomeId: 'O001', criterion: `criterion ${index + 1}`, command: 'node --test --help' }));
   assert.throws(() => setGoalAcceptance(cwd, SLUG, { goalId: 'G001', file: writeJson(cwd, 'broad-requirements.json', broad) }), /at most 3 requirements/);
   rmSync(cwd, { recursive: true, force: true });
 });
