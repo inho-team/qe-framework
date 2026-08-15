@@ -381,6 +381,21 @@ export function openDirfdTransaction({ recordPath, transactionRecord, contentPat
     const saved = transactionRecord.savedParent;
     if (parentIdentity.dev !== saved.dev || parentIdentity.ino !== saved.ino
       || parentIdentity.uid !== saved.uid || parentIdentity.mode !== saved.mode) throw new TypeError('transaction parent identity mismatch');
+    const readBoundParentEntries = () => {
+      const verifyPathBinding = () => {
+        const fd = openSync(saved.realpath, fsConstants.O_RDONLY | (fsConstants.O_NOFOLLOW || 0));
+        try {
+          if (canonicalDirfdJson(stableDirfdParentIdentity(snapshotDirfdDescriptorIdentity(fd)))
+            !== canonicalDirfdJson(stableDirfdParentIdentity(parentIdentity))) {
+            throw new TypeError('transaction parent path binding changed');
+          }
+        } finally { closeSync(fd); }
+      };
+      verifyPathBinding();
+      const entries = readdirSync(saved.realpath).sort();
+      verifyPathBinding();
+      return entries;
+    };
     if (contentPath !== null) contentFd = openSync(contentPath, fsConstants.O_RDONLY);
     const authority = {
       schema: 'qe-dirfd-transaction-authority-v1', transportRoot: root, recordPath,
@@ -389,9 +404,11 @@ export function openDirfdTransaction({ recordPath, transactionRecord, contentPat
         parent: parentIdentity, record: snapshotDirfdDescriptorIdentity(recordFd),
         content: contentFd === undefined ? null : snapshotDirfdDescriptorIdentity(contentFd),
       },
+      parentEntries: readBoundParentEntries(),
       journals: [], closed: false,
       async close() {
         if (authority.closed) return { status: 'closed', idempotent: true };
+        const completedOperations = [];
         try {
           const ownedNames = new Set([relative(root, recordRealpath)]);
           if (contentPath !== null) ownedNames.add(relative(root, realpathSync(contentPath)));
@@ -399,7 +416,18 @@ export function openDirfdTransaction({ recordPath, transactionRecord, contentPat
             await waitForDirfdTwoEmptyCensus(journal.census, 2_000);
             if (!journal.terminalPath) return { status: 'permanent-indeterminate', reason: 'operation journal has no terminal receipt' };
             const intent = readDirfdOperationIntent(journal.intentPath, transactionRecord);
-            readDirfdOperationTerminal(journal.terminalPath, intent.record.sha256);
+            const request = validateDirfdOperationRequest(journal.request);
+            if (request.requestSha256 !== intent.record.requestSha256 || request.operation !== intent.record.operation
+              || request.launchUuid !== transactionRecord.launchUuid
+              || (Object.hasOwn(request, 'tempName') && request.tempName !== transactionRecord.names.temp)
+              || (Object.hasOwn(request, 'finalName') && request.finalName !== transactionRecord.names.final)) {
+              return { status: 'permanent-indeterminate', reason: 'operation journal request binding mismatch' };
+            }
+            const terminal = readDirfdOperationTerminal(journal.terminalPath, intent.record.sha256);
+            if (terminal.status !== 0 || terminal.signal !== null || terminal.timedOut !== false) {
+              return { status: 'permanent-indeterminate', reason: 'operation journal did not complete successfully' };
+            }
+            completedOperations.push(intent.record.operation);
             if (canonicalDirfdJson(snapshotDirfdFileIdentity(journal.intentPath)) !== canonicalDirfdJson(journal.intentIdentity)
               || canonicalDirfdJson(snapshotDirfdFileIdentity(journal.terminalPath)) !== canonicalDirfdJson(journal.terminalIdentity)) {
               return { status: 'permanent-indeterminate', reason: 'operation journal identity changed' };
@@ -414,14 +442,33 @@ export function openDirfdTransaction({ recordPath, transactionRecord, contentPat
         } catch (error) {
           return { status: 'permanent-indeterminate', reason: error.message };
         }
-        for (const [label, fd, identity] of [
-          ['parent', authority.parentFd, authority.identities.parent],
-          ['record', authority.recordFd, authority.identities.record],
-          ['content', authority.contentFd, authority.identities.content],
+        const publishedParent = [...authority.parentEntries.filter(entry => entry !== transactionRecord.names.temp),
+          transactionRecord.names.final].sort();
+        const requiredPublicationSequence = ['create-temp', 'fsync-temp', 'link-final', 'fsync-dir', 'unlink-temp', 'fsync-dir'];
+        const completedMutationSequence = completedOperations.filter(operation => operation !== 'inspect');
+        const authorizedPublication = canonicalDirfdJson(completedMutationSequence)
+          === canonicalDirfdJson(requiredPublicationSequence);
+        const parentEntriesValid = () => {
+          const current = readBoundParentEntries();
+          return canonicalDirfdJson(current) === canonicalDirfdJson(authority.parentEntries)
+            || authorizedPublication && canonicalDirfdJson(current) === canonicalDirfdJson(publishedParent);
+        };
+        if (!parentEntriesValid()) {
+          return { status: 'permanent-indeterminate', reason: 'parent directory entries changed outside authorized publication' };
+        }
+        for (const [label, fd, identity, project] of [
+          ['parent', authority.parentFd, authority.identities.parent, stableDirfdParentIdentity],
+          ['record', authority.recordFd, authority.identities.record, value => value],
+          ['content', authority.contentFd, authority.identities.content, value => value],
         ]) {
-          if (fd !== null && canonicalDirfdJson(snapshotDirfdDescriptorIdentity(fd)) !== canonicalDirfdJson(identity)) {
+          if (fd !== null && canonicalDirfdJson(project(snapshotDirfdDescriptorIdentity(fd)))
+            !== canonicalDirfdJson(project(identity))) {
             return { status: 'permanent-indeterminate', reason: `${label} descriptor identity changed` };
           }
+        }
+        await new Promise(resolveStableParent => setTimeout(resolveStableParent, 10));
+        if (!parentEntriesValid()) {
+          return { status: 'permanent-indeterminate', reason: 'parent directory entries changed during close' };
         }
         for (const fd of [authority.contentFd, authority.recordFd, authority.parentFd]) if (fd !== null) closeSync(fd);
         durableRecordRegistry.delete(authority.recordFd);
@@ -905,6 +952,10 @@ export function snapshotDirfdDescriptorIdentity(fd) {
   };
 }
 
+function stableDirfdParentIdentity(value) {
+  return { dev: value.dev, ino: value.ino, uid: value.uid, mode: value.mode };
+}
+
 export function snapshotDirfdFileIdentity(path) {
   const realpathBefore = realpathSync(path);
   const fd = openSync(path, fsConstants.O_RDONLY);
@@ -1076,13 +1127,15 @@ export async function spawnDirfdOperationBounded(options) {
     operationJournalPath: intent.path, operationJournalSha256: intent.sha256 };
   const terminal = writeDirfdOperationTerminal(intent, result);
   result.operationTerminalPath = terminal.path;
-  if (options.transaction) options.transaction.journals.push({
+  if (completion.error) throw completion.error;
+  const verified = verifyDirfdProductionAuthorityAfter(options, authority, result);
+  if (options.transaction && verified.authorityVerified === true) options.transaction.journals.push({
     intentPath: intent.path, terminalPath: terminal.path,
     intentIdentity: intent.identity, terminalIdentity: terminal.identity,
+    request: options.request,
     census: { binaryPath: invocation.argv[0], launchUuid: options.request.launchUuid, operationUuid: options.request.operationUuid },
   });
-  if (completion.error) throw completion.error;
-  return verifyDirfdProductionAuthorityAfter(options, authority, result);
+  return verified;
 }
 
 export async function probeDirfdHelperCapability({ binaryPath, transactionRecord, parentFd, recordFd, contentFd }) {

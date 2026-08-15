@@ -392,6 +392,10 @@ test('G001-TRANSACTION-OWNER-001 owns descriptors and removes only reaped journa
     assert.deepEqual(await transaction.close(), { status: 'permanent-indeterminate', reason: 'foreign transaction transport entry' });
     assert.ok(fstatSync(transaction.parentFd).isDirectory()); assert.ok(existsSync(result.operationJournalPath));
     rmSync(foreignPath);
+    const originalRequest = transaction.journals[0].request;
+    transaction.journals[0].request = { ...originalRequest, finalName: 'forged-final' };
+    assert.deepEqual(await transaction.close(), { status: 'permanent-indeterminate', reason: 'request digest mismatch' });
+    transaction.journals[0].request = originalRequest;
     assert.deepEqual(await transaction.close(), { status: 'closed', idempotent: false });
     assert.equal(existsSync(transport), false);
     assert.equal(readdirSync('/dev/fd').length, fdCountBefore);
@@ -400,6 +404,49 @@ test('G001-TRANSACTION-OWNER-001 owns descriptors and removes only reaped journa
       binaryPath: build.productionPath, request: { ...request, operationUuid: 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaab' },
       parentFd: transaction.parentFd, recordFd: transaction.recordFd, transactionRecord: record, transaction,
     }), /closed/);
+  } finally {
+    if (transaction && !transaction.closed) await transaction.close();
+    rmSync(root, { recursive: true, force: true });
+  }
+});
+
+test('G001-TRANSACTION-PARENT-001 rejects substituted descriptors and unauthorized parent entries', async () => {
+  const root = mkdtempSync(join(tmpdir(), 'qe-dirfd-parent-stable-'));
+  const output = join(root, 'output'); const transport = join(root, 'transport');
+  mkdirSync(output, { mode: 0o700 }); mkdirSync(transport, { mode: 0o700 });
+  let transaction;
+  try {
+    const parentStat = statSync(output);
+    const record = createDirfdTransactionRecord({
+      schema: 'qe-dirfd-transaction-record-v1', launchUuid: '12345678-1234-4123-8123-123456789abc',
+      savedParent: { path: output, realpath: realpathSync(output), dev: parentStat.dev,
+        ino: parentStat.ino, uid: parentStat.uid, mode: parentStat.mode },
+      names: { temp: 'stable-temp', final: 'stable-final' },
+      content: { length: 0, sha256: sha256Hex(Buffer.alloc(0)) },
+      digests: { source: '1'.repeat(64), core: '2'.repeat(64), production: '3'.repeat(64) },
+    });
+    const recordPath = join(transport, 'record.json');
+    const durable = writeDirfdTransactionRecord({ path: recordPath, record }); closeSync(durable.fd);
+    transaction = openDirfdTransaction({ recordPath, transactionRecord: record, transportRoot: transport });
+    const originalParentFd = transaction.parentFd;
+    const foreignDirectory = join(root, 'foreign-directory'); mkdirSync(foreignDirectory, { mode: 0o700 });
+    const foreignFd = openSync(foreignDirectory, fsConstants.O_RDONLY);
+    transaction.parentFd = foreignFd;
+    assert.deepEqual(await transaction.close(), {
+      status: 'permanent-indeterminate', reason: 'parent descriptor identity changed',
+    });
+    transaction.parentFd = originalParentFd; closeSync(foreignFd);
+    writeFileSync(join(output, record.names.final), '', { flag: 'wx', mode: 0o600 });
+    assert.deepEqual(await transaction.close(), {
+      status: 'permanent-indeterminate', reason: 'parent directory entries changed outside authorized publication',
+    });
+    rmSync(join(output, record.names.final));
+    const foreign = join(output, 'foreign-entry'); writeFileSync(foreign, 'foreign', { flag: 'wx', mode: 0o600 });
+    assert.deepEqual(await transaction.close(), {
+      status: 'permanent-indeterminate', reason: 'parent directory entries changed outside authorized publication',
+    });
+    rmSync(foreign);
+    assert.deepEqual(await transaction.close(), { status: 'closed', idempotent: false });
   } finally {
     if (transaction && !transaction.closed) await transaction.close();
     rmSync(root, { recursive: true, force: true });
