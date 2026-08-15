@@ -113,6 +113,8 @@ test('CLI rejects malformed options and input before opening the store', () => {
   const cwd = fixture();
   try {
     assert.throws(() => runPlanCli(['init', '--slug', 'x'], cwd), error => error.code === 'PLAN_CLI_USAGE');
+    assert.throws(() => runPlanCli(['retrospective', '--slug', 'x', '--session', SESSION], cwd),
+      error => error.code === 'PLAN_CLI_USAGE');
     assert.throws(() => runPlanCli(['bind', '--slug', 'x', '--session', 'short'], cwd),
       error => error.code === 'PLAN_INPUT_INVALID');
     assert.throws(() => runPlanCli(['init', '--slug', '../x', '--session', SESSION,

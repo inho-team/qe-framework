@@ -9,6 +9,7 @@ import * as ledger from '../ledger.mjs';
 import { createProcessController } from '../process-controller.mjs';
 import { canonicalJson, sha256 } from '../process-controller-store.mjs';
 import { closeSqlite, openSqlite } from '../store-sqlite.mjs';
+import { runPlanCli } from '../../../../scripts/qe-plan.mjs';
 
 const SLUG = 'adapter-plan';
 const CONTROLLER_SESSION = '99999999-9999-4999-8999-999999999999';
@@ -1014,6 +1015,16 @@ test('last Goal completion binds the ordered whole-Plan proof aggregate', { conc
   try {
     withRoot(cwd, () => {
       ledger.createGoals(cwd, SLUG, ['First::first objective', 'Second::second objective']);
+      const phaseDb = openSqlite(cwd);
+      const goalsPath = `.qe/planning/plans/${SLUG}/goals.json`;
+      const goalsRow = phaseDb.prepare('SELECT content FROM qe_files WHERE path=?').get(goalsPath);
+      const phasedGoals = JSON.parse(goalsRow.content);
+      phasedGoals.goals[1].phase = 'Phase 2';
+      phasedGoals.goals[1].wave = 'Wave 1';
+      const phasedText = `${JSON.stringify(phasedGoals, null, 2)}\n`;
+      phaseDb.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+        .run(phasedText, Buffer.byteLength(phasedText), sha256(phasedText), goalsPath);
+      closeSqlite(phaseDb);
       ledger.renderState(cwd, SLUG);
       for (const [goalId, objective] of [['G001', 'first objective'], ['G002', 'second objective']]) {
         const file = join(cwd, `${goalId}.acceptance.json`);
@@ -1033,10 +1044,53 @@ test('last Goal completion binds the ordered whole-Plan proof aggregate', { conc
       assert.equal(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }).goal.id, 'G001');
       assert.equal(completeGoal('G001', 'first objective',
         '11111111-1111-4111-8111-111111111111', '22222222-2222-4222-8222-222222222222').code, 'PROJECTED');
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }),
+        { ok: false, code: 'PHASE_RETROSPECTIVE_REQUIRED', audited: false,
+          phase: 'Phase 1', nextPhase: 'Phase 2' });
+      const retrospectiveInput = { schema: 1, phase: 'Phase 1', nextPhase: 'Phase 2',
+        regressionCommand: 'node --test --help', verifier: 'phase-reviewer',
+        summary: 'Phase 1 delivered its accepted Goal.', gaps: [],
+        lessons: ['Keep Goal scope bounded.'], actions: ['Start the Phase 2 Goal.'] };
+      assert.throws(() => ledger.runPhaseRetrospective(cwd, SLUG,
+        { sessionId: CONTROLLER_SESSION, input: { ...retrospectiveInput,
+          regressionCommand: 'node --test missing-phase-regression.test.mjs' } }),
+      error => error.code === 'PHASE_RETROSPECTIVE_REGRESSION_FAILED');
+      const retrospectiveFile = join(cwd, '.qe', 'phase-retrospective-input.json');
+      writeFileSync(retrospectiveFile, JSON.stringify(retrospectiveInput), 'utf8');
+      const retrospective = runPlanCli(['retrospective', '--slug', SLUG,
+        '--session', CONTROLLER_SESSION, '--input', retrospectiveFile], cwd);
+      assert.equal(retrospective.code, 'PHASE_RETROSPECTIVE_RECORDED');
+      assert.equal(runPlanCli(['retrospective', '--slug', SLUG,
+        '--session', CONTROLLER_SESSION, '--input', retrospectiveFile], cwd).code,
+      'PHASE_RETROSPECTIVE_REPLAYED');
+      const reportPath = `.qe/planning/plans/${SLUG}/reports/PHASE_1_REPORT.md`;
+      const tamperDb = openSqlite(cwd);
+      const report = tamperDb.prepare('SELECT content FROM qe_files WHERE path=?').get(reportPath);
+      const tampered = `${report.content}\nforged retrospective report\n`;
+      tamperDb.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+        .run(tampered, Buffer.byteLength(tampered), sha256(tampered), reportPath);
+      closeSqlite(tamperDb);
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }),
+        { ok: false, code: 'PHASE_RETROSPECTIVE_INVALID', audited: false,
+          phase: 'Phase 1', nextPhase: 'Phase 2' });
+      const restoreDb = openSqlite(cwd);
+      restoreDb.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+        .run(report.content, Buffer.byteLength(report.content), sha256(report.content), reportPath);
+      closeSqlite(restoreDb);
       const secondStart = ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' });
       assert.equal(secondStart.goal?.id, 'G002', JSON.stringify(secondStart));
-      const final = completeGoal('G002', 'second objective',
+      const crossedTamperDb = openSqlite(cwd);
+      crossedTamperDb.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+        .run(tampered, Buffer.byteLength(tampered), sha256(tampered), reportPath);
+      closeSqlite(crossedTamperDb);
+      const invalidFinal = completeGoal('G002', 'second objective',
         '33333333-3333-4333-8333-333333333333', '44444444-4444-4444-8444-444444444444');
+      assert.equal(invalidFinal.code, 'PHASE_RETROSPECTIVE_INVALID', JSON.stringify(invalidFinal));
+      const finalRestoreDb = openSqlite(cwd);
+      finalRestoreDb.prepare('UPDATE qe_files SET content=?,size=?,sha256=? WHERE path=?')
+        .run(report.content, Buffer.byteLength(report.content), sha256(report.content), reportPath);
+      closeSqlite(finalRestoreDb);
+      const final = ledger.executePlanGoalTransition(cwd, SLUG, { action: 'complete' });
       assert.equal(final.code, 'PROJECTED', JSON.stringify(final));
 
       const db = openSqlite(cwd, { readOnly: true });

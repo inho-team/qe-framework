@@ -1,6 +1,6 @@
 {
-  "generatedAt": "2026-08-15T08:27:59.616Z",
-  "sourceDigest": "99484899cc4431ac8f0be2988000d589ca3dc7a378a9d58eb16577470632241c",
+  "generatedAt": "2026-08-15T09:08:21.645Z",
+  "sourceDigest": "2c89c16bbdd2f283cd0eb3327ca843b2f9f22f8d66417341d83362bb4f237544",
   "note": "Deterministic manifest only: discover cases, validate schema, and emit evals/.manifest.json. No model calls are made here; use /Qcritical-review manually for behavioral review when needed.",
   "caseCount": 4,
   "cases": [

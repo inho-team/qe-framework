@@ -3332,6 +3332,210 @@ function commandResult(cwd, command) {
     passed: !result.error && result.status === 0, outputHash: createHash('sha256').update(output).digest('hex'), executedAt: nowIso() };
 }
 
+function phaseBoundary(doc, nextGoal, { requirePending = true } = {}) {
+  const index = doc.goals.findIndex(goal => goal.id === nextGoal?.id);
+  if (index <= 0 || requirePending && nextGoal.status !== 'pending') return null;
+  const previous = doc.goals[index - 1];
+  if (previous.phase === nextGoal.phase) return null;
+  let start = index - 1;
+  while (start > 0 && doc.goals[start - 1].phase === previous.phase) start -= 1;
+  const completed = doc.goals.slice(start, index);
+  if (!completed.length || completed.some(goal => goal.status !== 'complete')) return null;
+  const match = previous.phase.match(/^Phase\s+([1-9]\d*)(?:\s|$)/i);
+  if (!match) return { invalid: true };
+  return { phase: previous.phase, nextPhase: nextGoal.phase, phaseNumber: match[1],
+    completedGoalIds: completed.map(goal => goal.id) };
+}
+
+function phaseRetrospectivePaths(slug, phaseNumber) {
+  const base = join(PLANS_DIR, slug, 'phases', phaseNumber);
+  return { markdown: join(base, 'RETROSPECTIVE.md'), proof: join(base, 'retrospective.json'),
+    report: join(PLANS_DIR, slug, 'reports', `PHASE_${phaseNumber}_REPORT.md`) };
+}
+
+function phaseGoalProofs(db, slug, goalIds) {
+  const rows = db.prepare(`SELECT proof_json,proof_hash FROM lifecycle_plan_goal_proofs
+    WHERE slug=? AND kind='goal' ORDER BY goal_id,proof_id`).all(slug);
+  const byGoal = new Map();
+  for (const row of rows) {
+    if (sha256(row.proof_json) !== row.proof_hash) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+    let proof;
+    try { proof = JSON.parse(row.proof_json); } catch { throw canonicalPlanError('CANONICAL_STORE_INVALID'); }
+    if (goalIds.includes(proof.goalId)) {
+      if (byGoal.has(proof.goalId)) throw canonicalPlanError('CANONICAL_STORE_INVALID');
+      byGoal.set(proof.goalId, { goalId: proof.goalId, proofId: proof.proofId, proofDigest: proof.proofDigest });
+    }
+  }
+  const result = goalIds.map(goalId => byGoal.get(goalId));
+  if (result.some(item => !item || !/^[0-9a-f]{64}$/.test(item.proofId)
+    || !/^[0-9a-f]{64}$/.test(item.proofDigest))) return null;
+  return result;
+}
+
+function validRetrospectiveList(value, { allowEmpty = false } = {}) {
+  return Array.isArray(value) && (allowEmpty || value.length > 0) && value.length <= 32
+    && value.every(item => nonEmpty(item) && Buffer.byteLength(item, 'utf8') <= 4096);
+}
+
+function retrospectiveDigest(value) {
+  const { artifactDigest: ignored, ...body } = value; void ignored;
+  return sha256(canonicalJson(['qe-phase-retrospective-v1', body]));
+}
+
+function phaseCompletionGoalsSha(db, slug, boundary) {
+  const lastGoalId = boundary.completedGoalIds.at(-1);
+  const rows = db.prepare(`SELECT post_goals_sha256 FROM lifecycle_plan_goal_receipts
+    WHERE slug=? AND kind='projected' AND action='complete' AND goal_id=? ORDER BY created_at`)
+    .all(slug, lastGoalId);
+  return rows.length === 1 && /^[0-9a-f]{64}$/.test(rows[0].post_goals_sha256)
+    ? rows[0].post_goals_sha256 : null;
+}
+
+function phaseRetrospectiveGate(db, slug, doc, goalsRow, nextGoal, { historical = false } = {}) {
+  const boundary = phaseBoundary(doc, nextGoal, { requirePending: !historical });
+  if (!boundary) return { required: false };
+  if (boundary.invalid) return { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_INVALID' };
+  const paths = phaseRetrospectivePaths(slug, boundary.phaseNumber);
+  const proofRow = canonicalPlanReadRow(db, paths.proof);
+  if (!proofRow) return { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_REQUIRED', boundary };
+  const markdownRow = canonicalPlanReadRow(db, paths.markdown);
+  const reportRow = canonicalPlanReadRow(db, paths.report);
+  let artifact;
+  try { artifact = JSON.parse(canonicalPlanDecodeRow(proofRow)); }
+  catch { return { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_INVALID', boundary }; }
+  const expectedProofs = phaseGoalProofs(db, slug, boundary.completedGoalIds);
+  const exactKeys = ['schema', 'issuedBy', 'slug', 'phase', 'nextPhase', 'phaseNumber',
+    'completedGoalIds', 'completedGoalProofs', 'sourceGoalsSha256', 'reportPath', 'reportSha256',
+    'retrospectivePath', 'retrospectiveSha256', 'regression', 'summary', 'gaps', 'lessons',
+    'actions', 'createdAt', 'artifactDigest'];
+  const expectedGoalsSha = historical ? phaseCompletionGoalsSha(db, slug, boundary) : goalsRow.sha256;
+  const valid = lifecycleExact(artifact, exactKeys) && artifact.schema === 1 && artifact.issuedBy === 'qe-ledger'
+    && artifact.slug === slug && artifact.phase === boundary.phase && artifact.nextPhase === boundary.nextPhase
+    && artifact.phaseNumber === boundary.phaseNumber
+    && canonicalJson(artifact.completedGoalIds) === canonicalJson(boundary.completedGoalIds)
+    && expectedProofs && canonicalJson(artifact.completedGoalProofs) === canonicalJson(expectedProofs)
+    && expectedGoalsSha && artifact.sourceGoalsSha256 === expectedGoalsSha
+    && artifact.reportPath === paths.report && reportRow && artifact.reportSha256 === reportRow.sha256
+    && artifact.retrospectivePath === paths.markdown && markdownRow
+    && artifact.retrospectiveSha256 === markdownRow.sha256
+    && lifecycleExact(artifact.regression, ['command', 'exitCode', 'signal', 'passed', 'outputHash',
+      'executedAt', 'runId', 'sessionId', 'verifier'])
+    && artifact.regression.passed === true && isBehavioralEvidenceCommand(artifact.regression.command)
+    && Number.isInteger(artifact.regression.exitCode) && artifact.regression.exitCode === 0
+    && artifact.regression.signal === null && /^[0-9a-f]{64}$/.test(artifact.regression.outputHash)
+    && MACHINE_SESSION_RE.test(artifact.regression.sessionId) && nonEmpty(artifact.regression.verifier)
+    && /^[0-9a-f]{64}$/.test(artifact.regression.runId) && nonEmpty(artifact.regression.executedAt)
+    && artifact.regression.runId === sha256(canonicalJson(['qe-phase-retrospective-run-v1', slug,
+      boundary.phase, boundary.nextPhase, artifact.regression.command, artifact.regression.sessionId,
+      artifact.regression.verifier, artifact.regression.exitCode, artifact.regression.signal,
+      artifact.regression.outputHash, artifact.regression.executedAt]))
+    && nonEmpty(artifact.summary) && Buffer.byteLength(artifact.summary, 'utf8') <= 16 * 1024
+    && validRetrospectiveList(artifact.gaps, { allowEmpty: true })
+    && validRetrospectiveList(artifact.lessons) && validRetrospectiveList(artifact.actions, { allowEmpty: true })
+    && !Number.isNaN(Date.parse(artifact.createdAt)) && artifact.artifactDigest === retrospectiveDigest(artifact);
+  return valid ? { required: true, valid: true, boundary, artifact }
+    : { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_INVALID', boundary };
+}
+
+function historicalRetrospectivesValid(db, slug, doc, goalsRow) {
+  for (let index = 1; index < doc.goals.length; index += 1) {
+    const goal = doc.goals[index]; const previous = doc.goals[index - 1];
+    if (goal.phase === previous.phase || goal.status === 'pending') continue;
+    const gate = phaseRetrospectiveGate(db, slug, doc, goalsRow, goal, { historical: true });
+    if (!gate.required || !gate.valid) return false;
+  }
+  return true;
+}
+
+function validateRetrospectiveInput(input) {
+  const keys = ['schema', 'phase', 'nextPhase', 'regressionCommand', 'verifier',
+    'summary', 'gaps', 'lessons', 'actions'];
+  if (!lifecycleExact(input, keys) || input.schema !== 1 || !nonEmpty(input.phase)
+    || !nonEmpty(input.nextPhase) || !isBehavioralEvidenceCommand(input.regressionCommand)
+    || !nonEmpty(input.verifier) || !nonEmpty(input.summary)
+    || Buffer.byteLength(input.summary, 'utf8') > 16 * 1024
+    || !validRetrospectiveList(input.gaps, { allowEmpty: true })
+    || !validRetrospectiveList(input.lessons) || !validRetrospectiveList(input.actions, { allowEmpty: true })) {
+    throw canonicalPlanError('PHASE_RETROSPECTIVE_INPUT_INVALID');
+  }
+  return JSON.parse(JSON.stringify(input));
+}
+
+function renderPhaseRetrospective(slug, boundary, input, regression, reportPath) {
+  return `# Phase Retrospective — ${slug} ${boundary.phase}\n\n`
+    + `> Next phase: ${boundary.nextPhase}\n> Phase report: \`${reportPath}\`\n`
+    + `> Regression: \`${regression.command}\` (PASS)\n\n## Summary\n\n${input.summary}\n\n`
+    + `## Gaps\n\n${input.gaps.length ? input.gaps.map(item => `- ${item}`).join('\n') : '- None'}\n\n`
+    + `## Lessons Learned\n\n${input.lessons.map(item => `- ${item}`).join('\n')}\n\n`
+    + `## Next-Phase Actions\n\n${input.actions.length ? input.actions.map(item => `- ${item}`).join('\n') : '- None'}\n`;
+}
+
+/** Run and seal the machine-verifiable retrospective required at a Phase boundary. */
+export function runPhaseRetrospective(cwd, slug, { sessionId, input }) {
+  if (!LIFECYCLE_SLUG_RE.test(slug) || !MACHINE_SESSION_RE.test(sessionId || '')) {
+    throw canonicalPlanError('PHASE_RETROSPECTIVE_INPUT_INVALID');
+  }
+  const request = validateRetrospectiveInput(input);
+  let db = canonicalPlanOpenDb(cwd, { readOnly: true });
+  if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE');
+  let snapshot;
+  try {
+    const rows = planGoalAdapterRows(db, slug); const queue = planGoalAdapterQueue(rows.doc);
+    const nextGoal = queue.firstIncomplete;
+    const gate = nextGoal ? phaseRetrospectiveGate(db, slug, rows.doc, rows.goals, nextGoal) : { required: false };
+    if (!gate.required) throw canonicalPlanError('PHASE_RETROSPECTIVE_NOT_AT_BOUNDARY');
+    if (gate.valid) return { ok: true, code: 'PHASE_RETROSPECTIVE_REPLAYED', artifact: gate.artifact };
+    if (gate.code === 'PHASE_RETROSPECTIVE_INVALID') throw canonicalPlanError(gate.code);
+    if (request.phase !== gate.boundary.phase || request.nextPhase !== gate.boundary.nextPhase) {
+      throw canonicalPlanError('PHASE_RETROSPECTIVE_INPUT_INVALID');
+    }
+    snapshot = { goalsSha256: rows.goals.sha256, boundary: gate.boundary,
+      completedGoalProofs: phaseGoalProofs(db, slug, gate.boundary.completedGoalIds) };
+    if (!snapshot.completedGoalProofs) throw canonicalPlanError('PHASE_RETROSPECTIVE_PROOF_INCOMPLETE');
+  } finally { closeSqlite(db); }
+
+  const report = phaseReport(cwd, slug, snapshot.boundary.phaseNumber);
+  if (report.error) throw canonicalPlanError('PHASE_RETROSPECTIVE_REPORT_FAILED', report.error);
+  const commandRun = commandResult(cwd, request.regressionCommand);
+  if (!commandRun.passed) throw canonicalPlanError('PHASE_RETROSPECTIVE_REGRESSION_FAILED');
+  const runId = sha256(canonicalJson(['qe-phase-retrospective-run-v1', slug, request.phase,
+    request.nextPhase, commandRun.command, sessionId, request.verifier, commandRun.exitCode,
+    commandRun.signal, commandRun.outputHash, commandRun.executedAt]));
+  const regression = { ...commandRun, runId, sessionId, verifier: request.verifier };
+  const paths = phaseRetrospectivePaths(slug, snapshot.boundary.phaseNumber);
+  const markdown = renderPhaseRetrospective(slug, snapshot.boundary, request, regression, paths.report);
+  db = canonicalPlanOpenDb(cwd);
+  if (!db) throw canonicalPlanError('CANONICAL_STORE_UNAVAILABLE');
+  try {
+    db.exec('BEGIN IMMEDIATE');
+    planGoalAdapterEnsureSchema(db); planGoalAdapterValidateAudit(db, slug, cwd);
+    const rows = planGoalAdapterRows(db, slug); const nextGoal = planGoalAdapterQueue(rows.doc).firstIncomplete;
+    if (rows.goals.sha256 !== snapshot.goalsSha256 || !nextGoal) throw canonicalPlanError('PHASE_RETROSPECTIVE_STALE');
+    const existing = phaseRetrospectiveGate(db, slug, rows.doc, rows.goals, nextGoal);
+    if (existing.valid) { db.exec('COMMIT'); return { ok: true, code: 'PHASE_RETROSPECTIVE_REPLAYED', artifact: existing.artifact }; }
+    if (existing.code === 'PHASE_RETROSPECTIVE_INVALID') throw canonicalPlanError(existing.code);
+    const reportRow = canonicalPlanReadRow(db, paths.report);
+    if (!reportRow || canonicalPlanTextBytes(reportRow.content) === 0) throw canonicalPlanError('PHASE_RETROSPECTIVE_REPORT_FAILED');
+    canonicalPlanWriteRow(db, paths.markdown, markdown, null);
+    const markdownRow = canonicalPlanReadRow(db, paths.markdown);
+    const artifact = { schema: 1, issuedBy: 'qe-ledger', slug, phase: request.phase,
+      nextPhase: request.nextPhase, phaseNumber: snapshot.boundary.phaseNumber,
+      completedGoalIds: snapshot.boundary.completedGoalIds,
+      completedGoalProofs: snapshot.completedGoalProofs, sourceGoalsSha256: rows.goals.sha256,
+      reportPath: paths.report, reportSha256: reportRow.sha256,
+      retrospectivePath: paths.markdown, retrospectiveSha256: markdownRow.sha256,
+      regression, summary: request.summary, gaps: request.gaps, lessons: request.lessons,
+      actions: request.actions, createdAt: nowIso(), artifactDigest: '' };
+    artifact.artifactDigest = retrospectiveDigest(artifact);
+    canonicalPlanWriteRow(db, paths.proof, canonicalPlanSerializeJson(artifact), null);
+    db.exec('COMMIT');
+    return { ok: true, code: 'PHASE_RETROSPECTIVE_RECORDED', artifact };
+  } catch (error) {
+    try { db.exec('ROLLBACK'); } catch {}
+    throw error?.code ? error : canonicalPlanError('CANONICAL_STORE_UNAVAILABLE');
+  } finally { closeSqlite(db); }
+}
+
 function legacyRunEvidenceId(slug, goalId, role, rawBytes) {
   return sha256(canonicalJson(['qe-plan-run-legacy-v1', slug, goalId, role, sha256(rawBytes)]));
 }
@@ -4861,6 +5065,18 @@ export function executePlanGoalTransition(cwd, slug, input) {
     if (action === 'next' && !bootstrapOnly && !['pending', 'failed'].includes(goal.status)) {
       throw new Error('CANONICAL_STATE_INVALID');
     }
+    if (action === 'next' && goal.status === 'pending') {
+      let retrospective;
+      try { retrospective = phaseRetrospectiveGate(db, slug, rows.doc, rows.goals, goal); }
+      catch { retrospective = { required: true, valid: false, code: 'PHASE_RETROSPECTIVE_INVALID',
+        boundary: phaseBoundary(rows.doc, goal) }; }
+      if (retrospective.required && !retrospective.valid) {
+        db.exec('COMMIT');
+        return { ok: false, code: retrospective.code, audited: false,
+          phase: retrospective.boundary?.phase || null,
+          nextPhase: retrospective.boundary?.nextPhase || null };
+      }
+    }
 
     const controllerStateRow = db.prepare("SELECT name FROM sqlite_schema WHERE type='table' AND name='process_controller_state'").get()
       ? db.prepare('SELECT snapshot_json FROM process_controller_state WHERE process_id=?')
@@ -4907,6 +5123,11 @@ export function executePlanGoalTransition(cwd, slug, input) {
     }
     const completePlan = bootstrapOnly || action === 'complete'
       && rows.doc.goals.every(item => item.id === goal.id || item.status === 'complete');
+    if ((action === 'complete' || bootstrapOnly)
+      && !historicalRetrospectivesValid(db, slug, rows.doc, rows.goals)) {
+      db.exec('COMMIT');
+      return { ok: false, code: 'PHASE_RETROSPECTIVE_INVALID', audited: false };
+    }
     const aggregateGoalProofs = [];
     if (completePlan && goalProof) {
       for (const item of rows.doc.goals) {
@@ -5930,10 +6151,10 @@ function parseDecisionLogForPhase(text, phaseNum) {
  * @param {string} slug
  */
 function readFullLedger(cwd, slug) {
-  const p = ledgerPath(cwd, slug);
-  if (!existsSync(p)) return [];
   try {
-    return readFileSync(p, 'utf8').split('\n')
+    const content = canonicalPlanReadText(cwd, join(PLANS_DIR, slug, 'ledger.jsonl'));
+    if (content == null) return [];
+    return content.split('\n')
       .filter(Boolean)
       .map(l => { try { return JSON.parse(l); } catch { return null; } })
       .filter(Boolean);
@@ -6075,20 +6296,17 @@ export function phaseReport(cwd, slug, phaseNum) {
   let roadmapErr = null, requirementsErr = null, decisionLogErr = null;
 
   try {
-    const rp = roadmapPath(cwd, slug);
-    roadmapText = existsSync(rp) ? readFileSync(rp, 'utf8') : '';
+    roadmapText = canonicalPlanReadText(cwd, join(PLANS_DIR, slug, 'ROADMAP.md')) || '';
     if (!roadmapText) roadmapErr = 'ROADMAP.md not found or empty';
   } catch (e) { roadmapErr = `ROADMAP.md read error: ${e.message}`; }
 
   try {
-    const rqp = requirementsPath(cwd, slug);
-    requirementsText = existsSync(rqp) ? readFileSync(rqp, 'utf8') : '';
+    requirementsText = canonicalPlanReadText(cwd, join(PLANS_DIR, slug, 'REQUIREMENTS.md')) || '';
     if (!requirementsText) requirementsErr = 'REQUIREMENTS.md not found or empty';
   } catch (e) { requirementsErr = `REQUIREMENTS.md read error: ${e.message}`; }
 
   try {
-    const dlp = decisionLogPath(cwd, slug);
-    decisionLogText = existsSync(dlp) ? readFileSync(dlp, 'utf8') : '';
+    decisionLogText = canonicalPlanReadText(cwd, join(PLANS_DIR, slug, 'DECISION_LOG.md')) || '';
     // Empty DECISION_LOG is valid (no decisions yet)
   } catch (e) { decisionLogErr = `DECISION_LOG.md read error: ${e.message}`; }
 
@@ -6111,7 +6329,8 @@ export function phaseReport(cwd, slug, phaseNum) {
   // ── goals.json: find goals for this phase (boundary-safe match) ──────────
   let phaseGoals = [];
   let goalsErr = null;
-  const goalsDoc = readGoals(cwd, slug);
+  let goalsDoc = null;
+  try { goalsDoc = canonicalPlanReadJson(cwd, join(PLANS_DIR, slug, 'goals.json')); } catch {}
   // Schema-drift guard: goals.json can be valid JSON but not our shape (e.g.
   // `{}` or `{"goals":"str"}`) — that must degrade this row like any other
   // malformed source, never abort report generation (backfill-safe contract).
@@ -6279,10 +6498,26 @@ export function phaseReport(cwd, slug, phaseNum) {
   lines.push(`> Generated by: \`ledger.mjs phase-report --slug ${slug} --phase ${phaseStr}\``);
 
   // ── Write report ─────────────────────────────────────────────────────────
-  const rFile = reportPath(cwd, slug, phaseStr);
+  const rFile = reportPath(canonicalPlanRoot(cwd) || cwd, slug, phaseStr);
   try {
-    mkdirSync(join(rFile, '..'), { recursive: true });
-    atomicWriteText(rFile, lines.join('\n') + '\n');
+    const content = lines.join('\n') + '\n';
+    if (canonicalPlanRoot(cwd)) {
+      const db = canonicalPlanOpenDb(cwd);
+      if (!db) throw new Error('canonical store unavailable');
+      try {
+        db.exec('BEGIN IMMEDIATE');
+        const rel = join(PLANS_DIR, slug, 'reports', `PHASE_${phaseStr}_REPORT.md`);
+        const current = canonicalPlanReadRow(db, rel);
+        canonicalPlanWriteRow(db, rel, content, current?.sha256 || null);
+        canonicalPlanCommit(db);
+      } catch (error) {
+        try { db.exec('ROLLBACK'); } catch {}
+        throw error;
+      } finally { closeSqlite(db); }
+    } else {
+      mkdirSync(join(rFile, '..'), { recursive: true });
+      atomicWriteText(rFile, content);
+    }
   } catch (e) {
     // Last-resort no-throw guarantee: direct API callers must get an error
     // object, never an exception, even on fs failures (backfill-safe).

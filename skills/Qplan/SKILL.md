@@ -182,8 +182,10 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
    provenance-linked reviewed project-wiki page.
 7. Repeat at Step 1. When `advance --action next` returns `complete`, report the Plan
    outcome, remaining risks, and evidence.
-8. At each completed Phase boundary, generate the retrospective from
-   `core/RETROSPECTIVE_TEMPLATE.md` before advancing the next Phase.
+8. At each completed Phase boundary, `advance next` requires the sealed proof
+   from `core/PHASE_RETROSPECTIVE_CONTRACT.md`. Run `node scripts/qe-plan.mjs
+   retrospective --slug {slug} --session {full UUID} --input {path}`; it generates
+   the Phase report, executes fresh regression, and records the retrospective.
 
 ## Goal quality rules
 

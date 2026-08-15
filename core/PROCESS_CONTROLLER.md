@@ -458,6 +458,12 @@ hash; a stale writer cannot overwrite a newer row. Outside the resolved root,
 compatibility fixtures retain the existing atomic disk behavior and do not gain
 a cross-process CAS claim.
 
+At a Phase boundary, the first pending Goal of the next Phase cannot transition
+to active until a ledger-issued retrospective binds the prior Phase's complete
+Goal proofs, canonical Phase report, human-readable retrospective projection,
+and a freshly passing behavioral regression run. Hash drift in any bound source
+fails closed before controller mutation.
+
 Plan machine-evidence execution is generation-based rather than overwrite-only.
 `runGoalEvidence` keeps the current binding at `evidence/<G>.<role>-run.json`,
 adds a fresh invocation UUID and `runId` per execution, and archives the previous

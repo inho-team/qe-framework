@@ -3,6 +3,7 @@ import { readFileSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 
 import { bindPlan, initializePlan } from '../hooks/scripts/lib/plan-store.mjs';
+import { runPhaseRetrospective } from '../hooks/scripts/lib/ledger.mjs';
 
 class CliError extends Error {
   constructor(code, message) { super(message); this.code = code; }
@@ -33,13 +34,18 @@ function readInput(path) {
 
 export function runPlanCli(argv, defaultCwd = process.cwd()) {
   const args = parseArgs(argv); const operation = args._[0];
-  if (!['init', 'bind'].includes(operation) || args._.length !== 1 || !args.slug || !args.session) {
-    throw new CliError('PLAN_CLI_USAGE', 'usage: qe-plan init|bind --slug <slug> --session <uuid> [--input <json>]');
+  if (!['init', 'bind', 'retrospective'].includes(operation) || args._.length !== 1 || !args.slug || !args.session) {
+    throw new CliError('PLAN_CLI_USAGE', 'usage: qe-plan init|bind|retrospective --slug <slug> --session <uuid> [--input <json>]');
   }
   const cwd = args.cwd || defaultCwd;
-  return operation === 'init'
-    ? initializePlan(cwd, { slug: args.slug, sessionId: args.session, input: readInput(args.input) })
-    : bindPlan(cwd, { slug: args.slug, sessionId: args.session });
+  if (operation === 'init') {
+    return initializePlan(cwd, { slug: args.slug, sessionId: args.session, input: readInput(args.input) });
+  }
+  if (operation === 'retrospective') {
+    return runPhaseRetrospective(cwd, args.slug,
+      { sessionId: args.session, input: readInput(args.input) });
+  }
+  return bindPlan(cwd, { slug: args.slug, sessionId: args.session });
 }
 
 function main() {
