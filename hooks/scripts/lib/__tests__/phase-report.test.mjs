@@ -27,6 +27,8 @@ import { join, dirname } from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { phaseReport, createGoals, append, recordEvent } from '../ledger.mjs';
+import { closeSqlite, openSqlite } from '../store-sqlite.mjs';
+import { sha256 } from '../process-controller-store.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const LEDGER = join(HERE, '..', 'ledger.mjs');
@@ -63,12 +65,36 @@ function writeDecisionLog(cwd, slug, content) {
 
 /** Read the generated report file, returning content or null if absent. */
 function readReport(cwd, slug, phaseNum) {
-  const p = join(cwd, '.qe', 'planning', 'plans', slug, 'reports', `PHASE_${phaseNum}_REPORT.md`);
-  return existsSync(p) ? readFileSync(p, 'utf8') : null;
+  const relative = `.qe/planning/plans/${slug}/reports/PHASE_${phaseNum}_REPORT.md`;
+  const p = join(cwd, relative);
+  if (existsSync(p)) return readFileSync(p, 'utf8');
+  const db = openSqlite(cwd, { readOnly: true });
+  if (!db) return null;
+  try {
+    return db.prepare('SELECT content FROM qe_files WHERE path=?').get(relative)?.content ?? null;
+  } finally { closeSqlite(db); }
 }
 
 /** Spawn the CLI and return { code, stdout, stderr }. */
 function runCli(cwd, extraArgs = []) {
+  const slugIndex = extraArgs.indexOf('--slug');
+  const slug = slugIndex >= 0 ? extraArgs[slugIndex + 1] : null;
+  if (slug) {
+    const db = openSqlite(cwd);
+    const now = Date.now();
+    try {
+      for (const name of ['ROADMAP.md', 'REQUIREMENTS.md', 'DECISION_LOG.md', 'goals.json', 'ledger.jsonl']) {
+        const relative = `.qe/planning/plans/${slug}/${name}`;
+        const absolute = join(cwd, relative);
+        if (!existsSync(absolute)) continue;
+        const content = readFileSync(absolute, 'utf8');
+        db.prepare(`INSERT OR REPLACE INTO qe_files
+          (path,content,encoding,size,mode,mtime_ms,sha256,migrated_at)
+          VALUES(?,?,'utf8',?,420,?,?,?)`)
+          .run(relative, content, Buffer.byteLength(content), now, sha256(content), now);
+      }
+    } finally { closeSqlite(db); }
+  }
   const r = spawnSync('node', [LEDGER, 'phase-report', '--cwd', cwd, ...extraArgs], {
     encoding: 'utf8',
     cwd,
