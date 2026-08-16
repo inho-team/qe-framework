@@ -559,7 +559,7 @@ function canonicalPlanReplayIdentity(db, identity, expected) {
 function canonicalPlanWriteError(error) {
   if (['CANONICAL_CAS_CONFLICT', 'CANONICAL_STORE_INVALID', 'CANONICAL_BACKEND_CONFLICT',
     'ACCEPTANCE_CONFLICT', 'COMPLETION_EVIDENCE_CONFLICT', 'EVIDENCE_RUN_STALE',
-    'EVIDENCE_RUN_CONFLICT', 'PROJECTION_DEBT_OUTSTANDING', 'PROJECTION_DEBT_CORRUPT',
+    'EVIDENCE_RUN_CONFLICT', 'SESSION_REQUIRED', 'PROJECTION_DEBT_OUTSTANDING', 'PROJECTION_DEBT_CORRUPT',
     'PROJECTION_DEBT_UNAVAILABLE', 'DIRECT_TRANSITION_DENIED', 'MICRO_SCOPE_UNAVAILABLE',
     'MICRO_SCOPE_VIOLATION'].includes(error?.code)) {
     return error;
@@ -3323,7 +3323,8 @@ function prepareAcceptanceContract(raw, goalId, goalObjective, sessionId, cwd) {
     throw new Error('bounded-micro assurance request must use the exact version 1 request shape');
   }
   if (!MACHINE_SESSION_RE.test(sessionId || '')) {
-    throw new Error('bounded-micro assurance admission requires a valid QE session');
+    throw canonicalPlanError('SESSION_REQUIRED',
+      'bounded-micro assurance admission requires a valid QE session');
   }
   const contract = JSON.parse(JSON.stringify(raw));
   for (const path of contract.goalShape?.allowedPaths || []) assertMicroScopePathIsLocal(cwd, path);
@@ -4400,6 +4401,46 @@ function planGoalAdapterReceipt(row) {
   return receipt;
 }
 
+function planGoalAdapterHasTerminalAuthority(db, slug, doc) {
+  if (!doc.goals.length || doc.goals.some(goal => goal.status !== 'complete')) return false;
+  const requiredTables = ['process_controller_state', 'lifecycle_plan_goal_proofs'];
+  const present = new Set(db.prepare(`SELECT name FROM sqlite_schema
+    WHERE type='table' AND name IN (?,?)`).all(...requiredTables).map(row => row.name));
+  if (requiredTables.some(name => !present.has(name))) return false;
+
+  const resultRefs = [];
+  for (const row of db.prepare('SELECT * FROM lifecycle_plan_goal_receipts WHERE slug=?').all(slug)) {
+    const receipt = planGoalAdapterReceipt(row);
+    if (receipt.kind === 'projected') {
+      resultRefs.push(...receipt.carriedHeadSnapshots.map(item => item.resultRef),
+        ...receipt.newlyAllowedResultRefs);
+    } else if (receipt.kind === 'controller-denied') {
+      resultRefs.push(...receipt.allowedHeadSnapshots.map(item => item.resultRef),
+        ...receipt.newlyAllowedResultRefs);
+    }
+  }
+  for (const row of db.prepare('SELECT manifest_json FROM lifecycle_plan_goal_bootstraps WHERE slug=?').all(slug)) {
+    resultRefs.push(JSON.parse(row.manifest_json).resultRef);
+  }
+
+  const processIsComplete = processId => {
+    const row = db.prepare(`SELECT snapshot_json,revision,last_audit_seq,last_audit_hash
+      FROM process_controller_state WHERE process_id=?`).get(processId);
+    let snapshot;
+    try { snapshot = row ? JSON.parse(row.snapshot_json) : null; } catch { return false; }
+    return snapshot?.state === 'complete' && snapshot.revision === row.revision
+      && resultRefs.some(ref => ref?.allowed === true && ref.processId === processId
+        && ref.stateRevisionAfter === row.revision && ref.auditSeq === row.last_audit_seq
+        && ref.auditHash === row.last_audit_hash);
+  };
+  const planId = `qe-plan:${slug}`;
+  if (!processIsComplete(planId)
+    || doc.goals.some(goal => !processIsComplete(`${planId}:goal:${goal.id}`))) return false;
+  if (!db.prepare("SELECT 1 FROM lifecycle_plan_goal_proofs WHERE slug=? AND kind='plan'").get(slug)) return false;
+  return doc.goals.every(goal => db.prepare(`SELECT 1 FROM lifecycle_plan_goal_proofs
+    WHERE slug=? AND kind='goal' AND goal_id=?`).get(slug, goal.id));
+}
+
 function planGoalControllerHeadSnapshot(controller, processId, resultRef) {
   const read = controller.read(processId);
   if (!read?.ok || !read.snapshot || !Number.isSafeInteger(read.snapshot.revision)
@@ -5115,6 +5156,13 @@ export function executePlanGoalTransition(cwd, slug, input) {
       return { ok: true, code: 'REPLAYED', audited: true, action,
         goal: { id: goal.id, status: goal.status, attempts: goal.attempts },
         operationId: replay.operation_id, receiptId: replay.receipt_id };
+    }
+
+    if (action === 'next' && !queue.firstIncomplete
+      && planGoalAdapterHasTerminalAuthority(db, slug, rows.doc)) {
+      db.exec('COMMIT');
+      return { ok: true, code: 'PLAN_COMPLETE', audited: false,
+        action: 'next', total: rows.doc.goals.length };
     }
 
     if (action === 'next' && queue.current?.status === 'active') {

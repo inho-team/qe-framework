@@ -712,6 +712,13 @@ test('legacy all-complete Plan reconstructs complete Goal and Plan controller au
 
       assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }),
         { ok: true, code: 'PLAN_COMPLETE', audited: false, action: 'next', total: 1 });
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }),
+        { ok: true, code: 'PLAN_COMPLETE', audited: false, action: 'next', total: 1 });
+      const alternateSession = '88888888-8888-4888-8888-888888888888';
+      writeFileSync(join(cwd, '.qe', 'state', 'current-session.json'),
+        JSON.stringify({ session_id: alternateSession }), 'utf8');
+      assert.deepEqual(ledger.executePlanGoalTransition(cwd, SLUG, { action: 'next' }),
+        { ok: true, code: 'PLAN_COMPLETE', audited: false, action: 'next', total: 1 });
       const check = openSqlite(cwd, { readOnly: true });
       const states = check.prepare('SELECT process_id,snapshot_json FROM process_controller_state ORDER BY process_id').all();
       assert.deepEqual(states.map(item => JSON.parse(item.snapshot_json).state), ['complete', 'complete']);
@@ -721,6 +728,31 @@ test('legacy all-complete Plan reconstructs complete Goal and Plan controller au
       closeSqlite(check);
     });
   } finally { rmSync(cwd, { recursive: true, force: true }); }
+});
+
+test('bounded micro acceptance requires a current session in the canonical lifecycle store', { concurrency: false }, () => {
+  const cwd = makeProject();
+  try {
+    withRoot(cwd, () => {
+      ledger.createGoals(cwd, SLUG, ['Micro::change runtime behavior']);
+      ledger.renderState(cwd, SLUG);
+      rmSync(join(cwd, '.qe', 'state'), { recursive: true, force: true });
+      const bounded = formalAcceptanceFor('G001', 'change runtime behavior');
+      bounded.assurance = {
+        lane: 'bounded-micro',
+        admissionVersion: 1,
+        materialDecisionsResolved: true,
+        workItems: 1,
+      };
+      const contractFile = join(cwd, 'bounded-missing-session.json');
+      writeFileSync(contractFile, JSON.stringify(bounded), 'utf8');
+      assert.throws(() => ledger.setGoalAcceptance(cwd, SLUG, {
+        goalId: 'G001', file: contractFile,
+      }), error => error.code === 'SESSION_REQUIRED' && /valid QE session/.test(error.message));
+    });
+  } finally {
+    rmSync(cwd, { recursive: true, force: true });
+  }
 });
 
 test('partial adapter schema is detected without auto-repair', { concurrency: false }, () => {
