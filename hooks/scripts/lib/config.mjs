@@ -18,6 +18,11 @@ const DEFAULTS = {
   // may reflect a different codebase state after overnight changes.
   analysis_freshness_ms: 24 * 60 * 60 * 1000,  // 24 hours — .qe/analysis/ freshness
 
+  // Structural additions since the analysis baseline are stronger staleness
+  // evidence than wall-clock age. Three signals avoids warning on a single
+  // experimental file while still catching a meaningful architecture shift.
+  analysis_drift_threshold: 3,
+
   // post-tool-use.mjs
   // [why this value]: 90 seconds is the typical latency window for a burst of tool
   // calls caused by a single agent action (e.g. multi-file edits). Errors that cluster

@@ -136,6 +136,11 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
    session. An active or blocked Goal prevents skipping, and another live session
    cannot continue, block, fail, or complete the owned Goal.
 2. **Knowledge preflight:** Run `node scripts/qe-plan-context.mjs "{Goal objective}"`.
+   Then run `node scripts/qe-analysis-drift.mjs --json`. When it reports
+   `actionRequired: true`, generated analysis is advisory-only for the returned
+   `affectedPaths`: read the live source in those paths before planning, execution,
+   or verification. Drift detection is non-blocking and a missing baseline does not
+   fail the Goal; it only removes analysis freshness as usable evidence.
    Use the returned reviewed wiki entries and QE artifact paths as pointers. Read only
    the source documents required for the Goal; source files override summaries.
 3. **Assurance lane execution:** consume the immutable lane selected and
@@ -160,6 +165,12 @@ Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied 
    **Formal Goal lane** applies otherwise. Generate the Goal's TASK_REQUEST and
    VERIFY_CHECKLIST, execute it, then run the complete SIVS verification loop.
    These are internal units, not user commands.
+
+   After implementation and before verification, rerun
+   `node scripts/qe-analysis-drift.mjs --json`. If the Goal introduced actionable
+   structural drift, include the returned paths in live-source verification and do
+   not claim that the generated analysis map is current. This advisory check never
+   substitutes for the locked regression and Goal-alignment gates.
 
    If a micro Goal grows beyond any limit, reveals a high-impact risk, or fails
    verification, do not mutate its immutable acceptance. Stop before expanded

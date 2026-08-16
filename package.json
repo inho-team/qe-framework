@@ -43,6 +43,7 @@
     "qe:query": "node scripts/qe-query.mjs",
     "qe:schema": "node scripts/qe-schema.mjs",
     "qe:contract": "node scripts/qe-contract.mjs",
+    "qe:analysis-drift": "node scripts/qe-analysis-drift.mjs",
     "qe:release": "node scripts/qe-release-admin.mjs",
     "check:routing": "node scripts/check-skill-routing.mjs",
     "check:all": "node scripts/check-all.mjs",

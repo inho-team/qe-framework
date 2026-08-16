@@ -24,6 +24,7 @@ import { openMemo, memoScope } from './lib/store-memo.mjs';
 import { runAutoMigrations, summarizeReport } from './lib/legacy-migrator.mjs';
 import { invalidateCachedRatio, readDetectedLimit, writeCachedLimit } from './lib/context-meter.mjs';
 import { formatGoalReconciliation, reconcileHostGoal } from './lib/goal-adapter.mjs';
+import { assessAnalysisDrift, formatAnalysisDrift } from './lib/analysis-drift.mjs';
 
 // Read stdin (Claude Code provides JSON with cwd, session_id, etc.)
 // Read fd 0 directly. `/dev/stdin` re-opens the pipe and can read empty on Linux CI
@@ -250,6 +251,20 @@ if (currentSid) {
 }
 
 // --- ALWAYS TIER (continued) ---
+
+// Commit-aware analysis freshness. This adapts GSD's post-execute codebase
+// drift idea to QE's generated `.qe/analysis/` map. It is advisory and
+// fail-open: stale analysis makes live-source preflight mandatory for the
+// affected paths, but it never blocks session startup or workflow execution.
+if (!isCompactionSource) {
+  try {
+    const drift = assessAnalysisDrift(cwd, { threshold: cfg.analysis_drift_threshold });
+    const driftMessage = formatAnalysisDrift(drift);
+    if (driftMessage) messages.push(driftMessage);
+  } catch {
+    // Analysis freshness is advisory; startup must remain available.
+  }
+}
 
 // Inject the Override Map as a COMPACT POINTER (ADR-025 R1). Previously this
 // sliced the entire "## Preferred Skill Map" section out of QE_CONVENTIONS.md

@@ -76,6 +76,7 @@ You only say **what you want**. How to ask the right question, how to verify the
 | Quality depends on prompt quality | **SIVS Loop** — automated Spec → Implement → Verify → Supervise gate |
 | No model routing control | **SIVS Config** — route each stage to Claude or Codex independently |
 | Token waste on repeated scans | **Context Memory** — pre-analyzed project knowledge, auto-refreshed |
+| Generated analysis lags structural changes | **Commit-aware drift check** — affected paths fall back to live-source preflight |
 
 ---
 
@@ -257,6 +258,12 @@ The Plan is the user workflow; Spec, Execute, and Verify are internal per-Goal s
 Only verified Goal outcomes are added to the derived project wiki. Canonical QE
 document rows in `qe.db` remain the source of truth; derived index tables are the
 lookup layer.
+
+Before a Goal trusts generated project analysis, QE compares its recorded Git
+baseline with committed and untracked structural additions. New package barrels,
+routes, migrations, and directory roots make the affected analysis advisory-only;
+Qplan reads those live sources again before execution and verification. The check
+is non-blocking and can be inspected directly with `npm run qe:analysis-drift -- --json`.
 
 ### Store schema and upgrades
 

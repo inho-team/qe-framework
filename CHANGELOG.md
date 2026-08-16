@@ -28,6 +28,14 @@ All entries should land in `[Unreleased]` until the repository release workflow 
 
 ### Added
 
+- **Commit-aware analysis drift detection**, adapted from GSD's post-execute
+  codebase-drift gate for QE's `.qe/analysis/` model. A non-blocking detector
+  compares the recorded analysis commit with committed and untracked structural
+  additions, surfaces affected package/route/migration/directory paths at
+  SessionStart, and makes Qplan fall back to live-source preflight before
+  execution and verification. `npm run qe:analysis-drift -- --json` exposes the
+  same deterministic result for diagnostics.
+
 - **`Qdashboard` local state viewer.** Adds a public Claude/Codex skill that
   regenerates the existing read-only QE Inspector from the current project's
   `.qe/qe.db`, opens it locally by default, and supports status-only,
