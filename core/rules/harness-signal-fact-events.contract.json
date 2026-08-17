@@ -1,0 +1,186 @@
+{
+  "channelReaders": {
+    "controller-facts": "controller",
+    "decoy-facts": "controller",
+    "decoy-report": "controller",
+    "guardian-facts": "outer",
+    "outer-facts": "controller",
+    "plan-ack": "guardian",
+    "retire-ack": "guardian",
+    "retire-command": "sentinel",
+    "sentinel-direct": "outer",
+    "sentinel-facts": "guardian"
+  },
+  "channels": [
+    "guardian-facts",
+    "outer-facts",
+    "controller-facts",
+    "sentinel-facts",
+    "decoy-facts",
+    "sentinel-direct",
+    "plan-ack",
+    "retire-command",
+    "retire-ack",
+    "decoy-report"
+  ],
+  "contract": "qe.signal.fact-contract.v1",
+  "eventKinds": [
+    "residual",
+    "protocol-frame",
+    "child-wait",
+    "census-snapshot",
+    "decoy-report",
+    "stream-closed"
+  ],
+  "eventProfiles": {
+    "census-snapshot": {
+      "channelMode": "guardian-facts",
+      "extraKeys": [
+        "members",
+        "membersDigest",
+        "phase",
+        "sample"
+      ],
+      "producerMode": "null"
+    },
+    "child-wait": {
+      "channelMode": "observer-facts",
+      "extraKeys": [
+        "pid",
+        "role",
+        "wait"
+      ],
+      "producerMode": "null"
+    },
+    "decoy-report": {
+      "channelMode": "decoy-report",
+      "extraKeys": [
+        "frame",
+        "termCount"
+      ],
+      "producerMode": "decoy-sequence-1"
+    },
+    "protocol-frame": {
+      "channelMode": "frame-profile",
+      "extraKeys": [
+        "errno",
+        "frame",
+        "frameKind",
+        "returned"
+      ],
+      "producerMode": "frame-profile"
+    },
+    "residual": {
+      "channelMode": "observer-facts",
+      "extraKeys": [
+        "reason"
+      ],
+      "producerMode": "null"
+    },
+    "stream-closed": {
+      "channelMode": "reader-bound",
+      "extraKeys": [
+        "closure",
+        "errorCode"
+      ],
+      "producerMode": "null"
+    }
+  },
+  "frameProfiles": {
+    "kill-observation": {
+      "actor": "sentinel",
+      "channel": "sentinel-direct",
+      "observer": "outer",
+      "producerSequence": 4,
+      "returnedMode": "null-only"
+    },
+    "plan-accepted-ack": {
+      "actor": "sentinel",
+      "channel": "plan-ack",
+      "observer": "guardian",
+      "producerSequence": 2,
+      "returnedMode": "null-only"
+    },
+    "plan-accepted-direct": {
+      "actor": "sentinel",
+      "channel": "sentinel-direct",
+      "observer": "outer",
+      "producerSequence": 1,
+      "returnedMode": "null-only"
+    },
+    "retire-ack": {
+      "actor": "sentinel",
+      "channel": "retire-ack",
+      "observer": "guardian",
+      "producerSequence": 5,
+      "returnedMode": "null-only"
+    },
+    "retire-command": {
+      "actor": "guardian",
+      "channel": "retire-command",
+      "observer": "sentinel",
+      "producerSequence": 1,
+      "returnedMode": "null-only"
+    },
+    "term-result": {
+      "actor": "sentinel",
+      "channel": "sentinel-direct",
+      "observer": "outer",
+      "producerSequence": 3,
+      "returnedMode": "boolean-errno"
+    }
+  },
+  "limitations": [
+    "OPAQUE_FRAME_SEMANTICS",
+    "NO_TERMINAL_PROJECTION",
+    "CALLER_PROVENANCE_REQUIRED"
+  ],
+  "limits": {
+    "closureSequence": 65535,
+    "maxCanonicalBytes": 1048576,
+    "maxChannelSequence": 65534,
+    "maxDepth": 32,
+    "maxEventBytes": 2048,
+    "maxEventNodes": 128,
+    "maxEvents": 256,
+    "maxMembers": 1,
+    "maxNodes": 65536,
+    "maxRawFrameBytes": 112,
+    "maxUint32": 4294967295,
+    "maxUint64String": "18446744073709551615",
+    "minPid": 1
+  },
+  "maxEvents": 256,
+  "observers": [
+    "guardian",
+    "outer",
+    "sentinel",
+    "controller",
+    "decoy"
+  ],
+  "patterns": {
+    "digest": "^[0-9a-f]{64}$",
+    "rawHex112": "^[0-9a-f]{224}$",
+    "uint64": "^(0|[1-9][0-9]{0,19})$",
+    "uuidV4": "^[0-9a-f]{8}-[0-9a-f]{4}-4[0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$"
+  },
+  "producers": [
+    "guardian",
+    "sentinel",
+    "decoy"
+  ],
+  "residualReasons": [
+    "PLAN_NOT_ACCEPTED",
+    "ACK_UNOBSERVED",
+    "GUARDIAN_LOST",
+    "PROTOCOL_INVALID",
+    "SIGNAL_FAILED",
+    "WAIT_INCOMPLETE",
+    "CENSUS_UNCERTAIN",
+    "ROLE_TIMEOUT",
+    "RESULT_INVALID",
+    "OBSERVER_TIMEOUT",
+    "INTERLOCK_FAILED"
+  ],
+  "version": 1
+}
