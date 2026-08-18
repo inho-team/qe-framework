@@ -15,6 +15,35 @@ const QE_CODEX_CONFIG_END = '# End QE Framework Agent Configuration';
 const QE_CODEX_HOOKS_BEGIN = '# QE Framework Hook Configuration — managed by qe-framework installer';
 const QE_CODEX_HOOKS_END = '# End QE Framework Hook Configuration';
 const CODEX_OWNERSHIP_FILE = '.qe-owned-assets.json';
+const QE_CODEX_AGENT_HEADER = '# QE-generated Codex native agent';
+const CODEX_PROVIDERS = new Set(['openai', 'ollama', 'lmstudio']);
+
+function normalizeCodexProvider(value, fallback = 'openai') {
+  const provider = String(value === undefined || value === null ? fallback : value).trim().toLowerCase();
+  if (!CODEX_PROVIDERS.has(provider)) {
+    throw new TypeError(`unsupported Codex provider: ${provider || '<empty>'} (expected openai, ollama, or lmstudio)`);
+  }
+  return provider;
+}
+
+function readCodexInstallStamp(codexDir) {
+  try {
+    return JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8'));
+  } catch {
+    return null;
+  }
+}
+
+function isQeGeneratedCodexAgent(content) {
+  return String(content || '').startsWith(`${QE_CODEX_AGENT_HEADER}\n`);
+}
+
+function needsCodexProviderMigration(content, codexProvider) {
+  if (!isQeGeneratedCodexAgent(content)) return false;
+  if (codexProvider === 'openai') return content.includes('Codex OSS provider:');
+  return /^model(?:_reasoning_effort)?\s*=/m.test(content)
+    || !content.includes(`Codex OSS provider: \`${codexProvider}\``);
+}
 
 function sha256File(file) {
   return createHash('sha256').update(readFileSync(file)).digest('hex');
@@ -498,6 +527,13 @@ function stripQeAgentFence(text) {
     lines = [...lines.slice(0, beginIdx), ...lines.slice(endIdx + 1)];
   }
 
+  // Historical installers could leave a marker comment without its matching
+  // pair. Remove only those managed comment lines; preserve all user config.
+  lines = lines.filter((line) => {
+    const trimmed = line.trim();
+    return trimmed !== QE_CODEX_CONFIG_BEGIN && trimmed !== QE_CODEX_CONFIG_END;
+  });
+
   const collapsed = [];
   let prevBlank = false;
   for (const line of lines) {
@@ -953,7 +989,7 @@ function inferCodexSandboxMode(toolsHint) {
   return tools.includes('Write') || tools.includes('Edit') ? 'workspace-write' : 'read-only';
 }
 
-function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint, codexModel, codexReasoningEffort }) {
+function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHint, codexModel, codexReasoningEffort, codexProvider }) {
   const lines = [
     '# Codex Native Agent Compatibility',
     '',
@@ -965,7 +1001,11 @@ function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHin
   ];
   if (modelHint) lines.push(`- Source recommendedModel hint: \`${modelHint}\`.`);
   if (reasoningEffortHint) lines.push(`- Source reasoning effort hint: \`${reasoningEffortHint}\`.`);
-  if (codexModel) lines.push(`- Codex model routing: \`${codexModel}\`${codexReasoningEffort ? ` with effort \`${codexReasoningEffort}\`` : ''}.`);
+  if (codexProvider !== 'openai') {
+    lines.push(`- Codex OSS provider: \`${codexProvider}\`; inherit the active local model and its supported reasoning settings.`);
+  } else if (codexModel) {
+    lines.push(`- Codex model routing: \`${codexModel}\`${codexReasoningEffort ? ` with effort \`${codexReasoningEffort}\`` : ''}.`);
+  }
   if (toolsHint) lines.push(`- Source tool/MCP hint: \`${toolsHint}\`.`);
   lines.push('', '---', '');
   return lines.join('\n');
@@ -977,13 +1017,15 @@ function renderCodexCompatibilityNote({ modelHint, reasoningEffortHint, toolsHin
  * @param {{ name: string, description: string, instructions: string, metadata?: Record<string, string> }} opts
  * @returns {string} TOML content
  */
-function renderCodexAgentToml({ name, description, instructions, metadata = {} }) {
+function renderCodexAgentToml({ name, description, instructions, metadata = {}, codexProvider = 'openai' }) {
   const modelHint = metadata.recommendedModel || metadata.model || '';
   const reasoningEffortHint = metadata.reasoningEffort
     || metadata.reasoning_effort
     || metadata.model_reasoning_effort
     || inferReasoningEffort(modelHint);
-  const codexRouting = resolveCodexModelRouting(modelHint, reasoningEffortHint);
+  const codexRouting = codexProvider === 'openai'
+    ? resolveCodexModelRouting(modelHint, reasoningEffortHint)
+    : { model: '', effort: '' };
   const toolsHint = metadata.tools || metadata.mcp || metadata.MCP || '';
   const sandboxMode = metadata.sandbox_mode || metadata.sandboxMode || inferCodexSandboxMode(toolsHint);
   const compatibilityNote = renderCodexCompatibilityNote({
@@ -992,11 +1034,12 @@ function renderCodexAgentToml({ name, description, instructions, metadata = {} }
     toolsHint,
     codexModel: codexRouting.model,
     codexReasoningEffort: codexRouting.effort,
+    codexProvider,
   });
   const developerInstructions = `${compatibilityNote}${instructions.replace(/\r\n/g, '\n').replace(/\r/g, '\n')}`;
 
   const lines = [
-    '# QE-generated Codex native agent',
+    QE_CODEX_AGENT_HEADER,
     `name = ${quoteToml(name)}`,
     `description = ${quoteToml(description)}`,
   ];
@@ -1321,7 +1364,9 @@ function syncCleanupManifest(repoRoot, log = () => {}) {
  * @param {string}   [opts.homeDir]  - injectable home dir (default: os.homedir())
  * @param {Function} [opts.log]      - logger (default: console.log)
  * @param {boolean}  [opts.dryRun]   - if true, print plan only; write nothing
- * @returns {{ skipped: boolean, skills: number, agents: number, dryRun: boolean }}
+ * @param {'openai'|'ollama'|'lmstudio'} [opts.codexProvider] - agent model routing provider;
+ *   local providers inherit the active Codex OSS model
+ * @returns {{ skipped: boolean, skills: number, agents: number, dryRun: boolean, codexProvider?: string }}
  */
 export function installCodexAssets({
   repoRoot = REPO_ROOT,
@@ -1329,6 +1374,7 @@ export function installCodexAssets({
   log = console.log,
   dryRun = false,
   syncManifest = true,
+  codexProvider,
 } = {}) {
   if (!homeDir || typeof homeDir !== 'string' || homeDir.trim() === '') {
     throw new Error('installCodexAssets: refusing to run with empty homeDir (would resolve to a cwd-relative .codex path)');
@@ -1342,6 +1388,9 @@ export function installCodexAssets({
     return { skipped: true, skills: 0, agents: 0, dryRun };
   }
 
+  const previousStamp = readCodexInstallStamp(codexDir);
+  const resolvedCodexProvider = normalizeCodexProvider(codexProvider, previousStamp?.codexProvider || 'openai');
+
   const skillsSrcDir = join(repoRoot, 'skills');
   const agentsSrcDir = join(repoRoot, 'agents');
   const scriptsSrcDir = join(repoRoot, 'scripts');
@@ -1354,6 +1403,7 @@ export function installCodexAssets({
 
   if (dryRun) {
     log('[codex-install] dry-run — no files will be written');
+    log(`[codex-install] provider=${resolvedCodexProvider}${resolvedCodexProvider === 'openai' ? ' (QE model routing)' : ' (inherit active OSS model)'}`);
     let skillCount = 0;
     let agentCount = 0;
     if (existsSync(skillsSrcDir)) {
@@ -1369,7 +1419,7 @@ export function installCodexAssets({
     if (existsSync(hooksSrcDir)) {
       log(`[codex-install] would copy hooks/ -> ${codexHooksDir}`);
     }
-    return { skipped: false, skills: skillCount, agents: agentCount, dryRun: true };
+    return { skipped: false, skills: skillCount, agents: agentCount, dryRun: true, codexProvider: resolvedCodexProvider };
   }
 
   cleanupCodexAssets({ homeDir, purge: true, log });
@@ -1404,6 +1454,7 @@ export function installCodexAssets({
 
   // ----- Agents -----
   const agentEntries = [];
+  let agentBackupDir = null;
   if (existsSync(agentsSrcDir)) {
     ensureDir(codexAgentsDir);
     let mdFiles = [];
@@ -1415,11 +1466,27 @@ export function installCodexAssets({
       const { metadata, body } = parseAgentFrontmatter(markdown);
       const name = metadata.name || entry.replace(/\.md$/i, '');
       const description = metadata.description || `${name} agent installed by QE Framework.`;
-      const tomlContent = renderCodexAgentToml({ name, description, instructions: body, metadata });
+      const tomlContent = renderCodexAgentToml({
+        name,
+        description,
+        instructions: body,
+        metadata,
+        codexProvider: resolvedCodexProvider,
+      });
       const tomlDest = join(codexAgentsDir, `${name}.toml`);
       if (existsSync(tomlDest)) {
-        log(`[WARN] codex-install: preserving unowned or modified agent file: ${tomlDest}`);
-        continue;
+        let existing = '';
+        try { existing = readFileSync(tomlDest, 'utf8'); } catch {}
+        if (!needsCodexProviderMigration(existing, resolvedCodexProvider)) {
+          log(`[WARN] codex-install: preserving unowned or modified agent file: ${tomlDest}`);
+          if (isQeGeneratedCodexAgent(existing)) agentEntries.push({ name, description });
+          continue;
+        }
+        agentBackupDir ||= join(codexDir, '.qe-agent-backup', backupStamp());
+        ensureDir(agentBackupDir);
+        const backupPath = join(agentBackupDir, `${name}.toml`);
+        copyFileSync(tomlDest, backupPath);
+        log(`[codex-install] backed up legacy generated agent -> ${backupPath}`);
       }
       writeFileSync(tomlDest, tomlContent, 'utf8');
       ownedFiles.set(relative(codexDir, tomlDest).split(sep).join('/'), sha256File(tomlDest));
@@ -1497,17 +1564,23 @@ export function installCodexAssets({
     const assetHash = computeCodexAssetHash(repoRoot);
     writeFileSync(
       join(codexDir, '.qe-codex-version'),
-      `${JSON.stringify({ schema: 2, version, assetHash, ts: new Date().toISOString() })}\n`,
+      `${JSON.stringify({ schema: 2, version, assetHash, codexProvider: resolvedCodexProvider, ts: new Date().toISOString() })}\n`,
       'utf8',
     );
     const versionFile = join(codexDir, '.qe-codex-version');
     ownedFiles.set(relative(codexDir, versionFile).split(sep).join('/'), sha256File(versionFile));
-    log(`[codex-install] version/content stamp written: ${version} (${assetHash.slice(0, 12)})`);
+    log(`[codex-install] version/content stamp written: ${version} (${assetHash.slice(0, 12)}), provider=${resolvedCodexProvider}`);
   } catch { /* stamp is best-effort — never fail the install on it */ }
 
   writeCodexOwnership(codexDir, ownedFiles);
 
-  return { skipped: false, skills: skillCount, agents: agentEntries.length, dryRun: false };
+  return {
+    skipped: false,
+    skills: skillCount,
+    agents: agentEntries.length,
+    dryRun: false,
+    codexProvider: resolvedCodexProvider,
+  };
 }
 
 /**
@@ -1584,6 +1657,7 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
   let codexFenced = 0;
   let codexMissing = 0;
   let codexStamp = null;
+  let codexProvider = null;
   let codexHookInstalled = false;
   let codexHookFenced = false;
   let codexHookEvents = [];
@@ -1602,11 +1676,12 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
       codexHookFenced = cfgText.includes(expectedHookPath);
       codexHookEvents = parseCodexHookEvents(cfgText, expectedHookPath);
     }
-    try {
-      codexStamp = JSON.parse(readFileSync(join(codexDir, '.qe-codex-version'), 'utf8')).version;
-    } catch { /* stamp absent → never synced (or externally cleared) */ }
+    const stamp = readCodexInstallStamp(codexDir);
+    codexStamp = stamp?.version || null;
+    codexProvider = stamp ? (stamp.codexProvider || 'openai') : null;
     log('  codex:');
     log(`    version stamp: ${codexStamp || 'none'}`);
+    log(`    provider: ${codexProvider || 'none'}`);
     log(`    fenced agents: ${codexFenced}`);
     log(`    hook bundle: ${codexHookInstalled ? 'present' : 'missing'}`);
     log(`    hook fence: ${codexHookFenced ? 'points to ~/.codex/hooks ✓' : 'missing/stale'}`);
@@ -1617,5 +1692,5 @@ export function doctor({ repoRoot = REPO_ROOT, homeDir = homedir(), log = consol
       log('    all fenced agents resolve ✓');
     }
   }
-  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp, codexHookInstalled, codexHookFenced, codexHookEvents };
+  return { mode, version, present, backups: backups.length, codexFenced, codexMissing, codexStamp, codexProvider, codexHookInstalled, codexHookFenced, codexHookEvents };
 }

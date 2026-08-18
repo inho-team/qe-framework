@@ -32,6 +32,7 @@ Use this file to find the right document quickly.
 - Goal completion contract (acceptance, regression, independent verification): [../core/GOAL_ACCEPTANCE_CONTRACT.md](../core/GOAL_ACCEPTANCE_CONTRACT.md)
 - User-facing response style and Stop-hook enforcement: [../core/OUTPUT_STYLE.md](../core/OUTPUT_STYLE.md)
 - Latest GSD comparison and QE v9 adoption decisions: [GSD_V9_ADOPTION.md](GSD_V9_ADOPTION.md)
+- Harness signal isolation remaining work and execution order: [HARNESS_SIGNAL_REMAINING_WORK.md](HARNESS_SIGNAL_REMAINING_WORK.md)
 
 ## Usage
 

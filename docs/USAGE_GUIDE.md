@@ -30,7 +30,18 @@ For goal triage, use `/Qgoal` or `$Qgoal`. Small concrete goals can stay direct;
 
 `Qdashboard` regenerates `.qe/inspector.html` from the current project's
 read-only QE store and opens it locally. Use `--status` for a terminal summary,
-`--no-open` to generate only, or `--path` to print the report location.
+`--no-open` to generate only, or `--path` to print the report location. The
+dashboard detects the browser language and supports Korean, English, Japanese,
+and Simplified Chinese; the selected language and theme stay local to the browser.
+It starts with a purpose-oriented work board, explains what each dataset means,
+and keeps raw SQLite rows as supporting evidence.
+
+Use `Qdashboard --assistant` only when you want local AI interpretation. It
+starts an ephemeral server bound to `127.0.0.1` and lets you choose the locally
+logged-in Claude or Codex. Only the question and a compact snapshot context are
+sent to that CLI: Claude tools are disabled, Codex uses an ephemeral read-only
+sandbox, credentials and conversations are not stored, and account usage may
+apply. Stop the attached server with Ctrl+C.
 
 `Qcc-setup` installs `cc`, `ccc`, and `cx` launch shortcuts after confirmation.
 Permission-bypass aliases `ccd`, `cxd`, and `cxde` require a separate explicit
@@ -57,6 +68,9 @@ Controls and boundaries:
 
 - `pause` stores the current state; `resume` returns the earliest unresolved
   label. Up to 10 successful resume cycles are allowed.
+- After a client restart, a replacement session can use the explicit `claim`
+  operation with the observed prior owner UUID and revision. Claim is a CAS
+  handoff: stale or terminal state is never overwritten.
 - `skip` records an assumption only for an explicitly reversible non-material
   question. Skipping a material or unknown question blocks the intake.
 - Answers can be corrected up to 6 times. One re-baseline can replace the
@@ -71,7 +85,8 @@ it preserves the draft and reports the earliest unresolved label.
 The resumable record lives at the DB-only logical path
 `.qe/planning/plans/{slug}/INTAKE.json`. Mutations require the current revision
 and owning session; stale revisions or another session fail without overwriting
-the accepted history. Answers remain typed intake evidence (`source-fact`,
+the accepted history. A successful explicit ownership claim consumes one revision
+and preserves the transfer history. Answers remain typed intake evidence (`source-fact`,
 user decision, preference, constraint, assumption, or open question). They do
 not become reviewed project-wiki knowledge until a Goal passes normal
 verification and completion evidence.

@@ -16,6 +16,7 @@ import { fileURLToPath } from 'node:url';
 import {
   cleanupCodexAssets,
   computeCodexAssetHash,
+  doctor,
   evaluateCodexAssetSync,
   installClaudeAssets,
   installCodexAssets,
@@ -555,6 +556,183 @@ test('(g2) Codex agent renderer maps Claude model tiers to Codex model routing',
   assert.ok(sonnet.includes('model_reasoning_effort = "medium"'), 'sonnet maps to medium effort');
   assert.ok(opus.includes('model = "gpt-5.4"'), 'opus maps to frontier Codex model');
   assert.ok(opus.includes('model_reasoning_effort = "high"'), 'opus maps to high effort');
+});
+
+test('(g3) Ollama installs inherit the active Codex OSS model and persist that provider choice', (t) => {
+  const homeDir = makeCodexHome();
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-agent-ollama-repo-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  const agentsDir = path.join(repoRoot, 'agents');
+  fs.mkdirSync(agentsDir, { recursive: true });
+  fs.writeFileSync(path.join(agentsDir, 'Elocal.md'), [
+    '---',
+    'name: Elocal',
+    'description: Local model test agent',
+    'recommendedModel: opus',
+    '---',
+    '',
+    '# Elocal',
+    '',
+  ].join('\n'), 'utf8');
+
+  installCodexAssets({
+    repoRoot,
+    homeDir,
+    codexProvider: 'ollama',
+    log: () => {},
+    syncManifest: false,
+  });
+
+  const agentPath = path.join(homeDir, '.codex', 'agents', 'Elocal.toml');
+  let content = fs.readFileSync(agentPath, 'utf8');
+  assert.doesNotMatch(content, /^model =/m, 'Ollama agent inherits the active local model');
+  assert.doesNotMatch(content, /^model_reasoning_effort =/m, 'Ollama agent does not force OpenAI reasoning effort');
+  assert.ok(content.includes('Codex OSS provider: `ollama`'), 'compatibility note records Ollama inheritance');
+
+  let stamp = JSON.parse(fs.readFileSync(path.join(homeDir, '.codex', '.qe-codex-version'), 'utf8'));
+  assert.equal(stamp.codexProvider, 'ollama', 'Ollama choice is persisted for lifecycle reinstalls');
+  assert.equal(doctor({ repoRoot, homeDir, log: () => {} }).codexProvider, 'ollama');
+
+  installCodexAssets({ repoRoot, homeDir, log: () => {}, syncManifest: false });
+  content = fs.readFileSync(agentPath, 'utf8');
+  assert.doesNotMatch(content, /^model =/m, 'a reinstall without flags preserves Ollama inheritance');
+  stamp = JSON.parse(fs.readFileSync(path.join(homeDir, '.codex', '.qe-codex-version'), 'utf8'));
+  assert.equal(stamp.codexProvider, 'ollama');
+
+  installCodexAssets({
+    repoRoot,
+    homeDir,
+    codexProvider: 'openai',
+    log: () => {},
+    syncManifest: false,
+  });
+  content = fs.readFileSync(agentPath, 'utf8');
+  assert.ok(content.includes('model = "gpt-5.4"'), 'explicit OpenAI reset restores routed agent models');
+});
+
+test('(g3.1) Ollama safely adopts an unowned legacy QE-generated agent', (t) => {
+  const homeDir = makeCodexHome();
+  const repoRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-agent-ollama-adopt-repo-'));
+  t.after(() => {
+    fs.rmSync(homeDir, { recursive: true, force: true });
+    fs.rmSync(repoRoot, { recursive: true, force: true });
+  });
+
+  const sourceAgents = path.join(repoRoot, 'agents');
+  fs.mkdirSync(sourceAgents, { recursive: true });
+  fs.writeFileSync(path.join(sourceAgents, 'Elocal.md'), [
+    '---',
+    'name: Elocal',
+    'description: Local model test agent',
+    'recommendedModel: opus',
+    '---',
+    '',
+    '# Elocal',
+    '',
+  ].join('\n'), 'utf8');
+
+  const installedAgents = path.join(homeDir, '.codex', 'agents');
+  fs.mkdirSync(installedAgents, { recursive: true });
+  const legacy = [
+    '# QE-generated Codex native agent',
+    'name = "Elocal"',
+    'description = "Legacy generated agent"',
+    'model = "gpt-5.4"',
+    'model_reasoning_effort = "high"',
+    'sandbox_mode = "read-only"',
+    'developer_instructions = """legacy"""',
+    '',
+  ].join('\n');
+  const installedAgent = path.join(installedAgents, 'Elocal.toml');
+  fs.writeFileSync(installedAgent, legacy, 'utf8');
+
+  const result = installCodexAssets({
+    repoRoot,
+    homeDir,
+    codexProvider: 'ollama',
+    log: () => {},
+    syncManifest: false,
+  });
+
+  const content = fs.readFileSync(installedAgent, 'utf8');
+  assert.equal(result.agents, 1, 'adopted agent remains registered');
+  assert.doesNotMatch(content, /^model =/m);
+  assert.ok(content.includes('Codex OSS provider: `ollama`'));
+  const backupRoot = path.join(homeDir, '.codex', '.qe-agent-backup');
+  const backups = fs.readdirSync(backupRoot, { recursive: true });
+  const backupRel = backups.find((entry) => String(entry).endsWith('Elocal.toml'));
+  assert.ok(backupRel, 'legacy generated agent is backed up before adoption');
+  assert.equal(fs.readFileSync(path.join(backupRoot, backupRel), 'utf8'), legacy, 'backup preserves the exact prior bytes');
+});
+
+test('(g3.2) reinstall removes orphaned QE agent fence markers', (t) => {
+  const homeDir = makeCodexHome({
+    configToml: [
+      'model = "user-model"',
+      '',
+      QE_FENCE_END,
+      '',
+      '[mcp_servers.keep]',
+      'command = "keep"',
+      '',
+    ].join('\n'),
+  });
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  installCodexAssets({
+    repoRoot: REPO_ROOT,
+    homeDir,
+    codexProvider: 'ollama',
+    log: () => {},
+    syncManifest: false,
+  });
+
+  const config = fs.readFileSync(path.join(homeDir, '.codex', 'config.toml'), 'utf8');
+  assert.equal((config.match(new RegExp(QE_FENCE_BEGIN.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length, 1);
+  assert.equal((config.match(new RegExp(QE_FENCE_END.replace(/[.*+?^${}()|[\]\\]/g, '\\$&'), 'g')) || []).length, 1);
+  assert.ok(config.includes('[mcp_servers.keep]'));
+});
+
+test('(g4) install CLI forwards the Ollama provider in an isolated dry run', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  const result = spawnSync(
+    process.execPath,
+    [path.join(REPO_ROOT, 'bin', 'qe-framework-install.mjs'), '--dry-run', '--codex-provider', 'ollama'],
+    {
+      cwd: REPO_ROOT,
+      env: { ...process.env, HOME: homeDir },
+      encoding: 'utf8',
+    },
+  );
+
+  assert.equal(result.status, 0, result.stderr || result.stdout);
+  assert.ok(result.stdout.includes('provider=ollama (inherit active OSS model)'));
+  assert.deepEqual(fs.readdirSync(path.join(homeDir, '.codex')), [], 'dry run leaves the Codex home unchanged');
+});
+
+test('(g5) install CLI rejects an empty inline Codex provider without writes', (t) => {
+  const homeDir = makeCodexHome();
+  t.after(() => fs.rmSync(homeDir, { recursive: true, force: true }));
+
+  const result = spawnSync(
+    process.execPath,
+    [path.join(REPO_ROOT, 'bin', 'qe-framework-install.mjs'), '--dry-run', '--codex-provider='],
+    {
+      cwd: REPO_ROOT,
+      env: { ...process.env, HOME: homeDir },
+      encoding: 'utf8',
+    },
+  );
+
+  assert.notEqual(result.status, 0);
+  assert.match(result.stderr, /--codex-provider requires openai, ollama, or lmstudio/);
+  assert.deepEqual(fs.readdirSync(path.join(homeDir, '.codex')), [], 'invalid input leaves the Codex home unchanged');
 });
 
 test('(h) Codex skill install compacts long descriptions without changing source or body', (t) => {

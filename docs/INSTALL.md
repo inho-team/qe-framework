@@ -24,6 +24,28 @@ After a Codex install, run `/hooks` inside Codex once to review and trust the QE
 `PreToolUse` safety hook. QE does not document hook-trust bypass as the normal
 path.
 
+### Run QE with Ollama through Codex
+
+Codex exposes Ollama as an OSS provider. Install QE's Codex agents in local-model
+inheritance mode so their generated TOML files do not force OpenAI model names or
+reasoning settings:
+
+```bash
+qe-framework-install --codex-provider ollama
+codex --oss --local-provider ollama
+```
+
+The provider choice is stored in `~/.codex/.qe-codex-version`, so package
+lifecycle reinstalls preserve it. Use `qe-framework-install --codex-provider
+openai` to restore QE's normal Codex model routing. This setting affects the
+generated QE agent roles; installing and starting the Ollama daemon and pulling
+a tool-capable model remain user-managed prerequisites. When switching an older
+unowned QE-generated agent to a local provider, the installer first saves its
+previous TOML under `~/.codex/.qe-agent-backup/`; files without QE's generated
+agent signature remain untouched. Provider switching intentionally replaces a
+signature-bearing QE agent even when it was locally edited, but the byte-exact
+backup remains available for manual recovery or edit reapplication.
+
 ## Distribution vs runtime capability
 
 The Claude plugin remains the distribution anchor: marketplace install,
@@ -66,6 +88,7 @@ and `qe-framework-uninstall` is the supported explicit removal command.
 
 ```bash
 qe-framework-install --dry-run
+qe-framework-install --dry-run --codex-provider ollama
 ```
 
 Writes **nothing**. Prints the resolved mode and, for every file, whether it would be

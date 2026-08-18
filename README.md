@@ -112,6 +112,19 @@ managed lifecycle hook fence pointing at the installed QE hook bundle. After a
 Codex install, run the hooks review command inside Codex once to review and
 trust the QE safety hook.
 
+To run the Codex-native QE assets with an Ollama model, install the agent roles
+in local-model inheritance mode and start Codex with its OSS provider:
+
+```bash
+qe-framework-install --codex-provider ollama
+codex --oss --local-provider ollama
+```
+
+Reinstalling preserves this provider choice. Run `qe-framework-install
+--codex-provider openai` to restore QE's default Codex model routing. See
+[`docs/INSTALL.md`](docs/INSTALL.md#run-qe-with-ollama-through-codex) for the
+support boundary.
+
 **SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
 git config --global url."https://github.com/".insteadOf "git@github.com:"
