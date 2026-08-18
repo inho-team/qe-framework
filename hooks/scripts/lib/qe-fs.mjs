@@ -73,6 +73,10 @@ function db() {
   // as diagnostic output.
   const sqlite = loadSqliteModule();
   if (!sqlite) throw new Error('qe-fs: node:sqlite is unavailable');
+  // Ensure the store's parent dir exists so DatabaseSync can open/create the
+  // file. Without this, a hook running in a cwd that has no .qe/ fails with
+  // SQLITE_CANTOPEN (errcode 14). Matches the write-path mkdir already used below.
+  realFs.mkdirSync(dirname(DB_PATH), { recursive: true });
   _db = new sqlite.DatabaseSync(DB_PATH);
   _db.exec(`CREATE TABLE IF NOT EXISTS qe_files(
     path TEXT PRIMARY KEY, content TEXT, encoding TEXT, size INTEGER,
