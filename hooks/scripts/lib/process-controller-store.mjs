@@ -185,6 +185,11 @@ function parseJson(text) {
   try { return JSON.parse(text); } catch { return null; }
 }
 
+function isCanonicalPrettyJsonFrame(text, value) {
+  const canonical = JSON.stringify(value, null, 2);
+  return text === canonical || text === `${canonical}\n`;
+}
+
 function validateProcessRows(state, rows) {
   let previous = ZERO_HASH;
   let previousRevision = null;
@@ -1431,7 +1436,7 @@ export function createProcessControllerStore(cwd, options = {}) {
     if (!rows.completion.ok) return { error: rows.completion.code === 'PSE_ARTIFACT_NOT_FOUND'
       ? 'SIVS_COMPLETION_EVIDENCE_MISSING' : 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     const completion = parseJson(rows.completion.text);
-    if (!completion || rows.completion.text !== `${JSON.stringify(completion, null, 2)}\n`
+    if (!completion || !isCanonicalPrettyJsonFrame(rows.completion.text, completion)
       || completion.schema !== 1 || completion.goalId !== p.goalId) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     if (!rows.goal.ok) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     const goalDoc = parseJson(rows.goal.text); const goal = goalDoc?.goals?.find(item => item?.id === p.goalId);
@@ -1441,7 +1446,7 @@ export function createProcessControllerStore(cwd, options = {}) {
       || goal.completionEvidence?.file !== `evidence/${p.goalId}.completion.json`) return { error: 'SIVS_COMPLETION_EVIDENCE_STALE' };
     if (Object.entries(rows).some(([key, row]) => !['completion', 'goal'].includes(key) && !row.ok)) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     const acceptance = parseJson(rows.acceptance.text);
-    if (!acceptance || rows.acceptance.text !== `${JSON.stringify(acceptance, null, 2)}\n`
+    if (!acceptance || !isCanonicalPrettyJsonFrame(rows.acceptance.text, acceptance)
       || ![1, 2].includes(acceptance.schema) || acceptance.goalId !== p.goalId) return { error: 'SIVS_COMPLETION_EVIDENCE_CORRUPT' };
     const cover = (source, actual) => Array.isArray(source) && Array.isArray(actual)
       && new Set(actual.map(item => item?.id)).size === actual.length

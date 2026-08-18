@@ -165,6 +165,9 @@ const PLAN_GOAL_ADAPTER_SEAL_NAME = 'lifecycle-plan-goal-adapter';
 const PLAN_GOAL_ADAPTER_SCHEMA_VERSION = 1;
 const PLAN_GOAL_NO_GOAL_PROOF = sha256(canonicalJson(['qe-plan-goal-no-proof-v1', 'goal']));
 const PLAN_GOAL_NO_PLAN_PROOF = sha256(canonicalJson(['qe-plan-goal-no-proof-v1', 'plan']));
+const PLAN_GOAL_EMPTY_BOOTSTRAP_PROOF_SET = sha256(canonicalJson([
+  'qe-plan-goal-bootstrap-proof-set-v1', [],
+]));
 const PLAN_GOAL_NO_ROW = sha256(canonicalJson(['qe-plan-goal-no-row-v1']));
 const PLAN_GOAL_NO_RECEIPT = 'qe-plan-goal-receipt:none';
 const PLAN_GOAL_NO_RESULT = 'qe-controller-result:none';
@@ -4664,6 +4667,12 @@ function planGoalAdapterProofDigest(body) {
   return sha256(canonicalJson(normalized));
 }
 
+function planGoalAdapterBootstrapProofSetMatches(intent, digest) {
+  return intent.bootstrapProofSetDigest === digest
+    || !Object.prototype.hasOwnProperty.call(intent, 'bootstrapProofSetDigest')
+      && digest === PLAN_GOAL_EMPTY_BOOTSTRAP_PROOF_SET;
+}
+
 function planGoalAdapterFormalSivsCompletion(db, slug, goal, acceptance, evidenceRows) {
   if (acceptance.contract.assurance?.lane === 'bounded-micro') {
     return { required: false, lane: 'bounded-micro' };
@@ -4703,11 +4712,13 @@ function planGoalAdapterFormalSivsCompletion(db, slug, goal, acceptance, evidenc
     const finalRow = auditRows.at(-1); let event;
     try { event = JSON.parse(finalRow.event_json); } catch { continue; }
     const projection = event?.request?.completionEvidenceProjection;
+    const goalRowBound = projection?.goalRowSha256 === evidenceRows.goal.sha256
+      || planGoalAdapterHistoricalGoalRowBound(db, slug, goal.id, projection?.goalRowSha256);
     if (event?.operation !== 'sivs-stage-transition' || event.allowed !== true
       || event.result?.to !== 'complete' || event.snapshotAfter?.state !== 'complete'
       || projection?.planSlug !== slug || projection?.goalId !== goal.id
       || projection?.goalAttempt !== goal.attempts || projection?.acceptanceHash !== goal.acceptance?.hash
-      || projection.goalRowSha256 !== evidenceRows.goal.sha256
+      || !goalRowBound
       || projection.acceptanceRowSha256 !== evidenceRows.acceptance.sha256
       || projection.completionRowSha256 !== evidenceRows.completion.sha256
       || projection.implementationRowSha256 !== evidenceRows.implementation.sha256
@@ -4729,6 +4740,40 @@ function planGoalAdapterFormalSivsCompletion(db, slug, goal, acceptance, evidenc
       taskPath: payload.taskPath, checklistPath: payload.checklistPath });
   }
   return matches.length === 1 ? matches[0] : null;
+}
+
+/**
+ * A completed Goal's SIVS projection binds the whole goals.json row that was
+ * current at completion time. Later Goals legitimately mutate that aggregate
+ * row when their acceptance or status changes, so the historical binding must
+ * be recovered through the immutable projected completion intent/receipt pair
+ * rather than compared only with the live row.
+ */
+function planGoalAdapterHistoricalGoalRowBound(db, slug, goalId, goalRowSha256) {
+  if (!/^[0-9a-f]{64}$/.test(String(goalRowSha256 || ''))) return false;
+  const rows = db.prepare(`SELECT r.*,i.intent_json,i.intent_hash,i.base_hashes_json
+    FROM lifecycle_plan_goal_receipts r
+    JOIN lifecycle_plan_goal_intents i
+      ON i.slug=r.slug AND i.semantic_key=r.semantic_key AND i.operation_id=r.operation_id
+    WHERE r.slug=? AND r.goal_id=? AND r.kind='projected' AND r.action='complete'`)
+    .all(slug, goalId);
+  let matches = 0;
+  for (const row of rows) {
+    const receipt = planGoalAdapterReceipt(row);
+    let intent;
+    try { intent = JSON.parse(row.intent_json); } catch { throw new Error('ADAPTER_STORE_CORRUPT'); }
+    if (canonicalJson(intent) !== row.intent_json || sha256(row.intent_json) !== row.intent_hash
+      || canonicalJson(intent.baseHashes) !== row.base_hashes_json
+      || intent.slug !== slug || intent.goalId !== goalId || intent.action !== 'complete'
+      || intent.semanticKey !== row.semantic_key || intent.operationId !== row.operation_id
+      || intent.requestDigest !== receipt.requestDigest
+      || receipt.targetHashes?.goalsSha256 !== row.post_goals_sha256
+      || receipt.postHashes?.goalsSha256 !== row.post_goals_sha256) {
+      throw new Error('ADAPTER_STORE_CORRUPT');
+    }
+    if (intent.baseHashes?.goalsSha256 === goalRowSha256) matches += 1;
+  }
+  return matches === 1;
 }
 
 function planGoalAdapterGoalProof(cwd, db, slug, goal, controllerRevision) {
@@ -5288,6 +5333,10 @@ export function executePlanGoalTransition(cwd, slug, input) {
       if (!proof) { bootstrapEvidenceComplete = false; break; }
       bootstrapGoalProofs.push(proof);
     }
+    const bootstrapProofSetDigest = sha256(canonicalJson([
+      'qe-plan-goal-bootstrap-proof-set-v1',
+      bootstrapGoalProofs.map(item => [item.proof.goalId, item.proofDigest]),
+    ]));
     const completePlan = bootstrapOnly || action === 'complete'
       && rows.doc.goals.every(item => item.id === goal.id || item.status === 'complete');
     if ((action === 'complete' || bootstrapOnly)
@@ -5389,10 +5438,11 @@ export function executePlanGoalTransition(cwd, slug, input) {
       planProofDigest, existingBootstraps, authorizedRequestIds };
     let semanticKey = sha256(canonicalJson(['qe-plan-goal-adapter-v2', slug, action, goal.id, ownerSession,
       goal.attempts, goalRevision, planRevision, rows.baseHashes, evidenceDigest,
-      goalProofDigest, planProofDigest, debt.liabilityDigest, debt.authorityDigest]));
+      goalProofDigest, planProofDigest, bootstrapProofSetDigest,
+      debt.liabilityDigest, debt.authorityDigest]));
     let reservationId = sha256(canonicalJson(['qe-plan-goal-reservation-v1', slug, semanticKey,
       action, goal.id, rows.baseHashes, evidenceDigest, goalProofDigest, planProofDigest,
-      debt.liabilityDigest, debt.authorityDigest]));
+      bootstrapProofSetDigest, debt.liabilityDigest, debt.authorityDigest]));
     let generation = 0;
     let carryFromReceiptId = PLAN_GOAL_NO_RECEIPT;
     let carriedHeadSnapshots = [];
@@ -5436,7 +5486,8 @@ export function executePlanGoalTransition(cwd, slug, input) {
         if (auditEvent.detail?.phase !== 'apply'
           || priorIntent.evidenceDigest !== evidenceDigest
           || priorIntent.goalProofDigest !== goalProofDigest
-          || priorIntent.planProofDigest !== planProofDigest) continue;
+          || priorIntent.planProofDigest !== planProofDigest
+          || !planGoalAdapterBootstrapProofSetMatches(priorIntent, bootstrapProofSetDigest)) continue;
         if (receipt.liabilityDigest === debt.liabilityDigest
           && receipt.authorityDigest === debt.authorityDigest) {
           db.exec('COMMIT');
@@ -5473,6 +5524,7 @@ export function executePlanGoalTransition(cwd, slug, input) {
       const carryMatches = prior.goalId === goal.id
         && canonicalJson(prior.baseHashes) === canonicalJson(rows.baseHashes)
         && prior.goalProofDigest === goalProofDigest && prior.planProofDigest === planProofDigest
+        && planGoalAdapterBootstrapProofSetMatches(priorIntent, bootstrapProofSetDigest)
         && priorIntent.debt?.liabilityDigest === debt.liabilityDigest
         && priorIntent.debt?.authorityDigest === debt.authorityDigest;
       if (!carryMatches) throw new Error('ADAPTER_CONFLICT');
@@ -5512,7 +5564,8 @@ export function executePlanGoalTransition(cwd, slug, input) {
     }
     const intent = { schema: 1, slug, semanticKey, reservationId, operationId, action, ownerSession,
       goalId: goal.id, requestDigest, baseHashes: rows.baseHashes, evidenceSnapshot, evidenceDigest, debt,
-      goalProofDigest, planProofDigest, generation, carryFromReceiptId, carriedHeadSnapshots,
+      goalProofDigest, planProofDigest, bootstrapProofSetDigest,
+      generation, carryFromReceiptId, carriedHeadSnapshots,
       ownerPid: process.pid, eventAt };
     planGoalAdapterWriteConnections.add(db);
     if (!existingIntent && !bootstrapOnly) {
