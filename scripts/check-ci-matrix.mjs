@@ -27,8 +27,7 @@ function stage(text, name, nextName) {
 export function validateCiPipeline(pipeline, linuxRunner) {
   const errors = [];
   const linux = stage(pipeline, 'Linux Node 22 and 24', 'macOS Node 22 native package');
-  const macos = stage(pipeline, 'macOS Node 22 native package', 'Windows Node 22 native package');
-  const windows = stage(pipeline, 'Windows Node 22 native package');
+  const macos = stage(pipeline, 'macOS Node 22 native package');
 
   if (!linux || !includesAll(linux, [
     "agent { label 'macmini' }",
@@ -59,17 +58,14 @@ export function validateCiPipeline(pipeline, linuxRunner) {
     'npm ci --ignore-scripts --omit=optional',
     ...NATIVE_TESTS,
   ])) errors.push('macOS native package checks must run on Node 22 from the lockfile');
-  if (!windows || !includesAll(windows, [
-    "agent { label 'windows' }",
-    'node-v22.23.2-win-x64',
-    'npm.cmd ci --ignore-scripts --omit=optional',
-    ...NATIVE_TESTS,
-  ])) errors.push('Windows native package checks must run on Node 22 from the lockfile');
+  if (/stage\('Windows/.test(pipeline)) {
+    errors.push('Windows CI is retired from this Jenkins pipeline');
+  }
   if (/NODE_VERSION=20|node20|v20\./.test(pipeline)) {
     errors.push('Node 20 is outside the supported CI matrix');
   }
-  if ((pipeline.match(/cleanWs\(/g) || []).length < 3) {
-    errors.push('Every operating system must clean its Jenkins workspace');
+  if ((pipeline.match(/cleanWs\(/g) || []).length < 2) {
+    errors.push('Every supported operating system must clean its Jenkins workspace');
   }
 
   return { ok: errors.length === 0, errors };
@@ -82,7 +78,7 @@ export function main() {
     process.exitCode = 1;
     return;
   }
-  process.stdout.write('check-ci-matrix: PASS — Linux Node 22/24 guards; Linux/macOS/Windows Node 22 native package suite\n');
+  process.stdout.write('check-ci-matrix: PASS — Linux Node 22/24 guards; Linux/macOS Node 22 native package suite\n');
 }
 
 if (process.argv[1] && fileURLToPath(import.meta.url) === process.argv[1]) main();
