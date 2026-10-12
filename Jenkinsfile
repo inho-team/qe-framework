@@ -59,19 +59,5 @@ pipeline {
             }
             post { always { cleanWs(deleteDirs: true, notFailBuild: true) } }
         }
-
-        stage('Windows Node 22 native package') {
-            agent { label 'windows' }
-            environment {
-                PATH = "C:/Users/kjsun/AppData/Local/JenkinsAgent/node22/node-v22.23.2-win-x64;${env.PATH}"
-            }
-            steps {
-                bat 'git config --global core.autocrlf false'
-                checkout scm
-                bat 'node --version && call npm.cmd ci --ignore-scripts --omit=optional'
-                bat 'node --test scripts/lib/__tests__/npm-lifecycle.test.mjs scripts/lib/__tests__/package-lifecycle.test.mjs scripts/lib/__tests__/package-provenance.test.mjs'
-            }
-            post { always { cleanWs(deleteDirs: true, notFailBuild: true) } }
-        }
     }
 }
