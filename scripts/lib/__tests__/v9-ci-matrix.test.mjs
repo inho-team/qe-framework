@@ -15,10 +15,10 @@ test('CI contract covers supported Node lines and native operating systems', () 
   assert.doesNotMatch(pipeline, /NODE_VERSION=20|node20|v20\./);
 });
 
-test('CI contract fails closed when a native operating system is removed', () => {
-  const result = validateCiPipeline(pipeline.replace("agent { label 'windows' }", "agent { label 'macmini' }"), linuxRunner);
+test('CI contract fails closed when a supported native operating system is removed', () => {
+  const result = validateCiPipeline(pipeline.replace('stage(\'macOS Node 22 native package\')', 'stage(\'macOS skipped\')'), linuxRunner);
   assert.equal(result.ok, false);
-  assert.ok(result.errors.some((error) => error.includes('Windows native')));
+  assert.ok(result.errors.some((error) => error.includes('macOS native')));
 });
 
 test('CI contract fails closed when a supported Linux Node line is removed', () => {
