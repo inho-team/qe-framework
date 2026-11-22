@@ -15,7 +15,8 @@
 - Branch: `v9-lightweight` (already created; spec already committed on it).
 - Version `9.0.0` in `package.json`, `.claude-plugin/plugin.json`, and the `qe-framework` entry of `.claude-plugin/marketplace.json` — all three identical.
 - Exactly five skills: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`, `Qresume`. No other skill folders.
-- Each `SKILL.md` ≤ 150 lines, written as "what and why", not numeric caps or schemas. Anti-goal test for every rule: "이게 없으면 모델이 실제로 실패하는가?" — if not clearly yes, leave it out.
+- Skills are condensed adaptations of Superpowers 7.0.2 skills (source: `~/.claude/plugins/cache/claude-plugins-official/superpowers/7.0.2/skills/`, MIT): Qunderstand ← `brainstorming`; Qplan ← `writing-plans`; Qexecute ← `subagent-driven-development` + `executing-plans` (two modes in one skill); Qverify ← `verification-before-completion` + `requesting-code-review`, plus the verify.md record; Qresume has no Superpowers counterpart. Read the source skill before writing each one; keep its intent, drop Superpowers-specific paths (`docs/superpowers/...` → `docs/qe/...`), cross-references to skills QE does not have, and harness-specific detail.
+- Each `SKILL.md` targets ≤ 150 lines (hard ceiling 200), written as "what and why", not numeric caps or schemas. Anti-goal test for every rule: "이게 없으면 모델이 실제로 실패하는가?" — if not clearly yes, leave it out.
 - Only one hook: SessionStart, matcher `startup|clear|compact`, a single Node script (no shell dependency; Windows must work).
 - Task docs live in the user's project at `docs/qe/YYYY-MM-DD-<topic>/` with `spec.md`, `plan.md`, `verify.md`, and `handoff.md` (handoff only when a session is handed over).
 - No `agents/`, no DB, no `scripts/`, no Jenkins/CI, no npm publishing (`private: true`).
@@ -158,7 +159,7 @@ git commit -m "feat: add session-start hook that resumes open qe tasks"
 
 Frontmatter for every skill: `name` and `description` only. `description` starts with "Use when…" and says when to trigger, not what the skill does step by step.
 
-- [ ] **Step 1: Write `skills/Qunderstand/SKILL.md`**
+- [ ] **Step 1: Write `skills/Qunderstand/SKILL.md`** (adapt from Superpowers `brainstorming`)
 
 Content (prose, why-first): 목적 — 만들기 전에 사용자가 정말 원하는 것과 이유를 안다. 먼저 저장소와 사용자가 가리킨 자료를 읽는다; 저장소가 답하는 것은 묻지 않는다. 한 번에 질문 하나, 답이 만들 것을 바꾸는 질문만; 이유를 모르면 열린 질문으로 묻는다. 이해한 부분은 사용자 말로 되들려주고, 사용자가 말한 것과 내가 채운 것을 구분한다. 접근 방식 2–3개를 장단점과 함께 따로 내놓고 하나를 추천해 사용자가 고르게 한다. 아주 작은 일이면 이 단계를 건너뛰고 그렇게 한다고 한 줄 말한다. 끝: 사용자가 접근을 고르면 `Qplan`으로 넘어간다. 사용자가 "그냥 해"라고 하면 질문을 멈추고 주요 선택을 한 줄로 밝힌 뒤 진행한다.
 
@@ -166,13 +167,13 @@ Content (prose, why-first): 목적 — 만들기 전에 사용자가 정말 원�
 
 spec 섹션: 의도와 이유 / 목표·비목표 / 검토한 접근과 선택 이유 / 사용자가 정한 것 / 내가 정한 것(이유 포함) / 남은 판단. plan: 제목, spec 링크, `- [ ] 단계` + `  확인: <명령 또는 방법>` 반복. 각 템플릿에 "작은 일이면 섹션당 한 줄이면 충분" 문구.
 
-- [ ] **Step 3: Write `skills/Qplan/SKILL.md`**
+- [ ] **Step 3: Write `skills/Qplan/SKILL.md`** (adapt from Superpowers `writing-plans`: file map, right-sized tasks with checkable results, self-review against spec)
 
-목적 — 이해한 것을 다음 세션의 AI와 미래의 사용자가 읽을 수 있게 남기고, 실행 가능한 단계로 나눈다. 폴더 `docs/qe/YYYY-MM-DD-<주제>/` 생성, 템플릿으로 spec.md·plan.md 작성. 각 단계는 결과를 확인할 수 있는 크기로, 확인 방법을 함께. 사용자에게 두 문서를 보여 주고 **승인받기 전에는 실행하지 않는다** (유일한 강한 게이트 — 이유: 잘못 이해한 채 만드는 비용이 가장 크다). 내가 정한 결정은 따로 표시해 사용자가 확인하게 한다. 승인 후 `Qexecute`.
+목적 — 이해한 것을 다음 세션의 AI와 미래의 사용자가 읽을 수 있게 남기고, 실행 가능한 단계로 나눈다. 폴더 `docs/qe/YYYY-MM-DD-<주제>/` 생성, 템플릿으로 spec.md·plan.md 작성. 각 단계는 결과를 확인할 수 있는 크기로, 확인 방법을 함께. 사용자에게 두 문서를 보여 주고 **승인받기 전에는 실행하지 않는다** (유일한 강한 게이트 — 이유: 잘못 이해한 채 만드는 비용이 가장 크다). 내가 정한 결정은 따로 표시해 사용자가 확인하게 한다. 승인을 받을 때 실행 방식도 함께 묻는다: **서브에이전트 방식**(단계마다 새 구현자 + 리뷰어) 또는 **직접 방식**(메인이 직접, 끝에 리뷰 한 번) — 추천 하나와 이유 한 줄. 사용자가 이미 정했으면 묻지 않는다. 고른 방식을 plan.md 머리에 적는다. 승인 후 `Qexecute`.
 
 - [ ] **Step 4: Verify**
 
-Run: `node -e "for(const s of ['Qunderstand','Qplan']){const t=require('fs').readFileSync('skills/'+s+'/SKILL.md','utf8');const n=t.split('\n').length;if(!t.startsWith('---\nname: '+s+'\n')||!/\ndescription: /.test(t)||n>150){console.error(s,n);process.exit(1)}}console.log('ok')"`
+Run: `node -e "for(const s of ['Qunderstand','Qplan']){const t=require('fs').readFileSync('skills/'+s+'/SKILL.md','utf8');const n=t.split('\n').length;if(!t.startsWith('---\nname: '+s+'\n')||!/\ndescription: /.test(t)||n>200){console.error(s,n);process.exit(1)}}console.log('ok')"`
 Expected: `ok`
 
 - [ ] **Step 5: Commit**
@@ -187,15 +188,15 @@ git commit -m "feat: add Qunderstand and Qplan skills"
 ### Task 4: Qexecute and Qverify skills
 
 **Files:**
-- Create: `skills/Qexecute/SKILL.md`, `skills/Qverify/SKILL.md`, `skills/Qverify/verify-template.md`, `skills/Qverify/verifier-prompt.md`
+- Create: `skills/Qexecute/SKILL.md`, `skills/Qexecute/implementer-prompt.md`, `skills/Qexecute/reviewer-prompt.md`, `skills/Qverify/SKILL.md`, `skills/Qverify/verify-template.md`, `skills/Qverify/verifier-prompt.md`
 
 **Interfaces:**
 - Consumes: `spec.md`/`plan.md` format from Task 3.
 - Produces: `verify.md` format the hook relies on (existence = 검증됨).
 
-- [ ] **Step 1: Write `skills/Qexecute/SKILL.md`**
+- [ ] **Step 1: Write `skills/Qexecute/SKILL.md`, `implementer-prompt.md`, `reviewer-prompt.md`** (adapt from Superpowers `subagent-driven-development` + `executing-plans`)
 
-목적 — 승인된 계획대로 만들고, 진행을 plan.md에 남겨 세션이 끊겨도 이어갈 수 있게 한다. 승인된 plan.md가 없으면 시작하지 않고 `Qplan`으로 돌아간다. 단계마다 끝나면 `- [x]`로 바꾸고 그 단계의 확인을 실제로 돌린다. 계획과 현실이 어긋나면(계획이 틀렸거나 범위가 커짐) 멈추고 사용자에게 말한다 — 조용히 계획을 바꾸지 않는다. 단계를 서브에이전트에 맡길지는 모델이 판단(독립적인 단계가 여럿이면 유리). 컨텍스트가 차오르면 `Qresume`. 모든 단계가 끝나면 `Qverify`.
+두 방식을 한 스킬에: plan.md 머리에 적힌 방식을 따른다(없으면 사용자에게 묻는다). **서브에이전트 방식** — 단계마다 `implementer-prompt.md`로 새 구현자를 띄우고, 끝나면 `reviewer-prompt.md`로 새 리뷰어가 그 단계를 spec·plan 대비 검토, 지적이 있으면 고친 뒤 다음 단계. **직접 방식** — 메인이 단계를 차례로 직접 구현. 공통: 목적 — 승인된 계획대로 만들고, 진행을 plan.md에 남겨 세션이 끊겨도 이어갈 수 있게 한다. 승인된 plan.md가 없으면 시작하지 않고 `Qplan`으로 돌아간다. 단계마다 끝나면 `- [x]`로 바꾸고 그 단계의 확인을 실제로 돌린다. 계획과 현실이 어긋나면(계획이 틀렸거나 범위가 커짐) 멈추고 사용자에게 말한다 — 조용히 계획을 바꾸지 않는다. 단계를 서브에이전트에 맡길지는 모델이 판단(독립적인 단계가 여럿이면 유리). 컨텍스트가 차오르면 `Qresume`. 모든 단계가 끝나면 `Qverify`.
 
 - [ ] **Step 2: Write `skills/Qverify/verify-template.md`**
 
@@ -205,7 +206,7 @@ git commit -m "feat: add Qunderstand and Qplan skills"
 
 서브에이전트용 프롬프트: spec.md·plan.md 경로와 변경 범위(`git diff <base>..HEAD`)를 받는다; 구현자의 설명을 믿지 말고 코드와 실행 결과로 spec의 각 목표를 확인; 직접 테스트·명령을 돌린다; 고치지 말고 보고만; 결과를 verify-template 섹션 형식으로 돌려준다.
 
-- [ ] **Step 4: Write `skills/Qverify/SKILL.md`**
+- [ ] **Step 4: Write `skills/Qverify/SKILL.md`** (adapt from Superpowers `verification-before-completion` + `requesting-code-review`)
 
 목적 — "됐다"고 말하기 전에 spec 대비 증거로 확인하고, 그 증거를 남긴다. 검증 주체는 상황에 따라 고른다: 작은 변경은 메인에서; 변경이 크거나 메인이 직접 많이 쓴 코드는 자기 채점을 피하려 `verifier-prompt.md`로 새 서브에이전트에 맡긴다. 고른 쪽과 이유를 verify.md 첫 섹션에 쓴다. 증거 없는 "통과"는 쓰지 않는다; 실패·미확인은 그대로 적는다. 결과를 사용자에게 짧게 보고하고, 미충족이 있으면 `Qexecute`로 돌아갈지 사용자와 정한다.
 
