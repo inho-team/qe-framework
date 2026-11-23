@@ -4,6 +4,18 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [9.0.1] - 2026-11-23
+
+### Fixed
+
+- Node.js가 PATH에 없을 때 SessionStart hook이 `node: command not found`로 실패하던 문제(#19).
+  이제 안내를 건너뛰었다는 메시지와 Node.js 22 이상 설치 안내를 보여 주고, 세션은 그대로 열린다.
+
+### Changed
+
+- CHANGELOG 9.0.0의 v8 정리 안내에 `~/.claude/core`, `~/.claude/.qe-backup`, 플러그인 이전 에이전트 사본(#22)을 추가.
+- THIRD_PARTY_NOTICES에 obra/superpowers MIT 라이선스 원문 추가.
+
 ## [9.0.0] - 2026-11-23
 
 ### Changed (Breaking)
@@ -33,8 +45,10 @@ v9 플러그인은 v8 설치기가 플러그인 밖에 복사한 파일을 지�
 
 1. 플러그인 갱신: `claude plugin marketplace update inho-team-qe-framework` 후
    `claude plugin install qe-framework@inho-team-qe-framework`
-2. `~/.claude/commands`, `~/.claude/agents`, `~/.claude/hooks`, `~/.claude/scripts`에서
-   QE가 설치한 파일(`Q*` 스킬·명령, `E*.md` 에이전트, QE hook·스크립트)을 지운다.
+2. `~/.claude/commands`, `~/.claude/agents`, `~/.claude/hooks`, `~/.claude/scripts`,
+   `~/.claude/core`에서 QE가 설치한 파일(`Q*` 스킬·명령, `E*.md` 에이전트, QE hook·스크립트,
+   QE 계약 문서)을 지운다. v8 설치기가 남긴 백업 `~/.claude/.qe-backup`도 필요 없으면 지운다.
+   플러그인 도입 이전(2026년 4월 무렵) 사본이 `~/.claude/agents/`에 남아 있을 수 있다(#22).
    **같은 이름의 v8 사본(`Qplan`, `Qexecute`, `Qcompact`, `Qresume`)이 남아 있으면 v9 스킬 대신 불릴 수 있다.**
 3. Codex를 썼다면 `~/.codex`의 QE skills/agents/hooks와, `~/.codex/config.toml`의
    QE hook fence 블록을 지운다.

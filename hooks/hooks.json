@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs\"",
+            "command": "if command -v node >/dev/null 2>&1; then node \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.mjs\"; else printf '%s\n' '{\"systemMessage\":\"QE: Node.js를 찾지 못해 세션 시작 안내를 건너뛰었습니다. Node.js 22 이상을 설치하고 PATH에서 node가 보이게 하세요.\",\"hookSpecificOutput\":{\"hookEventName\":\"SessionStart\",\"additionalContext\":\"QE 플러그인의 세션 시작 안내를 불러오지 못했다: Node.js(node)가 PATH에 없다. QE 스킬(Qunderstand, Qplan, Qexecute, Qverify, Qdebugging, Qcompact, Qresume)은 그대로 쓸 수 있다. docs/qe/에 미완료 작업이 있는지 직접 확인하고, 사용자에게 Node.js 22 이상 설치를 한 번 안내한다.\"}}'; fi",
             "timeout": 5
           }
         ]
