@@ -1,6 +1,6 @@
 ---
 name: Qresume
-description: Use at session start (or after /compact or /clear) when the injected context lists unfinished docs/qe tasks or a recent handoff, or when the user asks to continue earlier work.
+description: Use when a session starts (or after /compact or /clear) and the injected context lists unfinished docs/qe tasks or a recent handoff, or when the user asks to continue earlier work.
 ---
 
 # Qresume — 이어받기
@@ -38,3 +38,6 @@ description: Use at session start (or after /compact or /clear) when the injecte
 
 - 사용자에게 이전 대화 내용을 다시 설명해 달라고 하지 않는다. 문서에 없을 때만 묻는다.
 - 문서와 기억이 다르면 기억을 따르지 않는다. 다르다는 것을 사용자에게 알린다.
+
+사용자가 이어서 하자는데 안내된 작업이 없으면, 작업이 worktree에서 진행됐을 수 있다.
+`git worktree list`로 다른 checkout을 확인하고 그곳의 `docs/qe/`를 본다.

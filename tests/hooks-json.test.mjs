@@ -17,23 +17,53 @@ const shProbe = spawnSync('sh', ['-c', 'p=$(command -v sh); cygpath -w "$p" 2>/d
 });
 const shPath = shProbe.status === 0 ? shProbe.stdout.trim() : null;
 
+function toShellPath(p) {
+  return spawnSync(shPath, ['-c', 'cygpath -u "$1" 2>/dev/null || printf "%s" "$1"', 'x', p], {
+    encoding: 'utf8',
+  }).stdout.trim();
+}
+
 test('SessionStart runs only on startup, clear, and compact', () => {
   assert.equal(hooks.hooks.SessionStart[0].matcher, 'startup|clear|compact');
   assert.deepEqual(Object.keys(hooks.hooks), ['SessionStart']);
+  // Sourcing is a shell builtin, so the launcher starts even when PATH is empty.
+  assert.equal(command, '. "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"');
 });
 
-test('hook command emits a clear notice instead of failing when node is not on PATH', { skip: !shPath }, () => {
+test('hook command emits a clear notice instead of failing when node is not found', { skip: !shPath }, () => {
   // A PATH holding only an empty temp dir: sh builtins (command, printf) still work, node does not resolve.
   const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
   const res = spawnSync(shPath, ['-c', command], {
     encoding: 'utf8',
-    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: repoRoot },
+    // QE_NODE_PROBES='' turns off the common-path probes so "no node anywhere" is reproducible.
+    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: repoRoot, QE_NODE_PROBES: '' },
   });
   assert.equal(res.status, 0, res.stderr);
   const out = JSON.parse(res.stdout);
   assert.equal(out.hookSpecificOutput.hookEventName, 'SessionStart');
   assert.match(out.hookSpecificOutput.additionalContext, /Node\.js/);
+  assert.match(out.systemMessage, /\/clear/);
   assert.match(out.systemMessage, /Node\.js 22/);
+});
+
+test('hook command finds node at a probe path when PATH lacks it', { skip: !shPath }, () => {
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
+  // A probe dir with a space in its name exercises quoting.
+  const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe probe '));
+  const fakeNode = path.join(probeDir, 'node');
+  const marker = '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"PROBED"}}';
+  fs.writeFileSync(fakeNode, `#!/bin/sh\nprintf '%s' '${marker}'\n`);
+  fs.chmodSync(fakeNode, 0o755);
+  const res = spawnSync(shPath, ['-c', command], {
+    encoding: 'utf8',
+    env: {
+      PATH: emptyBin,
+      CLAUDE_PLUGIN_ROOT: repoRoot,
+      QE_NODE_PROBES: `/nonexistent/node:${toShellPath(fakeNode)}`,
+    },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, 'PROBED');
 });
 
 test('hook command runs the session-start script when node is on PATH', { skip: !shPath }, () => {

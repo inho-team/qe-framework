@@ -38,3 +38,6 @@ description: Use when a session must be handed over — the context is filling u
 - 작업 상태를 따로 저장하는 파일이나 DB를 만들지 않는다. 상태는 plan.md 체크박스와
   verify.md, handoff.md에서 읽힌다.
 - 대화 전체를 옮겨 적지 않는다. 다음 세션이 이어가는 데 필요한 것만 쓴다.
+
+worktree에서 진행한 작업이면 그 `docs/qe/`는 그 worktree에만 있다. 원래 checkout에서 연
+세션은 이 작업을 안내하지 못하므로, handoff.md에 worktree 경로를 적고 사용자에게도 알린다.

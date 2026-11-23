@@ -2,7 +2,7 @@
 
 **코딩 작업을 위한 길 하나: 이해 → 계획 → 실행 → 검증.**
 
-QE는 Claude Code 플러그인이다. 스킬 7개로 된 길 하나를 정해 두고, 각 단계 안에서는
+QE는 Claude Code 플러그인이다. 스킬 몇 개로 된 길 하나를 정해 두고, 각 단계 안에서는
 모델의 판단을 믿는다. 버그 수정, 기능 추가, 리팩터링이 모두 같은 길을 탄다.
 그리고 작업마다 **무엇을 왜 만들었는지(spec)**와 **무엇을 어떻게 확인했는지(verify)**를
 저장소 안의 평범한 마크다운으로 남긴다. 사용자 본인은 나중에 "왜 이렇게 만들었지?"를,
@@ -22,6 +22,8 @@ git config --global url."https://github.com/".insteadOf "git@github.com:"
 ```
 
 `claude plugin update`가 같은 오류로 실패할 때도 이 설정으로 해결된다(설치는 HTTPS로 자동 우회하지만 업데이트는 그렇지 않다).
+
+Windows에서는 Git for Windows(Git Bash)가 필요하다. Git Bash가 없으면 Claude Code가 hook을 PowerShell로 실행해 세션 시작 안내가 빠진다(스킬은 그대로 동작한다).
 
 ## 길
 
