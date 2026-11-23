@@ -21,6 +21,8 @@ claude plugin install qe-framework@inho-team-qe-framework
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 ```
 
+`claude plugin update`가 같은 오류로 실패할 때도 이 설정으로 해결된다(설치는 HTTPS로 자동 우회하지만 업데이트는 그렇지 않다).
+
 ## 길
 
 ```
