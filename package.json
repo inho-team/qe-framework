@@ -1,6 +1,6 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "9.0.0",
+  "version": "9.0.1",
   "private": true,
   "description": "QE Framework — a 5-skill Claude Code plugin: 이해 → 계획(Spec) → 실행 → 검증, with spec and verify docs per task",
   "type": "module",
