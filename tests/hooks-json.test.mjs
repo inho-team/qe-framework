@@ -94,6 +94,6 @@ test('hook command runs the session-start script when node is on PATH', { skip: 
   });
   assert.equal(res.status, 0, res.stderr);
   const out = JSON.parse(res.stdout);
-  assert.match(out.hookSpecificOutput.additionalContext, /^# QE — 이해 → 계획 → 실행 → 검증/);
+  assert.match(out.hookSpecificOutput.additionalContext, /^# QE — 이해 → 계획 → 실행 → 검증 → 마무리/);
   assert.equal(out.systemMessage, undefined);
 });

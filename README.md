@@ -1,6 +1,6 @@
 # QE Framework
 
-**코딩 작업을 위한 길 하나: 이해 → 계획 → 실행 → 검증.**
+**코딩 작업을 위한 길 하나: 이해 → 계획 → 실행 → 검증 → 마무리.**
 
 QE는 Claude Code 플러그인이다. 스킬 몇 개로 된 길 하나를 정해 두고, 각 단계 안에서는
 모델의 판단을 믿는다. 버그 수정, 기능 추가, 리팩터링이 모두 같은 길을 탄다.
@@ -32,12 +32,15 @@ Windows에서는 Git for Windows(Git Bash)가 필요하다. Git Bash가 없으�
 ## 길
 
 ```
-이해        →  계획(Spec)        →  실행      →  검증
-Qunderstand    Qplan                Qexecute     Qverify
-               (spec.md, plan.md    (plan.md     (verify.md)
-                → 사용자 승인)        체크 갱신)
+이해        →  계획(Spec)        →  실행      →  검증        →  마무리
+Qunderstand    Qplan                Qexecute     Qverify         Qfinish
+               (spec.md, plan.md    (plan.md     (verify.md)     (merge / PR / 유지,
+                → 사용자 승인)        체크 갱신)                     사용자가 고름)
 
 Qdebugging: 버그 작업의 시작, 또는 원인 모를 실패 → 근본 원인부터
+Qtdd:       실행 안에서 테스트 먼저, 좋은 테스트의 조건
+Qreview:    diff·브랜치·PR 독립 리뷰       Qfeedback: 리뷰 지적을 확인하고 반영·반박
+Qskill:     스킬을 만들거나 고칠 때
 Qcompact:   세션을 넘길 때 handoff.md 작성 → /compact 요청
 Qresume:    새 세션이 시작되면 미완료 작업 이어받기
 ```
@@ -48,6 +51,11 @@ Qresume:    새 세션이 시작되면 미완료 작업 이어받기
 | `Qplan` | spec.md와 plan.md를 쓰고 사용자 승인을 받는다. 실행 방식(서브에이전트 / 직접)도 함께 정한다. |
 | `Qexecute` | 승인된 계획대로 만들고 plan.md 체크박스를 갱신한다. |
 | `Qverify` | "됐다"고 말하기 전에 spec 대비 증거로 확인하고 verify.md에 남긴다. 메인 또는 서브에이전트가 검증. |
+| `Qfinish` | 검증이 끝난 작업을 merge·PR·유지 중 사용자가 고른 방식으로 닫는다. merge 결과에서 테스트를 다시 돌린다. |
+| `Qtdd` | 테스트를 먼저 쓰고 실패를 본 뒤 구현한다. 좋은 테스트의 조건. |
+| `Qreview` | diff·브랜치·PR을 새 서브에이전트가 독립적으로 리뷰한다. |
+| `Qfeedback` | 리뷰 지적이 맞는지 확인하고 반영하거나 근거를 들어 반박한다. |
+| `Qskill` | 스킬을 만들거나 고칠 때: 바꾸기 전 상태로 먼저 돌려 실패를 보고, 이유로 쓴다. |
 | `Qdebugging` | 버그·실패·예상 밖 동작에서 근본 원인을 찾기 전에는 고치지 않는다. 작은 수정은 바로, 큰 수정은 Qplan으로. |
 | `Qcompact` | 세션을 넘길 때 handoff.md를 쓰고 `/compact`를 요청한다. |
 | `Qresume` | 새 세션에서 미완료 작업과 handoff를 읽어 이어받는다. |

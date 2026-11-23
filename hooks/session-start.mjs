@@ -134,7 +134,7 @@ function main() {
   }
 
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const guideText = safeRead(path.join(here, 'guide.md')) ?? '# QE — 이해 → 계획 → 실행 → 검증';
+  const guideText = safeRead(path.join(here, 'guide.md')) ?? '# QE — 이해 → 계획 → 실행 → 검증 → 마무리';
 
   let context;
   try {
