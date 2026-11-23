@@ -20,11 +20,11 @@ v8에서 반드시 지켜야 할 것은 없다(사용자 확인). Codex/Ollama �
 
 ## 목표
 
-1. 길 하나: **이해 → 계획(Spec) → 실행 → 검증.** 버그·기능·리팩터링 등 코딩 작업이 모두 이 길을 탄다. 세션 이어받기(Qresume)는 길 밖의 보조 장치.
+1. 길 하나: **이해 → 계획(Spec) → 실행 → 검증.** 버그·기능·리팩터링 등 코딩 작업이 모두 이 길을 탄다. 디버깅(Qdebugging)과 세션 넘기기·이어받기(Qcompact·Qresume)는 길 옆의 보조 스킬.
 2. 작업마다 저장소 안에 평범한 마크다운 문서를 남긴다. 읽는 사람은 둘이다.
    - **사용자 본인**: "왜 이렇게 만들었지?"
    - **다음 세션의 AI**: "어디까지 했고 다음은 뭐지?"
-3. 스킬 수는 적게(아래 5개). 규칙은 숫자·스키마가 아니라 **이유**로 쓴다.
+3. 스킬 수는 적게(아래 7개). 규칙은 숫자·스키마가 아니라 **이유**로 쓴다.
 4. 설치는 Claude Code 플러그인 마켓플레이스 두 줄로 끝난다.
 
 ## 비목표
@@ -68,6 +68,7 @@ v8에서 반드시 지켜야 할 것은 없다(사용자 확인). Codex/Ollama �
 - 길: 이해 → 계획(Spec) → 실행 → 검증. 스킬은 Qunderstand, Qplan, Qexecute, Qverify, Qresume 5개.
 - 검증은 상황에 따라 메인 세션 또는 서브에이전트가 한다 (모델이 선택).
 - Qresume: handoff 문서 작성 후 compact, 새 세션 시작 시 자동 이어받기.
+- (2026-11-23 추가 결정) Qcompact(넘기기)와 Qresume(이어받기)을 분리하고, Superpowers `systematic-debugging`을 옮긴 Qdebugging을 추가한다. 스킬 7개.
 - CI(Jenkins)와 검사 스크립트는 두지 않는다.
 - 아주 작은 일은 문서 없이 바로 한다.
 
@@ -81,20 +82,23 @@ Qunderstand    Qplan                Qexecute     Qverify
                (spec.md, plan.md    (plan.md     (verify.md)
                 → 사용자 승인)        체크 갱신)
 
-Qresume: 어느 단계에서든 세션을 넘길 때 handoff.md 작성 → compact,
-         새 세션 시작 시 자동으로 이어받기
+Qdebugging: 버그 작업의 시작, 또는 실행·검증 중 원인 모를 실패 → 근본 원인부터
+Qcompact:   어느 단계에서든 세션을 넘길 때 handoff.md 작성 → /compact 요청
+Qresume:    새 세션 시작 시 미완료 작업 이어받기
 ```
 
 - **이해 (Qunderstand)**: 한 번에 질문 하나. 저장소가 답하는 것은 묻지 않는다. 이해한 것을 사용자 말로 되들려준다. 접근 방식 2–3개를 비교하고 하나를 추천해 사용자가 고르게 한다.
 - **계획 (Qplan)**: 이해한 내용을 Spec으로 쓰고, 실행 가능한 작은 단계로 나눈다. 각 단계에 "어떻게 확인할지"를 적는다. 사용자가 승인해야 실행으로 간다 (유일한 강한 게이트).
 - **실행 (Qexecute)**: 계획대로 진행하며 `plan.md`의 체크박스를 갱신한다. 계획과 어긋나면 멈추고 사용자에게 말한다.
 - **검증 (Qverify)**: Spec 대비 결과를 확인하고 `verify.md`에 쓴다. **메인 세션에서 할지, 새 컨텍스트의 서브에이전트에 맡길지는 상황에 따라 모델이 고른다**(사용자 결정). 예: 작은 변경은 메인에서, 큰 변경이나 메인이 직접 많이 쓴 코드는 자기 채점을 피하려 서브에이전트로. 어느 쪽을 골랐는지와 이유를 verify.md에 한 줄 남긴다.
-- **이어받기 (Qresume)**: 세션을 넘길 때 현재 작업 폴더에 `handoff.md`(지금 어디까지, 다음 할 일, 주의할 점)를 쓰고 compact로 넘어간다. 새 세션이 시작되면(SessionStart hook, `startup|clear|compact`) 자동으로 미완료 작업과 handoff를 읽어 이어간다.
-  - 제약: 모델은 내장 `/compact`를 직접 실행할 수 없다. Qresume은 handoff.md를 쓴 뒤 사용자에게 `/compact` 실행을 요청하고, compact 직후 SessionStart(compact)가 handoff를 다시 주입한다.
+- **디버깅 (Qdebugging)**: 근본 원인을 찾기 전에는 고치지 않는다(Superpowers `systematic-debugging`). 버그 작업은 Qunderstand 대신 여기서 시작한다. 원인을 찾은 뒤 수정이 작으면 실패하는 테스트 → 수정 → Qverify, 크면 원인을 spec.md "원인"에 적고 Qplan. Qexecute의 확인이 예상 밖으로 실패하거나 Qverify에서 원인 모를 미충족이 나와도 여기로 온다. 별도 문서는 만들지 않는다(원인은 spec.md, 재현 테스트와 결과는 verify.md).
+- **넘기기 (Qcompact)**: 세션을 넘길 때 plan.md를 최신으로 맞추고 현재 작업 폴더에 `handoff.md`(지금 어디까지, 다음 할 일, 주의할 점)를 쓴 뒤 사용자에게 `/compact`를 요청한다.
+  - 제약: 모델은 내장 `/compact`를 직접 실행할 수 없다. compact 직후 SessionStart(compact)가 handoff를 다시 주입한다.
+- **이어받기 (Qresume)**: 새 세션이 시작되면(SessionStart hook, `startup|clear|compact`) 주입된 미완료 작업과 handoff를 읽어 해당 단계 스킬로 이어간다.
 
 작업 크기에 따라 길이가 줄어든다: 아주 작은 일(오타, 한 줄 수정)은 문서 없이 바로 하고 결과만 보고한다. 작은 일은 짧은 spec.md(몇 줄)와 짧은 verify.md. 판단은 모델에게 맡기되, 판단 근거를 사용자에게 한 줄로 말한다.
 
-### 스킬 (5개, 사용자 결정)
+### 스킬 (7개, 사용자 결정)
 
 | 스킬 | 호출 | 역할 |
 |---|---|---|
@@ -102,11 +106,13 @@ Qresume: 어느 단계에서든 세션을 넘길 때 handoff.md 작성 → compa
 | `Qplan` | 이해가 끝난 뒤 | spec.md + plan.md 작성 → 사용자 승인 |
 | `Qexecute` | 계획 승인 후 | 계획 실행, 진행 상황을 plan.md에 기록 |
 | `Qverify` | 실행 후, 또는 완료 주장 전 | 메인 또는 서브에이전트 검증 → verify.md |
-| `Qresume` | 세션을 넘길 때 / 새 세션 시작 시 자동 | handoff.md 작성 → compact 요청 / 미완료 작업 이어받기 |
+| `Qdebugging` | 버그 작업 시작, 또는 원인 모를 실패 | 근본 원인 조사 → 작은 수정은 바로, 큰 수정은 Qplan |
+| `Qcompact` | 세션을 넘길 때 | handoff.md 작성 → `/compact` 요청 |
+| `Qresume` | 새 세션 시작 시 자동 | 미완료 작업 이어받기 |
 
-길 안내(언제 어떤 스킬로 들어가는지)는 별도 스킬 없이 SessionStart hook 출력에 짧게 넣는다 (설계자 판단 — 스킬 수를 5개로 지키기 위해).
+길 안내(언제 어떤 스킬로 들어가는지)는 별도 스킬 없이 SessionStart hook 출력에 짧게 넣는다 (설계자 판단 — 스킬 수를 늘리지 않기 위해).
 
-`Qplan`·`Qexecute`·`Qresume`이라는 v8 이름은 유지하되 의미는 새로 정의한다. v8의 `Qgoal`, `Qgenerate-spec`, `Qcritical-review`, `Qcommit`, `Qcompact`, `Qdashboard`, `Qcc-setup`, `Qupdate`, `Qversion`은 삭제한다.
+`Qplan`·`Qexecute`·`Qcompact`·`Qresume`이라는 v8 이름은 유지하되 의미는 새로 정의한다. v8의 `Qgoal`, `Qgenerate-spec`, `Qcritical-review`, `Qcommit`, `Qdashboard`, `Qcc-setup`, `Qupdate`, `Qversion`은 삭제한다.
 
 각 스킬의 SKILL.md는 짧게(목표: 150줄 이하), "무엇을·왜" 위주. 서브에이전트에 줄 프롬프트는 스킬 폴더 안 별도 파일(예: `skills/Qverify/verifier-prompt.md`).
 
@@ -117,7 +123,7 @@ docs/qe/2026-11-23-<주제>/
   spec.md     (Qplan) 의도와 이유, 목표/비목표, 검토한 접근과 선택 이유, 결정, 남은 판단
   plan.md     (Qplan) 단계 목록(체크박스), 단계별 확인 방법 — Qexecute가 갱신
   verify.md   (Qverify) 검증 주체(메인/서브)와 이유, 무엇을 어떻게 확인했는지(명령과 결과), 확인 못 한 것, 남은 일
-  handoff.md  (Qresume) 지금 어디까지, 다음 할 일, 주의할 점 — 세션을 넘길 때만
+  handoff.md  (Qcompact) 지금 어디까지, 다음 할 일, 주의할 점 — 세션을 넘길 때만
 ```
 
 - 상태(진행 중/완료)는 별도 파일 없이 `plan.md` 체크박스와 `verify.md` 유무로 알 수 있게 한다.
@@ -149,7 +155,7 @@ v8 코드는 git 이력과 `v8.3.0` 태그로 남는다.
 - `LICENSE`, `THIRD_PARTY_NOTICES.md`(SuperPowers 출처 추가).
 - `.claude-plugin/plugin.json`, `marketplace.json`: 설명·태그·기능 목록을 새 구조에 맞게.
 - `package.json`: 버전 동기화 용도로만 유지. **npm 공개 배포는 중단**(사용자 결정): `private: true`, `publishConfig`·`bin`·`files`·lifecycle scripts 제거. 이미 올라간 npm 패키지에는 "v9부터 플러그인으로 설치" deprecate 안내를 한 번 남긴다(배포 명령 실행은 사용자 확인 후).
-- **v8 잔여 파일 정리는 안내만**(사용자 결정): CHANGELOG v9.0.0 항목에 수동 삭제 절차를 적는다 — `~/.claude/{commands,agents,hooks,scripts}`의 QE 사본, `~/.codex`의 QE skills/agents/hooks, `config.toml`의 QE hook fence 블록. 이름이 같은 `Qplan`/`Qexecute`/`Qresume`의 v8 사본이 v9와 충돌할 수 있음을 경고한다. 정리 명령이나 정리 릴리스는 만들지 않는다.
+- **v8 잔여 파일 정리는 안내만**(사용자 결정): CHANGELOG v9.0.0 항목에 수동 삭제 절차를 적는다 — `~/.claude/{commands,agents,hooks,scripts}`의 QE 사본, `~/.codex`의 QE skills/agents/hooks, `config.toml`의 QE hook fence 블록. 이름이 같은 `Qplan`/`Qexecute`/`Qcompact`/`Qresume`의 v8 사본이 v9와 충돌할 수 있음을 경고한다. 정리 명령이나 정리 릴리스는 만들지 않는다.
 
 ## 빌더에게 맡기는 것
 
