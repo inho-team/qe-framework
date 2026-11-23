@@ -17,12 +17,13 @@ description: Use when a session starts (or after /compact or /clear) and the inj
    있다고 한 줄만 알린다.
 2. 그렇지 않으면, 무엇이 남았는지 한두 줄로 알리고 이어갈지 묻는다. 여러 개면 가장 최근
    것을 먼저 말한다.
-3. 이어가면 그 폴더의 spec.md, plan.md, handoff.md, (있으면) verify.md를 읽는다.
+3. 이어가면 그 폴더의 plan.md, implement-plan.md, handoff.md, (있으면) verify.md를 읽는다.
    **내 기억보다 문서와 `git log`를 믿는다.** compact 직후라면 특히 그렇다.
 4. 현재 단계에 맞는 스킬로 들어간다.
    - handoff.md만 있다 → handoff를 보고 `Qunderstand` 또는 `Qdebugging`
-   - plan.md가 없다 → `Qunderstand`(버그면 `Qdebugging`) 또는 `Qplan`
-   - 승인 안 된 plan.md → `Qplan`의 승인부터
+   - plan.md가 없다 → `Qunderstand`(버그면 `Qdebugging`)
+   - implement-plan.md가 없다 → `Qplan`
+   - 승인 안 된 계획 → `Qplan`의 승인부터
    - 미체크 단계가 있다 → `Qexecute`
    - 모두 체크, verify.md 없음 → `Qverify`
    - verify.md 결과가 미충족 → 원인을 알면 `Qexecute`, 모르면 `Qdebugging`

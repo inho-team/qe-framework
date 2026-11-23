@@ -3,8 +3,8 @@
 ## Project
 
 - Name: `@inho-team/qe-framework` (Claude Code plugin `qe-framework`; not published to npm)
-- Purpose: one path for coding work — 이해 → 계획(Spec) → 실행 → 검증 — in a small set of skills,
-  leaving plain-markdown spec and verify docs per task under the user's `docs/qe/`.
+- Purpose: one path for coding work — 이해 → 계획 → 실행 → 검증 — in a small set of skills,
+  leaving plain-markdown plan and verify docs per task under the user's `docs/qe/`.
 - Version sync: `package.json`, `.claude-plugin/plugin.json`, and the `qe-framework`
   entry in `.claude-plugin/marketplace.json` must stay identical.
 
@@ -32,7 +32,7 @@
 - How to create or change a skill (control run first, reasons over rules, trigger checks) is in
   `skills/Qskill/SKILL.md`; the bullets here are the QE-repo-specific rules.
 - The hook must never fail a session start: guard every filesystem read, always exit 0.
-- No DB, no state files beyond the task docs. State is read from `plan.md` checkboxes,
+- No DB, no state files beyond the task docs. State is read from `implement-plan.md` checkboxes,
   `verify.md`, and `handoff.md`.
 - When changing the path or the doc layout, update `hooks/guide.md`, `README.md`, and the
   affected skills together.

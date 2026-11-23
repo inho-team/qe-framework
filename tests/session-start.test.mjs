@@ -53,9 +53,9 @@ test('findOpenTasks skips stray files and non-task directories', () => {
 
 test('findOpenTasks classifies done, unchecked, and plan-less tasks', () => {
   const root = tmpRoot();
-  writeTask(root, '2026-11-01-a', { 'spec.md': 's', 'plan.md': '- [x] one\n- [X] two\n', 'verify.md': 'ok' });
-  writeTask(root, '2026-11-02-b', { 'spec.md': 's', 'plan.md': '- [x] one\n- [ ] two\n', 'verify.md': 'partial' });
-  writeTask(root, '2026-11-03-c', { 'spec.md': 's' });
+  writeTask(root, '2026-11-01-a', { 'plan.md': 's', 'implement-plan.md': '- [x] one\n- [X] two\n', 'verify.md': 'ok' });
+  writeTask(root, '2026-11-02-b', { 'plan.md': 's', 'implement-plan.md': '- [x] one\n- [ ] two\n', 'verify.md': 'partial' });
+  writeTask(root, '2026-11-03-c', { 'plan.md': 's' });
 
   const tasks = findOpenTasks(root);
   const names = tasks.map((t) => t.name).sort();
@@ -63,11 +63,12 @@ test('findOpenTasks classifies done, unchecked, and plan-less tasks', () => {
 
   const b = tasks.find((t) => t.name === '2026-11-02-b');
   assert.equal(b.unchecked, 1);
-  assert.equal(b.hasPlan, true);
+  assert.equal(b.hasImplementPlan, true);
   assert.equal(b.hasVerify, true);
 
   const c = tasks.find((t) => t.name === '2026-11-03-c');
-  assert.equal(c.hasPlan, false);
+  assert.equal(c.hasPlan, true);
+  assert.equal(c.hasImplementPlan, false);
   assert.equal(c.hasVerify, false);
   assert.equal(c.handoffPath, null);
 });
@@ -81,7 +82,7 @@ test('buildContext with no tasks is just the guide', () => {
 test('buildContext lists open tasks and truncates a large handoff', () => {
   const root = tmpRoot();
   writeTask(root, '2026-11-02-b', {
-    'plan.md': '- [ ] two\n',
+    'implement-plan.md': '- [ ] two\n',
     'handoff.md': 'H'.repeat(20000),
   });
   const ctx = buildContext(root, guideText);
@@ -101,7 +102,7 @@ test('CLI falls back to cwd on malformed stdin and exits 0', () => {
 
 test('CLI uses input.cwd and injects the open task handoff', () => {
   const root = tmpRoot();
-  writeTask(root, '2026-11-05-d', { 'plan.md': '- [ ] next\n', 'handoff.md': 'NEXT: run the migration test' });
+  writeTask(root, '2026-11-05-d', { 'implement-plan.md': '- [ ] next\n', 'handoff.md': 'NEXT: run the migration test' });
   const res = runHook(JSON.stringify({ cwd: root, source: 'compact' }), tmpRoot());
   assert.equal(res.status, 0);
   const out = JSON.parse(res.stdout);
@@ -121,8 +122,8 @@ test('findOpenTasks treats a handoff-only folder as an open task in understandin
 
 test('findOpenTasks keeps a fully checked task open when verify.md reports 미충족', () => {
   const root = tmpRoot();
-  writeTask(root, '2026-11-07-f', { 'plan.md': '- [x] one\n', 'verify.md': '# t\n\n- 결과: 일부 미충족\n' });
-  writeTask(root, '2026-11-07-g', { 'plan.md': '- [x] one\n', 'verify.md': '# t\r\n\r\n- 결과: 충족\r\n' });
+  writeTask(root, '2026-11-07-f', { 'implement-plan.md': '- [x] one\n', 'verify.md': '# t\n\n- 결과: 일부 미충족\n' });
+  writeTask(root, '2026-11-07-g', { 'implement-plan.md': '- [x] one\n', 'verify.md': '# t\r\n\r\n- 결과: 충족\r\n' });
   const tasks = findOpenTasks(root);
   assert.deepEqual(tasks.map((t) => t.name), ['2026-11-07-f']);
   assert.ok(buildContext(root, guideText).includes('verify 미충족'));
@@ -139,8 +140,8 @@ test('countUnchecked ignores checkbox-looking text that is not a list item', () 
 
 test('buildContext picks the handoff by handoff.md time, newest folder name breaking ties', () => {
   const root = tmpRoot();
-  const older = writeTask(root, '2026-11-01-older', { 'plan.md': '- [ ] a\n', 'handoff.md': 'OLDER HANDOFF' });
-  const newer = writeTask(root, '2026-11-09-newer', { 'plan.md': '- [ ] a\n', 'handoff.md': 'NEWER HANDOFF' });
+  const older = writeTask(root, '2026-11-01-older', { 'implement-plan.md': '- [ ] a\n', 'handoff.md': 'OLDER HANDOFF' });
+  const newer = writeTask(root, '2026-11-09-newer', { 'implement-plan.md': '- [ ] a\n', 'handoff.md': 'NEWER HANDOFF' });
   // Same mtime everywhere, as after a fresh git clone: the later-dated folder wins.
   const t = new Date('2026-11-10T00:00:00Z');
   for (const dir of [older, newer]) {
@@ -148,9 +149,23 @@ test('buildContext picks the handoff by handoff.md time, newest folder name brea
   }
   assert.ok(buildContext(root, guideText).includes('NEWER HANDOFF'));
 
-  // A plan.md edit in the older task must not outrank the newer task's handoff.
-  fs.utimesSync(path.join(older, 'plan.md'), new Date('2026-11-12T00:00:00Z'), new Date('2026-11-12T00:00:00Z'));
+  // An implement-plan.md edit in the older task must not outrank the newer task's handoff.
+  fs.utimesSync(path.join(older, 'implement-plan.md'), new Date('2026-11-12T00:00:00Z'), new Date('2026-11-12T00:00:00Z'));
   const ctx = buildContext(root, guideText);
   assert.ok(ctx.includes('NEWER HANDOFF'));
   assert.ok(!ctx.includes('OLDER HANDOFF'));
+});
+
+test('a folder with only plan.md is listed as still planning', () => {
+  const root = tmpRoot();
+  writeTask(root, '2026-11-08-h', { 'plan.md': '# h — Plan\n' });
+  const tasks = findOpenTasks(root);
+  assert.deepEqual(tasks.map((t) => t.name), ['2026-11-08-h']);
+  assert.ok(buildContext(root, guideText).includes('implement-plan.md 없음 (계획 중)'));
+});
+
+test('the old layout (spec.md only) is not recognized as a task', () => {
+  const root = tmpRoot();
+  writeTask(root, '2026-11-08-old', { 'spec.md': '# old — Spec\n' });
+  assert.deepEqual(findOpenTasks(root), []);
 });

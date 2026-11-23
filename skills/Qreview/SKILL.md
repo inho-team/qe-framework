@@ -18,7 +18,7 @@ description: Use when the user asks for a code review of a diff, branch, or PR, 
 ## 순서
 
 1. **범위를 정한다.** 브랜치면 기준 브랜치와의 merge-base를 BASE로(`git merge-base <기준 브랜치> HEAD`; 기준 브랜치는 main이라고 단정하지 말고 확인한다),
-   HEAD까지. PR이면 PR 번호. 요구사항이 있는 곳(spec.md, 이슈, PR 설명)을 찾는다. 범위가
+   HEAD까지. PR이면 PR 번호. 요구사항이 있는 곳(plan.md, 이슈, PR 설명)을 찾는다. 범위가
    분명하지 않으면 사용자에게 묻는다.
 2. **새 서브에이전트에 맡긴다.** [reviewer-prompt.md](reviewer-prompt.md)를 채워 넘긴다.
    판단이 필요한 일이니 상위 모델을 지정한다(생략하면 세션 모델을 물려받는다). 대화 이력은
