@@ -66,6 +66,25 @@ test('hook command finds node at a probe path when PATH lacks it', { skip: !shPa
   assert.equal(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, 'PROBED');
 });
 
+test('hook command finds node under LOCALAPPDATA Volta when PATH is empty', { skip: !shPath }, () => {
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
+  const emptyHome = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-home-'));
+  // LOCALAPPDATA arrives in C:\… form on Windows; the default probe list must not split it on ':'.
+  const localAppData = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-lad-'));
+  const voltaBin = path.join(localAppData, 'Volta', 'bin');
+  fs.mkdirSync(voltaBin, { recursive: true });
+  const fakeNode = path.join(voltaBin, 'node.exe');
+  const marker = '{"hookSpecificOutput":{"hookEventName":"SessionStart","additionalContext":"PROBED"}}';
+  fs.writeFileSync(fakeNode, `#!/bin/sh\nprintf '%s' '${marker}'\n`);
+  fs.chmodSync(fakeNode, 0o755);
+  const res = spawnSync(shPath, ['-c', command], {
+    encoding: 'utf8',
+    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: repoRoot, HOME: toShellPath(emptyHome), LOCALAPPDATA: localAppData },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(JSON.parse(res.stdout).hookSpecificOutput.additionalContext, 'PROBED');
+});
+
 test('hook command runs the session-start script when node is on PATH', { skip: !shPath }, () => {
   const nodeDir = path.dirname(process.execPath);
   const res = spawnSync(shPath, ['-c', command], {
@@ -75,6 +94,6 @@ test('hook command runs the session-start script when node is on PATH', { skip: 
   });
   assert.equal(res.status, 0, res.stderr);
   const out = JSON.parse(res.stdout);
-  assert.match(out.hookSpecificOutput.additionalContext, /^# QE — 이해 → 계획 → 실행 → 검증/);
+  assert.match(out.hookSpecificOutput.additionalContext, /^# QE — 이해 → 계획 → 실행 → 검증 → 마무리/);
   assert.equal(out.systemMessage, undefined);
 });

@@ -22,15 +22,15 @@
 
 - Skills may grow, but each is written as reasons; do not add machinery that replaces model
   judgment (numeric caps, schemas, behavior-policing hooks or scripts, DBs).
-- Keep SKILL.md short: long skill bodies get cut after compaction, and detail belongs in
-  support files linked from SKILL.md.
 - Never put substitution tokens such as `$1` or `$ARGUMENTS` in skill text; the harness may
   replace them.
-- Before changing skill wording, run the scenario without the change first and keep the
-  change only if the failure actually shows up.
 - Before adding any rule, hook, check, or numeric limit, ask: "이게 없으면 모델이 실제로
   실패하는가?" If the answer is not clearly yes, leave it out. Write rules as reasons, not caps.
-- Skill text is Korean, written as what-and-why. Keep each `SKILL.md` short (aim ≤ 150 lines).
+- Skill text is Korean, written as what-and-why. Keep each `SKILL.md` short (aim ≤ 150 lines,
+  tests cap it at 200): long skill bodies get cut after compaction, and detail belongs in support
+  files linked from SKILL.md.
+- How to create or change a skill (control run first, reasons over rules, trigger checks) is in
+  `skills/Qskill/SKILL.md`; the bullets here are the QE-repo-specific rules.
 - The hook must never fail a session start: guard every filesystem read, always exit 0.
 - No DB, no state files beyond the task docs. State is read from `plan.md` checkboxes,
   `verify.md`, and `handoff.md`.
