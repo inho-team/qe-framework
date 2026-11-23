@@ -82,7 +82,7 @@ verify.md의 `결과:` 줄로 알 수 있다.
 ## v9에서 오는 경우
 
 v10부터 `spec.md`는 `plan.md`로, 예전 `plan.md`는 `implement-plan.md`로 바뀌었다. 예전 이름의 작업 폴더는
-세션 시작 안내가 알아보지 못한다. 옮기는 방법은 [CHANGELOG.md](CHANGELOG.md#1000---2026-11-23)에 있다.
+세션 시작 안내가 제대로 알아보지 못한다(`spec.md`만 있으면 목록에서 빠지고, 예전 `plan.md`는 "계획 중"으로 보인다). 옮기는 방법은 [CHANGELOG.md](CHANGELOG.md#1000---2026-11-23)에 있다.
 
 ## v8에서 오는 경우
 
