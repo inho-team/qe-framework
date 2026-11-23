@@ -2,50 +2,40 @@
 
 ## Project
 
-- Name: `@inho-team/qe-framework`
-- Purpose: spec-driven task execution framework for Claude Code (v4.0 Claude-first architecture)
-- Version sync: `package.json` and `.claude-plugin/plugin.json` must stay aligned
+- Name: `@inho-team/qe-framework` (Claude Code plugin `qe-framework`; not published to npm)
+- Purpose: one path for coding work — 이해 → 계획(Spec) → 실행 → 검증 — in five skills,
+  leaving plain-markdown spec and verify docs per task under the user's `docs/qe/`.
+- Version sync: `package.json`, `.claude-plugin/plugin.json`, and the `qe-framework`
+  entry in `.claude-plugin/marketplace.json` must stay identical.
 
 ## Structure
 
-- `skills/`: user-facing QE skills; each skill lives in its own folder with `SKILL.md`
-- `agents/`: background agents, usually `E*.md`
-- `.claude-plugin/`: Claude plugin manifest and shipped assets
-- `hooks/scripts/`: lifecycle hook implementations
-- `scripts/`: operational CLIs and validators
-- `core/`: shared schemas, rules, and runtime context definitions
-- `docs/`: user-facing documentation and setup guides
-
-## Key Files (v5.x)
-
-- `scripts/validate_svs_config.mjs` — SIVS config (sivs-config.json) validator
-- `scripts/lib/codex_bridge.mjs` — Optional Codex plugin bridge utility for extended agent support
-- `core/schemas/svs-config.schema.json` — JSON schema for SIVS config validation
-- `CLAUDE.md` — Project architecture and constraints (Claude-first, SIVS decisions)
+- `skills/`: the five skills — `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`, `Qresume`.
+  Each folder has `SKILL.md` plus its templates or subagent prompts.
+- `hooks/`: `hooks.json` (SessionStart only), `session-start.mjs`, `guide.md`
+  (the path guide injected at session start).
+- `tests/`: `node:test` tests for the hook.
+- `docs/superpowers/`: the v9 design spec and implementation plan.
 
 ## Working Rules
 
-- Prefer minimal, surgical changes that preserve existing skill and agent naming patterns
-- When changing workflow behavior, check whether `README.md`, `QE_CONVENTIONS.md`, or relevant docs under `docs/` also need updates
-- When changing install or packaging behavior, verify both npm package assets and Claude plugin assets are still coherent
-- When updating versions or release notes, change both `package.json` and `.claude-plugin/plugin.json`
-- Do not rename published skills, agents, or CLI entrypoints unless explicitly requested
+- Keep exactly five skills. Do not add a skill when a paragraph in an existing one will do.
+- Before adding any rule, hook, check, or numeric limit, ask: "이게 없으면 모델이 실제로
+  실패하는가?" If the answer is not clearly yes, leave it out. Write rules as reasons, not caps.
+- Skill text is Korean, written as what-and-why. Keep each `SKILL.md` short (aim ≤ 150 lines).
+- The hook must never fail a session start: guard every filesystem read, always exit 0.
+- No DB, no state files beyond the task docs. State is read from `plan.md` checkboxes,
+  `verify.md`, and `handoff.md`.
+- When changing the path or the doc layout, update `hooks/guide.md`, `README.md`, and the
+  affected skills together.
 
 ## Validation
 
-- Use targeted validation first; this repo does not expose a single default test script in `package.json`
-- For SIVS config validation, use `npm run qe:validate` (runs `scripts/validate_svs_config.mjs`)
-- Direct script execution available under `scripts/`
-- If a change touches installation flow, review `install.js`, `uninstall.js`, and `scripts/lib/client_installers.mjs`
-
-## Documentation
-
-- Start with `README.md` for install and usage entry points
-- Use `QE_CONVENTIONS.md` for QE-specific workflow and naming conventions
-- Use `docs/DOCUMENTATION_MAP.md` when changes affect discoverability across docs
+- `npm test` — hook tests.
+- Local plugin check: `claude --plugin-dir .` and confirm the five Q skills load.
 
 ## Response Style
 
 - <!-- qe:response-language=latest-user-message -->
-- Reply in the language of the user's most recent message. Use a stored language profile only when that message has no detectable natural language.
-- Keep explanations concise and technical as needed
+- Reply in the language of the user's most recent message.
+- Keep explanations concise and technical as needed.
