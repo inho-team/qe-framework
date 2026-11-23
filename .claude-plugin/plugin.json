@@ -1,6 +1,6 @@
 {
   "name": "qe-framework",
-  "version": "9.0.2",
+  "version": "9.1.0",
   "description": "QE Framework — one path (이해 → 계획 → 실행 → 검증) for coding work, leaving spec and verify docs for every task.",
   "author": {
     "name": "inho-team"
