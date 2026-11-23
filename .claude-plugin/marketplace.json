@@ -9,7 +9,7 @@
     {
       "name": "qe-framework",
       "description": "One path for coding work — understand, plan, execute, verify — with spec and verify docs per task",
-      "version": "9.1.0",
+      "version": "9.2.0",
       "category": "development",
       "tags": [
         "workflow",
