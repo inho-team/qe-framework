@@ -4,6 +4,18 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [9.2.1] - 2026-11-23
+
+### Fixed
+
+- **Qfinish 로컬 merge**: worktree에서 진행한 작업은 원래 checkout에서 merge하고, worktree를 먼저 정리한 뒤
+  작업 브랜치를 지운다(worktree에 checkout된 브랜치는 지울 수 없다). 충돌이 나거나 merge 결과의 테스트가
+  실패하면 멈추고, 해결·취소·되돌리기를 사용자와 정한다.
+- **Qreview**: 리뷰 범위를 `main`으로 단정하지 않고 기준 브랜치를 확인해 `git merge-base <기준 브랜치> HEAD`로 정한다.
+- **Qfeedback**: "고치기 전에 묻는다"의 대상을 명시(지적을 낸 쪽; 끝난 리뷰어 서브에이전트면 새 리뷰어나 사용자).
+- README: Windows에서 `QE_NODE_PROBES`는 Git Bash 형식(`/c/…`)으로 적는다는 안내.
+- marketplace 설명에 마무리 단계 반영.
+
 ## [9.2.0] - 2026-11-23
 
 길이 다섯 단계가 됐고(이해 → 계획 → 실행 → 검증 → **마무리**), 길 밖에서도 따로 불릴 일이 있는
