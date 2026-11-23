@@ -4,6 +4,22 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [9.0.2] - 2026-11-23
+
+### Fixed
+
+- 세션 시작 hook이 `+ [ ]`, `1. [ ]`, `1) [ ]`, 탭으로 띄운 체크박스도 남은 단계로 센다.
+- "최근 handoff"를 작업 폴더의 아무 파일 시각이 아니라 `handoff.md` 자신의 시각으로 고른다.
+  시각이 같으면(git clone 직후 등) 날짜가 붙은 폴더 이름이 늦은 쪽을 고른다.
+
+### Changed
+
+- README: `claude plugin update`가 `Host key verification failed`로 실패할 때의 해결책 안내.
+
+### Added
+
+- 플러그인 아이콘 `.claude-plugin/icon.png`(1024×1024)와 원본 `icon.svg`: 남색 타일 위, 열린 Q가 민트색 체크로 이어진다 — 길 하나, 증거로 끝내기.
+
 ## [9.0.1] - 2026-11-23
 
 ### Fixed

@@ -127,3 +127,30 @@ test('findOpenTasks keeps a fully checked task open when verify.md reports 미�
   assert.deepEqual(tasks.map((t) => t.name), ['2026-11-07-f']);
   assert.ok(buildContext(root, guideText).includes('verify 미충족'));
 });
+
+test('countUnchecked also counts plus-bullet, numbered, and tab-separated checkboxes', () => {
+  const md = '+ [ ] a\n1. [ ] b\n2) [ ] c\n-\t[ ] d\n- [x] done\n10. [X] done\n';
+  assert.equal(countUnchecked(md), 4);
+});
+
+test('countUnchecked ignores checkbox-looking text that is not a list item', () => {
+  assert.equal(countUnchecked('see [ ] later\n`- [ ]` in code\n'), 0);
+});
+
+test('buildContext picks the handoff by handoff.md time, newest folder name breaking ties', () => {
+  const root = tmpRoot();
+  const older = writeTask(root, '2026-11-01-older', { 'plan.md': '- [ ] a\n', 'handoff.md': 'OLDER HANDOFF' });
+  const newer = writeTask(root, '2026-11-09-newer', { 'plan.md': '- [ ] a\n', 'handoff.md': 'NEWER HANDOFF' });
+  // Same mtime everywhere, as after a fresh git clone: the later-dated folder wins.
+  const t = new Date('2026-11-10T00:00:00Z');
+  for (const dir of [older, newer]) {
+    for (const f of fs.readdirSync(dir)) fs.utimesSync(path.join(dir, f), t, t);
+  }
+  assert.ok(buildContext(root, guideText).includes('NEWER HANDOFF'));
+
+  // A plan.md edit in the older task must not outrank the newer task's handoff.
+  fs.utimesSync(path.join(older, 'plan.md'), new Date('2026-11-12T00:00:00Z'), new Date('2026-11-12T00:00:00Z'));
+  const ctx = buildContext(root, guideText);
+  assert.ok(ctx.includes('NEWER HANDOFF'));
+  assert.ok(!ctx.includes('OLDER HANDOFF'));
+});

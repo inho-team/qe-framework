@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1024" height="1024" viewBox="0 0 1024 1024">
+  <title>QE — one path, verified</title>
+  <desc>An ivory open Q flows into a mint verification check on a navy rounded tile.</desc>
+  <rect x="24" y="24" width="976" height="976" rx="224" fill="#13243A"/>
+  <rect x="28" y="28" width="968" height="968" rx="220" fill="none" stroke="#53677F" stroke-width="8"/>
+  <path d="M493 700 A248 248 0 1 1 706 554" fill="none" stroke="#F8F6EE" stroke-width="92" stroke-linecap="round"/>
+  <path d="M480 600 L620 740 L816 524" fill="none" stroke="#71E3B3" stroke-width="92" stroke-linecap="round" stroke-linejoin="round"/>
+</svg>

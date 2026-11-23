@@ -13,7 +13,8 @@ const TASK_MARKERS = ['spec.md', 'plan.md', 'handoff.md'];
 const VERIFY_FAILED = /결과:\s*(일부\s*)?미충족/;
 
 export function countUnchecked(markdown) {
-  return (markdown.match(/^\s*[-*] \[ \]/gm) || []).length;
+  // List items only: -, *, + bullets or 1. / 1) numbering, then an unchecked box.
+  return (markdown.match(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[ \]/gm) || []).length;
 }
 
 function safeStat(p) {
@@ -55,6 +56,7 @@ function inspectTask(dir, name) {
     hasVerify,
     verifyFailed,
     handoffPath: stats['handoff.md'] ? path.join(dir, 'handoff.md') : null,
+    handoffMtimeMs: stats['handoff.md'] ? stats['handoff.md'].mtimeMs : 0,
     mtimeMs: Math.max(...Object.values(stats).map((s) => s.mtimeMs)),
   };
 }
@@ -73,7 +75,9 @@ export function findOpenTasks(projectRoot) {
     const task = inspectTask(path.join(qeDir, entry.name), entry.name);
     if (task) tasks.push(task);
   }
-  return tasks.sort((a, b) => b.mtimeMs - a.mtimeMs);
+  // Newest first; equal times (e.g. right after a git clone) fall back to the
+  // date-prefixed folder name, newest name first.
+  return tasks.sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name));
 }
 
 function describe(task) {
@@ -94,7 +98,11 @@ export function buildContext(projectRoot, guideText) {
 
   parts.push(['## 미완료 작업', ...tasks.map(describe)].join('\n'));
 
-  const latest = tasks.find((t) => t.handoffPath);
+  // The handoff to inject is the most recently written handoff.md, not the task
+  // whose plan.md happened to change last.
+  const latest = tasks
+    .filter((t) => t.handoffPath)
+    .sort((a, b) => b.handoffMtimeMs - a.handoffMtimeMs || b.name.localeCompare(a.name))[0];
   if (latest) {
     let body = safeRead(latest.handoffPath);
     if (body !== null) {
