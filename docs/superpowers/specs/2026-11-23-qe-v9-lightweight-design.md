@@ -154,7 +154,7 @@ v8 코드는 git 이력과 `v8.3.0` 태그로 남는다.
 - `CHANGELOG.md`: 유지, v9.0.0 항목 추가 (v8에서 무엇이 사라졌고 기존 사용자는 무엇을 하면 되는지).
 - `LICENSE`, `THIRD_PARTY_NOTICES.md`(SuperPowers 출처 추가).
 - `.claude-plugin/plugin.json`, `marketplace.json`: 설명·태그·기능 목록을 새 구조에 맞게.
-- `package.json`: 버전 동기화 용도로만 유지. **npm 공개 배포는 중단**(사용자 결정): `private: true`, `publishConfig`·`bin`·`files`·lifecycle scripts 제거. 이미 올라간 npm 패키지에는 "v9부터 플러그인으로 설치" deprecate 안내를 한 번 남긴다(배포 명령 실행은 사용자 확인 후).
+- `package.json`: 버전 동기화 용도로만 유지. **npm 공개 배포는 중단**(사용자 결정): `private: true`, `publishConfig`·`bin`·`files`·lifecycle scripts 제거. 이미 올라간 npm 패키지에는 "v9부터 플러그인으로 설치" deprecate 안내를 한 번 남긴다(배포 명령 실행은 사용자 확인 후). — **정정(2026-11-23):** npm 레지스트리에 `@inho-team/qe-framework`가 없어(404) deprecate 대상이 없다. 안내는 남기지 않는다(사용자도 실행하지 않기로 함).
 - **v8 잔여 파일 정리는 안내만**(사용자 결정): CHANGELOG v9.0.0 항목에 수동 삭제 절차를 적는다 — `~/.claude/{commands,agents,hooks,scripts}`의 QE 사본, `~/.codex`의 QE skills/agents/hooks, `config.toml`의 QE hook fence 블록. 이름이 같은 `Qplan`/`Qexecute`/`Qcompact`/`Qresume`의 v8 사본이 v9와 충돌할 수 있음을 경고한다. 정리 명령이나 정리 릴리스는 만들지 않는다.
 
 ## 빌더에게 맡기는 것
