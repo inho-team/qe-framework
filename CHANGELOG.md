@@ -17,6 +17,18 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
   - Qplan 템플릿: `plan-template.md`(사용자용), `implement-plan-template.md`(AI용).
 - 세션 시작 hook은 `plan.md`·`implement-plan.md`·`handoff.md`로 작업 폴더를 알아본다.
 
+### Added
+
+- **행동 eval (`evals/`, Claude Code `claude plugin eval`).** 릴리스 전에 "아직 미완인가"를 판단하는 데 쓴다.
+  케이스는 3번 중 2번 통과하면 통과이고, 하나라도 통과 못 하면 미완이다. 실제 세션을 돌리므로 CI에는 넣지 않는다.
+  - `npm run eval:trigger` — 상황에 맞는 스킬이 불리는지(9 케이스, 경계 문장 2개 포함).
+  - `npm run eval:gate` — 길을 지키는지(4 케이스: 기능 요청에 먼저 확인, 원인 먼저, 근거 없는 완료를 믿지 않기,
+    작은 일은 바로). 플러그인 없이 돌린 결과와 함께 본다.
+  - 이번 기준선(10.0.0, 각 3회): **trigger 9 of 9, gate 4 of 4 통과.** gate는 플러그인 없이도 4 of 4라
+    Δ 0.00 — 지금 케이스로는 QE가 더하는 차이가 드러나지 않는다(더 어려운 상황의 케이스가 필요하다).
+    비용 약 $5.2, 7분.
+  - 정적 테스트가 eval 케이스 구조(프롬프트, trigger/gate 태그, 채점기 종류)를 확인한다.
+
 ### 옮기는 방법 (v9 작업 폴더)
 
 예전 이름은 알아보지 않는다. `spec.md`만 있는 폴더는 안내에서 빠지고, 예전 `plan.md`가 있는 폴더는 진행 중이어도

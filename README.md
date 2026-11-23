@@ -79,6 +79,15 @@ docs/qe/2026-11-23-<주제>/
 DB나 전용 도구 없이 어떤 편집기로도 읽힌다. 진행 상태는 implement-plan.md 체크박스와
 verify.md의 `결과:` 줄로 알 수 있다.
 
+## 행동 확인 (eval)
+
+`evals/`에 Claude Code의 `claude plugin eval`로 도는 케이스가 있다. 실제 세션을 돌리므로 시간과 사용량이 든다.
+
+- `npm run eval:trigger` — 상황에 맞는 스킬이 불리는지
+- `npm run eval:gate` — 길을 지키는지(기능 요청에 바로 코드부터 쓰지 않기, 원인 먼저, 근거 없는 완료를 믿지 않기, 작은 일은 바로). 플러그인 없이 돌린 결과와 함께 보여 준다.
+
+릴리스 전에 돌려, 통과 못 한 케이스가 있으면 아직 내보낼 때가 아니다.
+
 ## v9에서 오는 경우
 
 v10부터 `spec.md`는 `plan.md`로, 예전 `plan.md`는 `implement-plan.md`로 바뀌었다. 예전 이름의 작업 폴더는
