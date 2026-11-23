@@ -10,9 +10,26 @@ else
   # PATH can be empty at startup even when node is installed, so look in the
   # usual install locations. QE_NODE_PROBES (colon-separated) replaces the list;
   # set it to an empty string to probe nothing.
-  qe_probes="${QE_NODE_PROBES-$HOME/.volta/bin/node:$NVM_BIN/node:/opt/homebrew/bin/node:/usr/local/bin/node:/c/Program Files/nodejs/node.exe}"
   qe_old_ifs="$IFS"
-  IFS=':'
+  if [ "${QE_NODE_PROBES+set}" = set ]; then
+    qe_probes="$QE_NODE_PROBES"
+    IFS=':'
+  else
+    # Newline-separated because Windows values such as LOCALAPPDATA look like
+    # C:\Users\…, and a colon separator would split them.
+    qe_probes="$HOME/.volta/bin/node
+$LOCALAPPDATA/Volta/bin/node.exe
+/c/Program Files/Volta/node.exe
+$HOME/scoop/shims/node.exe
+$APPDATA/fnm/aliases/default/node.exe
+$NVM_SYMLINK/node.exe
+$NVM_BIN/node
+/opt/homebrew/bin/node
+/usr/local/bin/node
+/c/Program Files/nodejs/node.exe"
+    IFS='
+'
+  fi
   set -f
   for qe_candidate in $qe_probes; do
     if [ -n "$qe_candidate" ] && [ -x "$qe_candidate" ]; then
