@@ -1,6 +1,6 @@
 ---
 name: Qresume
-description: Use at session start (or after /compact or /clear) when the injected context lists unfinished docs/qe tasks or a recent handoff, or when the user asks to continue earlier work.
+description: Use when a session starts (or after /compact or /clear) and the injected context lists unfinished docs/qe tasks or a recent handoff, or when the user asks to continue earlier work.
 ---
 
 # Qresume — 이어받기

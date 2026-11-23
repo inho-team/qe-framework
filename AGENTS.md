@@ -3,14 +3,14 @@
 ## Project
 
 - Name: `@inho-team/qe-framework` (Claude Code plugin `qe-framework`; not published to npm)
-- Purpose: one path for coding work — 이해 → 계획(Spec) → 실행 → 검증 — in seven skills,
+- Purpose: one path for coding work — 이해 → 계획(Spec) → 실행 → 검증 — in a small set of skills,
   leaving plain-markdown spec and verify docs per task under the user's `docs/qe/`.
 - Version sync: `package.json`, `.claude-plugin/plugin.json`, and the `qe-framework`
   entry in `.claude-plugin/marketplace.json` must stay identical.
 
 ## Structure
 
-- `skills/`: the seven skills — path: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`;
+- `skills/`: the skills — path: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`;
   alongside: `Qdebugging`, `Qcompact`, `Qresume`.
   Each folder has `SKILL.md` plus its templates or subagent prompts.
 - `hooks/`: `hooks.json` (SessionStart only), `session-start.mjs`, `guide.md`
@@ -33,7 +33,7 @@
 ## Validation
 
 - `npm test` — hook tests.
-- Local plugin check: `claude --plugin-dir .` and confirm the seven Q skills load.
+- Local plugin check: `claude --plugin-dir .` and confirm every Q skill loads.
 
 ## Response Style
 
