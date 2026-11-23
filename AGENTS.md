@@ -16,7 +16,7 @@
 - `hooks/`: `hooks.json` (SessionStart only), `session-start.mjs`, `guide.md`
   (the path guide injected at session start).
 - `tests/`: `node:test` tests for the hook.
-- `docs/superpowers/`: the v9 design spec and implementation plan.
+- Design specs and plans are kept locally under `research/` and are not tracked by git.
 
 ## Working Rules
 
