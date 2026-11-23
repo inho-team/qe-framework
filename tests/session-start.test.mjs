@@ -107,3 +107,23 @@ test('CLI uses input.cwd and injects the open task handoff', () => {
   const out = JSON.parse(res.stdout);
   assert.ok(out.hookSpecificOutput.additionalContext.includes('NEXT: run the migration test'));
 });
+
+test('findOpenTasks treats a handoff-only folder as an open task in understanding', () => {
+  const root = tmpRoot();
+  writeTask(root, '2026-11-06-e', { 'handoff.md': 'still talking with the user' });
+  const tasks = findOpenTasks(root);
+  assert.equal(tasks.length, 1);
+  assert.equal(tasks[0].name, '2026-11-06-e');
+  const ctx = buildContext(root, guideText);
+  assert.ok(ctx.includes('이해 중'));
+  assert.ok(ctx.includes('still talking with the user'));
+});
+
+test('findOpenTasks keeps a fully checked task open when verify.md reports 미충족', () => {
+  const root = tmpRoot();
+  writeTask(root, '2026-11-07-f', { 'plan.md': '- [x] one\n', 'verify.md': '# t\n\n- 결과: 일부 미충족\n' });
+  writeTask(root, '2026-11-07-g', { 'plan.md': '- [x] one\n', 'verify.md': '# t\r\n\r\n- 결과: 충족\r\n' });
+  const tasks = findOpenTasks(root);
+  assert.deepEqual(tasks.map((t) => t.name), ['2026-11-07-f']);
+  assert.ok(buildContext(root, guideText).includes('verify 미충족'));
+});

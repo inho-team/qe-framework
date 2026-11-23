@@ -7,7 +7,10 @@ import { fileURLToPath, pathToFileURL } from 'node:url';
 
 export const MAX_HANDOFF_CHARS = 8000;
 
-const TASK_MARKERS = ['spec.md', 'plan.md'];
+const TASK_MARKERS = ['spec.md', 'plan.md', 'handoff.md'];
+
+// verify.md's header line, e.g. "- 결과: 일부 미충족" (see skills/Qverify/verify-template.md).
+const VERIFY_FAILED = /결과:\s*(일부\s*)?미충족/;
 
 export function countUnchecked(markdown) {
   return (markdown.match(/^\s*[-*] \[ \]/gm) || []).length;
@@ -40,14 +43,17 @@ function inspectTask(dir, name) {
   const plan = stats['plan.md'] ? safeRead(path.join(dir, 'plan.md')) ?? '' : '';
   const unchecked = countUnchecked(plan);
   const hasVerify = Boolean(stats['verify.md']);
-  if (hasVerify && unchecked === 0) return null;
+  const verifyFailed = hasVerify && VERIFY_FAILED.test(safeRead(path.join(dir, 'verify.md')) ?? '');
+  if (hasVerify && unchecked === 0 && !verifyFailed) return null;
 
   return {
     name,
     dir,
     unchecked,
+    hasSpec: Boolean(stats['spec.md']),
     hasPlan: Boolean(stats['plan.md']),
     hasVerify,
+    verifyFailed,
     handoffPath: stats['handoff.md'] ? path.join(dir, 'handoff.md') : null,
     mtimeMs: Math.max(...Object.values(stats).map((s) => s.mtimeMs)),
   };
@@ -71,8 +77,12 @@ export function findOpenTasks(projectRoot) {
 }
 
 function describe(task) {
-  const steps = task.hasPlan ? `남은 단계 ${task.unchecked}` : 'plan.md 없음 (계획 중)';
-  const verify = task.hasVerify ? 'verify 있음' : 'verify 없음';
+  const steps = task.hasPlan
+    ? `남은 단계 ${task.unchecked}`
+    : task.hasSpec
+      ? 'plan.md 없음 (계획 중)'
+      : '이해 중 (handoff만 있음)';
+  const verify = task.verifyFailed ? 'verify 미충족' : task.hasVerify ? 'verify 있음' : 'verify 없음';
   const handoff = task.handoffPath ? ', handoff 있음' : '';
   return `- docs/qe/${task.name} — ${steps}, ${verify}${handoff}`;
 }

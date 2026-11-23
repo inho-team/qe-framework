@@ -45,6 +45,9 @@ description: Use when a session must be handed over (context is filling up, the 
 5. handoff.md의 "다음 할 일"부터 시작한다. 끝난 handoff는 지우지 않아도 된다.
    다음에 넘길 때 덮어쓴다.
 
+사용자가 남은 작업을 **그만두기로 하면**, 확인을 받은 뒤 그 작업 폴더를 지운다. 남겨 두면
+매 세션마다 다시 안내된다. git이면 지운 것도 이력에 남는다.
+
 ## 하지 않는 것
 
 - 작업 상태를 따로 저장하는 파일이나 DB를 만들지 않는다. 상태는 plan.md 체크박스와
