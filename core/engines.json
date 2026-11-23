@@ -1,9 +1,0 @@
-{
-  "_doc": "Single-AI SIVS policy manifest. The host's active client owns every stage; verification independence comes from role separation, fresh context, and machine re-execution.",
-  "version": 2,
-  "policy": "active-client-only",
-  "selection": "host-native",
-  "crossClientFallback": false,
-  "verificationIndependence": ["role-separated", "fresh-context", "machine-reexecution"],
-  "engines": {}
-}
