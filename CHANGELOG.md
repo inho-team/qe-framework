@@ -25,7 +25,7 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 - 에이전트 12개(`agents/`), `core/` 계약 문서, `scripts/` 검사·운영 스크립트 전부
 - hook 6종(PreToolUse, PostToolUse, Stop, UserPromptSubmit, TeammateIdle, TaskCompleted)
 - Codex·Ollama 지원, `qissue-adapter` 플러그인, SIVS 설정·교차 모델 검증·감사 로그
-- Jenkins CI, evals, npm 설치기(`install.js`, `uninstall.js`, `bin/`) — **npm 배포 중단**
+- Jenkins CI, evals, npm 설치기(`install.js`, `uninstall.js`, `bin/`) — npm 레지스트리에는 이 패키지가 없으며 v9도 배포하지 않는다(`private: true`)
 
 ### v8 사용자 안내
 

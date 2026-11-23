@@ -4,13 +4,3 @@ root = true
 charset = utf-8
 end_of_line = lf
 insert_final_newline = true
-
-[docs/README.ko.md]
-charset = utf-8-bom
-
-[docs/README.ja.md]
-charset = utf-8-bom
-
-[docs/README.zh.md]
-charset = utf-8-bom
-
