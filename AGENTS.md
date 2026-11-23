@@ -11,11 +11,13 @@
 ## Structure
 
 - `skills/`: the skills — path: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`;
-  alongside: `Qdebugging`, `Qcompact`, `Qresume`.
+  then `Qfinish`; alongside: `Qdebugging`, `Qtdd`, `Qreview`, `Qfeedback`, `Qskill`, `Qcompact`, `Qresume`.
   Each folder has `SKILL.md` plus its templates or subagent prompts.
 - `hooks/`: `hooks.json` (SessionStart only), `session-start.mjs`, `guide.md`
   (the path guide injected at session start).
-- `tests/`: `node:test` tests for the hook.
+- `tests/`: `node:test` tests for the hook and static checks on skills and evals.
+- `evals/`: behavior eval cases for `claude plugin eval` (`trigger-*`: the right skill fires;
+  `gate-*`: path behavior, compared against a no-plugin run). `evals/results/` is not tracked.
 - Design specs and plans are kept locally under `research/` and are not tracked by git.
 
 ## Working Rules
@@ -41,6 +43,11 @@
 
 - `npm test` — hook tests.
 - Local plugin check: `claude --plugin-dir .` and confirm every Q skill loads.
+- Before a release: `npm run eval:trigger` and `npm run eval:gate` (live Claude runs; they cost
+  money and take minutes, so they are not in CI). A case passes at 2 of 3 runs; any failing case
+  means the release is incomplete. The with/without delta is informational. Record the result as
+  "N of M cases" in the CHANGELOG entry. When a case fails, first check whether the case itself
+  misdescribes the situation before changing a skill.
 
 ## Response Style
 

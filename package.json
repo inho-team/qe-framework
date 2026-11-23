@@ -8,7 +8,9 @@
     "node": ">=22.5.0"
   },
   "scripts": {
-    "test": "node --test"
+    "test": "node --test",
+    "eval:trigger": "claude plugin eval . --tag trigger --ablation none --threshold 0.66 --no-publish --trust-plugin -j 3",
+    "eval:gate": "claude plugin eval . --tag gate --threshold 0.66 --allow-tools Write Edit --no-publish --trust-plugin -j 3"
   },
   "repository": {
     "type": "git",

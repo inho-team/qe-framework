@@ -56,6 +56,9 @@ description: Use when creating a new skill, changing an existing skill's wording
   돌려 본다(플러그인이면 `--plugin-dir <경로>`). 이웃 스킬과 description이 겹치면 엉뚱한 쪽이 불린다.
 - **행동이 바뀌는지**: 위 1–3단계. 스킬 없이 돌린 결과와 나란히 비교한다.
 - **구조**: 이름과 폴더가 같은지, 링크한 지원 파일이 있는지, 본문이 길어지지 않았는지.
+- **반복해서 재려면**: Claude Code의 `claude plugin eval`로 케이스(요청 + 채점 기준)를 만들어 두면,
+  플러그인 없이 돌린 결과와 나란히 여러 번 돌려 볼 수 있다. 케이스가 요청 상황을 제대로
+  재현하는지(필요한 코드가 요청 안에 있는지 등)부터 확인한다.
 
 ## 이런 생각이 들면
 
