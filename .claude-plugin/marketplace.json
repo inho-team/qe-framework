@@ -17,14 +17,6 @@
         "verification",
         "skills"
       ],
-      "compatibility": {
-        "minClaudeCodeVersion": "2.0.0"
-      },
-      "features": [
-        "7 skills: Qunderstand, Qplan, Qexecute, Qverify, Qdebugging, Qcompact, Qresume",
-        "spec.md / plan.md / verify.md per task under docs/qe/",
-        "session-start resume of unfinished tasks"
-      ],
       "source": {
         "source": "github",
         "repo": "inho-team/qe-framework",
