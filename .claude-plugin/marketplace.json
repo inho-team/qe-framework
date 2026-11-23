@@ -8,41 +8,28 @@
   "plugins": [
     {
       "name": "qe-framework",
-      "description": "Personal Claude Code skills package",
-      "version": "8.3.0",
+      "description": "One path for coding work — understand, plan, execute, verify — with spec and verify docs per task",
+      "version": "9.0.0",
       "category": "development",
       "tags": [
-        "sivs",
-        "harness",
-        "hooks",
-        "multi-agent",
-        "quality"
+        "workflow",
+        "spec",
+        "verification",
+        "skills"
       ],
       "compatibility": {
         "minClaudeCodeVersion": "2.0.0"
       },
       "features": [
-        "Claude and Codex lifecycle hooks",
-        "10 focused skills",
-        "SIVS quality loop",
-        "multi-agent orchestration"
+        "7 skills: Qunderstand, Qplan, Qexecute, Qverify, Qdebugging, Qcompact, Qresume",
+        "spec.md / plan.md / verify.md per task under docs/qe/",
+        "session-start resume of unfinished tasks"
       ],
       "source": {
         "source": "github",
         "repo": "inho-team/qe-framework",
         "ref": "main"
       }
-    },
-    {
-      "name": "qissue-adapter",
-      "description": "Optional GitHub issue adapter using an existing gh CLI login",
-      "category": "development",
-      "tags": [
-        "github",
-        "issues",
-        "optional-adapter"
-      ],
-      "source": "./plugins/qissue-adapter"
     }
   ]
 }

@@ -1,436 +1,72 @@
 # QE Framework
 
-**Query Execute Framework for Claude Code and Codex**
+**코딩 작업을 위한 길 하나: 이해 → 계획 → 실행 → 검증.**
 
-> <!--qe:skills-->12<!--/qe:skills--> skills | <!--qe:agents-->12<!--/qe:agents--> agents | Folder-aware context memory | SIVS quality gate
+QE는 Claude Code 플러그인이다. 스킬 7개로 된 길 하나를 정해 두고, 각 단계 안에서는
+모델의 판단을 믿는다. 버그 수정, 기능 추가, 리팩터링이 모두 같은 길을 탄다.
+그리고 작업마다 **무엇을 왜 만들었는지(spec)**와 **무엇을 어떻게 확인했는지(verify)**를
+저장소 안의 평범한 마크다운으로 남긴다. 사용자 본인은 나중에 "왜 이렇게 만들었지?"를,
+다음 세션의 AI는 "어디까지 했고 다음은 뭐지?"를 이 문서에서 찾는다.
 
-**A transparent, auditable, single-AI quality gate for coding agents.** Three things set QE apart:
-
-1. **Role-separated QA by construction** — one active AI client owns a session, while isolated critical subagents verify and supervise the work.
-2. **Auditable** — every routing decision and gate verdict is logged (`.qe/state/sivs-audit.log`, gate audits); nothing is a black box you take on faith.
-3. **Transparent** — the whole loop is plain files and skills you can read: `Plan → Spec → Execute → Verify`, no hidden orchestration.
-
-**See it work:** run `/Qplan` on a real task. QE creates a Plan with ordered Goals, then internally performs knowledge preflight, spec, execution, and verification for each Goal. Role contract: [`core/SIVS_SINGLE_AI_MODEL.md`](core/SIVS_SINGLE_AI_MODEL.md).
-
-QE uses **Progressive Assurance**: ordinary requests stay on Claude's or
-Codex's native execution path, while explicit `/Qplan`/`$Qplan` and
-`/Qgoal`/`$Qgoal` entries activate Full SIVS. Safety guards,
-completion-evidence checks, and QE response style remain enabled on both paths.
-Execution choice (solo, subagent, wave, durable, or isolated) is independent of
-assurance choice. See the normative
-[`Progressive Assurance`](core/PROGRESSIVE_ASSURANCE.md) policy and the
-[`Runtime Process Controller`](core/PROCESS_CONTROLLER.md) durability boundary.
-
----
-
-```
-Claude: /Qplan → [Goal loop: knowledge → spec → execute → verify]
-Codex:  $Qplan → [Goal loop: knowledge → spec → execute → verify]
-```
-
----
-
-## Why QE?
-
-Everything you do with AI comes down to two things: **Query** and **Execute**.
-
-"Why is this bug happening?" — that's a Query.
-"Fix it." — that's an Execute.
-"Run the tests", "commit this", "is this architecture right?" — all just Q and E, over and over.
-
-The problem is, raw AI doesn't do either well on its own. Query without context gives shallow answers. Execute without verification gives unchecked results. And the precision of your question determines the quality of the output — but maintaining that precision every time is exhausting.
-
-**QE Framework puts structure between Query and Execute.**
-
-```
-  You say             QE does                    You get
-─────────────────────────────────────────────────────────
-  "what to do"   →   Plan → Spec (refine Q)   →  precise query
-  "do it"        →   Implement → Verify → S   →  verified result
-```
-
-You only say **what you want**. How to ask the right question, how to verify the result — the framework handles that.
-
-```
-┌─────────────────────────────────────────────────┐
-│                  QE Framework                   │
-│                                                 │
-│  ┌───────────┐  ┌───────────┐  ┌─────────────┐ │
-│  │  Context   │  │   SIVS    │  │   10        │ │
-│  │  Memory    │  │   Loop    │  │   Skills    │ │
-│  │  Manager   │  │   Engine  │  │   Focused   │ │
-│  └─────┬─────┘  └─────┬─────┘  └──────┬──────┘ │
-│        │              │               │         │
-│        └──────────────┼───────────────┘         │
-│                       │                         │
-│              ┌────────┴────────┐                │
-│              │ Claude / Codex  │                │
-│              └─────────────────┘                │
-└─────────────────────────────────────────────────┘
-```
-
-| Problem | QE Solution |
-|---------|-------------|
-| Context window fills with irrelevant info | **Folder-aware context** — loads only what matches your working directory |
-| No structured workflow for complex tasks | **PSE Chain** — Plan → Spec → Execute → Verify pipeline |
-| Quality depends on prompt quality | **SIVS Loop** — automated Spec → Implement → Verify → Supervise gate |
-| No model routing control | **SIVS Config** — route each stage to Claude or Codex independently |
-| Token waste on repeated scans | **Context Memory** — pre-analyzed project knowledge, auto-refreshed |
-| Generated analysis lags structural changes | **Commit-aware drift check** — affected paths fall back to live-source preflight |
-
----
-
-## Install
-
-QE Framework installs as a **dual-target Claude + Codex framework**. The Claude
-plugin is the distribution anchor, and Codex-native assets are installed when
-`~/.codex` exists; see
-[`docs/INSTALL.md`](docs/INSTALL.md) and the measured
-[`VERIFICATION_MATRIX.md`](.qe/planning/plans/codex-native-parity/VERIFICATION_MATRIX.md)
-for the support boundary.
-
-The shared adapter vocabulary is defined in
-[`core/INTERACTION_ADAPTER.md`](core/INTERACTION_ADAPTER.md),
-[`core/LIFECYCLE_ADAPTER.md`](core/LIFECYCLE_ADAPTER.md), and the Phase 1
-[`ADAPTER_CONTRACT.md`](.qe/planning/plans/claude-codex-generalization/phases/1/ADAPTER_CONTRACT.md).
-The Phase 4 public-doc parity pass is recorded in
-[`PARITY_VERIFICATION_REPORT.md`](.qe/planning/plans/claude-codex-generalization/phases/4/PARITY_VERIFICATION_REPORT.md).
-
-Install the Claude plugin with two commands:
+## 설치
 
 ```bash
-# 1. Register the marketplace
 claude plugin marketplace add inho-team/qe-framework
-
-# 2. Install the plugin
 claude plugin install qe-framework@inho-team-qe-framework
 ```
 
-That installs Claude assets and, when `~/.codex` exists, synchronizes Codex
-assets too: native skills, generated agent TOML files, copied scripts, and a
-managed lifecycle hook fence pointing at the installed QE hook bundle. After a
-Codex install, run the hooks review command inside Codex once to review and
-trust the QE safety hook.
+`Host key verification failed`가 나면 git을 HTTPS로 쓰게 한 뒤 다시 시도한다:
 
-To run the Codex-native QE assets with an Ollama model, install the agent roles
-in local-model inheritance mode and start Codex with its OSS provider:
-
-```bash
-qe-framework-install --codex-provider ollama
-codex --oss --local-provider ollama
-```
-
-Reinstalling preserves this provider choice. Run `qe-framework-install
---codex-provider openai` to restore QE's default Codex model routing. See
-[`docs/INSTALL.md`](docs/INSTALL.md#run-qe-with-ollama-through-codex) for the
-support boundary.
-
-**SSH error?** If installation fails with `Host key verification failed`, set git to use HTTPS:
 ```bash
 git config --global url."https://github.com/".insteadOf "git@github.com:"
 ```
-Then retry the install command.
 
-**Verify installation:**
-```bash
-claude plugin list
-# Should show: qe-framework@inho-team-qe-framework ✔ enabled
-```
-
-### Optional adapters
-
-Optional integrations stay outside QE's core 10-skill process surface. Install
-the GitHub issue adapter only when the project uses GitHub Issues:
-
-```bash
-claude plugin install qissue-adapter@inho-team-qe-framework
-```
-
-The namespaced `/qissue-adapter:qissue` skill drafts one `bug`, `feature`, or
-`question`, shows the exact payload for approval, and then delegates creation to
-an already authenticated `gh` CLI. It never asks QE to collect or store a PAT;
-run `gh auth login` directly if authentication is required.
-
-For Codex CLI, register this repository's marketplace and install the adapter:
-
-```bash
-codex plugin marketplace add inho-team/qe-framework
-codex plugin add qissue-adapter@inho-team-qe-framework
-```
-
-Start a new Codex session after installation, then invoke `$qissue` explicitly
-or describe the issue you want to draft. You can also browse and manage the
-adapter through `/plugins`.
-
-Skill manifests remain deterministic via `npm run eval:skills`;
-behavioral review can be delegated manually to `/Qcritical-review` when needed.
-
-Audit and migration work follows a documented manual procedure: define scope and
-preconditions, identify exact files and a rollback point, record ordered steps,
-review the diff, run existing targeted validators, and preserve the evidence and
-rollback instructions in the relevant task artifact.
-
-**Update:**
-```bash
-claude plugin update qe-framework@inho-team-qe-framework
-```
-
-**Uninstall:**
-```bash
-claude plugin uninstall qe-framework@inho-team-qe-framework
-```
-
-### Supported package command surface
-
-The supported npm package entrypoints are the `qe-framework-install` and
-`qe-framework-uninstall` binaries, the commands declared in `package.json`
-(for example `npm run check:all` and `npm run qe:query -- analysis`), and the
-documented QE skills. Although the package ships `scripts/`, `hooks/`, and
-`core/` so the installer can copy runtime assets, direct imports or execution
-of undeclared deep paths are internal and unsupported; those paths may be
-removed between releases.
-
-For retired maintenance paths, use the supported command surface:
-
-- old audit runners (`audit_io`, `audit_skills`, `run_audit`, `verify-memo`) →
-  `npm run check:all` for repository guards and
-  `npm run qe:query -- analysis` for stored analysis;
-- the former `scripts/preuninstall.mjs` path → normal `npm uninstall` lifecycle
-  cleanup or `qe-framework-uninstall` for an explicit removal;
-- retired internal library modules have no public import replacement.
-
-### Alternative: Local development mode
-
-If you're developing or contributing to QE Framework itself:
-
-```bash
-git clone https://github.com/inho-team/qe-framework.git
-cd your-project
-claude --plugin-dir /path/to/qe-framework
-```
-
----
-
-## Quick Start
-
-In Claude, you only need to remember the Plan entry point:
+## 길
 
 ```
-/Qplan "what you want to achieve"    # Initializes when needed, then runs the Plan-owned Goal loop
+이해        →  계획(Spec)        →  실행      →  검증
+Qunderstand    Qplan                Qexecute     Qverify
+               (spec.md, plan.md    (plan.md     (verify.md)
+                → 사용자 승인)        체크 갱신)
+
+Qdebugging: 버그 작업의 시작, 또는 원인 모를 실패 → 근본 원인부터
+Qcompact:   세션을 넘길 때 handoff.md 작성 → /compact 요청
+Qresume:    새 세션이 시작되면 미완료 작업 이어받기
 ```
 
-`/Qplan` initializes QE when needed, owns the Plan, and advances verified Goals internally. A Goal completes only when its pre-defined acceptance criteria, user-journey scenarios, regression evidence, independent Goal-alignment verification, and required human acceptance are recorded. High-impact risk Goals require human acceptance. You review material decisions rather than run stage commands.
+| 스킬 | 하는 일 |
+|---|---|
+| `Qunderstand` | 만들기 전에 원하는 것과 이유를 대화로 알아낸다. 질문은 한 번에 하나, 접근 방식은 2–3개 비교 후 추천. |
+| `Qplan` | spec.md와 plan.md를 쓰고 사용자 승인을 받는다. 실행 방식(서브에이전트 / 직접)도 함께 정한다. |
+| `Qexecute` | 승인된 계획대로 만들고 plan.md 체크박스를 갱신한다. |
+| `Qverify` | "됐다"고 말하기 전에 spec 대비 증거로 확인하고 verify.md에 남긴다. 메인 또는 서브에이전트가 검증. |
+| `Qdebugging` | 버그·실패·예상 밖 동작에서 근본 원인을 찾기 전에는 고치지 않는다. 작은 수정은 바로, 큰 수정은 Qplan으로. |
+| `Qcompact` | 세션을 넘길 때 handoff.md를 쓰고 `/compact`를 요청한다. |
+| `Qresume` | 새 세션에서 미완료 작업과 handoff를 읽어 이어받는다. |
 
-In Codex, use the same skill names with the Codex skill prefix:
+아주 작은 일(오타, 한 줄 수정)은 문서 없이 바로 한다.
 
-```text
-$Qplan "what you want to achieve"
-```
+## 작업 문서
 
-Use `/Qplan` or `$Qplan` to start or re-plan work. Internal QE stages do not require user commands.
-
-`Qgoal` is the explicit single-Goal alias of `Qplan`. Large prompts, planning
-language, risk words, `!full`, and `!direct` do not change the route by
-themselves. See the [v8→v9 migration guide](docs/MIGRATION_v8_to_v9.md) and the
-[harness evaluation protocol](docs/HARNESS_EVALUATION.md).
-
-For a broad or ambiguous request, Qplan first externalizes the decisions that
-cannot be recovered from the repository. It shows the real question budget up
-front, asks at most three at a time, and labels progress such as `[17/30]`;
-follow-ups use the parent label, such as `[17-1/3]`. You can pause, resume,
-correct, skip, re-baseline once, or stop. Material questions cannot be silently
-skipped, and Qplan does not finalize the roadmap until you confirm the intake
-synthesis.
-
-The intake is resumable DB-backed state. Base questions are capped at 30,
-follow-ups at 3 per parent and 12 allocated overall, and unique issued versions
-at 42. Ceiling or decision outcomes are explicit: `confirmed`, `blocked`, or
-`split-required`. See the [usage guide](docs/USAGE_GUIDE.md#deterministic-tacit-knowledge-intake)
-for controls and recovery behavior.
-
-`Qplan` performs the minimal `.qe/` bootstrap when needed. On an explicit QE entry,
-it also creates the client-neutral `QE.md` when absent and adds a small managed pointer
-to `CLAUDE.md` (Claude) or `AGENTS.md` (Codex) without overwriting project instructions.
-Shared QE state and task history live under `.qe/`, with `QE_CONVENTIONS.md` as the
-common rule reference.
-
----
-
-## Architecture
-
-### Plan-owned Goal Loop
-
-The Plan is the user workflow; Spec, Execute, and Verify are internal per-Goal stages:
-
-| Step | Claude | Codex | What it does |
-|------|--------|-------|-------------|
-| **Plan** | `/Qplan` | `$Qplan` | Bounded intake, then roadmap, requirements, ordered Goals |
-| **Knowledge** | internal | internal | Retrieve relevant QE evidence and project wiki pointers |
-| **Spec / Execute / Verify** | internal | internal | Generate evidence, implement, test, review, and gate the active Goal |
-
-Only verified Goal outcomes are added to the derived project wiki. Canonical QE
-document rows in `qe.db` remain the source of truth; derived index tables are the
-lookup layer.
-
-Before a Goal trusts generated project analysis, QE compares its recorded Git
-baseline with committed and untracked structural additions. New package barrels,
-routes, migrations, and directory roots make the affected analysis advisory-only;
-Qplan reads those live sources again before execution and verification. The check
-is non-blocking and can be inspected directly with `npm run qe:analysis-drift -- --json`.
-
-### Store schema and upgrades
-
-The QE document store has a versioned ERD and append-only SQLite migrations.
-Check or apply local compatibility work with:
-
-```bash
-npm run qe:schema -- status
-npm run qe:schema -- verify
-npm run qe:schema -- plan
-npm run qe:schema -- migrate
-```
-
-See [Store Schema and Migration Guide](docs/STORE_SCHEMA.md) for the ERD,
-framework-to-schema compatibility contract, and release procedure.
-
-Codex uses the same PSE skills with `$Q...`. The QE client adapter maps Claude
-Agent-tool workflows onto Codex native subagents and falls back to role-separated
-inline execution only when the active Codex runtime does not expose a required
-native subagent primitive.
-
-### SIVS Loop (Quality Gate)
-
-Runs inside Execute and Verify steps:
+작업 하나마다 사용자 프로젝트에 폴더 하나가 생긴다.
 
 ```
-     ┌──────────────────────────────────────┐
-     │            SIVS Loop                 │
-     │                                      │
-     │  Spec ──► Implement ──► Verify ──►  │
-     │   (S)       (I)          (V)        │
-     │                                      │
-     │              ┌─── PASS ──► Done     │
-     │   Supervise ─┤                       │
-     │     (S)      └─── FAIL ──► Remediate │
-     │                     │                │
-     │                     └──► Spec (retry)│
-     └──────────────────────────────────────┘
+docs/qe/2026-11-23-<주제>/
+  spec.md      의도와 이유, 목표/비목표, 검토한 접근, 결정
+  plan.md      단계 목록(체크박스)과 단계별 확인 방법
+  verify.md    무엇을 어떻게 확인했는지, 확인 못 한 것, 남은 일
+  handoff.md   세션을 넘길 때만: 어디까지, 다음 할 일, 주의할 점
 ```
 
-### Single-AI Role Separation
+DB나 전용 도구 없이 어떤 편집기로도 읽힌다. 진행 상태는 plan.md 체크박스와
+verify.md의 `결과:` 줄로 알 수 있다.
 
-The problem with single-model workflows: the same model that writes the spec also implements it, reviews it, and approves it. That's self-grading.
+## v8에서 오는 경우
 
-QE uses one active client. Spec stays in the main thread; Implement is led by
-the main thread with bounded subagents; Verify and Supervise are high-reasoning
-critical QA roles that produce evidence and use isolated subagents.
+v9는 전면 재작성이다. 남은 v8 파일을 정리하는 방법은
+[CHANGELOG.md](CHANGELOG.md#900---2026-11-23)에 있다. 마지막 v8 상태는 커밋 `098bee2`, 마지막 v8 출시는 태그 `v8.3.0`이다.
 
-Choose Claude or Codex for a session; SIVS does not invoke the other client.
+## 라이선스
 
-### Model Tiering
-
-| Model | Use | Examples |
-|-------|-----|---------|
-| **Haiku** | Simple, parallel tasks | Wave Teammates, archiving, data refresh |
-| **Sonnet** | Code implementation | Etask-executor, Ecode-reviewer |
-| **Opus** | Strategy, architecture | Claude `/Qplan`, Codex `$Qplan`, Edeep-researcher |
-
-Delegation Enforcer auto-injects the correct model via pre-tool-use hook.
-
-### Token Efficiency (Enforced)
-
-| Mechanism | Behavior |
-|-----------|----------|
-| **Folder Context** | Loads only relevant context per working directory |
-| **ContextMemo** | Blocks duplicate file reads at hook level (`exit 2`) |
-| **Auto-compaction** | Triggers Ecompact-executor at 140k tokens, mandatory at 170k |
-| **Persistent Mode** | Prevents Claude from stopping mid-pipeline |
-| **Skill size limit** | 250 lines max per SKILL.md, excess → `references/` |
-
----
-
-## Skill Library (<!--qe:skills-->12<!--/qe:skills--> skills)
-
-> **Start here.** Claude uses `/Qplan {intent}` and Codex uses `$Qplan {intent}`.
-> Spec and execution remain internal components of the Plan-owned Goal loop.
-
-Specialist guidance removed from the default catalog is no longer installed as
-part of the framework. Keep project-specific guidance in local docs, custom
-skills, or explicitly connected MCP servers without making every QE Framework
-install download optional guidance.
-
-### Core Skills
-
-| Category | Skills | Count |
-|----------|--------|-------|
-| **Workflow intake** | `Qplan` `Qgoal` | 2 |
-| **Internal PSE stages** | `Qgenerate-spec` `Qexecute` *(not user-invocable)* | 2 |
-| **Quality** | `Qcritical-review` | 1 |
-| **Project** | `Qcommit` `Qupdate` `Qversion` | 3 |
-| **Inspection** | `Qdashboard` | 1 |
-| **Environment** | `Qcc-setup` | 1 |
-| **Session** | `Qcompact` `Qresume` | 2 |
-
-## Agent Fleet (<!--qe:agents-->12<!--/qe:agents--> agents)
-
-| Agent | Role |
-|-------|------|
-| **Etask-executor** | Complex checklist implementation (5+ items) |
-| **Eqa-orchestrator** | Test → review → fix quality loop |
-| **Esupervision-orchestrator** | Routes to domain supervisors, aggregates grades |
-| **Ecode-reviewer** | Code review after changes |
-| **Ecode-test-engineer** | Test writing and coverage |
-| **Ecommit-executor** | AI-trace-free git commits |
-| **Edeep-researcher** | Multi-source research |
-| **Esecurity-officer** | Security audit on diffs |
-| **Ecompact-executor** | Context window pressure management |
-| **Erisk-proof-auditor** | Fresh-context risk proof audit |
-| **Edoc-writer** | Technical and generated documentation |
-| +2 more | Debugging and bounded task execution |
-
----
-
-## Project Structure
-
-```
-qe-framework/
-├── skills/                  # 12 skill definitions (10 public, 2 internal)
-├── agents/                  # 20 agent definitions
-├── core/                    # Principles, schemas, rules
-├── scripts/                 # Runtime utilities + shared libs
-├── hooks/                   # Git/session hooks
-├── docs/                    # Guides and references
-└── .qe/                    # Project state (per-project)
-    ├── context/             # Folder-aware context memory
-    ├── sivs-config.json     # Single-AI role settings
-    └── tasks/               # Task tracking
-```
-
----
-
-## Documentation
-
-| Doc | Path |
-|-----|------|
-| System Overview | [docs/SYSTEM_OVERVIEW.md](docs/SYSTEM_OVERVIEW.md) |
-| Philosophy | [docs/PHILOSOPHY.md](docs/PHILOSOPHY.md) |
-| Usage Guide | [docs/USAGE_GUIDE.md](docs/USAGE_GUIDE.md) |
-| Conventions | [QE_CONVENTIONS.md](QE_CONVENTIONS.md) |
-| Secret Management | [docs/SECRETS.md](docs/SECRETS.md) |
-| Contract Layer | [docs/contract-layer.md](docs/contract-layer.md) |
-
-| Language | Path |
-|----------|------|
-| Korean | [docs/README.ko.md](docs/README.ko.md) |
-| Japanese | [docs/README.ja.md](docs/README.ja.md) |
-| Chinese | [docs/README.zh.md](docs/README.zh.md) |
-
----
-
-## Version
-
-`6.3.0` — Historical plugin installation and planning improvements (legacy catalog era).
-
-## License
-
-MIT. See [LICENSE](LICENSE).
+MIT. 워크플로 아이디어와 문장 일부는 [obra/superpowers](https://github.com/obra/superpowers)(MIT)를
+바탕으로 했다 — [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md).

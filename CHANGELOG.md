@@ -1,19 +1,51 @@
 # Changelog
 
-All notable user-visible changes to the QE Framework are documented here.
+QE Framework의 사용자에게 보이는 변경을 기록한다.
 
-Format: [Keep a Changelog](https://keepachangelog.com/). Versioning: [SemVer](https://semver.org/).
+형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
-**Release policy**: see `QE_CONVENTIONS.md` → Release Process.
+## [9.0.0] - 2026-11-23
 
-- **PATCH** — bundled bug fixes, tweaks. Batched release (weekly or every ~5 fixes).
-- **MINOR** — new skills, agents, or feature additions. Monthly cadence.
-- **MAJOR** — breaking changes. Rare.
-- **Hotfix patch release** (between batches) — only for security / data loss / framework-unusable regressions.
+### Changed (Breaking)
 
-All entries should land in `[Unreleased]` until the repository release workflow cuts a version.
+- **전면 재작성.** QE는 이제 길 하나(이해 → 계획(Spec) → 실행 → 검증)와 스킬 7개로 된
+  가벼운 Claude Code 플러그인이다. 길: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`.
+  보조: `Qdebugging`(근본 원인부터), `Qcompact`(handoff 작성 후 `/compact` 요청), `Qresume`(이어받기).
+  규칙은 숫자·스키마가 아니라 이유로 쓰고, 각 단계 안에서는 모델의 판단을 믿는다.
+- 작업마다 사용자 프로젝트의 `docs/qe/YYYY-MM-DD-<주제>/`에 평범한 마크다운
+  (`spec.md`, `plan.md`, `verify.md`, 필요할 때 `handoff.md`)을 남긴다.
+- `Qplan`, `Qexecute`, `Qcompact`, `Qresume`은 이름은 같지만 뜻이 새로 정의되었다.
+- hook은 SessionStart 하나만 남았다: 길 안내와 미완료 작업·최근 handoff를 세션에 넣어 준다.
 
-## [Unreleased]
+### Removed
+
+- SQLite DB(`.qe/qe.db`)와 `.qe/` 상태 문서, `qe.mjs`/`qe-cat.mjs` 등 모든 CLI
+- 스킬 `Qgoal`, `Qgenerate-spec`, `Qcritical-review`, `Qcommit`, `Qdashboard`,
+  `Qcc-setup`, `Qupdate`, `Qversion`과 `CATALOG.md`
+- 에이전트 12개(`agents/`), `core/` 계약 문서, `scripts/` 검사·운영 스크립트 전부
+- hook 6종(PreToolUse, PostToolUse, Stop, UserPromptSubmit, TeammateIdle, TaskCompleted)
+- Codex·Ollama 지원, `qissue-adapter` 플러그인, SIVS 설정·교차 모델 검증·감사 로그
+- Jenkins CI, evals, npm 설치기(`install.js`, `uninstall.js`, `bin/`) — **npm 배포 중단**
+
+### v8 사용자 안내
+
+v9 플러그인은 v8 설치기가 플러그인 밖에 복사한 파일을 지우지 않는다. 필요하면 직접 지운다.
+
+1. 플러그인 갱신: `claude plugin marketplace update inho-team-qe-framework` 후
+   `claude plugin install qe-framework@inho-team-qe-framework`
+2. `~/.claude/commands`, `~/.claude/agents`, `~/.claude/hooks`, `~/.claude/scripts`에서
+   QE가 설치한 파일(`Q*` 스킬·명령, `E*.md` 에이전트, QE hook·스크립트)을 지운다.
+   **같은 이름의 v8 사본(`Qplan`, `Qexecute`, `Qcompact`, `Qresume`)이 남아 있으면 v9 스킬 대신 불릴 수 있다.**
+3. Codex를 썼다면 `~/.codex`의 QE skills/agents/hooks와, `~/.codex/config.toml`의
+   QE hook fence 블록을 지운다.
+4. npm으로 설치했다면 `npm uninstall -g @inho-team/qe-framework`.
+5. 각 프로젝트의 `.qe/` 디렉터리는 v9가 쓰지 않는다. 필요 없으면 지워도 된다.
+
+v8 코드는 git 이력에 남아 있다. 마지막 v8 상태는 커밋 `098bee2`(marketplace로 설치한 v8 사용자가 쓰던 코드), 마지막 v8 출시는 태그 `v8.3.0`이다.
+
+## [v8 미출시 변경 — v9로 대체됨]
+
+> 아래는 `v8.3.0` 태그 이후 `main`(마지막 v8 커밋 `098bee2`)에 쌓였지만 출시되지 않은 v8 변경 기록이다.
 
 ### Changed (Breaking)
 

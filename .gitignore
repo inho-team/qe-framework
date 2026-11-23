@@ -1,50 +1,10 @@
 node_modules/
 .DS_Store
-.omc/
-.omx/
-*.tgz
 .idea
 .claude/
 CLAUDE.md
-AGENTS.md
-.qe/*
-!.qe/contracts/
-!.qe/docs/
-!.qe/MISTAKE.md
-!.qe/planning/
-.qe/planning/*
-!.qe/planning/ROADMAP.md
-!.qe/planning/PROJECT.md
-!.qe/planning/ADR-026-mcp-daemon-supervisor.md
-.qe/contracts/.verdicts/
-test-routing.js
-test-translate.js
-test-framework.js
-results.tsv
-run.log
-.mailmap
-TASK_REQUEST_*.md
-VERIFY_CHECKLIST_*.md
-ANALYSIS_*.md
-
-# Local artifacts and notes (not part of the framework)
+*.tgz
 dist/
-GEMINI.md
-.planning
-*.pdf
-harness-engineering-talk*.md
-gbrain-분석.md
-
-# QE shadow-git snapshot store (never commit snapshot internals to the real repo)
-.qe/.snapshots/
-
-# QE local store (ADR-027). Binary and machine-local: the derived index is
-# rebuildable from the files, and the -wal/-shm sidecars are transient.
-.qe/qe.db
-.qe/qe.db-wal
-.qe/qe.db-shm
-
-# Transient baseline copy written by check-goal-router.mjs (PID-suffixed). The
-# guard removes stale ones itself, but an interrupted run leaves one behind and
-# it surfaces as untracked noise mid-run.
-hooks/scripts/.baseline-prompt-check-*.mjs
+graft/
+.ignore
+.superpowers/

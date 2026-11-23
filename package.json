@@ -1,57 +1,14 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "8.3.0",
+  "version": "9.0.0",
+  "private": true,
+  "description": "QE Framework — a 5-skill Claude Code plugin: 이해 → 계획(Spec) → 실행 → 검증, with spec and verify docs per task",
+  "type": "module",
   "engines": {
     "node": ">=22.5.0"
   },
-  "description": "Query Execute Framework for Claude Code and Codex — focused SIVS loop with 12 skills and 12 agents",
-  "files": [
-    ".claude-plugin/",
-    "agents/",
-    "bin/",
-    "core/",
-    "docs/",
-    "!docs/index.html",
-    "!docs/qe_framework_*.html",
-    "!docs/presentation/",
-    "!docs/archive/",
-    "evals/",
-    "hooks/",
-    "!hooks/scripts/.baseline-prompt-check-*",
-    "install.js",
-    "LICENSE",
-    "package.json",
-    ".agents/plugins/marketplace.json",
-    "plugins/",
-    "!plugins/**/tests/**",
-    "QE_CONVENTIONS.md",
-    "README.md",
-    "scripts/",
-    "!**/__tests__/**",
-    "skills/",
-    "uninstall.js"
-  ],
-  "bin": {
-    "qe-framework-install": "./bin/qe-framework-install.mjs",
-    "qe-framework-uninstall": "./bin/qe-framework-uninstall.mjs"
-  },
   "scripts": {
-    "postinstall": "node ./scripts/package-lifecycle.mjs postinstall installClaudeAssets installCodexAssets",
-    "preuninstall": "node ./scripts/package-lifecycle.mjs preuninstall uninstallClaudeAssets",
-    "qe:secret": "node scripts/qe_secret.mjs",
-    "qe:validate": "node scripts/validate_svs_config.mjs",
-    "qe:query": "node scripts/qe-query.mjs",
-    "qe:schema": "node scripts/qe-schema.mjs",
-    "qe:contract": "node scripts/qe-contract.mjs",
-    "qe:analysis-drift": "node scripts/qe-analysis-drift.mjs",
-    "qe:release": "node scripts/qe-release-admin.mjs",
-    "check:routing": "node scripts/check-skill-routing.mjs",
-    "check:all": "node scripts/check-all.mjs",
-    "check:agents": "node scripts/check-agent-registry.mjs && node scripts/check-agent-evals.mjs",
-    "check:evals": "node scripts/check-skill-evals.mjs",
-    "eval:skills": "node scripts/eval-skills-behavioral.mjs",
-    "learn:failures": "node scripts/learn-from-failures.mjs",
-    "sync:metadata": "node scripts/sync-metadata.mjs"
+    "test": "node --test"
   },
   "repository": {
     "type": "git",
@@ -61,13 +18,5 @@
   "bugs": {
     "url": "https://github.com/inho-team/qe-framework/issues"
   },
-  "publishConfig": {
-    "access": "public"
-  },
-  "type": "module",
-  "private": false,
-  "license": "MIT",
-  "optionalDependencies": {
-    "playwright": "^1.45.0"
-  }
+  "license": "MIT"
 }

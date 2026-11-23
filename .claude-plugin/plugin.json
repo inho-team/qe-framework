@@ -1,115 +1,19 @@
 {
   "name": "qe-framework",
-  "version": "8.3.0",
-  "description": "QE Framework v8 — Claude/Codex SIVS loop with dual-target assets, lifecycle hooks, 12 skills, and 12 agents.",
+  "version": "9.0.0",
+  "description": "QE Framework v9 — one path (이해 → 계획 → 실행 → 검증) in 7 skills, leaving spec and verify docs for every task.",
   "author": {
     "name": "inho-team"
   },
   "homepage": "https://github.com/inho-team/qe-framework",
   "license": "MIT",
   "keywords": [
-    "sivs",
-    "harness-engineering",
     "claude-code",
-    "hooks",
-    "skills"
+    "skills",
+    "spec",
+    "verification"
   ],
   "skills": [
     "./skills/"
-  ],
-  "hooks": {
-    "SessionStart": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/session-start.mjs\"",
-          "timeout": 5
-          }
-        ]
-      }
-    ],
-    "PreToolUse": [
-      {
-        "matcher": "*",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/pre-tool-use.mjs\"",
-          "timeout": 3
-          }
-        ]
-      }
-    ],
-    "PostToolUse": [
-      {
-        "matcher": "Read|Write|Edit|Bash",
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/post-tool-use.mjs\"",
-          "timeout": 5
-          }
-        ]
-      }
-    ],
-    "Stop": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/stop-handler.mjs\"",
-          "timeout": 5
-          }
-        ]
-      }
-    ],
-    "UserPromptSubmit": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/prompt-check.mjs\"",
-          "timeout": 3
-          }
-        ]
-      }
-    ],
-    "TeammateIdle": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/teammate-idle.mjs\"",
-          "timeout": 3
-          }
-        ]
-      }
-    ],
-    "TaskCompleted": [
-      {
-        "hooks": [
-          {
-            "type": "command",
-            "command": "node \"${CLAUDE_PLUGIN_ROOT}/hooks/scripts/task-completed.mjs\"",
-          "timeout": 3
-          }
-        ]
-      }
-    ]
-  },
-  "agents": [
-    "./agents/Ecode-debugger.md",
-    "./agents/Ecode-reviewer.md",
-    "./agents/Ecode-test-engineer.md",
-    "./agents/Ecommit-executor.md",
-    "./agents/Ecompact-executor.md",
-    "./agents/Edeep-researcher.md",
-    "./agents/Edoc-writer.md",
-    "./agents/Eqa-orchestrator.md",
-    "./agents/Erisk-proof-auditor.md",
-    "./agents/Esecurity-officer.md",
-    "./agents/Esupervision-orchestrator.md",
-    "./agents/Etask-executor.md"
   ]
 }

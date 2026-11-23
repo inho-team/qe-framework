@@ -1,230 +1,87 @@
 ---
 name: Qplan
-description: "Use when starting or resuming a Plan. Runs bounded tacit-knowledge intake when needed, creates or updates a roadmap, then advances one verified Goal at a time. Use Qgoal only as a goal-intake alias."
-user_invocable: true
-recommendedModel: opus
-tier: core
+description: Use when the user has agreed on what to build and which approach (after Qunderstand), or hands you a clear request or spec, and the work needs more than a trivial edit — before touching code.
 ---
 
-> **Planning state → DB:** `.qe/planning/**` is a DB-only namespace in the
-> SQLite `qe_files` store. Its directories are logical paths, not folders to
-> create on disk. Read them with `node scripts/qe-cat.mjs <path>` (or
-> `--ls`/`--exists`) and mutate them only through QE state/store utilities.
-> See `QE_CONVENTIONS.md`.
+# Qplan — 계획 (Spec)
 
-# Qplan — Plan-owned Goal Controller
+이 단계의 목적은 두 가지다.
 
-`Qplan` is the user-facing control surface for work. A Plan owns an ordered
-Goal queue; Goals are not separate user commands. The user supplies an intent,
-reviews material Plan changes, and receives results. QE runs the internal work.
+1. **이해한 것을 남긴다.** 미래의 사용자는 "왜 이렇게 만들었지?"를, 다음 세션의 AI는
+   "무엇을 만들기로 했지?"를 이 문서에서 찾는다. 대화는 사라지지만 문서는 남는다.
+2. **실행 가능한 단계로 나눈다.** 각 단계는 결과를 확인할 수 있는 크기여야 한다.
+   그래야 실행하다 멈춰도, 세션이 끊겨도 어디까지 왔는지 알 수 있다.
 
-Qplan is an explicit high-assurance entry. Only active-prefix `$Qplan`/`/Qplan`
-or the `$Qgoal`/`/Qgoal` alias activates Full SIVS. Ordinary requests use the
-native client execution path while the Safety Kernel and QE response style stay
-active; prompt size, file count, and risk words never activate this workflow.
+## 문서 위치
 
-## Model
+사용자 프로젝트의 `docs/qe/YYYY-MM-DD-<주제>/` 폴더 하나에 둔다. 주제는 짧은 영문
+소문자-하이픈. 프로젝트나 사용자가 다른 위치를 원하면 따른다.
 
-```text
-Plan → Goal 1 → Goal 2 → … → Goal N
-          │
-          ├─ knowledge preflight
-          ├─ assurance lane (bounded micro contract | formal spec)
-          ├─ execute
-          ├─ verify
-          └─ verified knowledge write-back
-```
+- `spec.md` — [spec-template.md](spec-template.md)
+- `plan.md` — [plan-template.md](plan-template.md)
 
-- **Plan** is the durable contract: roadmap, requirements, phases, and ordered Goals.
-- **Goal** is the smallest independently verifiable Plan outcome.
-- Canonical `.qe/` document rows in `qe.db` are evidence; derived index tables and
-  `.qe/wiki/` projections are lookup/knowledge layers. Do not treat an index row
-  or LLM summary as the source of truth.
-- Only a verified Goal with explicit evidence may write back to the wiki.
+문서 크기는 일의 크기를 따른다. 작은 일이면 spec은 몇 줄, plan은 단계 두세 개면 된다.
+아무도 안 읽는 긴 문서는 실패다.
 
-## Deterministic tacit-knowledge intake
+## spec.md 쓰기
 
-For a broad or ambiguous intent, Qplan owns one durable intake before it
-finalizes execution artifacts. This is a bounded decision-discovery stage, not
-an invitation to interview the user about facts already available in the
-repository.
+Qunderstand에서 나온 것을 적는다: 의도와 이유, 목표·비목표, 검토한 접근과 고른 이유,
+사용자가 정한 것. **사용자가 말한 것과 내가 정한 것을 섞지 않는다.** 내가 정한 것은
+"내가 정한 것"에 이유와 함께 따로 적는다. 사용자가 그 목록을 보고 바로잡을 수 있어야 한다.
 
-1. **Reconnaissance first:** inspect the minimum relevant sources and record
-   source facts. Build a canonical base-question inventory only for unresolved
-   decisions, with stable ordinals and material dimensions from
-   `core/KNOWLEDGE_ELICITATION_CONTRACT.md`.
-2. Initialize `.qe/planning/plans/{slug}/INTAKE.json` with
-   `node scripts/qe-intake.mjs init`, the current full session UUID, and the
-   inventory JSON. Before asking, disclose the actual base total, the maximum
-   12 allocated follow-ups, and the maximum batch size of 3.
-3. Run `node scripts/qe-intake.mjs next` with the stored revision. Render only
-   the returned batch through `core/INTERACTION_ADAPTER.md`; preserve engine
-   labels such as `[17/30]` and `[17-1/3]` exactly. Persist every answer, skip,
-   correction, pause, resume, re-baseline, or stop through the CLI using the
-   returned revision. Never hand-edit counters or `INTAKE.json`.
-4. When no material question remains, run the CLI `synthesize` operation and
-   show the synthesis to the user. Persist corrections or a material
-   re-baseline, and run `confirm` only after the user accepts the synthesis.
-5. A pause preserves the earliest unresolved label and returns control to the
-   user. A stop persists a blocked terminal. Do not convert either state into
-   an inferred answer.
+이해 단계 없이 들어왔다면(사용자가 이미 명확한 요청이나 스펙을 줬다면), 저장소를 먼저
+읽고 요청을 내 말로 정리해 spec에 쓴다. 비어 있는 것 중 만들 것을 바꾸는 것이 있으면
+쓰기 전에 하나씩 묻는다.
 
-Interactive Claude and Codex sessions ask the same labeled open questions and
-wait for answers. In non-interactive mode, skip only a question that the engine
-classifies as explicitly reversible and non-material; record that resolution
-as an assumption. If any material question remains, retain the intake draft,
-report the earliest unresolved label, and block Plan finalization without
-fabricating an answer.
+## plan.md 쓰기
 
-The intake may be omitted only when reconnaissance proves that the intent is
-already bounded and has no unresolved material decision. Record that reason in
-the Plan decision log; convenience or non-interactive execution is not a
-bypass. Qplan is the sole owner of this stage. Qgoal and downstream PSE stages
-must not duplicate its questions, counters, or transitions.
+계획은 **실행하는 사람이 혼자 정할 수 없는 결정들의 모음**이다. 이 코드베이스를 처음
+보는 유능한 개발자가 읽는다고 생각한다. 그가 모르는 건 네가 무엇을 정했는지다.
 
-## Entry and bootstrap
+1. **바뀌는 파일부터.** 어떤 파일을 만들고 고칠지, 각 파일이 무엇을 맡는지 정한다.
+   한 파일은 한 가지 책임. 함께 바뀌는 것은 함께 둔다. 기존 코드의 패턴을 따른다.
+2. **단계는 확인할 수 있는 크기로.** 각 단계는 스스로 확인할 수 있는 결과로 끝난다.
+   설정·준비·문서 작업은 그것이 필요한 단계에 합친다. 리뷰어가 한 단계는 거절하고
+   옆 단계는 받아들일 수 있을 때만 나눈다.
+3. **단계마다 확인 방법.** `확인:` 줄에 실행할 명령과 통과를 뜻하는 출력을 적는다.
+   테스트가 있는 코드라면 실패하는 테스트를 먼저 쓰는 순서로 단계를 놓는다.
+4. **정한 것은 정확히.** 이름, 시그니처, spec이 정한 값은 그대로 적는다. 함수 본문은
+   시그니처와 테스트로 정해지지 않는 알고리즘일 때만 쓴다. 계획이 코드보다 길면 코드를
+   대신 써 버린 것이다.
+5. **결정하지 않는 줄은 쓰지 않는다.** "TBD", "예외 처리 추가", "적절히 검증" 같은 줄은
+   구멍이다.
 
-1. Ensure the shared `QE.md` and active-client instruction pointer exist before planning.
-   The explicit `/Qplan` or `$Qplan` entry bootstrap creates them without overwriting user
-   instructions. Then check `.qe/`; if it is absent, bootstrap the minimal
-   Plan state (`.qe/state/`, `.qe/planning/`, and `.qe/tasks/`) through the existing QE
-   state/store utilities before continuing. Initialization is part of Qplan; there is no
-   separate initialization skill or user command.
-2. Derive a unique slug from the intent (2–4 salient Latin keywords, lowercase
-   `[a-z0-9-]`, max 40 chars; append `-2`, `-3` on collision).
-3. Run the deterministic intake above when the intent is broad, ambiguous, or
-   has an unresolved material decision. Reach `confirmed`, or block and return
-   without finalizing a Plan. A bounded intent with no material gap may use the
-   documented omission path.
-4. Only after confirmed intake (or a recorded safe omission), build the exact
-   input from `core/PLAN_INITIALIZATION_CONTRACT.md` and run
-   `node scripts/qe-plan.mjs init --slug {slug} --session {full UUID} --input {path}`.
-   This atomically creates the DB-authoritative Plan documents, Goal ledger,
-   active pointer, and session binding. Do not write canonical planning paths
-   with raw filesystem tools. Full Plans must divide work into ordered,
-   independently verifiable Wave bullets; these become Goals. Split until every
-   Goal has one user-visible outcome, 1–5 allowed paths, at most three criteria,
-   at most two journeys, explicit dependencies, and explicit non-goals. A broad
-   feature area is a Phase, never a Goal.
-5. For every Goal, select its assurance lane after reconnaissance and before
-   activation. A bounded micro Goal includes the exact admission request from
-   `core/GOAL_ACCEPTANCE_CONTRACT.md`; the ledger replaces it with a session-
-   and digest-bound plan-controller admission. Otherwise omit `assurance` and
-   use the formal lane. Then define the pre-execution acceptance contract from
-   `core/GOAL_ACCEPTANCE_CONTRACT.md`: schema 2 with exactly one structured outcome,
-   the same `outcomeId` on every requirement, journey, regression, and alignment,
-   verbatim Goal alignment, requirement criteria,
-   at least one runnable user-journey scenario, a regression command, risk assessment,
-   and whether human acceptance is required. High-impact risk categories (authentication,
-   authorization, payment, deployment, data migration, destructive data changes, external
-   integrations, or security) require human acceptance.
-   Save it as `evidence/{goalId}.acceptance.json`, then run
-   `node hooks/scripts/lib/ledger.mjs set-acceptance --slug {slug} --goal-id {goalId} --file {path}`.
-   Stored schema 1 contracts may resume, but never create a new schema 1 contract.
-   Do not let tests or implementation retrospectively define what success means.
-6. On resume, run `node scripts/qe-plan.mjs bind --slug {slug} --session {full UUID}`; if an active Goal's prior session ended, use the explicit CAS `takeover` protocol in `core/PLAN_INITIALIZATION_CONTRACT.md`.
-7. Run `node hooks/scripts/lib/ledger.mjs render-state --slug {slug}`. Never hand-edit
-   the `## Phase Progress` block.
+## 스스로 검토
 
-## Internal Goal loop
+다 쓴 뒤, spec을 새 눈으로 보고 계획과 맞춰 본다.
 
-Run this loop until the Plan is complete, blocked, or needs a material user decision.
-Do not expose `Qgenerate-spec`, `Qexecute`, derived-wiki internals, or a copied next-command handoff.
+- spec의 각 요구를 구현하는 단계를 가리킬 수 있나? 빈 곳은 단계를 추가한다.
+- 앞 단계에서 정한 이름과 뒤 단계에서 쓰는 이름이 같은가?
+- spec이 말하지 않지만 사용자가 마주칠 입력(빈 값, 잘못된 형식, 아주 큰 입력 등)이
+  있나? 가장 걸릴 법한 것을 "놓치기 쉬운 경우"에 적고, 각각을 어떤 단계의 확인으로
+  덮을지 정한다.
 
-1. **Select:** Run `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action next --session {current full session UUID}`.
-   It starts only the first pending Goal and binds that Goal to the execution-owner
-   session. An active or blocked Goal prevents skipping, and another live session
-   cannot continue, block, fail, or complete the owned Goal.
-2. **Knowledge preflight:** Run `node scripts/qe-plan-context.mjs "{Goal objective}"`.
-   Then run `node scripts/qe-analysis-drift.mjs --json`. When it reports
-   `actionRequired: true`, generated analysis is advisory-only for the returned
-   `affectedPaths`: read the live source in those paths before planning, execution,
-   or verification. Drift detection is non-blocking and a missing baseline does not
-   fail the Goal; it only removes analysis freshness as usable evidence.
-   Use the returned reviewed wiki entries and QE artifact paths as pointers. Read only
-   the source documents required for the Goal; source files override summaries.
-3. **Assurance lane execution:** consume the immutable lane selected and
-   ledger-validated before activation; prompt length alone never decides it.
+문제는 그 자리에서 고친다.
 
-   **Bounded micro-Goal lane** applies only when all conditions hold: one low-risk
-   implementation outcome, at most three allowed paths, fewer than three work
-   items, no unresolved material decision, and no authentication, authorization,
-   payment, deployment, migration, destructive-data, security-boundary, or external-
-   integration impact. The stored contract must contain the ledger-issued
-   `assurance` admission defined by `core/GOAL_ACCEPTANCE_CONTRACT.md`; absence
-   or rejection means the formal lane. The immutable Goal
-   acceptance contract is the executable micro spec. Do not create a TASK_REQUEST
-   or run the three-reviewer Spec gate. The ledger seals a Git scope baseline at
-   admission and rejects evidence or completion when observed changes escape
-   `allowedPaths`; without a Git worktree the bounded-micro lane is unavailable.
-   Execute in the main thread or one bounded worker, apply the Qexecute TDD gate,
-   run the locked commands, and retain the distinct-session independent machine
-   verification and Goal-alignment verdict required by Step 4. Do not run a
-   separate Supervise fan-out unless changed risk evidence requires escalation.
+## 승인 (유일한 강한 관문)
 
-   **Formal Goal lane** applies otherwise. Generate the Goal's TASK_REQUEST and
-   VERIFY_CHECKLIST, execute it, then run the complete SIVS verification loop.
-   These are internal units, not user commands.
+spec.md와 plan.md를 사용자에게 보여 주고, **승인받기 전에는 실행하지 않는다.**
+잘못 이해한 채 만드는 비용이 이 길에서 가장 크기 때문이다. 코드 작성, 스캐폴딩,
+의존성 설치 모두 실행이다. 읽고 살펴보는 것은 괜찮다.
 
-   After implementation and before verification, rerun
-   `node scripts/qe-analysis-drift.mjs --json`. If the Goal introduced actionable
-   structural drift, include the returned paths in live-source verification and do
-   not claim that the generated analysis map is current. This advisory check never
-   substitutes for the locked regression and Goal-alignment gates.
+보여 줄 때:
 
-   If a micro Goal grows beyond any limit, reveals a high-impact risk, or fails
-   verification, do not mutate its immutable acceptance. Stop before expanded
-   work, block it through the audited Goal transition, and create a new linked
-   formal Plan/Goal with a fresh acceptance contract and dependency on the
-   blocked micro Goal. The original micro Goal cannot later claim completion.
-4. **Completion evidence:** Before completion, record `evidence/{goalId}.completion.json`
-   against the immutable acceptance contract. It must show every requirement and
-   user-journey scenario passing, a passing regression result, machine re-execution by a
-   named verifier, that verifier's Goal-to-evidence alignment verdict, known limitations,
-   and required human acceptance. Run every
-   locked contract command via `ledger.mjs run-evidence` first for `implementation`
-   and again from a distinct QE session for `verification --verifier {identity}`;
-   then run `record-evidence`.
-5. **Gate:** If verification fails, evidence is incomplete, or a required decision is unresolved, keep the Goal
-   active or call `advance --action block --evidence "{specific blocker}" --session {owner UUID}`; do not start
-   another Goal. Ask the user only for a material scope, risk, or irreversible choice.
-6. **Complete:** Only after the acceptance evidence has been recorded, run
-   `node hooks/scripts/lib/ledger.mjs advance --slug {slug} --action complete --session {owner UUID}`.
-   Formal Goals are accepted only when a Goal-bound SIVS controller has already
-   reached `complete` with matching TASK_REQUEST, VERIFY_CHECKLIST, Verify, and
-   Supervise proof. This records the lifecycle event, updates STATE, and writes a
-   provenance-linked reviewed project-wiki page.
-7. Repeat at Step 1. When `advance --action next` returns `complete`, report the Plan
-   outcome, remaining risks, and evidence.
-8. At each completed Phase boundary, `advance next` requires the sealed proof
-   from `core/PHASE_RETROSPECTIVE_CONTRACT.md`. Run `node scripts/qe-plan.mjs
-   retrospective --slug {slug} --session {full UUID} --input {path}`; it generates
-   the Phase report, executes fresh regression, and records the retrospective.
+- 핵심을 짧게 요약하고 문서 경로를 준다.
+- "내가 정한 것" 목록을 따로 짚어 사용자가 확인하게 한다.
+- **실행 방식**을 함께 묻는다 (사용자가 이미 정했으면 묻지 않는다):
+  - **서브에이전트 방식** — 단계마다 새 구현자가 만들고 새 리뷰어가 검토한다.
+    꼼꼼하지만 비용이 크다.
+  - **직접 방식** — 내가 이 세션에서 차례로 만들고, 끝에 검증을 한 번 한다.
+    빠르고 싸다.
+  - 단계 사이 의존이 얼마나 큰지, 단계가 몇 개인지, 잘못 나가면 대가가 얼마인지를
+    근거로 하나를 추천한다.
 
-## Goal quality rules
+고친 점이 있으면 문서에 반영하고 다시 보여 준다. 승인되면 두 문서의 상태를
+"승인됨"으로 바꾸고, plan.md에 고른 실행 방식을 적은 뒤 `Qexecute`로 넘어간다.
 
-- One active Goal at a time. A safe parallel Wave is internal execution within
-  that Goal; it never creates multiple active Goals.
-- A Goal must state its verbatim objective alignment, one primary outcome, bounded file scope, explicit non-goals, dependencies, at most three requirement criteria, at most two user-journey scenarios, regression scope, risk assessment, and evidence before work starts.
-- Draft plans, model hypotheses, and unverified research never become reviewed project knowledge.
-- Use source-backed contracts, tests, verification reports, and decisions as first-class evidence.
-- Preserve an append-only ledger. Do not rewrite prior Goal events or fabricate completion.
-
-## User communication
-
-At Plan creation or material replan, show the ordered Goal list, current Goal, success criteria,
-and any required decision. During normal progression, report concise status rather than internal
-commands. On completion, provide the evidence-backed Plan result.
-
-## Will
-
-- Create, resume, and advance Plan-owned Goals.
-- Use QE knowledge internally before each Goal and write back only verified outcomes.
-- Run internal spec, execution, and verification units without user command choreography.
-
-## Will Not
-
-- Ask the user to invoke internal PSE stages, derived-wiki internals, or a raw ledger command.
-- Skip an active or blocked Goal.
-- Mark a Goal complete from a bare test claim, implementation report, or self-verification.
-- Promote LLM-generated text to reviewed knowledge without verification evidence.
+저장소가 git이면 두 문서를 커밋한다. 사용자가 원하지 않으면 하지 않는다.

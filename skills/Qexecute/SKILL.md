@@ -1,197 +1,84 @@
 ---
 name: Qexecute
-description: "Use when a routed pipeline or an active task artifact (TASK_REQUEST UUID) needs execution or the -verify quality loop — router-owned internal PSE unit. Use Qgoal to enter."
-user_invocable: false
-recommendedModel: haiku
-tier: core
-allowed-tools: Read, Write, Edit, Glob, Grep, Bash, Agent
+description: Use when an approved plan.md exists under docs/qe/ and it is time to implement it, or when resuming implementation of a partly checked plan.
 ---
 
-> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+# Qexecute — 실행
 
-# Qexecute — Unified Execution Engine
+이 단계의 목적은 **승인된 계획대로 만들고, 진행을 plan.md에 남기는 것**이다.
+계획이 이미 생각을 끝냈다. 여기서는 그대로 실행하고, 각 단계를 실제 확인으로
+증명하고, 내가 잊어도 남는 기록을 둔다.
 
-> Internal PSE unit. Users start work with `{adapter.commandPrefix}Qgoal {목표}`; `user_invocable` is catalog/documentation metadata only. Runtime enforcement is the G010 PreToolUse gate, while active UUID artifacts preserve in-chain continuity.
+## 시작 전에
 
-## Role
-The single entry point for executing spec documents. Qexecute consolidates the three former
-execution engines — sequential run, parallel-wave atomic, and the code quality loop — into one
-skill. It reads the actual `TASK_REQUEST` — not the user's phrasing — to decide **how** to execute.
+- **승인된 plan.md가 있는가?** 없으면 시작하지 않고 `Qplan`으로 돌아간다. 승인 없이
+  만드는 것이 이 길에서 가장 비싼 실수다.
+- spec.md와 plan.md를 읽는다. spec이 기준이고, plan은 그 기준을 풀어 쓴 것이다.
+  둘이 어긋나면 spec을 따른다.
+- 체크된 단계(`- [x]`)는 이미 끝난 것이다. 다시 하지 않는다. 세션이 끊긴 뒤라면 내
+  기억보다 plan.md 체크박스와 `git log`를 믿는다. 첫 번째 미체크 단계부터 이어간다.
+- 저장소가 git이고 지금 main/master 브랜치라면, 작업 브랜치를 만들지 사용자에게 먼저 묻는다.
 
-> **MANDATORY:** All user confirmations MUST use the interaction adapter. Claude MUST use
-> `AskUserQuestion`. Codex interactive may use concise plain-text choices. Codex
-> non-interactive selects the documented recommended default only when the action is
-> reversible and reports it; destructive ambiguity must stop.
+## 실행 방식
 
-## Flag Grammar
+plan.md 머리의 `실행 방식`을 따른다. 적혀 있지 않으면 사용자에게 묻는다(추천 하나와 이유 한 줄).
 
-| Invocation | Mode | Behavior |
-|------------|------|----------|
-| `Qexecute {UUID}` | **default** | Read the spec → classify → **sequential** or **parallel wave** |
-| `Qexecute -verify {UUID}` | **verify** | test → review → fix → retest quality loop on already-changed code |
-| `Qexecute -utopia …` | **modifier** | Fully autonomous: no-confirmation / auto-approve, combines with default or `-verify`. Sub-flags `-ralph`, `off`, `status`. See “-utopia — Fully Autonomous Execution”. |
+### 직접 방식
 
-- Flags use a **single dash**. `-utopia` is a modifier (combinable); `-verify` and default
-  are mutually exclusive execution axes.
+내가 이 세션에서 단계를 차례로 만든다.
 
-## Client Adapter Compatibility
-- **Claude**: approvals/next-task prompts use `AskUserQuestion`; delegation uses the Agent tool.
-- **Codex native**: prefer native subagents via installed agent TOML (`model` /
-  `model_reasoning_effort` derived from `recommendedModel`).
-- **Codex client adapter**: role-separated inline execution only when native subagent dispatch
-  is unavailable; mark the fallback explicitly.
-- **Command rendering**: user-visible handoffs use `adapter.commandPrefix` (`/Q…` Claude, `$Q…` Codex).
+1. 단계를 읽는다. 기억에 기대지 말고 plan.md의 그 단계를 다시 읽는다.
+2. 만든다. 테스트가 있는 코드면 **실패하는 테스트를 먼저** 쓰고, 실패하는 것을 직접
+   본 뒤 구현한다. 먼저 통과하는 테스트는 아무것도 증명하지 않는다.
+3. 그 단계의 `확인:`을 실제로 돌리고 출력을 읽는다. 기대와 다르면:
+   - **코드가 틀렸다** → 원인이 바로 보이면 고친다. 예상 밖의 실패이거나 원인이 분명하지
+     않으면 `Qdebugging`으로 근본 원인부터 찾는다. 증상만 덮지 않는다.
+   - **계획이 틀렸다** → 아래 "계획과 현실이 어긋날 때"로.
+4. `- [ ]`를 `- [x]`로 바꾼다. git이면 커밋한다(plan.md 변경도 같이).
 
----
+### 서브에이전트 방식
 
-# Default Mode — Execute a Spec
+단계마다 새 구현자와 새 리뷰어를 띄운다. 각자 깨끗한 컨텍스트에서 한 단계에만 집중한다.
+나는 조율만 한다.
 
-## Step 1: Document Discovery
+1. [implementer-prompt.md](implementer-prompt.md)로 구현자를 띄운다. 단계 내용,
+   spec·plan 경로, 이 단계가 앞 단계에서 받는 것(이름, 시그니처)을 넣는다. 구현자는
+   내 대화를 모른다. 필요한 것은 프롬프트에 다 넣는다.
+2. 구현자가 질문하면 답한다. 답할 수 없으면 사용자에게 묻는다.
+3. 구현자가 끝나면 [reviewer-prompt.md](reviewer-prompt.md)로 새 리뷰어를 띄워 그
+   단계의 변경을 spec·plan 대비 검토하게 한다.
+4. 리뷰어가 문제를 지적하면 구현자에게(또는 새 구현자에게) 고치게 하고 다시 검토한다.
+   같은 지적이 두 번 고쳐도 남으면 멈추고 사용자에게 알린다.
+5. 구현자의 "성공" 보고를 믿지 않는다. diff와 확인 결과를 직접 본 뒤 `- [x]`로 바꾼다.
 
-**Plan Knowledge Pull:** Qplan performs knowledge retrieval before it creates this internal
-execution task. If the task needs more context, use `node scripts/qe-plan-context.mjs "<task intent>"`
-and verify selected source documents; do not invoke a user-facing wiki workflow.
+서로 독립적인 단계가 여럿이면 서브에이전트 방식이 유리하고, 단계끼리 단단히 얽혀
+있으면 직접 방식이 낫다. 사용자가 고른 방식이 맞지 않아 보이면 바꾸자고 제안한다.
 
-1. **State utility**: call `parseClaudeTaskTable(cwd)` from `hooks/scripts/lib/state.mjs`
-   (prefers `.qe/TASK_LOG.md`, falls back to the legacy Claude task table).
-2. Glob `.qe/tasks/{pending,in-progress,on-hold}/*.md` for TASK_REQUEST files.
-3. Backward compat: check project root if `.qe/tasks/` is missing.
-4. UUID argument → select directly. No argument + multiple tasks → ask which to run.
-5. Multiple space-separated UUIDs → see **Multiple UUID Execution**.
+## 계획과 현실이 어긋날 때
 
-## Step 2: Summary and Approval
+계획이 spec과 모순되거나, 앞 단계와 이름이 안 맞거나, 적힌 명령이 돌 수 없거나,
+범위가 생각보다 커졌을 때.
 
-Read TASK_REQUEST + VERIFY_CHECKLIST and show a summary.
+- **작은 어긋남** (이름, 명령 오타, 명백한 실수): spec을 만족하는 가장 작은 변경으로
+  고치고, plan.md의 그 단계 아래에 `판단: <무엇을 왜 바꿨는지>`를 한 줄 남기고 계속한다.
+- **만들 것이 바뀌는 어긋남** (범위, 동작, 사용자가 정한 것과 충돌): **멈추고 사용자에게
+  말한다.** 조용히 계획을 바꾸지 않는다. 몰래 내린 결정은 사용자가 바로잡을 수 없다.
 
-**Chained skip:** if TASK_REQUEST contains `<!-- chained-from: Qgenerate-spec -->`, skip the
-approval prompt (already approved in Qgenerate-spec) and remove the comment after reading.
+## 멈추는 경우
 
-Otherwise get approval via the interaction adapter. On approve:
-- Move files to `in-progress/`.
-- **Status**: call `updateClaudeStatus(cwd, uuid, "🔶")`.
+단계 사이에 "계속할까요?"라고 묻지 않는다. 다음 경우에만 멈춘다.
 
-## Step 2.5: Classification — Sequential vs Wave
+- 되돌릴 수 없거나 파괴적인 작업 (데이터 삭제, 강제 푸시 등)
+- 보안에 민감한 작업
+- 이 작업 공간 밖에 영향이 가는 일 (merge, 공유 브랜치 push, 배포·공개)
+- 만들 것이 바뀌는 어긋남, 또는 어떤 길도 추측일 만큼 계획이 깨졌을 때
 
-Parse the TASK_REQUEST checklist and decide the execution shape:
+## 컨텍스트가 차오르면
 
-```
-WAVE  when ALL hold:
-  1. checklist items ≥ 5
-  2. topological sort by `depends`/`depends_on` tags yields a max wave width ≥ 2
-     (i.e. ≥ 2 items can run at once)
-  3. file ownership is non-overlapping — no two items write the same `→ output:` path
-SEQUENTIAL  otherwise
-```
-- No tags → let `Etask-executor` infer dependencies from file paths (existing behavior).
-- `--worktree` (opt-in) requests isolated per-item execution when two+ items must touch the
-  same file in one wave; default is in-place.
+세션이 길어져 앞 내용을 잃을 것 같으면 `Qcompact`로 넘길 준비를 한다.
+plan.md 체크박스가 최신인지 먼저 확인한다.
 
-### Code Risk Gate (`type: code` — hard block)
-Before any implementation worker starts, enforce:
-- TASK_REQUEST has a `## Risk Register` with all six fields filled: worst-case failure,
-  data loss/corruption risk, security/permission risk, concurrency/race risk, rollback
-  strategy, and unverified assumptions.
-- The paired VERIFY_CHECKLIST has checks for worst-case failure, data/security/concurrency
-  risk evaluation, unverified-assumption/residual-risk reporting, and high-risk
-  mitigation/defer rationale.
-- Empty fields, placeholder text, or missing paired checks → route back to
-  `{adapter.commandPrefix}Qgenerate-spec` or amend the spec. Do not start execution.
+## 끝
 
-## Step 3: Execute
-
-### Plan-owned micro-Goal handoff
-
-Qplan may invoke execution without a TASK_REQUEST only when its immutable Goal
-acceptance contract contains the ledger-validated `assurance.lane=bounded-micro`
-declaration defined by `core/GOAL_ACCEPTANCE_CONTRACT.md`. Task size alone is not
-an admission signal.
-That contract replaces only the formal Spec artifact and Spec/Supervise fan-out;
-it does not waive TDD applicability, locked command execution, regression evidence,
-distinct-session machine verification, or Goal-alignment review. Scope growth,
-new high-impact risk, or verification failure returns control to Qplan, which
-blocks the immutable micro Goal and creates a linked formal successor Plan/Goal;
-it never rewrites the original assurance. Direct Qexecute entry never
-self-declares this exception.
-
-### TDD Applicability Gate (R004 — scale-aware)
-
-For `type: code`, call `judgeTddPolicy()` from `qexecute-tdd-policy.mjs`.
-When `apply=true`, enforce RED → GREEN → REFACTOR: prove the new test fails
-for the intended reason, implement the minimum passing behavior, then refactor
-without losing GREEN. Docs/analysis, config-only work, or absent test
-infrastructure records `formatExclusionHandoff()` and skips TDD. Full signal,
-contradiction, and completion rules: [./reference/execution-protocol.md](./reference/execution-protocol.md).
-
-### Execution routing
-
-Delegate bounded work to `Etask-executor` under `core/AGENT_DELEGATION_CONTRACT.md`.
-Sequential work preserves checklist order. Wave work requires five or more items,
-topological width of at least two, and non-overlapping output ownership; use
-worktree isolation or fall back to sequential. The Lead synthesizes envelopes
-and runs final verification once.
-
-### Lifecycle Cleanup
-
-The Lead calls `wait_agent` and `close_agent` for every handle and records
-`completed`, `failed`, `timed-out`, or `stale`. The final report states
-`open handles: 0` or lists each stale warning.
-
-### SIVS Single-AI Role Contract
-
-The active client owns Implement, Verify, and Supervise. Native same-client
-subagents are preferred; unavailable delegation uses `mode=degraded-inline`,
-never a cross-client bridge. Verify is the evidence gate and Supervise is the
-merge-readiness gate. Detailed execution, wave, and lifecycle rules:
-[./reference/execution-protocol.md](./reference/execution-protocol.md).
-
-## Step 4: Final Verification
-
-Verify every checklist item with concrete evidence and run the cross-phase
-regression gate for code. TDD-applicable items require their test file plus a
-fresh post-refactor GREEN run. Auth, crypto, payment, credential, or secret
-changes require `Esecurity-officer`.
-
-For code, invoke `Esupervision-orchestrator`; WARN is remediated and rechecked,
-FAIL creates a request using
-[`core/REMEDIATION_REQUEST_FORMAT.md`](../../core/REMEDIATION_REQUEST_FORMAT.md).
-The adversarial owner remains
-`Qcritical-review --stage supervise`. Before completion run `-verify`, including
-the final **Risk Proof Gate** via `Qcritical-review --risk {UUID}`. Missing or
-unknown HIGH/CRITICAL risk evidence is a hard block.
-
-The verify loop is owned by `Eqa-orchestrator`; see
-[./reference/execution-protocol.md](./reference/execution-protocol.md).
-
-## Step 5: Completion
-
-Mark both documents `[x]`, write and verify their completed destinations before
-removing in-progress sources, update TASK_LOG to ✅, and reset the UUID loop
-counters. Preserve unrelated artifacts. Report changed files, verification,
-Facts, Residual Risks, Assumptions, and the next pending task. Detailed state
-and safe-move rules: [./reference/autonomy-and-state.md](./reference/autonomy-and-state.md).
-
-# Verify Mode (`-verify`)
-
-Run test → review → fix → retest through `Eqa-orchestrator`, at most three
-iterations. Required gates are regression, smoke, Nyquist coverage, comment
-coverage, adversarial Verify, and Risk Proof. The test and review first passes
-receive the same source evidence but not each others verdict.
-
-**Loop limit: 3 iterations** (confirm continuation via the interaction adapter each round).
-
-# `-utopia` modifier
-
-`-utopia` auto-approves only reversible recommended defaults; destructive
-ambiguity still stops. `-ralph` repeats incomplete work without weakening any
-gate. `off` disables continuation and `status` is read-only. Multiple UUIDs may
-run as a bounded wave only when write ownership is disjoint.
-
-State, safety, autonomous-mode, and handoff details:
-[./reference/autonomy-and-state.md](./reference/autonomy-and-state.md).
-
-## Role Constraints
-
-- Execute only the selected TASK_REQUEST and paired VERIFY_CHECKLIST.
-- Preserve unrelated user changes and obey build admission.
-- Route commits through Qcommit and version/release work through Qrelease.
-- Never report completion before checklist, evidence, safe move, and TASK_LOG are complete.
+모든 단계가 체크되면 `Qverify`로 넘어간다. 여기서 "다 됐다"고 말하지 않는다.
+완료 주장은 검증 뒤에 한다.

@@ -1,95 +1,40 @@
 ---
 name: Qresume
-user_invocable: true
-description: Use when resuming work, restoring context, continuing from where you left off, or loading a previous session after compaction or a session break.
-invocation_trigger: When saved context must be restored after compaction or a session break.
-recommendedModel: haiku
+description: Use at session start (or after /compact or /clear) when the injected context lists unfinished docs/qe tasks or a recent handoff, or when the user asks to continue earlier work.
 ---
 
-> **`.qe` reads → DB:** `.qe/` content is stored in the SQLite store (`qe_files`), so a path may have **no file on disk**. Read `.qe/` content with `node scripts/qe-cat.mjs <path>` (or `--ls`/`--exists`) and structured state with `node scripts/qe-query.mjs …` — do not assume the raw file exists. See `QE_CONVENTIONS.md`.
+# Qresume — 이어받기
 
+이 스킬의 목적은 **끊긴 작업을 처음부터 다시 묻거나 끝낸 일을 다시 하지 않고 이어가는 것**이다.
+넘기는 쪽은 `Qcompact`가 맡는다.
 
-# Qresume — Context Restoration
+세션 시작 hook이 `docs/qe/`의 미완료 작업 목록과 가장 최근 handoff를 컨텍스트에 넣어 준다.
+그 내용이 보이거나, 사용자가 "이어서 하자"고 할 때 쓴다.
 
-## Role
-A skill that restores context after compaction from **two domains**:
-- `.qe/context/sessions/{sid}/` — automatic snapshots (volatile, latest-only)
-- `.qe/handoffs/sessions/{sid}/` — manual `{adapter.commandPrefix}Qcompact` handoff documents (durable)
+## 순서
 
-Loads the previous session's task state, decisions, and pending items to resume work seamlessly. Both domains are partitioned by sid, so a `{adapter.commandPrefix}Qcompact` handoff and a `{adapter.commandPrefix}Qresume` must read the same domains or they will miss each other.
+1. **사용자가 먼저 다른 일을 요청했으면** 그 일을 막지 않는다. 답의 끝에 남은 작업이
+   있다고 한 줄만 알린다.
+2. 그렇지 않으면, 무엇이 남았는지 한두 줄로 알리고 이어갈지 묻는다. 여러 개면 가장 최근
+   것을 먼저 말한다.
+3. 이어가면 그 폴더의 spec.md, plan.md, handoff.md, (있으면) verify.md를 읽는다.
+   **내 기억보다 문서와 `git log`를 믿는다.** compact 직후라면 특히 그렇다.
+4. 현재 단계에 맞는 스킬로 들어간다.
+   - handoff.md만 있다 → handoff를 보고 `Qunderstand` 또는 `Qdebugging`
+   - plan.md가 없다 → `Qunderstand`(버그면 `Qdebugging`) 또는 `Qplan`
+   - 승인 안 된 plan.md → `Qplan`의 승인부터
+   - 미체크 단계가 있다 → `Qexecute`
+   - 모두 체크, verify.md 없음 → `Qverify`
+   - verify.md 결과가 미충족 → 원인을 알면 `Qexecute`, 모르면 `Qdebugging`
+5. handoff.md의 "다음 할 일"부터 시작한다. 끝난 handoff는 지우지 않아도 된다.
+   다음에 넘길 때 `Qcompact`가 덮어쓴다.
 
-## Per-Session Layout (Auto-Named)
-Snapshots are partitioned by Claude session id so each terminal sees its own context, not the latest sibling's. The 8-char `sid` is auto-derived by the SessionStart hook and surfaced as `[Session] sid:XXXXXXXX` in additionalContext — read it from there. There is no manual naming.
+## 그만두는 작업
 
-SessionStart can include a compact `[Session State] ...` hint. It may name the
-active plan, whether resume would load the active bucket or fall back to another
-sid, and whether a Codex background job still needs `/codex:result` retrieval.
-Use it as a quick cue, then call the resolver below for authoritative paths.
+사용자가 남은 작업을 **그만두기로 하면**, 확인을 받은 뒤 그 작업 폴더를 지운다. 남겨 두면
+매 세션마다 다시 안내된다. git이면 지운 것도 이력에 남는다.
 
-## How It Works
+## 하지 않는 것
 
-### Auto Load (Same Session)
-Integrated with the pre-check in PRINCIPLES.md:
-- When the skill is called immediately after compaction, Ecompact-executor checks whether `.qe/context/sessions/{sid}/snapshot.md` exists for the active sid
-- If it exists, automatically loads the context and reflects it in the current session
-- Notifies the user with a single line: "Previous context has been restored"
-
-### Manual Execution
-- `{adapter.commandPrefix}Qresume` — restore the active sid's snapshot (default; what you want 95% of the time)
-- `{adapter.commandPrefix}Qresume --list` — list all session buckets newest-first (use when picking up another terminal's work). The list is built by `listSessionBuckets()` in `hooks/scripts/lib/session-resolver.mjs`. Pick a sid, then `{adapter.commandPrefix}Qresume --from {sid}`
-- `{adapter.commandPrefix}Qresume --from {sid}` — restore a specific session bucket by its 8-char sid (or `_legacy` / `_unknown`)
-
-Codex renders the same commands with `$Q...`: `$Qresume`, `$Qresume --list`,
-and `$Qresume --from {sid}`.
-
-## Restoration Procedure
-
-### Step 1: Locate & Read Context (single resolver, both domains)
-**Do not reimplement path/fallback logic in prose** — the authoritative resolution lives in one place: `resolveResumeContext(projectRoot, overrideSid)` in `hooks/scripts/lib/session-resolver.mjs`. Qcompact's RESUME workflow calls the same function, so the two can no longer diverge. Run it to get the descriptor:
-
-```bash
-node -e "(async()=>{const {pathToFileURL}=await import('url');const {join}=await import('path');const fs=await import('fs');const home=process.env.HOME||process.env.USERPROFILE||'';const _cr=join(home,'.claude','plugins','cache','inho-team-qe-framework','qe-framework');const _cand=[process.env.CLAUDE_PLUGIN_ROOT,join(home,'.claude','plugins','marketplaces','inho-team-qe-framework')];if(fs.existsSync(_cr))for(const v of fs.readdirSync(_cr).sort().reverse())_cand.push(join(_cr,v));_cand.push(join(home,'.claude'));const base=_cand.find(b=>b&&fs.existsSync(join(b,'hooks','scripts','lib','session-resolver.mjs')))||join(home,'.claude');const m=await import(pathToFileURL(join(base,'hooks','scripts','lib','session-resolver.mjs')).href);console.log(JSON.stringify(m.resolveResumeContext(process.cwd(), process.argv[1]||null),null,2))})()" [sid-from---from]
-```
-
-It returns `{ sid, requestedSid, source, fellBackFrom, contextDir, contextFiles[], handoffDir, latestHandoff, isEmpty }`. Then:
-
-- Read every path in `contextFiles[]` (`snapshot.md`, `decisions.md`, `SNAPSHOT_SUMMARY.md`, `compact-trigger.json`) **and** `latestHandoff` if non-null — a `{adapter.commandPrefix}Qcompact` handoff lands in `handoffDir`, NOT in `context/`, so both domains are covered.
-- **`source: 'fallback'`** → the active sid was empty in both domains and the resolver loaded the newest other bucket. **Tell the user**: "active sid `{fellBackFrom}` was empty — restored from `{sid}`."
-- **`source: 'empty'`** → nothing to restore anywhere; say so and offer `{adapter.commandPrefix}Qresume --list`.
-- An explicit `{adapter.commandPrefix}Qresume --from {sid}` is passed as `overrideSid` and is honored even when empty (no fallback).
-
-### Step 2: Restore State
-- Check in-progress tasks (cross-reference with .qe/tasks/pending/)
-- Check checklist progress
-- Present list of pending items
-
-### Step 3: Suggest Next Actions
-Propose next actions based on restored context:
-- If there are incomplete tasks → continue the UUID pipeline with `{adapter.commandPrefix}Qexecute {UUID}`
-- If new work is needed → guide with `{adapter.commandPrefix}Qgoal {목표}`
-- If decisions need review → display decision list
-
-## .qe/analysis/ Integration
-When restoring context, also read `.qe/analysis/` files to understand the latest project state.
-This allows starting work immediately without re-scanning the project with Glob/Grep, saving tokens.
-
-## Checkpoint (WIP) commit parse
-When checkpoint mode is in use (see `Qcommit` — opt-in WIP commits), also scan the
-current branch for trailing `wip:` checkpoint commits. Surface them as recoverable
-in-progress state: which task/UUID they belong to and how far the work got, so resume
-continues from the last checkpoint. Do not squash them here — squashing happens in the
-final `Qcommit` (`--squash-wip`).
-
-## Will
-- Load BOTH `.qe/context/sessions/{sid}/` snapshots AND `.qe/handoffs/sessions/{sid}/` handoffs for the active sid
-- Fall back to the most recent other bucket (handoffs first) when the active sid is empty in both domains, and tell the user which bucket was used
-- Support `--list` and `--from {sid}` for cross-terminal pickup
-- Restore previous task state
-- Suggest next actions
-- Integrate with .qe/analysis/ to understand project state
-
-## Will Not
-- Error when context files are missing (silently ignore if not found)
-- Cross-load another terminal's context when the active sid HAS its own context (fallback only triggers when the active sid is empty in both domains)
-- Blindly follow restored context (user can change direction)
-- Force-apply stale context (notify "Context is stale" when 24+ hours have passed)
+- 사용자에게 이전 대화 내용을 다시 설명해 달라고 하지 않는다. 문서에 없을 때만 묻는다.
+- 문서와 기억이 다르면 기억을 따르지 않는다. 다르다는 것을 사용자에게 알린다.
