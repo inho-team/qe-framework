@@ -66,6 +66,7 @@ description: Use when implementation is finished (all plan.md steps checked) or 
 verify.md 경로.
 
 - **미충족이 있으면** `Qexecute`로 돌아가 고칠지, 범위를 줄일지 사용자와 정한다.
+  원인을 모르는 미충족이면 고치기 전에 `Qdebugging`으로 원인부터 찾는다.
   고친 뒤에는 다시 검증하고 verify.md를 갱신한다.
 - **모두 충족이면** 그때 "완료"라고 말한다. git이면 verify.md를 커밋한다.
   merge나 push는 사용자가 원할 때만 한다.

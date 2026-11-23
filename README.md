@@ -2,7 +2,7 @@
 
 **코딩 작업을 위한 길 하나: 이해 → 계획 → 실행 → 검증.**
 
-QE는 Claude Code 플러그인이다. 스킬 5개로 된 길 하나를 정해 두고, 각 단계 안에서는
+QE는 Claude Code 플러그인이다. 스킬 7개로 된 길 하나를 정해 두고, 각 단계 안에서는
 모델의 판단을 믿는다. 버그 수정, 기능 추가, 리팩터링이 모두 같은 길을 탄다.
 그리고 작업마다 **무엇을 왜 만들었는지(spec)**와 **무엇을 어떻게 확인했는지(verify)**를
 저장소 안의 평범한 마크다운으로 남긴다. 사용자 본인은 나중에 "왜 이렇게 만들었지?"를,
@@ -29,8 +29,9 @@ Qunderstand    Qplan                Qexecute     Qverify
                (spec.md, plan.md    (plan.md     (verify.md)
                 → 사용자 승인)        체크 갱신)
 
-Qresume: 세션을 넘길 때 handoff.md 작성 → /compact,
-         새 세션이 시작되면 자동으로 이어받기
+Qdebugging: 버그 작업의 시작, 또는 원인 모를 실패 → 근본 원인부터
+Qcompact:   세션을 넘길 때 handoff.md 작성 → /compact 요청
+Qresume:    새 세션이 시작되면 미완료 작업 이어받기
 ```
 
 | 스킬 | 하는 일 |
@@ -39,7 +40,9 @@ Qresume: 세션을 넘길 때 handoff.md 작성 → /compact,
 | `Qplan` | spec.md와 plan.md를 쓰고 사용자 승인을 받는다. 실행 방식(서브에이전트 / 직접)도 함께 정한다. |
 | `Qexecute` | 승인된 계획대로 만들고 plan.md 체크박스를 갱신한다. |
 | `Qverify` | "됐다"고 말하기 전에 spec 대비 증거로 확인하고 verify.md에 남긴다. 메인 또는 서브에이전트가 검증. |
-| `Qresume` | 세션을 넘길 때 handoff.md를 쓰고, 새 세션에서 미완료 작업을 이어받는다. |
+| `Qdebugging` | 버그·실패·예상 밖 동작에서 근본 원인을 찾기 전에는 고치지 않는다. 작은 수정은 바로, 큰 수정은 Qplan으로. |
+| `Qcompact` | 세션을 넘길 때 handoff.md를 쓰고 `/compact`를 요청한다. |
+| `Qresume` | 새 세션에서 미완료 작업과 handoff를 읽어 이어받는다. |
 
 아주 작은 일(오타, 한 줄 수정)은 문서 없이 바로 한다.
 

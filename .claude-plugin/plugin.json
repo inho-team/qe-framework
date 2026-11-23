@@ -1,7 +1,7 @@
 {
   "name": "qe-framework",
   "version": "9.0.0",
-  "description": "QE Framework v9 — one path (이해 → 계획 → 실행 → 검증) in 5 skills, leaving spec and verify docs for every task.",
+  "description": "QE Framework v9 — one path (이해 → 계획 → 실행 → 검증) in 7 skills, leaving spec and verify docs for every task.",
   "author": {
     "name": "inho-team"
   },

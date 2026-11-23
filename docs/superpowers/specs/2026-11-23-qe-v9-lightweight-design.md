@@ -65,7 +65,7 @@ v8에서 반드시 지켜야 할 것은 없다(사용자 확인). Codex/Ollama �
 - 새로 쓴다 (A안). v8 자산은 "대거 걷어낸다".
 - DB를 없앤다. 모든 기록은 저장소 안 마크다운 파일.
 - Spec 문서와 검증 문서를 남긴다. 독자는 사용자 본인과 다음 세션 AI.
-- 길: 이해 → 계획(Spec) → 실행 → 검증. 스킬은 Qunderstand, Qplan, Qexecute, Qverify, Qresume 5개.
+- 길: 이해 → 계획(Spec) → 실행 → 검증. 스킬은 Qunderstand, Qplan, Qexecute, Qverify, Qresume 5개(아래 추가 결정으로 7개).
 - 검증은 상황에 따라 메인 세션 또는 서브에이전트가 한다 (모델이 선택).
 - Qresume: handoff 문서 작성 후 compact, 새 세션 시작 시 자동 이어받기.
 - (2026-11-23 추가 결정) Qcompact(넘기기)와 Qresume(이어받기)을 분리하고, Superpowers `systematic-debugging`을 옮긴 Qdebugging을 추가한다. 스킬 7개.

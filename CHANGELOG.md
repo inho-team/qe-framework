@@ -8,18 +8,19 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 ### Changed (Breaking)
 
-- **전면 재작성.** QE는 이제 길 하나(이해 → 계획(Spec) → 실행 → 검증)와 스킬 5개로 된
-  가벼운 Claude Code 플러그인이다: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`, `Qresume`.
+- **전면 재작성.** QE는 이제 길 하나(이해 → 계획(Spec) → 실행 → 검증)와 스킬 7개로 된
+  가벼운 Claude Code 플러그인이다. 길: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`.
+  보조: `Qdebugging`(근본 원인부터), `Qcompact`(handoff 작성 후 `/compact` 요청), `Qresume`(이어받기).
   규칙은 숫자·스키마가 아니라 이유로 쓰고, 각 단계 안에서는 모델의 판단을 믿는다.
 - 작업마다 사용자 프로젝트의 `docs/qe/YYYY-MM-DD-<주제>/`에 평범한 마크다운
   (`spec.md`, `plan.md`, `verify.md`, 필요할 때 `handoff.md`)을 남긴다.
-- `Qplan`, `Qexecute`, `Qresume`은 이름은 같지만 뜻이 새로 정의되었다.
+- `Qplan`, `Qexecute`, `Qcompact`, `Qresume`은 이름은 같지만 뜻이 새로 정의되었다.
 - hook은 SessionStart 하나만 남았다: 길 안내와 미완료 작업·최근 handoff를 세션에 넣어 준다.
 
 ### Removed
 
 - SQLite DB(`.qe/qe.db`)와 `.qe/` 상태 문서, `qe.mjs`/`qe-cat.mjs` 등 모든 CLI
-- 스킬 `Qgoal`, `Qgenerate-spec`, `Qcritical-review`, `Qcommit`, `Qcompact`, `Qdashboard`,
+- 스킬 `Qgoal`, `Qgenerate-spec`, `Qcritical-review`, `Qcommit`, `Qdashboard`,
   `Qcc-setup`, `Qupdate`, `Qversion`과 `CATALOG.md`
 - 에이전트 12개(`agents/`), `core/` 계약 문서, `scripts/` 검사·운영 스크립트 전부
 - hook 6종(PreToolUse, PostToolUse, Stop, UserPromptSubmit, TeammateIdle, TaskCompleted)
@@ -34,7 +35,7 @@ v9 플러그인은 v8 설치기가 플러그인 밖에 복사한 파일을 지�
    `claude plugin install qe-framework@inho-team-qe-framework`
 2. `~/.claude/commands`, `~/.claude/agents`, `~/.claude/hooks`, `~/.claude/scripts`에서
    QE가 설치한 파일(`Q*` 스킬·명령, `E*.md` 에이전트, QE hook·스크립트)을 지운다.
-   **같은 이름의 v8 사본(`Qplan`, `Qexecute`, `Qresume`)이 남아 있으면 v9 스킬 대신 불릴 수 있다.**
+   **같은 이름의 v8 사본(`Qplan`, `Qexecute`, `Qcompact`, `Qresume`)이 남아 있으면 v9 스킬 대신 불릴 수 있다.**
 3. Codex를 썼다면 `~/.codex`의 QE skills/agents/hooks와, `~/.codex/config.toml`의
    QE hook fence 블록을 지운다.
 4. npm으로 설치했다면 `npm uninstall -g @inho-team/qe-framework`.
