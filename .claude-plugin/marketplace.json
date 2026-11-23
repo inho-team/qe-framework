@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "qe-framework",
-      "description": "One path for coding work — understand, plan, execute, verify — with spec and verify docs per task",
-      "version": "9.2.0",
+      "description": "One path for coding work — understand, plan, execute, verify, finish — with spec and verify docs per task",
+      "version": "9.2.1",
       "category": "development",
       "tags": [
         "workflow",
