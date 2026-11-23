@@ -4,6 +4,26 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [10.0.0] - 2026-11-23
+
+### Changed
+
+- **작업 문서의 이름과 역할을 바꿨다.** 두 문서의 역할이 이름만으로 드러나지 않았다.
+  - `plan.md` — 사용자가 읽고 승인하는 계획. 예전 `spec.md`의 내용(의도와 이유, 목표/비목표, 검토한 접근,
+    사용자가 정한 것 / 내가 정한 것)에 사람 말로 쓴 **진행 순서**가 더해졌다. 체크박스·파일 경로·명령은 넣지 않는다.
+  - `implement-plan.md` — AI가 실행하는 상세 구현 계획. 예전 `plan.md`의 내용(바뀌는 파일, 체크박스 단계,
+    단계별 `확인:`, 놓치기 쉬운 경우, `판단:` 줄, 실행 방식, 기준선).
+  - Qverify는 `plan.md`의 목표를 기준으로 검증하고, 진행 상태는 `implement-plan.md` 체크박스로만 읽는다.
+  - Qplan 템플릿: `plan-template.md`(사용자용), `implement-plan-template.md`(AI용).
+- 세션 시작 hook은 `plan.md`·`implement-plan.md`·`handoff.md`로 작업 폴더를 알아본다.
+
+### 옮기는 방법 (v9 작업 폴더)
+
+예전 이름은 알아보지 않는다. 진행 중인 폴더가 있으면 폴더마다:
+
+1. 예전 `plan.md` → `implement-plan.md`로 이름을 바꾼다(제목은 `— Implement Plan`, 머리 링크는 `Plan: [plan.md](plan.md)`).
+2. 예전 `spec.md` → `plan.md`로 이름을 바꾸고(제목은 `— Plan`), `## 진행 순서`에 단계 제목을 사람 말로 몇 줄 적는다.
+
 ## [9.2.1] - 2026-11-23
 
 ### Fixed

@@ -55,7 +55,7 @@ test('every SKILL.md stays within 200 lines', () => {
 });
 
 // A skill that points at a missing template or prompt leaves the model guessing.
-// Templates are skipped: their links (spec.md, plan.md) resolve only after they are copied into a task folder.
+// Templates are skipped: their links (plan.md, implement-plan.md) resolve only after they are copied into a task folder.
 test('relative markdown links in skills resolve', () => {
   for (const file of walkMarkdown(skillsDir).filter((f) => !f.endsWith('-template.md'))) {
     const text = fs.readFileSync(file, 'utf8');
