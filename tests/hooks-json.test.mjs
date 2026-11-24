@@ -6,6 +6,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hooks = JSON.parse(fs.readFileSync(path.join(repoRoot, 'hooks', 'hooks.json'), 'utf8'));
 const command = hooks.hooks.SessionStart[0].hooks[0].command;
@@ -90,7 +93,12 @@ test('hook command runs the session-start script when node is on PATH', { skip: 
   const res = spawnSync(shPath, ['-c', command], {
     encoding: 'utf8',
     input: JSON.stringify({ cwd: os.tmpdir(), source: 'startup' }),
-    env: { ...process.env, PATH: `${nodeDir}${path.delimiter}${process.env.PATH ?? ''}`, CLAUDE_PLUGIN_ROOT: repoRoot },
+    env: {
+      ...process.env,
+      PATH: `${nodeDir}${path.delimiter}${process.env.PATH ?? ''}`,
+      CLAUDE_PLUGIN_ROOT: repoRoot,
+      QE_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'qe-home-')),
+    },
   });
   assert.equal(res.status, 0, res.stderr);
   const out = JSON.parse(res.stdout);

@@ -7,6 +7,9 @@ import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 import { decide } from '../hooks/pre-tool-use.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const script = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'hooks', 'pre-tool-use.mjs');
 const SHA = 'a'.repeat(40);
 
@@ -111,7 +114,7 @@ test('script prints deny JSON, or nothing, and exits 0', () => {
   const ok = run(write(path.join(t.taskDir, 'plan.md'), 'x'));
   assert.equal(ok.status, 0);
   assert.equal(ok.stdout, '');
-  const bad = spawnSync(process.execPath, [script], { input: 'garbage', encoding: 'utf8' });
+  const bad = spawnSync(process.execPath, [script], { input: 'garbage', encoding: 'utf8', env: { ...process.env, QE_HOME: t.home } });
   assert.equal(bad.status, 0);
   assert.equal(bad.stdout, '');
 });

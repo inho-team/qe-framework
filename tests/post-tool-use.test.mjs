@@ -8,6 +8,9 @@ import { fileURLToPath } from 'node:url';
 import { recordTouch } from '../hooks/post-tool-use.mjs';
 import { normPath } from '../hooks/lib/qe-home.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const script = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..', 'hooks', 'post-tool-use.mjs');
 
 function tmp(prefix) {

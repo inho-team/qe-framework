@@ -13,6 +13,9 @@ import {
   MAX_HANDOFF_CHARS,
 } from '../hooks/session-start.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hookPath = path.join(repoRoot, 'hooks', 'session-start.mjs');
 const guideText = fs.readFileSync(path.join(repoRoot, 'hooks', 'guide.md'), 'utf8');
@@ -31,8 +34,9 @@ function writeTask(root, name, files) {
   return dir;
 }
 
+// Always a temp QE_HOME: the hook must never touch the real ~/.qe from a test.
 function runHook(stdin, cwd) {
-  return spawnSync(process.execPath, [hookPath], { input: stdin, cwd, encoding: 'utf8' });
+  return spawnSync(process.execPath, [hookPath], { input: stdin, cwd, encoding: 'utf8', env: { ...process.env, QE_HOME: tmpRoot() } });
 }
 
 test('countUnchecked counts open boxes with CRLF and uppercase X as done', () => {

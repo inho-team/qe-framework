@@ -7,6 +7,9 @@ import { spawnSync } from 'node:child_process';
 
 import { collectGitFacts, computeAlerts, isAncestor } from '../hooks/lib/alerts.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'qe-alerts-'));
 }

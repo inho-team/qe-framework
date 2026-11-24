@@ -2,7 +2,7 @@
 // collectGitFacts reads git; computeAlerts is pure so the rules can be tested on plain values.
 import fs from 'node:fs';
 import { spawnSync } from 'node:child_process';
-import { normPath } from './qe-home.mjs';
+import { normPath, gitTimeout } from './qe-home.mjs';
 import { sameCommit } from './tasks.mjs';
 
 // The board polls while the user works in other sessions, so every git call here is
@@ -13,7 +13,7 @@ function run(cwd, args) {
     const r = spawnSync('git', ['--no-optional-locks', ...args], {
       cwd,
       encoding: 'utf8',
-      timeout: 3000,
+      timeout: gitTimeout(),
       windowsHide: true,
       env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
     });

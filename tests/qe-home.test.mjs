@@ -13,6 +13,9 @@ import {
   isUnder,
 } from '../hooks/lib/qe-home.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'qe-home-'));
 }
@@ -71,4 +74,11 @@ test('normPath lowercases on win32 and darwin, not on linux', async () => {
   assert.equal(normPath('/Tmp/A', 'linux').endsWith('A'), true);
   assert.equal(normPath('/Tmp/A', 'darwin').endsWith('a'), true);
   assert.equal(normPath('/Tmp/A', 'win32').endsWith('a'), true);
+});
+
+test('gitTimeout reads QE_GIT_TIMEOUT_MS and defaults to 3000', async () => {
+  const { gitTimeout } = await import('../hooks/lib/qe-home.mjs');
+  assert.equal(gitTimeout({}), 3000);
+  assert.equal(gitTimeout({ QE_GIT_TIMEOUT_MS: '20000' }), 20000);
+  for (const bad of ['', 'abc', '0', '-5']) assert.equal(gitTimeout({ QE_GIT_TIMEOUT_MS: bad }), 3000);
 });

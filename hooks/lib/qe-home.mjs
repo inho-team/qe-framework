@@ -13,10 +13,17 @@ export function tasksDir(home) {
   return path.join(home, 'tasks');
 }
 
+// Hooks have a 10 s budget, so each git call gets 3 s. QE_GIT_TIMEOUT_MS overrides it
+// (tests running many git processes in parallel need longer).
+export function gitTimeout(env = process.env) {
+  const n = Number.parseInt(env?.QE_GIT_TIMEOUT_MS ?? '', 10);
+  return Number.isFinite(n) && n > 0 ? n : 3000;
+}
+
 // Trimmed stdout, or null on failure, non-zero exit, or timeout.
 export function git(cwd, args) {
   try {
-    const r = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: 3000, windowsHide: true });
+    const r = spawnSync('git', args, { cwd, encoding: 'utf8', timeout: gitTimeout(), windowsHide: true });
     if (r.error || r.status !== 0) return null;
     return (r.stdout ?? '').trim();
   } catch {

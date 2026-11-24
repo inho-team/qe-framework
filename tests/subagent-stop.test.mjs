@@ -5,6 +5,9 @@ import os from 'node:os';
 import path from 'node:path';
 import { parseVerdictLine, findVerdict, recordVerdict } from '../hooks/subagent-stop.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const SHA = 'abc1234def5678';
 const tmp = (p) => fs.mkdtempSync(path.join(os.tmpdir(), p));
 

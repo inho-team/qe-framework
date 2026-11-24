@@ -6,6 +6,9 @@ import path from 'node:path';
 
 import { collectState, startServer } from '../skills/Qboard/board.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 function home() {
   const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-board-'));
   const task = path.join(dir, 'tasks', '2026-11-24-x');
