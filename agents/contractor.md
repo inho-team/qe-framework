@@ -22,7 +22,8 @@ skills:
 
 ## 계약 파일 형식
 
-[계약 양식](${CLAUDE_PLUGIN_ROOT}/skills/Qunderstand/contract-template.md)을 읽고 적용한다.
+호출 프롬프트에 계약 양식이 있으면 그 내용을 적용한다. 직접 호출되어 양식을 받지 않았으면
+[플러그인에 포함된 양식](${CLAUDE_PLUGIN_ROOT}/skills/Qunderstand/contract-template.md)을 읽는다.
 
 ## 고칠 때
 

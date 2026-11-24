@@ -78,8 +78,9 @@ spec 충족은 좋은 코드와 같지 않다. 검증 주체와 상관없이 **�
 
 최종 리뷰와 그에 따른 수정이 끝나면 `docs/contracts/` 중 이번 변경이 건드린 흐름의 계약을
 `qe-framework:contractor`에게 맡겨 현재 코드와 맞추고, verify.md에 한 줄 남긴다. 전문 에이전트가
-보이지 않으면 일반 서브에이전트에 [계약 양식](../Qunderstand/contract-template.md)을 읽어 함께
-주고, 현재 코드에서 확인한 흐름만 기록하며 `docs/contracts/` 안에서만 쓰도록 한다.
+보이지 않으면 일반 서브에이전트에 맡긴다. 두 경우 모두 메인 세션이
+[계약 양식](../Qunderstand/contract-template.md)을 읽고 양식 본문을 호출 프롬프트에 넣는다.
+현재 코드에서 확인한 흐름만 기록하고 `docs/contracts/` 안에서만 쓰도록 요청한다.
 
 ## 실행 중 내린 판단 모으기
 
