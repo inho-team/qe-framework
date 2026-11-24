@@ -201,3 +201,28 @@ test('darwin: TASKS/.QE case variants are recognized as under the tasks dir', { 
   const f = path.join(t.home.toUpperCase(), 'TASKS', 'GOAL-A', 'status.json');
   assert.ok(decide(write(f, doneStatus(SHA)), t.env).deny);
 });
+
+test('literal old_string match wins over quote-normalized matching', () => {
+  const t = setup();
+  fs.writeFileSync(t.file, JSON.stringify({ ...t.status, goal: 'note \u201cstate\u201d: \u201cactive\u201d' }, null, 2));
+  const e = {
+    tool_name: 'Edit',
+    tool_input: { file_path: t.file, old_string: '"state": "active"', new_string: '"state": "done", "done": {"commit": "abc1234"}' },
+  };
+  assert.ok(decide(e, t.env).deny);
+});
+
+test('Edit mentioning done that yields invalid JSON is denied with a Write hint', () => {
+  const t = setup();
+  const e = { tool_name: 'Edit', tool_input: { file_path: t.file, old_string: '"state": "active"', new_string: '"state": "done",,' } };
+  assert.match(decide(e, t.env).deny, /Write/);
+  // without done in new_string, invalid JSON still passes
+  const e2 = { tool_name: 'Edit', tool_input: { file_path: t.file, old_string: '"state": "active"', new_string: '"state": ,,' } };
+  assert.equal(decide(e2, t.env), null);
+});
+
+test('Edit mentioning done but leaving state not done is allowed', () => {
+  const t = setup();
+  const e = { tool_name: 'Edit', tool_input: { file_path: t.file, old_string: '"goal": "g"', new_string: '"goal": "done soon"' } };
+  assert.equal(decide(e, t.env), null);
+});

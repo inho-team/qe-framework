@@ -2,7 +2,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import crypto from 'node:crypto';
-import { git, tasksDir, isUnder } from './qe-home.mjs';
+import { git, tasksDir, normPath } from './qe-home.mjs';
 
 const STATES = ['active', 'verifying', 'done', 'stopped'];
 const VERIFY_RESULT = /결과:\s*(충족|일부\s*미충족|미충족)/;
@@ -130,10 +130,17 @@ export function projectRootOf(cwd) {
   return common ? path.dirname(common) : null;
 }
 
-export function taskOfPath(home, filePath) {
-  const root = tasksDir(home);
-  if (!isUnder(filePath, root)) return null;
-  const rel = path.relative(path.resolve(root), path.resolve(filePath));
-  const first = rel.split(path.sep)[0];
-  return first && first !== '..' ? first : null;
+// Segments of filePath below dir, in the ORIGINAL case; null when filePath is not under dir.
+// The containment test uses normPath (case-folded on win32/darwin), so a differently-cased
+// path to the same file is still recognized.
+export function relParts(dir, filePath, platform = process.platform) {
+  const rel = path.relative(normPath(dir, platform), normPath(filePath, platform));
+  if (rel === '' || rel.startsWith('..') || path.isAbsolute(rel)) return null;
+  const n = rel.split(path.sep).length;
+  return path.resolve(filePath).split(path.sep).slice(-n);
+}
+
+export function taskOfPath(home, filePath, platform = process.platform) {
+  const parts = relParts(tasksDir(home), filePath, platform);
+  return parts && parts[0] ? parts[0] : null;
 }

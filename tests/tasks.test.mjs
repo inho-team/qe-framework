@@ -127,3 +127,11 @@ test('taskOfPath returns the task name for <home>/tasks/T/plan.md and null outsi
   assert.equal(taskOfPath(home, path.join(home, 'other', 'T', 'plan.md')), null);
   assert.equal(taskOfPath(home, path.join(home, 'tasksX', 'T')), null);
 });
+
+test('taskOfPath recognizes case-variant paths on darwin/win32 and keeps original task case', () => {
+  const home = path.join(os.tmpdir(), 'Qe-Home-X');
+  const f = path.join(home.toUpperCase(), 'TASKS', 'Goal-A', 'status.json');
+  assert.equal(taskOfPath(home, f, 'darwin'), 'Goal-A');
+  assert.equal(taskOfPath(home, f, 'win32'), 'Goal-A');
+  if (process.platform !== 'win32') assert.equal(taskOfPath(home, f, 'linux'), null);
+});

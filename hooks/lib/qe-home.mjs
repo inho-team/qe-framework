@@ -68,7 +68,7 @@ export function normPath(p, platform = process.platform) {
   return platform === 'win32' || platform === 'darwin' ? r.toLowerCase() : r;
 }
 
-export function isUnder(child, parent) {
-  const rel = path.relative(normPath(parent), normPath(child));
+export function isUnder(child, parent, platform = process.platform) {
+  const rel = path.relative(normPath(parent, platform), normPath(child, platform));
   return rel === '' || (!rel.startsWith('..') && !path.isAbsolute(rel));
 }
