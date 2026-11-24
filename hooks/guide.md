@@ -29,6 +29,7 @@
 `agent-conduct`는 QE 전문 에이전트가 싣는 공통 규칙이다(직접 부르지 않는다).
 
 문서는 작업마다 `docs/qe/YYYY-MM-DD-<주제>/` 폴더 하나에 둔다. 사용자 본인과 다음 세션의 AI가 읽는다.
+HTML 보고서(`report.html`, Qreport)도 같은 폴더에 둔다. 작업 없이 보고서만 있는 폴더는 작업 폴더가 아니다.
 `docs/contracts/`에는 지금 코드의 흐름을 순서도와 특이사항으로 정리한 계약이 쌓인다(원본은 코드).
 단계별 일은 QE 전문 에이전트(`qe-framework:code-<언어>`, `qe-framework:redteam`,
 `qe-framework:qa` 등)에 맡길 수 있다.

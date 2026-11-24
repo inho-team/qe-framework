@@ -3,7 +3,8 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title><!-- 채움: 작업 이름 (2-4단어) --></title>
+<!-- 채움: <title>에 작업 이름 (2-4단어) -->
+<title>작업 이름</title>
 <style>
 /* QE report frame. 이 블록은 고치지 않는다 — 보고서마다 같은 모양이어야 지난 보고서와 나란히 볼 수 있다. */
 :root {
@@ -50,16 +51,16 @@ h2 {
 }
 .two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 @media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
-.panel { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.panel { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
 .panel h3 { font-size: 14px; margin: 0 0 6px; }
 .panel.mine { background: var(--mine-soft); border-color: transparent; }
 .panel.mine h3 { color: var(--mine); }
 .cards { display: grid; gap: 10px; }
-.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.card { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
 .card h3 { font-size: 15px; margin: 0 0 4px; }
 .card p { margin: 0 0 6px; }
 .evidence { font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--muted); }
-table { width: 100%; border-collapse: collapse; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
 th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
 th { font-size: 13px; color: var(--muted); font-weight: 600; }
 tr:last-child td { border-bottom: 0; }
@@ -67,6 +68,12 @@ tr.recommended td { background: var(--accent-soft); }
 tr.recommended td:first-child::after { content: " · 추천"; color: var(--accent); font-weight: 600; }
 ol, ul { margin: 0; padding-left: 22px; }
 li { margin: 3px 0; }
+pre {
+  margin: 6px 0; padding: 10px 12px; overflow-x: auto; max-width: 100%;
+  background: var(--accent-soft); border-radius: 6px;
+  font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; overflow-wrap: normal;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
 code { font: 13px ui-monospace, "Cascadia Mono", Consolas, monospace; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
 .empty { color: var(--muted); margin: 0; }
 footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
@@ -110,6 +117,7 @@ footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line)
     <div class="card">
       <h3>발견 제목</h3>
       <p>무엇을 알게 되었는지.</p>
+      <!-- 로그·명령 출력은 <pre>, 코드 조각의 < 와 & 는 &lt; &amp; 로 -->
       <div class="evidence">근거: path/to/file.ext:12</div>
     </div>
   </div>

@@ -114,7 +114,11 @@ docs/qe/2026-11-23-<주제>/
   implement-plan.md    AI가 실행하는 상세 계획: 바뀌는 파일, 단계(체크박스), 단계별 확인 방법
   verify.md            무엇을 어떻게 확인했는지, 확인 못 한 것, 남은 일
   handoff.md           세션을 넘길 때만: 어디까지, 다음 할 일, 주의할 점
+  report.html          분석을 HTML·아티팩트로 달라고 할 때만 (Qreport). 새 보고서는 report-2.html, …
 ```
+
+작업 없이 보고서만 달라고 하면 `report.html`만 있는 폴더가 생긴다. 이런 폴더는 세션 시작 때
+미완료 작업으로 안내되지 않는다.
 
 DB나 전용 도구 없이 어떤 편집기로도 읽힌다. 진행 상태는 implement-plan.md 체크박스와
 verify.md의 `결과:` 줄로 알 수 있다.
