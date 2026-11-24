@@ -54,9 +54,18 @@ export function isAncestor(cwd, a, b) {
 
 // The recorded path must be the root of a checkout; a plain folder or a subfolder of another
 // repo would otherwise report that repo's HEAD and dirt as this worktree's.
+// git resolves symlinks/junctions (and macOS /var → /private/var), so compare real paths.
+function real(p) {
+  try {
+    return fs.realpathSync.native(p);
+  } catch {
+    return p;
+  }
+}
+
 function isWorktreeRoot(p) {
   const top = git(p, ['rev-parse', '--show-toplevel']);
-  return top !== null && normPath(top) === normPath(p);
+  return top !== null && normPath(real(top)) === normPath(real(p));
 }
 
 export function collectGitFacts(status) {

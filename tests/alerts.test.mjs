@@ -243,3 +243,18 @@ test('isAncestor separates "no" (exit 1) from "git could not answer" (null)', ()
   assert.equal(isAncestor(project, first, 'refs/heads/no-such-branch'), null);
   assert.equal(isAncestor(tmp(), 'HEAD', 'HEAD'), null);
 });
+
+test('collectGitFacts accepts a worktree recorded through a symlink or junction', (t) => {
+  const project = repo();
+  const link = path.join(tmp(), 'link');
+  try {
+    fs.symlinkSync(project, link, process.platform === 'win32' ? 'junction' : 'dir');
+  } catch (err) {
+    t.skip(`cannot create link: ${err.code}`);
+    return;
+  }
+  const f = collectGitFacts(status({ project: link, worktrees: [{ path: link, branch: 'main' }] }));
+  assert.equal(f.worktrees[0].exists, true);
+  assert.equal(f.worktrees[0].head, gitIn(project, 'rev-parse', 'HEAD'));
+  assert.equal(f.worktrees[0].dirty, false);
+});
