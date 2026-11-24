@@ -15,5 +15,12 @@
   ],
   "skills": [
     "./skills/"
-  ]
+  ],
+  "mcpServers": {
+    "codebase-memory-mcp": {
+      "type": "stdio",
+      "command": "node",
+      "args": ["${CLAUDE_PLUGIN_ROOT}/mcp/codebase-memory.mjs"]
+    }
+  }
 }

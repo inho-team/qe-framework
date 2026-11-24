@@ -106,7 +106,7 @@ test('every eval case has a prompt, a suite tag, and valid graders', () => {
     const promptPath = path.join(dir, 'prompt.md');
     assert.ok(fs.existsSync(promptPath), `${c.name}: prompt.md missing`);
     const fm = frontmatter(fs.readFileSync(promptPath, 'utf8'));
-    assert.match(fm, /^tags: \[.*\b(trigger|gate)\b.*\]$/m, `${c.name}: needs tag trigger or gate`);
+    assert.match(fm, /^tags: \[.*\b(trigger|gate|codebase-memory)\b.*\]$/m, `${c.name}: needs a suite tag`);
     const gradersDir = path.join(dir, 'graders');
     const graders = fs.existsSync(gradersDir) ? fs.readdirSync(gradersDir).filter((f) => f.endsWith('.md')) : [];
     assert.ok(graders.length > 0, `${c.name}: no graders`);
