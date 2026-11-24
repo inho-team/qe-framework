@@ -2,10 +2,9 @@
 // `done` in ~/.qe/tasks/<task>/status.json unless a hook-recorded 충족 verdict exists
 // for the same commit, and may not write verdict files itself. Fails open on any error.
 import fs from 'node:fs';
-import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { qeHome, tasksDir } from './lib/qe-home.mjs';
+import { qeHome, tasksDir, cleanPath } from './lib/qe-home.mjs';
 import { readStatus, listVerdicts, relParts, sameCommit } from './lib/tasks.mjs';
 
 // The file content after the tool call, or null when it cannot be determined.
@@ -46,17 +45,6 @@ function resultContent(toolName, ti, file) {
   };
   // The real tool rewrites new_string in the file's quote style; judge both readings.
   return { candidates: [...new Set([splice(q(n)), splice(n)])] };
-}
-
-// Make a tool-supplied path comparable: ~ expansion, Win32 extended prefixes, Git Bash drive paths.
-function cleanPath(p) {
-  let f = p;
-  if (f === '~' || f.startsWith('~/') || f.startsWith('~\\')) f = os.homedir() + f.slice(1);
-  if (process.platform === 'win32') {
-    f = f.replace(/^[\\/]{2}[?.][\\/]/, '');
-    f = f.replace(/^[\\/]([a-zA-Z])(?=[\\/]|$)/, (_, d) => d.toUpperCase() + ':');
-  }
-  return f;
 }
 
 // Segment as the filesystem sees it: case-folded where the FS usually is, NTFS stream and trailing dots/spaces dropped.

@@ -56,9 +56,25 @@ export function writeJsonAtomic(file, value) {
   }
 }
 
+// A git killed by a hook timeout leaves .git/index.lock behind, and then every later commit
+// fails. A lock older than any real commit here (30 s) is such a leftover; a newer one may
+// belong to a commit running right now in another session, so it stays.
+const STALE_LOCK_MS = 30_000;
+
+function clearStaleLock(home) {
+  try {
+    const lock = path.join(home, '.git', 'index.lock');
+    const st = fs.statSync(lock, { throwIfNoEntry: false });
+    if (st && Date.now() - st.mtimeMs > STALE_LOCK_MS) fs.rmSync(lock, { force: true });
+  } catch {
+    // ignore: the commit below simply fails
+  }
+}
+
 export function commitHome(home, message) {
   try {
     if (!fs.existsSync(path.join(home, '.git'))) return false;
+    clearStaleLock(home);
     if (git(home, ['add', '-A']) === null) return false;
     // Global git hooks (e.g. LFS post-commit) can take seconds and have no
     // business in this housekeeping repo, so run without them.
@@ -67,6 +83,18 @@ export function commitHome(home, message) {
   } catch {
     return false;
   }
+}
+
+// Make a tool-supplied path comparable: ~ expansion, Win32 extended prefixes (\\?\, \\.\),
+// Git Bash drive paths (/c/...). Without this a write under ~/.qe/tasks is not recognized.
+export function cleanPath(p, platform = process.platform) {
+  let f = p;
+  if (f === '~' || f.startsWith('~/') || f.startsWith('~\\')) f = os.homedir() + f.slice(1);
+  if (platform === 'win32') {
+    f = f.replace(/^[\\/]{2}[?.][\\/]/, '');
+    f = f.replace(/^[\\/]([a-zA-Z])(?=[\\/]|$)/, (_, d) => d.toUpperCase() + ':');
+  }
+  return f;
 }
 
 // Comparison only: Windows and macOS (APFS) are case-insensitive by default.

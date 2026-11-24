@@ -1,11 +1,13 @@
-// QE SessionStart hook: injects the path guide plus any unfinished docs/qe task
-// and its latest handoff.md. It must never fail a session start, so every
-// filesystem read is guarded and the process always exits 0.
+// QE SessionStart hook: injects the path guide, this session's id, this project's open
+// ~/.qe goals, legacy docs/qe tasks (under an "이전 위치" heading), and the latest
+// handoff.md. It only reads: ~/.qe is created by the write hooks, and the one git call
+// finds the project root. It must never fail a session start, so every read is guarded
+// and the process always exits 0.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { countUnchecked, listTasks, projectRootOf } from './lib/tasks.mjs';
-import { ensureHome, normPath, qeHome } from './lib/qe-home.mjs';
+import { normPath, qeHome } from './lib/qe-home.mjs';
 
 export { countUnchecked };
 
@@ -93,15 +95,17 @@ function describe(task) {
 // Open ~/.qe tasks of this project. Any failure yields [] so the legacy output still prints.
 function findOpenHomeTasks(cwd, home) {
   try {
-    ensureHome(home);
+    const tasks = listTasks(home);
+    if (!tasks.length) return [];
     const root = projectRootOf(cwd);
     const want = normPath(root ?? cwd);
-    return listTasks(home).filter((t) => {
+    return tasks.filter((t) => {
       const s = t.status;
       if (!s || s.invalid) return false;
+      // An empty project is not yet claimed; path.resolve('') would turn it into the cwd.
+      if (!s.project) return false;
       if (normPath(s.project) !== want) return false;
-      if (s.state === 'done' || s.state === 'stopped') return false;
-      return s.state === 'active' || s.state === 'verifying' || /미충족/.test(t.verifyResult ?? '');
+      return s.state === 'active' || s.state === 'verifying';
     });
   } catch {
     return [];

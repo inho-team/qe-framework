@@ -197,6 +197,26 @@ test('lists open ~/.qe tasks of this project only', () => {
   assert.ok(ctx.includes('HOME HANDOFF'));
 });
 
+test('a goal with an empty project is not listed, even when the hook runs in this project', () => {
+  const root = tmpRoot();
+  const home = tmpRoot();
+  // path.resolve('') is the process cwd, so an empty project used to match the project the hook ran in
+  writeHomeTask(home, 'unclaimed', '');
+  const prev = process.cwd();
+  process.chdir(root);
+  try {
+    assert.ok(!buildContext(root, guideText, { home }).includes('tasks/unclaimed'));
+  } finally {
+    process.chdir(prev);
+  }
+});
+
+test('buildContext does not create or git-init ~/.qe (write hooks do that)', () => {
+  const home = path.join(tmpRoot(), 'absent');
+  buildContext(tmpRoot(), guideText, { home, sessionId: 's1' });
+  assert.equal(fs.existsSync(home), false);
+});
+
 test('includes the session id line when provided', () => {
   const ctx = buildContext(tmpRoot(), guideText, { home: tmpRoot(), sessionId: 'abc-123' });
   assert.ok(ctx.includes('이 세션 id: abc-123'));

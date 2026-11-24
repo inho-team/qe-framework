@@ -121,3 +121,10 @@ test('exits 0 with no output on malformed stdin', () => {
     assert.equal(r.stdout, '');
   }
 });
+
+test('recognizes a Git Bash style /c/... path to the task folder', { skip: process.platform !== 'win32' }, () => {
+  const { env, repo, taskDir, file } = setup();
+  const bash = path.join(taskDir, 'plan.md').replace(/^([A-Za-z]):\\/, (_, d) => `/${d.toLowerCase()}/`).replace(/\\/g, '/');
+  assert.deepEqual(recordTouch({ session_id: 'sb', cwd: repo, tool_input: { file_path: bash } }, env), { task: 'goal-a' });
+  assert.deepEqual(read(file).sessions.map((s) => s.id), ['sb']);
+});

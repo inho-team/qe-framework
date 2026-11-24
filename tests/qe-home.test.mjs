@@ -82,3 +82,28 @@ test('gitTimeout reads QE_GIT_TIMEOUT_MS and defaults to 3000', async () => {
   assert.equal(gitTimeout({ QE_GIT_TIMEOUT_MS: '20000' }), 20000);
   for (const bad of ['', 'abc', '0', '-5']) assert.equal(gitTimeout({ QE_GIT_TIMEOUT_MS: bad }), 3000);
 });
+
+test('cleanPath expands ~ and, on win32, strips the \\\\?\\ prefix and converts /c/ drive paths', async () => {
+  const { cleanPath } = await import('../hooks/lib/qe-home.mjs');
+  assert.equal(cleanPath('~/x/y', 'linux'), os.homedir() + '/x/y');
+  assert.equal(cleanPath('/c/a/b', 'linux'), '/c/a/b');
+  assert.equal(cleanPath('/c/a/b', 'win32'), 'C:/a/b');
+  assert.equal(cleanPath('\\\\?\\C:\\a\\b', 'win32'), 'C:\\a\\b');
+  assert.equal(cleanPath('//./C:/a', 'win32'), 'C:/a');
+});
+
+test('commitHome clears a stale index.lock (older than 30 s) but not a fresh one', () => {
+  const home = path.join(tmp(), '.qe');
+  ensureHome(home);
+  const lock = path.join(home, '.git', 'index.lock');
+  fs.writeFileSync(lock, '');
+  fs.writeFileSync(path.join(home, 'tasks', 'a.txt'), 'x');
+  // fresh: another process may hold it right now, so leave it
+  assert.equal(commitHome(home, 'qe: fresh lock'), false);
+  assert.ok(fs.existsSync(lock));
+  // stale: left behind by a killed git
+  const old = new Date(Date.now() - 60_000);
+  fs.utimesSync(lock, old, old);
+  assert.equal(commitHome(home, 'qe: stale lock'), true);
+  assert.equal(fs.existsSync(lock), false);
+});

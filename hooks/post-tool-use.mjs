@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { qeHome, tasksDir, ensureHome, writeJsonAtomic, commitHome, git, normPath } from './lib/qe-home.mjs';
+import { qeHome, tasksDir, ensureHome, writeJsonAtomic, commitHome, git, normPath, cleanPath } from './lib/qe-home.mjs';
 import { readStatus, taskOfPath, projectRootOf } from './lib/tasks.mjs';
 
 export function recordTouch(input, env = process.env) {
@@ -12,7 +12,7 @@ export function recordTouch(input, env = process.env) {
     const filePath = input?.tool_input?.file_path;
     if (typeof filePath !== 'string' || !filePath) return null;
     const home = qeHome(env);
-    const task = taskOfPath(home, filePath);
+    const task = taskOfPath(home, cleanPath(filePath));
     if (!task) return null;
     if (!ensureHome(home)) return null;
 
