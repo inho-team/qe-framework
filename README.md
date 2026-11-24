@@ -52,6 +52,7 @@ Qunderstand    Qplan                   Qexecute              Qverify         Qfi
 Qdebugging: 버그 작업의 시작, 또는 원인 모를 실패 → 근본 원인부터
 Qtdd:       실행 안에서 테스트 먼저, 좋은 테스트의 조건
 Qreview:    diff·브랜치·PR 독립 리뷰       Qfeedback: 리뷰 지적을 확인하고 반영·반박
+Qreport:    분석을 HTML·아티팩트로 달라고 할 때 → 늘 같은 틀
 Qskill:     스킬을 만들거나 고칠 때
 Qcompact:   세션을 넘길 때 handoff.md 작성 → /compact 요청
 Qresume:    새 세션이 시작되면 미완료 작업 이어받기
@@ -67,6 +68,7 @@ Qresume:    새 세션이 시작되면 미완료 작업 이어받기
 | `Qtdd` | 테스트를 먼저 쓰고 실패를 본 뒤 구현한다. 좋은 테스트의 조건. |
 | `Qreview` | diff·브랜치·PR을 새 서브에이전트가 독립적으로 리뷰한다. |
 | `Qfeedback` | 리뷰 지적이 맞는지 확인하고 반영하거나 근거를 들어 반박한다. |
+| `Qreport` | 분석·조사·디버깅 결과를 HTML·아티팩트로 달라고 할 때, 고정 틀(`report-frame.html`)에 내용만 채워 늘 같은 모양으로 보여 준다. |
 | `Qskill` | 스킬을 만들거나 고칠 때: 바꾸기 전 상태로 먼저 돌려 실패를 보고, 이유로 쓴다. |
 | `Qdebugging` | 버그·실패·예상 밖 동작에서 근본 원인을 찾기 전에는 고치지 않는다. 작은 수정은 바로, 큰 수정은 Qplan으로. |
 | `Qcompact` | 세션을 넘길 때 handoff.md를 쓰고 `/compact`를 요청한다. |

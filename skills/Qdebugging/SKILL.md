@@ -63,7 +63,7 @@ description: Use when facing a bug report, failing test, error, crash, or unexpe
 
 **수정이 작으면** 이 자리에서 고치고 `Qverify`로 간다. 작업 폴더가 있으면 원인을
 plan.md "원인"에, 재현 테스트와 결과를 verify.md에 남긴다. 아주 작은 버그면 문서 없이
-결과만 보고한다.
+결과만 보고한다. 사용자가 원인 분석을 HTML·아티팩트로 달라고 하면 `Qreport`의 틀을 쓴다.
 
 **수정이 크면**(여러 파일, 설계 변경, 사용자가 정할 것이 있음) 원인과 근거를 plan.md
 "원인"에 적고 `Qplan`으로 넘어간다.
