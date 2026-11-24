@@ -21,7 +21,11 @@ description: Use when implementation is finished (all plan.md steps checked) or 
 
 고른 쪽과 이유를 verify.md 첫 섹션에 한 줄 쓴다. 서브에이전트가 "충족"이라고 보고해도
 그대로 믿지 않는다. 핵심 근거 하나 이상은 내가 직접 확인한다. 서브에이전트에 맡길 때는
-판단이 필요한 일이니 상위 모델을 지정한다(생략하면 세션 모델을 물려받는다).
+`qa` 에이전트로 띄우고, 판단이 필요한 일이니 상위 모델로 덮어쓴다(생략하면 에이전트의 기본
+모델이 쓰인다). 에이전트가 보이지 않는 환경이면 일반 서브에이전트로 띄운다.
+
+**계약 갱신.** 이번 변경이 `docs/contracts/`에 있는 흐름을 바꿨으면 `contractor`로 그 계약을
+코드에 맞춰 고치고, verify.md에 한 줄 남긴다. 낡은 계약은 다음 작업의 이해를 틀린 쪽으로 이끈다.
 
 ## 확인 순서
 
@@ -54,8 +58,8 @@ description: Use when implementation is finished (all plan.md steps checked) or 
 
 spec 충족은 좋은 코드와 같지 않다. 검증 주체와 상관없이 **브랜치 전체**를 코드 리뷰한다.
 단계마다 리뷰했어도 단계 사이의 이음새(맞물림, 중복, 일관성)는 아무도 안 봤을 수 있다.
-작은 변경이면 메인이 같은 관점으로 diff를 한 번 읽는 것으로 충분하다. 서브에이전트에
-맡기면 [verifier-prompt.md](verifier-prompt.md)의 코드 리뷰 항목을 쓴다.
+작은 변경이면 메인이 같은 관점으로 diff를 한 번 읽는 것으로 충분하다. 크면 `redteam`에
+맡기고 [verifier-prompt.md](verifier-prompt.md)의 코드 리뷰 항목을 쓴다.
 
 지적은 **사용자가 겪는 결과**로 등급을 다시 매긴다(치명 / 중요 / 사소). 리뷰어가 "spec이
 말하지 않아서" 낮게 매긴 것은 그 결과를 보고 다시 판단한다. 리뷰어가 판단을 보류한
