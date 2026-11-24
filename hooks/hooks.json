@@ -11,6 +11,18 @@
           }
         ]
       }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=post-tool-use.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
