@@ -14,9 +14,15 @@ description: Use when the user has agreed on what to build and which approach (a
 
 ## 문서 위치
 
-사용자 프로젝트의 `docs/qe/YYYY-MM-DD-<주제>/` 폴더 하나에 둔다. 주제는 짧은 영문
-소문자-하이픈. 프로젝트나 사용자가 다른 위치를 원하면 따른다.
+홈 디렉터리의 `~/.qe/tasks/YYYY-MM-DD-<주제>/` 폴더 하나에 둔다(Windows는
+`%USERPROFILE%\.qe\tasks\…`). 주제는 짧은 영문 소문자-하이픈. 프로젝트 안이 아니라 여기 두는
+이유: worktree를 지워도 남고, 다른 세션이 같은 목표를 이어받거나 나눠 할 때 한곳을 본다.
+검수를 통과하면 `Qfinish`가 프로젝트 `docs/qe/<목표>/`로 내보낸다.
 
+- `status.json` — 폴더를 만들 때 **가장 먼저** Write로 쓴다. 이게 있어야 hook이 이 목표를 알아본다:
+  `{"goal": "한 줄 목표", "project": "", "state": "active", "worktrees": [], "sessions": []}`
+  (Qunderstand나 Qcompact가 이미 만들었으면 그대로 쓴다).
+  `project`는 비워 두면 hook이 채운다. 세션·worktree 기록은 이 폴더에 쓸 때마다 hook이 한다.
 - `plan.md` — 사용자가 읽고 승인하는 계획. [plan-template.md](plan-template.md)
 - `implement-plan.md` — AI가 실행하는 상세 구현 계획. [implement-plan-template.md](implement-plan-template.md)
 
@@ -107,4 +113,4 @@ plan.md와 implement-plan.md를 사용자에게 보여 주고, **승인받기 �
 고친 점이 있으면 문서에 반영하고 다시 보여 준다. 승인되면 두 문서의 상태를
 "승인됨"으로 바꾸고, implement-plan.md에 고른 실행 방식을 적은 뒤 `Qexecute`로 넘어간다.
 
-저장소가 git이면 두 문서를 커밋한다. 사용자가 원하지 않으면 하지 않는다.
+문서는 프로젝트 저장소에 커밋하지 않는다. `~/.qe`는 그 자체가 git 저장소라 hook이 이력을 남긴다.

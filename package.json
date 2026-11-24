@@ -1,6 +1,6 @@
 {
   "name": "@inho-team/qe-framework",
-  "version": "10.0.0",
+  "version": "11.0.0",
   "private": true,
   "description": "QE Framework — a Claude Code plugin with one path (이해 → 계획 → 실행 → 검증 → 마무리) and plan/verify docs per task",
   "type": "module",
