@@ -25,7 +25,7 @@ function toShellPath(p) {
 
 test('SessionStart runs only on startup, clear, and compact', () => {
   assert.equal(hooks.hooks.SessionStart[0].matcher, 'startup|clear|compact');
-  assert.deepEqual(Object.keys(hooks.hooks), ['SessionStart', 'PreToolUse', 'PostToolUse', 'SubagentStop']);
+  assert.deepEqual(Object.keys(hooks.hooks), ['SessionStart', 'PreToolUse', 'PostToolUse', 'SubagentStop', 'Stop']);
   // Sourcing is a shell builtin, so the launcher starts even when PATH is empty.
   assert.equal(command, 'QE_HOOK=session-start.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"');
 });

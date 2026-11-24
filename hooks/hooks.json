@@ -46,6 +46,17 @@
           }
         ]
       }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=stop.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
