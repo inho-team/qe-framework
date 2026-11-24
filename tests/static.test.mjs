@@ -91,3 +91,57 @@ test('descriptions carry no skill count', () => {
     assert.doesNotMatch(read(p), /스킬 \d+개|\b(five|six|seven|eight|nine|ten) skills\b/i, p);
   }
 });
+
+// Specialist agents ship in agents/; the roster is fixed by the design so a missing file is caught.
+const agentsDir = path.join(root, 'agents');
+const EXPECTED_AGENTS = [
+  'code-java', 'code-kotlin', 'code-go', 'code-dart', 'code-javascript', 'code-typescript',
+  'code-csharp', 'code-cpp', 'code-python', 'code', 'planner', 'researcher', 'analyst',
+  'data-analyst', 'redteam', 'qa', 'marketer', 'contractor',
+];
+const agentFiles = () =>
+  fs.existsSync(agentsDir) ? fs.readdirSync(agentsDir).filter((f) => f.endsWith('.md')) : [];
+
+test('agents/ holds exactly the planned roster', () => {
+  assert.deepEqual(agentFiles().map((f) => f.replace(/\.md$/, '')).sort(), [...EXPECTED_AGENTS].sort());
+});
+
+test('every agent file name equals its frontmatter name and description starts "Use when"', () => {
+  for (const f of agentFiles()) {
+    const fm = frontmatter(read(`agents/${f}`));
+    assert.match(fm, new RegExp(`^name: ${f.replace(/\.md$/, '')}$`, 'm'), f);
+    assert.match(fm, /^description: "?Use when/m, f);
+    assert.match(fm, /^tools: .+/m, f);
+    assert.match(fm, /^model: (opus|sonnet)$/m, f);
+  }
+});
+
+// A skills: entry naming a missing skill silently drops the shared rules.
+function agentSkills(f) {
+  const block = frontmatter(read(`agents/${f}`)).match(/^skills:\r?\n((?:[ \t]+- .+(?:\r?\n|$))+)/m);
+  return block ? [...block[1].matchAll(/-\s+(\S+)/g)].map((m) => m[1].replace(/^qe-framework:/, '')) : [];
+}
+
+test('every skills: entry in an agent names a skill in skills/', () => {
+  for (const f of agentFiles()) {
+    const skills = agentSkills(f);
+    assert.ok(skills.length > 0, `${f}: no skills list`);
+    for (const s of skills) assert.ok(skillNames.includes(s), `${f} -> ${s}`);
+  }
+});
+
+test('agents load agent-conduct; code agents also load code-craft', () => {
+  for (const f of agentFiles()) {
+    const skills = agentSkills(f);
+    assert.ok(skills.includes('agent-conduct'), f);
+    if (f === 'code.md' || f.startsWith('code-')) assert.ok(skills.includes('code-craft'), f);
+  }
+});
+
+// The harness may substitute these tokens inside skill and agent text.
+test('skill and agent text carries no substitution tokens', () => {
+  const files = [...walkMarkdown(skillsDir), ...agentFiles().map((f) => path.join(agentsDir, f))];
+  for (const file of files) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\$ARGUMENTS|\$\d\b/, path.relative(root, file));
+  }
+});
