@@ -6,7 +6,7 @@
         "hooks": [
           {
             "type": "command",
-            "command": ". \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "command": "QE_HOOK=session-start.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
             "timeout": 5
           }
         ]

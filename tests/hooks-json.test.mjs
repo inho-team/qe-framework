@@ -27,7 +27,7 @@ test('SessionStart runs only on startup, clear, and compact', () => {
   assert.equal(hooks.hooks.SessionStart[0].matcher, 'startup|clear|compact');
   assert.deepEqual(Object.keys(hooks.hooks), ['SessionStart']);
   // Sourcing is a shell builtin, so the launcher starts even when PATH is empty.
-  assert.equal(command, '. "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"');
+  assert.equal(command, 'QE_HOOK=session-start.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"');
 });
 
 test('hook command emits a clear notice instead of failing when node is not found', { skip: !shPath }, () => {
@@ -96,4 +96,30 @@ test('hook command runs the session-start script when node is on PATH', { skip: 
   const out = JSON.parse(res.stdout);
   assert.match(out.hookSpecificOutput.additionalContext, /^# QE — 이해 → 계획 → 실행 → 검증 → 마무리/);
   assert.equal(out.systemMessage, undefined);
+});
+
+test('run.sh with QE_HOOK=other.mjs prints nothing when node is missing', { skip: !shPath }, () => {
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
+  const res = spawnSync(shPath, ['-c', 'QE_HOOK=other.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"'], {
+    encoding: 'utf8',
+    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: repoRoot, QE_NODE_PROBES: '' },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.stdout, '');
+});
+
+test('run.sh runs the script named by QE_HOOK', { skip: !shPath }, () => {
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
+  const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe probe '));
+  const fakeNode = path.join(probeDir, 'node');
+  fs.writeFileSync(fakeNode, `#!/bin/sh
+printf '%s' "$1"
+`);
+  fs.chmodSync(fakeNode, 0o755);
+  const res = spawnSync(shPath, ['-c', 'QE_HOOK=other.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"'], {
+    encoding: 'utf8',
+    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: toShellPath(repoRoot), QE_NODE_PROBES: toShellPath(fakeNode) },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(res.stdout.endsWith('hooks/other.mjs'), res.stdout);
 });
