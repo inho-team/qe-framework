@@ -4,7 +4,8 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
-import { countUnchecked } from './lib/tasks.mjs';
+import { countUnchecked, listTasks, projectRootOf } from './lib/tasks.mjs';
+import { ensureHome, normPath, qeHome } from './lib/qe-home.mjs';
 
 export { countUnchecked };
 
@@ -89,26 +90,65 @@ function describe(task) {
   return `- docs/qe/${task.name} — ${steps}, ${verify}${handoff}`;
 }
 
-export function buildContext(projectRoot, guideText) {
-  const parts = [guideText.trim()];
-  const tasks = findOpenTasks(projectRoot);
-  if (tasks.length === 0) return parts[0];
+// Open ~/.qe tasks of this project. Any failure yields [] so the legacy output still prints.
+function findOpenHomeTasks(cwd, home) {
+  try {
+    ensureHome(home);
+    const root = projectRootOf(cwd);
+    const want = normPath(root ?? cwd);
+    return listTasks(home).filter((t) => {
+      const s = t.status;
+      if (!s || s.invalid) return false;
+      if (normPath(s.project) !== want) return false;
+      if (s.state === 'done' || s.state === 'stopped') return false;
+      return s.state === 'active' || s.state === 'verifying' || /미충족/.test(t.verifyResult ?? '');
+    });
+  } catch {
+    return [];
+  }
+}
 
-  parts.push(['## 미완료 작업', ...tasks.map(describe)].join('\n'));
+function describeHome(t) {
+  const steps = t.hasImplementPlan ? `남은 단계 ${t.unchecked}/${t.total}` : 'implement-plan.md 없음';
+  return `- ~/.qe/tasks/${t.name} — ${t.status.state}, ${steps}${t.hasHandoff ? ', handoff 있음' : ''}`;
+}
+
+function handoffMtime(p) {
+  const st = safeStat(p);
+  return st ? st.mtimeMs : 0;
+}
+
+export function buildContext(projectRoot, guideText, { home, sessionId } = {}) {
+  const parts = [guideText.trim()];
+  if (sessionId) parts.push(`이 세션 id: ${sessionId}`);
+
+  const homeTasks = home ? findOpenHomeTasks(projectRoot, home) : [];
+  const tasks = findOpenTasks(projectRoot);
+  if (homeTasks.length > 0) parts.push(['## 미완료 작업 (~/.qe)', ...homeTasks.map(describeHome)].join('\n'));
+  if (tasks.length > 0) {
+    const heading = home ? '## 이전 위치(docs/qe)의 미완료 작업 — ~/.qe/tasks로 옮길 것' : '## 미완료 작업';
+    parts.push([heading, ...tasks.map(describe)].join('\n'));
+  }
 
   // The handoff to inject is the most recently written handoff.md, not the task
   // whose implement-plan.md happened to change last.
-  const latest = tasks
-    .filter((t) => t.handoffPath)
-    .sort((a, b) => b.handoffMtimeMs - a.handoffMtimeMs || b.name.localeCompare(a.name))[0];
+  const candidates = [
+    ...tasks.filter((t) => t.handoffPath).map((t) => ({ file: t.handoffPath, name: t.name, rel: `docs/qe/${t.name}/handoff.md`, mtimeMs: t.handoffMtimeMs })),
+    ...homeTasks
+      .filter((t) => t.hasHandoff)
+      .map((t) => {
+        const file = path.join(t.dir, 'handoff.md');
+        return { file, name: t.name, rel: `~/.qe/tasks/${t.name}/handoff.md`, mtimeMs: handoffMtime(file) };
+      }),
+  ];
+  const latest = candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name))[0];
   if (latest) {
-    let body = safeRead(latest.handoffPath);
+    let body = safeRead(latest.file);
     if (body !== null) {
-      const rel = `docs/qe/${latest.name}/handoff.md`;
       if (body.length > MAX_HANDOFF_CHARS) {
-        body = `${body.slice(0, MAX_HANDOFF_CHARS)}\n…(잘림 — 전체는 ${rel})`;
+        body = `${body.slice(0, MAX_HANDOFF_CHARS)}\n…(잘림 — 전체는 ${latest.rel})`;
       }
-      parts.push(`## 최근 handoff (${rel})\n\n${body.trim()}`);
+      parts.push(`## 최근 handoff (${latest.rel})\n\n${body.trim()}`);
     }
   }
   return parts.join('\n\n');
@@ -124,9 +164,11 @@ function readStdin() {
 
 function main() {
   let projectRoot = process.cwd();
+  let sessionId;
   try {
     const input = JSON.parse(readStdin());
     if (input && typeof input.cwd === 'string' && input.cwd) projectRoot = input.cwd;
+    if (input && typeof input.session_id === 'string' && input.session_id) sessionId = input.session_id;
   } catch {
     // Malformed or empty stdin: keep process.cwd().
   }
@@ -136,9 +178,13 @@ function main() {
 
   let context;
   try {
-    context = buildContext(projectRoot, guideText);
+    context = buildContext(projectRoot, guideText, { home: qeHome(), sessionId });
   } catch {
-    context = guideText.trim();
+    try {
+      context = buildContext(projectRoot, guideText);
+    } catch {
+      context = guideText.trim();
+    }
   }
 
   process.stdout.write(
