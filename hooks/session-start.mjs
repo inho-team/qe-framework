@@ -4,6 +4,9 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { countUnchecked } from './lib/tasks.mjs';
+
+export { countUnchecked };
 
 export const MAX_HANDOFF_CHARS = 8000;
 
@@ -11,11 +14,6 @@ const TASK_MARKERS = ['plan.md', 'implement-plan.md', 'handoff.md'];
 
 // verify.md's header line, e.g. "- 결과: 일부 미충족" (see skills/Qverify/verify-template.md).
 const VERIFY_FAILED = /결과:\s*(일부\s*)?미충족/;
-
-export function countUnchecked(markdown) {
-  // List items only: -, *, + bullets or 1. / 1) numbering, then an unchecked box.
-  return (markdown.match(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[ \]/gm) || []).length;
-}
 
 function safeStat(p) {
   try {
