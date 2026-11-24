@@ -102,6 +102,32 @@ const EXPECTED_AGENTS = [
 const agentFiles = () =>
   fs.existsSync(agentsDir) ? fs.readdirSync(agentsDir).filter((f) => f.endsWith('.md')) : [];
 
+test('Q skill routing uses the registered plugin agent names', () => {
+  const routes = {
+    Qunderstand: ['contractor', 'researcher', 'analyst'],
+    Qplan: ['code-<언어>', 'code', 'planner'],
+    Qexecute: ['code-<언어>', 'code', 'planner', 'marketer', 'redteam'],
+    Qverify: ['qa', 'redteam', 'contractor'],
+    Qdebugging: ['analyst', 'data-analyst'],
+  };
+  for (const [skill, agents] of Object.entries(routes)) {
+    const content = read(`skills/${skill}/SKILL.md`);
+    for (const name of agents) {
+      assert.ok(content.includes(`\`qe-framework:${name}\``), `${skill} -> ${name}`);
+    }
+  }
+});
+
+test('the contractor and its calling skills link to the same bundled contract template', () => {
+  const template = path.join(root, 'skills', 'Qunderstand', 'contract-template.md');
+  for (const file of ['agents/contractor.md', 'skills/Qunderstand/SKILL.md', 'skills/Qverify/SKILL.md']) {
+    const link = read(file).match(/\]\(([^)\s]*contract-template\.md)\)/)?.[1];
+    assert.ok(link, file);
+    assert.equal(path.resolve(root, path.dirname(file), link.replace('${CLAUDE_PLUGIN_ROOT}', root)), template);
+  }
+  assert.ok(fs.existsSync(template));
+});
+
 test('agents/ holds exactly the planned roster', () => {
   assert.deepEqual(agentFiles().map((f) => f.replace(/\.md$/, '')).sort(), [...EXPECTED_AGENTS].sort());
 });

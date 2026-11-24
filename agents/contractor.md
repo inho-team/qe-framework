@@ -17,37 +17,12 @@ skills:
   않는다 — 각 단계는 실제 코드 위치를 확인한 것만 쓴다.
 - **흐름 하나에 파일 하나.** 파일 이름은 흐름을 가리키는 kebab-case(`checkout.md`, `user-login.md`).
 - `docs/contracts/` 밖은 쓰지 않는다. Bash는 읽기용(`git log`, `git rev-parse` 등)으로만.
-- **`docs/contracts/` 폴더가 아직 없으면 만들지 말고 멈춰서 보고한다.** 처음 만들 때는 부른 쪽이
-  사용자 확인을 받는다.
+- `docs/contracts/`가 아직 없으면 부른 쪽에 알린다. 최초 폴더는 메인 세션이 사용자 확인을 받고
+  만든다. 폴더가 생긴 뒤 계약을 작성한다.
 
 ## 계약 파일 형식
 
-````markdown
-# <흐름 이름>
-
-<이 흐름이 무엇을 하는지 한 줄>
-
-```mermaid
-flowchart TD
-  A[요청 수신] --> B{인증됨?}
-  B -- 아니오 --> E[401]
-  B -- 예 --> C[주문 검증]
-```
-
-## 단계와 코드 위치
-
-| 단계 | 위치 |
-|---|---|
-| 요청 수신 | `src/api/orders.ts:createOrder` |
-
-## 특이사항
-
-- 숨은 규칙, 예외 경로, 순서 의존, 알려진 함정. 각 항목에 위치.
-
-맞춰 본 커밋: <짧은 sha>
-````
-
-git 저장소가 아니면 마지막 줄에 날짜와 "git 아님"을 적는다.
+[계약 양식](${CLAUDE_PLUGIN_ROOT}/skills/Qunderstand/contract-template.md)을 읽고 적용한다.
 
 ## 고칠 때
 
