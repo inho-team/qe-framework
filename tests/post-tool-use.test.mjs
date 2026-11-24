@@ -55,7 +55,7 @@ test('adds the session and worktree on first touch and only bumps lastSeen on th
   assert.equal(a.sessions.length, 1);
   assert.equal(a.sessions[0].id, 's1');
   assert.equal(a.worktrees.length, 1);
-  assert.equal(a.worktrees[0].path, normPath(repo));
+  assert.equal(normPath(a.worktrees[0].path), normPath(repo));
   assert.equal(a.worktrees[0].branch, 'main');
   assert.ok(a.project);
 
@@ -91,6 +91,9 @@ test('ignores files outside ~/.qe/tasks', () => {
   const out = recordTouch({ session_id: 's1', cwd: repo, tool_input: { file_path: path.join(repo, 'a.txt') } }, env);
   assert.equal(out, null);
   assert.equal(fs.readFileSync(file, 'utf8'), before);
+  const fresh = path.join(tmp('qe-none-'), 'absent-home');
+  assert.equal(recordTouch({ session_id: 's1', cwd: repo, tool_input: { file_path: path.join(repo, 'a.txt') } }, { QE_HOME: fresh }), null);
+  assert.equal(fs.existsSync(fresh), false);
 });
 
 test('leaves an invalid status.json untouched', () => {

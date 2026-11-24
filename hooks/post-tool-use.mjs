@@ -12,9 +12,9 @@ export function recordTouch(input, env = process.env) {
     const filePath = input?.tool_input?.file_path;
     if (typeof filePath !== 'string' || !filePath) return null;
     const home = qeHome(env);
-    if (!ensureHome(home)) return null;
     const task = taskOfPath(home, filePath);
     if (!task) return null;
+    if (!ensureHome(home)) return null;
 
     const statusFile = path.join(tasksDir(home), task, 'status.json');
     const status = readStatus(path.dirname(statusFile));
@@ -33,9 +33,9 @@ export function recordTouch(input, env = process.env) {
     if (cwd) {
       const top = git(cwd, ['rev-parse', '--show-toplevel']);
       if (top) {
-        const wtPath = normPath(top);
+        const wtPath = path.resolve(top);
         const branch = git(cwd, ['branch', '--show-current']) || '';
-        const w = status.worktrees.find((x) => x && typeof x.path === 'string' && normPath(x.path) === wtPath);
+        const w = status.worktrees.find((x) => x && typeof x.path === 'string' && normPath(x.path) === normPath(wtPath));
         if (w) {
           w.branch = branch;
           w.lastSeen = now;
