@@ -55,7 +55,7 @@ test('every SKILL.md stays within 200 lines', () => {
 });
 
 // A skill that points at a missing template or prompt leaves the model guessing.
-// Templates are skipped: their links (spec.md, plan.md) resolve only after they are copied into a task folder.
+// Templates are skipped: their links (plan.md, implement-plan.md) resolve only after they are copied into a task folder.
 test('relative markdown links in skills resolve', () => {
   for (const file of walkMarkdown(skillsDir).filter((f) => !f.endsWith('-template.md'))) {
     const text = fs.readFileSync(file, 'utf8');
@@ -169,5 +169,30 @@ test('skill and agent text carries no substitution tokens', () => {
   const files = [...walkMarkdown(skillsDir), ...agentFiles().map((f) => path.join(agentsDir, f))];
   for (const file of files) {
     assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\$ARGUMENTS|\$\d\b/, path.relative(root, file));
+  }
+});
+
+// Eval cases are how a release is judged complete; a case without a grader silently scores nothing.
+const GRADER_TYPES = new Set(['regex', 'tool_used', 'tool_order', 'file_exists', 'llm', 'baseline']);
+test('every eval case has a prompt, a suite tag, and valid graders', () => {
+  const evalsDir = path.join(root, 'evals');
+  assert.ok(fs.existsSync(evalsDir), 'evals/ is missing');
+  const cases = fs
+    .readdirSync(evalsDir, { withFileTypes: true })
+    .filter((d) => d.isDirectory() && !['results', 'mocks'].includes(d.name));
+  assert.ok(cases.length > 0, 'no eval cases');
+  for (const c of cases) {
+    const dir = path.join(evalsDir, c.name);
+    const promptPath = path.join(dir, 'prompt.md');
+    assert.ok(fs.existsSync(promptPath), `${c.name}: prompt.md missing`);
+    const fm = frontmatter(fs.readFileSync(promptPath, 'utf8'));
+    assert.match(fm, /^tags: \[.*\b(trigger|gate|codebase-memory)\b.*\]$/m, `${c.name}: needs a suite tag`);
+    const gradersDir = path.join(dir, 'graders');
+    const graders = fs.existsSync(gradersDir) ? fs.readdirSync(gradersDir).filter((f) => f.endsWith('.md')) : [];
+    assert.ok(graders.length > 0, `${c.name}: no graders`);
+    for (const g of graders) {
+      const type = frontmatter(fs.readFileSync(path.join(gradersDir, g), 'utf8')).match(/^type: (\S+)$/m)?.[1];
+      assert.ok(GRADER_TYPES.has(type), `${c.name}/${g}: bad grader type ${type}`);
+    }
   }
 });

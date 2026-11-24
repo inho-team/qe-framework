@@ -1,11 +1,11 @@
 ---
 name: Qverify
-description: Use when implementation is finished (all plan.md steps checked) or whenever you are about to claim work is done, fixed, or passing — before reporting completion, committing a final result, or opening a PR.
+description: Use when implementation is finished (all implement-plan.md steps checked) or whenever you are about to claim work is done, fixed, or passing — before reporting completion, committing a final result, or opening a PR.
 ---
 
 # Qverify — 검증
 
-이 단계의 목적은 **"됐다"고 말하기 전에 spec 대비 증거로 확인하고, 그 증거를 남기는 것**이다.
+이 단계의 목적은 **"됐다"고 말하기 전에 plan.md 목표 대비 증거로 확인하고, 그 증거를 남기는 것**이다.
 
 확신은 증거가 아니다. "될 것이다", "아마", "보기엔 맞다"는 검증이 아니다.
 이번에 직접 돌려 보지 않은 명령은 통과했다고 말할 수 없다.
@@ -21,7 +21,7 @@ description: Use when implementation is finished (all plan.md steps checked) or 
 
 고른 쪽과 이유를 verify.md 첫 섹션에 한 줄 쓴다. 서브에이전트가 "충족"이라고 보고해도
 그대로 믿지 않는다. 핵심 근거 하나 이상은 내가 직접 확인한다. 서브에이전트에 맡길 때는
-`qe-framework:qa`에 검증자 프롬프트의 spec 판정과 전체 테스트를 맡긴다. 판단이 필요한 일이니
+`qe-framework:qa`에 검증자 프롬프트의 계획 충족 판정과 전체 테스트를 맡긴다. 판단이 필요한 일이니
 상위 모델로 덮어쓴다(생략하면 에이전트의 기본 모델이 쓰인다). 전문 에이전트가 보이지 않으면
 일반 서브에이전트로 띄운다.
 
@@ -40,32 +40,34 @@ description: Use when implementation is finished (all plan.md steps checked) or 
 | 테스트 통과 | 테스트 명령 출력: 실패 0 | 이전 실행, "통과할 것" |
 | 빌드 성공 | 빌드 명령: 종료 코드 0 | 린터 통과 |
 | 버그 수정 | 원래 증상을 재현한 테스트가 통과 | 코드를 바꿨으니 고쳐졌을 것 |
-| 요구 충족 | spec 목표별 확인 목록 | 테스트가 통과했다 |
+| 요구 충족 | plan.md 목표별 확인 목록 | 테스트가 통과했다 |
 | 서브에이전트 완료 | diff와 확인 결과를 직접 봄 | 에이전트의 "성공" 보고 |
 
-## spec 대비 확인
+## plan.md 목표 대비 확인
 
 테스트 통과는 요구 충족이 아니다.
 
-1. spec.md의 목표를 하나씩 목록으로 만든다. "기술적으로 돌아가도 실패인 것"도 포함한다.
+1. plan.md의 목표를 하나씩 목록으로 만든다. "기술적으로 돌아가도 실패인 것"도 포함한다.
 2. 각 목표를 무엇으로 확인했는지, 결과가 어땠는지 적는다. 충족 / 미충족 / 확인 못 함.
-3. plan.md의 "놓치기 쉬운 경우"가 실제로 덮였는지 본다.
+3. implement-plan.md의 "놓치기 쉬운 경우"가 실제로 덮였는지 본다.
 4. 프로젝트 전체 테스트를 돌린다. 내가 만들지 않은 실패도 이름을 적는다.
 
 ## 최종 리뷰
 
-spec 충족은 좋은 코드와 같지 않다. 검증 주체와 상관없이 **브랜치 전체**를 코드 리뷰한다.
+목표 충족은 좋은 코드와 같지 않다. 검증 주체와 상관없이 **브랜치 전체**를 코드 리뷰한다.
 단계마다 리뷰했어도 단계 사이의 이음새(맞물림, 중복, 일관성)는 아무도 안 봤을 수 있다.
-작은 변경이면 메인이 같은 관점으로 diff를 한 번 읽는 것으로 충분하다. 크면
-`qe-framework:redteam`에 [verifier-prompt.md](verifier-prompt.md)의 코드 리뷰 항목을 맡긴다.
+리뷰 기준은 `Qreview`의 [reviewer-prompt.md](../Qreview/reviewer-prompt.md) 한 곳에 있다.
+작은 변경이면 메인이 그 기준으로 diff를 읽는다. 큰 변경이면 `qe-framework:redteam`에
+[verifier-prompt.md](verifier-prompt.md)의 코드 리뷰 항목을 맡긴다. 리뷰 기준 자리에
+Qreview 프롬프트의 "확인할 것"과 등급 기준을 붙여 넣거나 그 파일의 절대 경로를 넘긴다.
 전문 에이전트가 보이지 않으면 일반 서브에이전트에 같은 항목을 맡긴다.
 
-지적은 **사용자가 겪는 결과**로 등급을 다시 매긴다(치명 / 중요 / 사소). 리뷰어가 "spec이
-말하지 않아서" 낮게 매긴 것은 그 결과를 보고 다시 판단한다. 리뷰어가 판단을 보류한
+지적은 `Qfeedback`으로 하나씩 맞는지 확인하고, **사용자가 겪는 결과**로 등급을 다시
+매긴다(치명 / 중요 / 사소). 리뷰어가 "plan.md가 말하지 않아서" 낮게 매긴 것은 그 결과를 보고 다시 판단한다. 리뷰어가 판단을 보류한
 항목은 내가 판단해 `판단:` 형식으로 남긴다.
 
 **여기서는 고치지 않는다.** 지적을 등급과 함께 사용자에게 보여 준다. 사용자가 동의한
-치명·중요 지적은 plan.md 끝에 `- [ ] 최종 리뷰 수정: <지적>` 단계로 추가한다. 그래야 세션이
+치명·중요 지적은 implement-plan.md 끝에 `- [ ] 최종 리뷰 수정: <지적>` 단계로 추가한다. 그래야 세션이
 끊겨도 남은 일로 다시 안내되고, `Qexecute`가 첫 미체크 단계부터 이어받는다. 이 수정은
 **메인이 한 번에** 한다(실행 방식과 상관없이). 각각 재현 테스트가 먼저 실패하는 것을 본 뒤
 고치고, 전체 테스트를 다시 돌린다. 중복·일관성처럼 재현 테스트를 만들 수 없는 지적은 그
@@ -84,7 +86,7 @@ spec 충족은 좋은 코드와 같지 않다. 검증 주체와 상관없이 **�
 
 ## 실행 중 내린 판단 모으기
 
-plan.md의 `판단:` 줄을 빠짐없이 verify.md "실행 중 내린 판단"과 최종 보고에 옮긴다.
+implement-plan.md의 `판단:` 줄을 빠짐없이 verify.md "실행 중 내린 판단"과 최종 보고에 옮긴다.
 "틀리면"까지 그대로. 내가 사용자 대신 내린 결정이 사용자에게 닿는 곳은 여기뿐이다.
 
 ## verify.md 쓰기
@@ -107,8 +109,7 @@ plan.md의 `판단:` 줄을 빠짐없이 verify.md "실행 중 내린 판단"과
   원인을 모르는 미충족이면 고치기 전에 `Qdebugging`으로 원인부터 찾는다.
   고친 뒤에는 다시 검증하고 verify.md를 갱신한다.
 - **모두 충족이고 치명·중요 지적이 남지 않았으면** 그때 "완료"라고 말한다. git이면
-  verify.md를 커밋한다.
-  merge나 push는 사용자가 원할 때만 한다.
+  verify.md를 커밋한다. 다음은 `Qfinish`로 마무리한다(merge·PR·유지는 사용자가 고른다).
 
 ## 경고 신호
 

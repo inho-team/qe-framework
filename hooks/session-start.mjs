@@ -4,10 +4,11 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { findCodeGraphExecutable } from '../mcp/find-executable.mjs';
 
 export const MAX_HANDOFF_CHARS = 8000;
 
-const TASK_MARKERS = ['spec.md', 'plan.md', 'handoff.md'];
+const TASK_MARKERS = ['plan.md', 'implement-plan.md', 'handoff.md'];
 
 // verify.md's header line, e.g. "- 결과: 일부 미충족" (see skills/Qverify/verify-template.md).
 const VERIFY_FAILED = /결과:\s*(일부\s*)?미충족/;
@@ -35,14 +36,14 @@ function safeRead(p) {
 
 function inspectTask(dir, name) {
   const stats = {};
-  for (const file of ['spec.md', 'plan.md', 'verify.md', 'handoff.md']) {
+  for (const file of ['plan.md', 'implement-plan.md', 'verify.md', 'handoff.md']) {
     const st = safeStat(path.join(dir, file));
     if (st && st.isFile()) stats[file] = st;
   }
   if (!TASK_MARKERS.some((f) => stats[f])) return null;
 
-  const plan = stats['plan.md'] ? safeRead(path.join(dir, 'plan.md')) ?? '' : '';
-  const unchecked = countUnchecked(plan);
+  const implementPlan = stats['implement-plan.md'] ? safeRead(path.join(dir, 'implement-plan.md')) ?? '' : '';
+  const unchecked = countUnchecked(implementPlan);
   const hasVerify = Boolean(stats['verify.md']);
   const verifyFailed = hasVerify && VERIFY_FAILED.test(safeRead(path.join(dir, 'verify.md')) ?? '');
   if (hasVerify && unchecked === 0 && !verifyFailed) return null;
@@ -51,8 +52,8 @@ function inspectTask(dir, name) {
     name,
     dir,
     unchecked,
-    hasSpec: Boolean(stats['spec.md']),
     hasPlan: Boolean(stats['plan.md']),
+    hasImplementPlan: Boolean(stats['implement-plan.md']),
     hasVerify,
     verifyFailed,
     handoffPath: stats['handoff.md'] ? path.join(dir, 'handoff.md') : null,
@@ -81,10 +82,10 @@ export function findOpenTasks(projectRoot) {
 }
 
 function describe(task) {
-  const steps = task.hasPlan
+  const steps = task.hasImplementPlan
     ? `남은 단계 ${task.unchecked}`
-    : task.hasSpec
-      ? 'plan.md 없음 (계획 중)'
+    : task.hasPlan
+      ? 'implement-plan.md 없음 (계획 중)'
       : '이해 중 (handoff만 있음)';
   const verify = task.verifyFailed ? 'verify 미충족' : task.hasVerify ? 'verify 있음' : 'verify 없음';
   const handoff = task.handoffPath ? ', handoff 있음' : '';
@@ -99,7 +100,7 @@ export function buildContext(projectRoot, guideText) {
   parts.push(['## 미완료 작업', ...tasks.map(describe)].join('\n'));
 
   // The handoff to inject is the most recently written handoff.md, not the task
-  // whose plan.md happened to change last.
+  // whose implement-plan.md happened to change last.
   const latest = tasks
     .filter((t) => t.handoffPath)
     .sort((a, b) => b.handoffMtimeMs - a.handoffMtimeMs || b.name.localeCompare(a.name))[0];
@@ -126,15 +127,17 @@ function readStdin() {
 
 function main() {
   let projectRoot = process.cwd();
+  let source;
   try {
     const input = JSON.parse(readStdin());
     if (input && typeof input.cwd === 'string' && input.cwd) projectRoot = input.cwd;
+    source = input?.source;
   } catch {
     // Malformed or empty stdin: keep process.cwd().
   }
 
   const here = path.dirname(fileURLToPath(import.meta.url));
-  const guideText = safeRead(path.join(here, 'guide.md')) ?? '# QE — 이해 → 계획 → 실행 → 검증';
+  const guideText = safeRead(path.join(here, 'guide.md')) ?? '# QE — 이해 → 계획 → 실행 → 검증 → 마무리';
 
   let context;
   try {
@@ -143,9 +146,11 @@ function main() {
     context = guideText.trim();
   }
 
-  process.stdout.write(
-    JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } }),
-  );
+  const output = { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
+  if (source === 'startup' && !findCodeGraphExecutable()) {
+    output.systemMessage = 'QE: 코드 그래프를 쓰려면 README에 따라 codebase-memory-mcp 실행 파일을 설치하고 PATH에 추가하세요.';
+  }
+  process.stdout.write(JSON.stringify(output));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

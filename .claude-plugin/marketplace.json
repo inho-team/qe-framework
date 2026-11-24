@@ -8,8 +8,8 @@
   "plugins": [
     {
       "name": "qe-framework",
-      "description": "Removes the understanding bottleneck — understand, plan, execute, verify — with specialist agents, spec and verify docs per task, and flow contracts",
-      "version": "9.2.0",
+      "description": "One workflow with specialist agents, task plans, and verification records",
+      "version": "10.0.0",
       "category": "development",
       "tags": [
         "workflow",

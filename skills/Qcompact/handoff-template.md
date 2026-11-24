@@ -1,11 +1,11 @@
 # <작업 제목> — Handoff
 
 - 작성: YYYY-MM-DD HH:MM
-- Spec: [spec.md](spec.md) · Plan: [plan.md](plan.md)
+- Plan: [plan.md](plan.md) · 구현 계획: [implement-plan.md](implement-plan.md)
 
 ## 지금 어디까지
 
-현재 단계(이해 / 계획 / 실행 / 검증)와, 실행 중이면 plan.md의 몇 번 단계까지 끝났는지.
+현재 단계(이해 / 계획 / 실행 / 검증)와, 실행 중이면 implement-plan.md의 몇 번 단계까지 끝났는지.
 
 ## 다음 할 일
 
@@ -14,7 +14,7 @@
 
 ## 주의할 점
 
-- 사용자가 방금 정한 것 (아직 spec에 반영되지 않았다면)
+- 사용자가 방금 정한 것 (아직 plan.md에 반영되지 않았다면)
 - 시도했다가 버린 방법과 이유
 - 실패 중인 테스트, 이상한 환경 문제
 

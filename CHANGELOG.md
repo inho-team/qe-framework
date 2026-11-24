@@ -4,26 +4,116 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
-## [9.2.0] - 2026-11-24
-
-QE의 목적을 코딩 전용에서 "이해의 병목을 없애고 일을 효율적으로 처리하는 AI 프레임워크"로 넓혔다.
-메인 세션 혼자 하던 일을 분야별 전문 에이전트에 맡길 수 있다.
+## [Unreleased]
 
 ### Added
 
-- **전문 에이전트.** 언어별 구현자(Java, Kotlin, Go, Dart, JavaScript, TypeScript, C#, C++, Python)와
-  범용 `code`, `planner`, `researcher`, `analyst`, `data-analyst`, `redteam`, `qa`, `marketer`,
-  `contractor`. 직접 부르거나 Q 스킬이 단계에 맞게 고른다.
-- **`code-craft` 스킬.** 문서 주석(JavaDoc, JSDoc, KDoc 등)을 계약으로 쓰고 사설 주석을 쓰지 않는다.
-  메인 세션과 코드 에이전트 모두 따른다.
-- **`agent-conduct` 스킬.** 모든 에이전트가 미리 싣는 범위·보고 규칙.
-- **계약 문서 `docs/contracts/`.** 지금 코드의 흐름을 순서도와 특이사항으로 남긴다. Qunderstand가
-  필요할 때 만들고 먼저 읽으며, Qverify가 흐름이 바뀌면 고친다.
+- 언어별 구현자를 포함한 전문 에이전트를 추가했다. 직접 부르거나 Q 스킬이 구현, 기획, 조사, 분석,
+  단계 리뷰, 검증, 문서 작성에 맞게 고른다.
+- `code-craft`는 메인과 코드 에이전트의 문서 주석 작성 기준을, `agent-conduct`는 전문 에이전트의
+  작업 범위와 보고 기준을 담는다.
+- `docs/contracts/`에 현재 코드의 흐름을 순서도와 특이사항으로 기록한다. Qunderstand는 필요한
+  계약을 작성하고, Qverify는 변경된 흐름의 기존 계약을 갱신한다.
+- QE가 codebase-memory-mcp를 자동 등록한다. 설치된 코드 그래프로 관련 심볼, 호출 경로, 변경 영향을 조사할 수 있다.
+  실행 파일을 찾지 못하면 세션 시작 때 설치를 안내하며 파일 검색으로 작업을 이어갈 수 있다.
+- QE 업데이트 점검에 codebase-memory-mcp 업스트림 버전, MCP 도구와 인자, 그래프 연동 eval 확인을 추가했다.
+- 그래프 eval은 사용자 지정 `CBM_CACHE_DIR`과 `CBM_RUNTIME_DIR`을 서버에 전달한다. Windows에서 두 경로가 빠져
+  MCP 연결이 닫히던 문제를 재현해 고쳤다. 실제 서버를 쓴 그래프 eval **1 of 1**, trigger eval **9 of 9**,
+  gate eval **7 of 7**을 통과했다. 그래프 케이스는 3회 모두 실제 호출 경로를 조회했다.
+- MCP 실행 파일을 PATH의 절대 경로에서만 찾도록 해 Windows의 작업 디렉터리 검색을 피한다.
+- gate eval 케이스 3개: 틀린 리뷰 지적에 근거로 반박하기(`gate-pushback-wrong-review`), 가끔 실패하는 테스트를
+  재시도로 덮지 않고 원인부터(`gate-flaky-no-retry`), 모호한 요청에서 사용자 대신 정한 것을 드러내기
+  (`gate-states-decisions`).
+- 측정(각 3회): 세션 기본 모델(Opus)에서 새 3개 모두 3 of 3, 플러그인 없이도 3 of 3(Δ 0.00).
+  sonnet에서 gate 7개 모두 플러그인 있을 때 3 of 3, 없을 때는 `gate-bug-root-cause-first`만 2 of 3(Δ +0.17),
+  나머지 Δ 0.00. **한 번 주고받는 상황에서는 QE가 더하는 차이가 거의 드러나지 않는다** — 이 케이스들은 QE가
+  행동을 나쁘게 만들지 않는지 지키는 회귀 검사로 둔다. 비용 약 $3.3.
 
 ### Changed
 
-- Qexecute 단계 리뷰어는 `redteam`, Qverify 검증자는 `qa`로 띄운다(판단이 큰 자리는 상위 모델).
-- 목적 문구(README, guide, 매니페스트 설명)를 넓힌 범위에 맞췄다.
+- Qexecute는 단계 리뷰를 `redteam`에 맡긴다. Qverify는 `qa`의 목표·테스트 검증과 `redteam`의
+  최종 코드 리뷰에 각각 작업을 준다.
+- QE의 목적을 이해의 병목을 줄이고 구현·조사·기획 등 여러 작업을 효율적으로 처리하는 프레임워크로 설명한다.
+
+## [10.0.0] - 2026-11-23
+
+### Changed
+
+- **작업 문서의 이름과 역할을 바꿨다.** 두 문서의 역할이 이름만으로 드러나지 않았다.
+  - `plan.md` — 사용자가 읽고 승인하는 계획. 예전 `spec.md`의 내용(의도와 이유, 목표/비목표, 검토한 접근,
+    사용자가 정한 것 / 내가 정한 것)에 사람 말로 쓴 **진행 순서**가 더해졌다. 체크박스·파일 경로·명령은 넣지 않는다.
+  - `implement-plan.md` — AI가 실행하는 상세 구현 계획. 예전 `plan.md`의 내용(바뀌는 파일, 체크박스 단계,
+    단계별 `확인:`, 놓치기 쉬운 경우, `판단:` 줄, 실행 방식, 기준선).
+  - Qverify는 `plan.md`의 목표를 기준으로 검증하고, 진행 상태는 `implement-plan.md` 체크박스로만 읽는다.
+  - Qplan 템플릿: `plan-template.md`(사용자용), `implement-plan-template.md`(AI용).
+- 세션 시작 hook은 `plan.md`·`implement-plan.md`·`handoff.md`로 작업 폴더를 알아본다.
+
+### Added
+
+- **행동 eval (`evals/`, Claude Code `claude plugin eval`).** 릴리스 전에 "아직 미완인가"를 판단하는 데 쓴다.
+  케이스는 3번 중 2번 통과하면 통과이고, 하나라도 통과 못 하면 미완이다. 실제 세션을 돌리므로 CI에는 넣지 않는다.
+  - `npm run eval:trigger` — 상황에 맞는 스킬이 불리는지(9 케이스, 경계 문장 2개 포함).
+  - `npm run eval:gate` — 길을 지키는지(4 케이스: 기능 요청에 먼저 확인, 원인 먼저, 근거 없는 완료를 믿지 않기,
+    작은 일은 바로). 플러그인 없이 돌린 결과와 함께 본다.
+  - 이번 기준선(10.0.0, 각 3회): **trigger 9 of 9, gate 4 of 4 통과.** gate는 플러그인 없이도 4 of 4라
+    Δ 0.00 — 지금 케이스로는 QE가 더하는 차이가 드러나지 않는다(더 어려운 상황의 케이스가 필요하다).
+    비용 약 $5.2, 7분.
+  - 정적 테스트가 eval 케이스 구조(프롬프트, trigger/gate 태그, 채점기 종류)를 확인한다.
+
+### 옮기는 방법 (v9 작업 폴더)
+
+예전 이름은 알아보지 않는다. `spec.md`만 있는 폴더는 안내에서 빠지고, 예전 `plan.md`가 있는 폴더는 진행 중이어도
+"계획 중"으로 보인다. 진행 중인 폴더가 있으면 폴더마다:
+
+1. 예전 `plan.md` → `implement-plan.md`로 이름을 바꾼다(제목은 `— Implement Plan`, 머리 링크는 `Plan: [plan.md](plan.md)`).
+2. 예전 `spec.md` → `plan.md`로 이름을 바꾸고(제목은 `— Plan`), `## 진행 순서`에 단계 제목을 사람 말로 몇 줄 적는다.
+
+## [9.2.1] - 2026-11-23
+
+### Fixed
+
+- **Qfinish 로컬 merge**: worktree에서 진행한 작업은 원래 checkout에서 merge하고, worktree를 먼저 정리한 뒤
+  작업 브랜치를 지운다(worktree에 checkout된 브랜치는 지울 수 없다). 충돌이 나거나 merge 결과의 테스트가
+  실패하면 멈추고, 해결·취소·되돌리기를 사용자와 정한다.
+- **Qreview**: 리뷰 범위를 `main`으로 단정하지 않고 기준 브랜치를 확인해 `git merge-base <기준 브랜치> HEAD`로 정한다.
+- **Qfeedback**: "고치기 전에 묻는다"의 대상을 명시(지적을 낸 쪽; 끝난 리뷰어 서브에이전트면 새 리뷰어나 사용자).
+- README: Windows에서 `QE_NODE_PROBES`는 Git Bash 형식(`/c/…`)으로 적는다는 안내.
+- marketplace 설명에 마무리 단계 반영.
+
+## [9.2.0] - 2026-11-23
+
+길이 다섯 단계가 됐고(이해 → 계획 → 실행 → 검증 → **마무리**), 길 밖에서도 따로 불릴 일이 있는
+스킬 다섯 개를 더했다.
+
+### Added
+
+- **`Qfinish` — 마무리.** 검증이 끝난 작업을 다시 테스트하고, 기준 브랜치를 확인한 뒤, 로컬 merge·PR·
+  그대로 두기 중 사용자가 고른 방식으로 닫는다. merge한 결과에서 테스트를 다시 돌리고, force-push는
+  사용자가 분명히 요청할 때만, 작업 폐기는 무엇이 사라지는지 보여 주고 확인받은 뒤에만.
+- **`Qtdd` — 테스트 먼저.** 빨강(오류가 아니라 기대한 이유로 실패하는지까지 확인) → 초록(통과할 만큼만,
+  전체 테스트) → 정리(초록일 때만). 지원 파일 `testing.md`: 깨뜨릴 변경에 이름 붙이기, 기대값은 손으로,
+  mock 자체를 단언하지 않기, 한 번 깨뜨려 보기.
+- **`Qreview` — 리뷰 요청.** diff·브랜치·PR을 새 서브에이전트(상위 모델)가 독립적으로 리뷰한다. 리뷰 기준
+  `reviewer-prompt.md`는 이 한 곳에 있고, Qverify의 최종 리뷰도 이것을 쓴다.
+- **`Qfeedback` — 리뷰 받기.** 지적을 반영하기 전에 이 코드베이스에서 맞는지 확인하고, 불분명하면 고치기
+  전에 묻고, 틀리면 근거를 들어 반박한다. Qexecute 단계 리뷰와 Qverify 최종 리뷰가 이것으로 지적을 거른다.
+- **`Qskill` — 스킬 작성.** 바꾸기 전 상태로 먼저 돌려 실패를 보고, 그 실패만 막는 문장을 이유로 쓰고,
+  다시 돌려 확인한다. description은 "Use when" 조건으로.
+
+### Changed
+
+- 세션 시작 안내·README의 길 그림과 스킬 목록을 다섯 단계와 새 스킬에 맞췄다.
+- Qverify 보고 끝에서 `Qfinish`로 넘어간다. 검증과 최종 리뷰는 서브에이전트 하나가 함께 하고, 리뷰 기준은
+  Qreview를 참조한다.
+- Qexecute·구현자 프롬프트·Qdebugging이 `Qtdd`를 가리킨다. 구현자 보고에 "틀리면 무엇을 잃나" 칸.
+- plan 템플릿에 기준선 칸.
+- AGENTS.md: 스킬 작성 방법은 `Qskill`로 옮기고 이 저장소 전용 규칙만 남겼다. 길이 규칙 중복 정리.
+
+### Fixed
+
+- **Windows에서 Volta·scoop·fnm·nvm-windows로 설치한 node를 세션 시작 hook이 찾지 못하던 문제.**
+  기본 탐색 목록에 그 위치들을 넣었고, `C:…` 형태 값이 쪼개지지 않게 목록을 줄바꿈으로 구분한다.
+  README에 `QE_NODE_PROBES` 설명.
 
 ## [9.1.0] - 2026-11-23
 
