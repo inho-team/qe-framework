@@ -190,6 +190,28 @@ test('collectGitFacts counts commits on a branch that the base does not have', (
   assert.equal(collectGitFacts(status({ project, state: 'done', worktrees: [{ path: wt, branch: 'feat' }], done: { commit: done, branch: 'feat' } })).doneNewCommits, 1);
 });
 
+test('collectGitFacts ignores commits after done.commit that only export docs/qe', () => {
+  const project = repo();
+  gitIn(project, 'checkout', '-q', '-b', 'feat');
+  fs.writeFileSync(path.join(project, 'b.txt'), 'b\n');
+  gitIn(project, 'add', '-A');
+  gitIn(project, 'commit', '-q', '-m', 'b');
+  const done = gitIn(project, 'rev-parse', 'HEAD');
+  const st = () => status({ project, state: 'done', worktrees: [], done: { commit: done, branch: 'feat' } });
+  // Qfinish exports the goal docs onto the verified branch: not a change to what was verified
+  fs.mkdirSync(path.join(project, 'docs', 'qe', '2026-11-24-g'), { recursive: true });
+  fs.writeFileSync(path.join(project, 'docs', 'qe', '2026-11-24-g', 'plan.md'), '# plan\n');
+  gitIn(project, 'add', '-A');
+  gitIn(project, 'commit', '-q', '-m', 'docs: export');
+  assert.equal(collectGitFacts(st()).doneNewCommits, 0);
+  assert.deepEqual(codes(computeAlerts(task(st(), { verdicts: [{ result: '충족', commit: done, planHash: HASH }] }), collectGitFacts(st()), new Set())).filter((c) => c === 'changed-after-verdict'), []);
+  // a code commit after that is a change
+  fs.writeFileSync(path.join(project, 'c.txt'), 'c\n');
+  gitIn(project, 'add', '-A');
+  gitIn(project, 'commit', '-q', '-m', 'c');
+  assert.equal(collectGitFacts(st()).doneNewCommits, 1);
+});
+
 test('collectGitFacts never rewrites the index (polling must not take git locks)', () => {
   const project = repo();
   const file = path.join(project, 'a.txt');

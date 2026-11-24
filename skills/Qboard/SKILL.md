@@ -36,7 +36,7 @@ description: Use when the user wants to see everything at once — open Claude C
 | `invalid-status` | status.json이 깨졌다. 사람이 손으로 고치다 형식이 틀린 경우가 많다 |
 | `checked-no-verdict` | 체크박스는 다 찼는데 지금 계획에 대한 검수 기록이 없다. 검증 없이 끝났다고 여기는 중일 수 있다 |
 | `done-without-verdict` | 완료로 표시됐지만 그 커밋에 대한 충족 검수 기록이 없다 |
-| `changed-after-verdict` | 완료 커밋이 브랜치에서 사라졌거나, 완료 뒤 새 커밋이 쌓였다. 검증한 것과 지금 코드가 다르다 |
+| `changed-after-verdict` | 완료 커밋이 브랜치에서 사라졌거나, 완료 뒤 새 커밋이 쌓였다. 검증한 것과 지금 코드가 다르다(`docs/qe/` 내보내기만 담은 커밋은 세지 않는다) |
 | `worktree-missing` | 진행 중인 목표의 worktree가 지워졌다 |
 | `branch-missing` | 기록된 브랜치가 없다. 완료 커밋이 기준 브랜치에 들어갔으면(정상 정리) 경고하지 않는다 |
 | `unmerged` | 완료됐는데 기준 브랜치에 없는 커밋이 남아 있다. 끝났지만 합쳐지지 않았다 |

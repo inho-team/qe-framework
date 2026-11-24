@@ -133,7 +133,11 @@ export function collectGitFacts(status) {
       doneMerged = missing ? false : resolved ? isAncestor(projectPath, resolved, 'HEAD') : null;
       if (b.tip) {
         doneCommitOnBranch = missing ? false : resolved ? isAncestor(projectPath, resolved, b.tip) : null;
-        if (doneCommitOnBranch) doneNewCommits = count(git(projectPath, ['rev-list', '--count', `${resolved}..${b.tip}`]));
+        // Qfinish commits the exported goal docs (docs/qe/) onto the verified branch; those
+        // commits do not change what was verified, so only commits touching other paths count.
+        if (doneCommitOnBranch) {
+          doneNewCommits = count(git(projectPath, ['rev-list', '--count', `${resolved}..${b.tip}`, '--', '.', ':(exclude)docs/qe']));
+        }
       }
     }
   }
