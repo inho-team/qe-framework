@@ -3,8 +3,9 @@
 ## Project
 
 - Name: `@inho-team/qe-framework` (Claude Code plugin `qe-framework`; not published to npm)
-- Purpose: one path for coding work — 이해 → 계획 → 실행 → 검증 — in a small set of skills,
-  leaving plain-markdown plan and verify docs per task under the user's `docs/qe/`.
+- Purpose: an AI framework that removes the understanding bottleneck and runs work efficiently.
+  It provides one workflow (이해 → 계획 → 실행 → 검증 → 마무리), specialist agents, task documents
+  under the user's `docs/qe/`, and current code flow contracts under `docs/contracts/`.
 - Version sync: `package.json`, `.claude-plugin/plugin.json`, and the `qe-framework`
   entry in `.claude-plugin/marketplace.json` must stay identical.
 
@@ -12,10 +13,15 @@
 
 - `skills/`: the skills — path: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`;
   then `Qfinish`; alongside: `Qdebugging`, `Qtdd`, `Qreview`, `Qfeedback`, `Qskill`, `Qcompact`, `Qresume`.
+  shared rules: `code-craft` (doc comments as contracts, no editorial comments; main session and
+  code agents) and `agent-conduct` (scope and reporting; preloaded by every agent).
   Each folder has `SKILL.md` plus its templates or subagent prompts.
+- `agents/`: specialist subagents (`code-<language>`, `code`, `planner`, `researcher`,
+  `analyst`, `data-analyst`, `redteam`, `qa`, `marketer`, `contractor`). Each preloads the shared
+  skills through frontmatter `skills:`; Q skills call them as `qe-framework:<name>`.
 - `hooks/`: `hooks.json` (SessionStart only), `session-start.mjs`, `guide.md`
   (the path guide injected at session start).
-- `tests/`: `node:test` tests for the hook and static checks on skills and evals.
+- `tests/`: `node:test` tests for the hook and static checks on skills, agents, manifests, and evals.
 - `evals/`: behavior eval cases for `claude plugin eval` (`trigger-*`: the right skill fires;
   `gate-*`: path behavior, compared against a no-plugin run). `evals/results/` is not tracked.
 - Design specs and plans are kept locally under `research/` and are not tracked by git.
@@ -34,14 +40,14 @@
 - How to create or change a skill (control run first, reasons over rules, trigger checks) is in
   `skills/Qskill/SKILL.md`; the bullets here are the QE-repo-specific rules.
 - The hook must never fail a session start: guard every filesystem read, always exit 0.
-- Keep code comments sparse. Use them to explain a decision, constraint, or invariant that
-  is hard to infer from the code. Keep messages in the code aligned with what it actually
-  does. Track unfinished work in the task plan and record actual verification commands
-  and results in `verify.md`.
+- Follow `code-craft` when writing code: document caller-visible contracts and add inline comments
+  for decisions, constraints, or invariants that are hard to infer. Track unfinished work in the
+  implementation plan and record actual verification commands and results in `verify.md`.
 - No DB, no state files beyond the task docs. State is read from `implement-plan.md` checkboxes,
-  `verify.md`, and `handoff.md`.
-- When changing the path or the doc layout, update `hooks/guide.md`, `README.md`, and the
-  affected skills together.
+  `verify.md`, and `handoff.md`. The enduring flow contracts in `docs/contracts/` describe the
+  current code, which is their source of truth.
+- When changing the path, the doc layout, or the agent roster, update `hooks/guide.md`,
+  `README.md`, the affected skills and agents, and the roster in `tests/static.test.mjs` together.
 
 ## Validation
 
@@ -56,7 +62,7 @@
   `scripts/` or `tests/`. Fast mode skips those paths.
   Use the project name returned by indexing and confirm the reported call path in the source.
   If the tool is unavailable, follow the call sites in the source.
-- Local plugin check: `claude --plugin-dir .` and confirm every Q skill loads.
+- Local plugin check: `claude --plugin-dir .` and confirm every Q skill and every agent loads.
 - Before a release, check the Codebase Memory version and tool inputs and run `npm run eval:codebase-memory` as described in the README's update checklist.
 - Before a release: `npm run eval:trigger` and `npm run eval:gate` (live Claude runs; they cost
   money and take minutes, so they are not in CI). A case passes at 2 of 3 runs; any failing case

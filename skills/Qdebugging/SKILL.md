@@ -35,6 +35,8 @@ description: Use when facing a bug report, failing test, error, crash, or unexpe
 추적 방법, 테스트끼리 오염될 때, 가끔만 실패하는 테스트처럼 막히기 쉬운 경우의 기법은
 [techniques.md](techniques.md)에 있다.
 
+원인 분석은 `qe-framework:analyst`, 로그·지표 분석은 `qe-framework:data-analyst`에 맡길 수 있다.
+전문 에이전트가 보이지 않으면 일반 서브에이전트로 분석을 맡긴다.
 서로 독립인 실패가 여럿이면 각각을 서브에이전트에 나눠 맡길 수 있다. 같은 파일을
 건드리면 `isolation: "worktree"`로 격리한다.
 

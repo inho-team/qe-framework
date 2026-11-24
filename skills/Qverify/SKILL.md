@@ -21,7 +21,9 @@ description: Use when implementation is finished (all implement-plan.md steps ch
 
 고른 쪽과 이유를 verify.md 첫 섹션에 한 줄 쓴다. 서브에이전트가 "충족"이라고 보고해도
 그대로 믿지 않는다. 핵심 근거 하나 이상은 내가 직접 확인한다. 서브에이전트에 맡길 때는
-판단이 필요한 일이니 상위 모델을 지정한다(생략하면 세션 모델을 물려받는다).
+`qe-framework:qa`에 검증자 프롬프트의 계획 충족 판정과 전체 테스트를 맡긴다. 판단이 필요한 일이니
+상위 모델로 덮어쓴다(생략하면 에이전트의 기본 모델이 쓰인다). 전문 에이전트가 보이지 않으면
+일반 서브에이전트로 띄운다.
 
 ## 확인 순서
 
@@ -55,11 +57,10 @@ description: Use when implementation is finished (all implement-plan.md steps ch
 목표 충족은 좋은 코드와 같지 않다. 검증 주체와 상관없이 **브랜치 전체**를 코드 리뷰한다.
 단계마다 리뷰했어도 단계 사이의 이음새(맞물림, 중복, 일관성)는 아무도 안 봤을 수 있다.
 리뷰 기준은 `Qreview`의 [reviewer-prompt.md](../Qreview/reviewer-prompt.md) 한 곳에 있다.
-작은 변경이면 메인이 그 기준으로 diff를 한 번 읽는 것으로 충분하다. 서브에이전트에 맡기면
-검증과 리뷰를 한 서브에이전트가 함께 한다: [verifier-prompt.md](verifier-prompt.md)의 리뷰
-기준 자리에 그 파일의 **절대 경로**(이 스킬 폴더 옆 `Qreview` 폴더 안)를 채우거나, 그 파일의
-"확인할 것"과 등급 기준을 그대로 붙여 넣는다. 상대 경로는 서브에이전트가 사용자 프로젝트에서
-찾지 못한다.
+작은 변경이면 메인이 그 기준으로 diff를 읽는다. 큰 변경이면 `qe-framework:redteam`에
+[verifier-prompt.md](verifier-prompt.md)의 코드 리뷰 항목을 맡긴다. 리뷰 기준 자리에
+Qreview 프롬프트의 "확인할 것"과 등급 기준을 붙여 넣거나 그 파일의 절대 경로를 넘긴다.
+전문 에이전트가 보이지 않으면 일반 서브에이전트에 같은 항목을 맡긴다.
 
 지적은 `Qfeedback`으로 하나씩 맞는지 확인하고, **사용자가 겪는 결과**로 등급을 다시
 매긴다(치명 / 중요 / 사소). 리뷰어가 "plan.md가 말하지 않아서" 낮게 매긴 것은 그 결과를 보고 다시 판단한다. 리뷰어가 판단을 보류한
@@ -74,6 +75,14 @@ description: Use when implementation is finished (all implement-plan.md steps ch
 사용자가 고치지 않기로 한 지적과 사소한 것은 "남은 일"에 적는다.
 
 치명·중요 지적이 미처리로 남아 있는 동안에는 "완료"라고 말하지 않는다.
+
+## 계약 갱신
+
+최종 리뷰와 그에 따른 수정이 끝나면 `docs/contracts/` 중 이번 변경이 건드린 흐름의 계약을
+`qe-framework:contractor`에게 맡겨 현재 코드와 맞추고, verify.md에 한 줄 남긴다. 전문 에이전트가
+보이지 않으면 일반 서브에이전트에 맡긴다. 두 경우 모두 메인 세션이
+[계약 양식](../Qunderstand/contract-template.md)을 읽고 양식 본문을 호출 프롬프트에 넣는다.
+현재 코드에서 확인한 흐름만 기록하고 `docs/contracts/` 안에서만 쓰도록 요청한다.
 
 ## 실행 중 내린 판단 모으기
 
