@@ -1,0 +1,189 @@
+import { test } from 'node:test';
+import assert from 'node:assert/strict';
+import fs from 'node:fs';
+import os from 'node:os';
+import path from 'node:path';
+import { spawnSync } from 'node:child_process';
+
+import { collectGitFacts, computeAlerts } from '../hooks/lib/alerts.mjs';
+
+function tmp() {
+  return fs.mkdtempSync(path.join(os.tmpdir(), 'qe-alerts-'));
+}
+
+function gitIn(cwd, ...args) {
+  const r = spawnSync('git', ['-c', 'core.hooksPath=', '-c', 'user.name=t', '-c', 'user.email=t@t', ...args], {
+    cwd,
+    encoding: 'utf8',
+  });
+  assert.equal(r.status, 0, r.stderr);
+  return r.stdout.trim();
+}
+
+function repo() {
+  const dir = tmp();
+  gitIn(dir, 'init', '-q', '-b', 'main');
+  fs.writeFileSync(path.join(dir, 'a.txt'), 'a\n');
+  gitIn(dir, 'add', '-A');
+  gitIn(dir, 'commit', '-q', '-m', 'init');
+  return dir;
+}
+
+const HASH = 'a'.repeat(64);
+const COMMIT = 'abcdef1234567890abcdef1234567890abcdef12';
+
+function task(status, extra = {}) {
+  return {
+    name: 't',
+    status,
+    unchecked: 0,
+    total: 3,
+    hasHandoff: false,
+    verdicts: [],
+    planHash: HASH,
+    ...extra,
+  };
+}
+
+function status(extra = {}) {
+  return {
+    goal: 'g',
+    project: '/p',
+    state: 'active',
+    worktrees: [{ path: '/w', branch: 'feat' }],
+    sessions: [{ id: 's1' }],
+    ...extra,
+  };
+}
+
+function facts(extra = {}) {
+  return {
+    project: { path: '/p', exists: true, branch: 'main', head: 'h' },
+    worktrees: [{ path: '/w', exists: true, branch: 'feat', branchExists: true, head: 'h', dirty: false, aheadOfBase: 0 }],
+    done: null,
+    doneCommitOnBranch: null,
+    doneNewCommits: null,
+    doneMerged: null,
+    aheadOfBase: 0,
+    ...extra,
+  };
+}
+
+const live = new Set(['s1']);
+const codes = (alerts) => alerts.map((a) => a.code).sort();
+
+const doneStatus = status({ state: 'done', done: { commit: COMMIT, branch: 'feat', verdict: 'verdicts/1-a.json' } });
+const okVerdict = { result: '충족', commit: COMMIT.slice(0, 8).toUpperCase(), planHash: HASH, branch: 'feat' };
+const doneFacts = (extra = {}) =>
+  facts({ done: { branch: 'feat', branchExists: true, aheadOfBase: 0 }, doneCommitOnBranch: true, doneNewCommits: 0, doneMerged: true, ...extra });
+
+test('no alerts for a healthy done task', () => {
+  assert.deepEqual(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), doneFacts(), live), []);
+});
+
+test('invalid-status when status.json is invalid', () => {
+  assert.deepEqual(codes(computeAlerts(task({ invalid: true }), null, live)), ['invalid-status']);
+});
+
+test('checked-no-verdict when every box is checked but no verdict matches the current plan', () => {
+  const stale = { result: '충족', commit: COMMIT, planHash: 'b'.repeat(64) };
+  assert.deepEqual(codes(computeAlerts(task(status(), { verdicts: [stale] }), facts(), live)), ['checked-no-verdict']);
+  // a verdict for the current plan clears it; unchecked boxes or an empty plan never raise it
+  assert.deepEqual(computeAlerts(task(status(), { verdicts: [{ ...stale, planHash: HASH }] }), facts(), live), []);
+  assert.deepEqual(computeAlerts(task(status(), { unchecked: 1 }), facts(), live), []);
+  assert.deepEqual(computeAlerts(task(status(), { total: 0 }), facts(), live), []);
+});
+
+test('done-without-verdict when no 충족 verdict matches done.commit', () => {
+  const other = { ...okVerdict, commit: '1234567' };
+  const partial = { ...okVerdict, result: '일부 미충족' };
+  for (const verdicts of [[], [other], [partial]]) {
+    assert.deepEqual(codes(computeAlerts(task(doneStatus, { verdicts }), doneFacts(), live)), ['done-without-verdict']);
+  }
+});
+
+test('changed-after-verdict when done.commit left the branch or the branch moved on', () => {
+  const t = task(doneStatus, { verdicts: [okVerdict] });
+  assert.deepEqual(codes(computeAlerts(t, doneFacts({ doneCommitOnBranch: false }), live)), ['changed-after-verdict']);
+  assert.deepEqual(codes(computeAlerts(t, doneFacts({ doneNewCommits: 2 }), live)), ['changed-after-verdict']);
+});
+
+test('worktree-missing when an active task lost its worktree', () => {
+  const f = facts({ worktrees: [{ ...facts().worktrees[0], exists: false }] });
+  assert.deepEqual(codes(computeAlerts(task(status({ state: 'verifying' }), { unchecked: 1 }), f, live)), ['worktree-missing']);
+});
+
+test('branch-missing when a recorded branch is gone, unless a done task was merged', () => {
+  const f = facts({ worktrees: [{ ...facts().worktrees[0], branchExists: false }] });
+  assert.deepEqual(codes(computeAlerts(task(status(), { unchecked: 1 }), f, live)), ['branch-missing']);
+  const merged = doneFacts({
+    worktrees: [{ ...facts().worktrees[0], exists: false, branchExists: false }],
+    done: { branch: 'feat', branchExists: false, aheadOfBase: null },
+    doneCommitOnBranch: null,
+    doneNewCommits: null,
+    doneMerged: true,
+  });
+  assert.deepEqual(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), merged, live), []);
+  assert.deepEqual(codes(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), { ...merged, doneMerged: false }, live)), ['branch-missing']);
+});
+
+test('unmerged when a done task has commits not in the base branch; normal for active tasks', () => {
+  const ahead = { ...facts().worktrees[0], aheadOfBase: 3 };
+  const f = doneFacts({ worktrees: [ahead], done: { branch: 'feat', branchExists: true, aheadOfBase: 3 }, aheadOfBase: 3, doneMerged: false });
+  assert.deepEqual(codes(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), f, live)), ['unmerged']);
+  assert.deepEqual(computeAlerts(task(status(), { unchecked: 1 }), facts({ worktrees: [ahead], aheadOfBase: 3 }), live), []);
+});
+
+test('orphaned when no recorded session is live and there is no handoff', () => {
+  const t = task(status(), { unchecked: 1 });
+  assert.deepEqual(codes(computeAlerts(t, facts(), new Set(['other']))), ['orphaned']);
+  assert.deepEqual(computeAlerts({ ...t, hasHandoff: true }, facts(), new Set()), []);
+  // unknown live set (claude agents failed) never claims orphaned
+  assert.deepEqual(computeAlerts(t, facts(), null), []);
+});
+
+test('every alert carries a Korean message', () => {
+  const t = task(status({ sessions: [] }));
+  for (const a of computeAlerts(t, facts({ worktrees: [{ ...facts().worktrees[0], exists: false, branchExists: false }] }), live)) {
+    assert.equal(typeof a.message, 'string');
+    assert.match(a.message, /[가-힣]/);
+  }
+});
+
+test('collectGitFacts reports a missing worktree without running git there', () => {
+  const project = repo();
+  const gone = path.join(tmp(), 'gone');
+  const f = collectGitFacts(status({ project, worktrees: [{ path: gone, branch: 'nope' }] }));
+  assert.equal(f.project.exists, true);
+  assert.equal(f.project.branch, 'main');
+  assert.equal(f.worktrees[0].exists, false);
+  assert.equal(f.worktrees[0].head, null);
+  assert.equal(f.worktrees[0].branchExists, false);
+});
+
+test('collectGitFacts counts commits on a branch that the base does not have', () => {
+  const project = repo();
+  const wt = path.join(tmp(), 'wt');
+  gitIn(project, 'worktree', 'add', '-q', '-b', 'feat', wt);
+  fs.writeFileSync(path.join(wt, 'b.txt'), 'b\n');
+  gitIn(wt, 'add', '-A');
+  gitIn(wt, 'commit', '-q', '-m', 'b');
+  const done = gitIn(wt, 'rev-parse', 'HEAD');
+  fs.writeFileSync(path.join(wt, 'c.txt'), 'c\n');
+  const f = collectGitFacts(
+    status({ project, state: 'done', worktrees: [{ path: wt, branch: 'feat' }], done: { commit: done.slice(0, 9), branch: 'feat' } }),
+  );
+  assert.equal(f.worktrees[0].exists, true);
+  assert.equal(f.worktrees[0].branchExists, true);
+  assert.equal(f.worktrees[0].head, done);
+  assert.equal(f.worktrees[0].dirty, true);
+  assert.equal(f.worktrees[0].aheadOfBase, 1);
+  assert.equal(f.aheadOfBase, 1);
+  assert.equal(f.doneCommitOnBranch, true);
+  assert.equal(f.doneNewCommits, 0);
+  assert.equal(f.doneMerged, false);
+  // a commit after the verdict moves the branch past done.commit
+  gitIn(wt, 'add', '-A');
+  gitIn(wt, 'commit', '-q', '-m', 'c');
+  assert.equal(collectGitFacts(status({ project, state: 'done', worktrees: [{ path: wt, branch: 'feat' }], done: { commit: done, branch: 'feat' } })).doneNewCommits, 1);
+});

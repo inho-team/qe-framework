@@ -6,18 +6,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { qeHome, tasksDir } from './lib/qe-home.mjs';
-import { readStatus, listVerdicts, relParts } from './lib/tasks.mjs';
-
-const HEX = /^[0-9a-f]{7,40}$/;
-
-function sameCommit(a, b) {
-  if (typeof a !== 'string' || typeof b !== 'string') return false;
-  const x = a.trim().toLowerCase();
-  const y = b.trim().toLowerCase();
-  if (!x || !y) return false;
-  if (x === y) return true;
-  return HEX.test(x) && HEX.test(y) && (x.startsWith(y) || y.startsWith(x));
-}
+import { readStatus, listVerdicts, relParts, sameCommit } from './lib/tasks.mjs';
 
 // The file content after the tool call, or null when it cannot be determined.
 function resultContent(toolName, ti, file) {

@@ -144,3 +144,15 @@ export function taskOfPath(home, filePath, platform = process.platform) {
   const parts = relParts(tasksDir(home), filePath, platform);
   return parts && parts[0] ? parts[0] : null;
 }
+
+const HEX = /^[0-9a-f]{7,40}$/;
+
+// Same commit: case-insensitive, and a prefix match when both sides are 7+ hex chars.
+export function sameCommit(a, b) {
+  if (typeof a !== 'string' || typeof b !== 'string') return false;
+  const x = a.trim().toLowerCase();
+  const y = b.trim().toLowerCase();
+  if (!x || !y) return false;
+  if (x === y) return true;
+  return HEX.test(x) && HEX.test(y) && (x.startsWith(y) || y.startsWith(x));
+}

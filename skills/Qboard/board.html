@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>QE Board</title>
+<style>
+:root {
+  --bg: #f6f7f9; --panel: #ffffff; --line: #e1e4e8; --text: #1f2328; --muted: #656d76;
+  --accent: #0969da; --ok: #1a7f37; --warn: #9a6700; --bad: #cf222e; --idle: #8c959f;
+  --warn-bg: #fff8c5; --bad-bg: #ffebe9; --ok-bg: #dafbe1; --chip: #eef1f4; --bar: #d0d7de;
+}
+@media (prefers-color-scheme: dark) {
+  :root {
+    --bg: #0d1117; --panel: #161b22; --line: #30363d; --text: #e6edf3; --muted: #8d96a0;
+    --accent: #4493f8; --ok: #3fb950; --warn: #d29922; --bad: #f85149; --idle: #6e7681;
+    --warn-bg: #3b2e0a; --bad-bg: #3d1517; --ok-bg: #12301c; --chip: #21262d; --bar: #30363d;
+  }
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 14px/1.45 system-ui, -apple-system, "Segoe UI", "Malgun Gothic", "Apple SD Gothic Neo", sans-serif;
+}
+main { max-width: 1200px; margin: 0 auto; padding: 16px; }
+header { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin-bottom: 12px; }
+h1 { font-size: 18px; margin: 0; }
+h2 { font-size: 13px; font-weight: 600; color: var(--muted); margin: 20px 0 8px; text-transform: uppercase; letter-spacing: .03em; }
+.muted { color: var(--muted); }
+.mono { font-family: ui-monospace, SFMono-Regular, Consolas, "Liberation Mono", monospace; font-size: 12px; }
+#conn { margin-left: auto; font-size: 12px; }
+#conn.down { color: var(--bad); font-weight: 600; }
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 8px; }
+.stat { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; }
+.stat b { display: block; font-size: 20px; font-variant-numeric: tabular-nums; }
+.stat span { font-size: 12px; color: var(--muted); }
+.notice { background: var(--chip); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; color: var(--muted); font-size: 13px; margin-top: 8px; }
+.cards { display: grid; grid-template-columns: repeat(auto-fill, minmax(340px, 1fr)); gap: 10px; }
+@media (max-width: 420px) { .cards { grid-template-columns: 1fr; } }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; padding: 10px 12px; min-width: 0; }
+.card.has-alert { border-left: 3px solid var(--bad); }
+.card-head { display: flex; gap: 8px; align-items: flex-start; }
+.goal { font-weight: 600; flex: 1; min-width: 0; overflow-wrap: anywhere; }
+.task { font-size: 12px; color: var(--muted); overflow-wrap: anywhere; margin-top: 2px; }
+.badge { font-size: 11px; font-weight: 600; padding: 1px 7px; border-radius: 10px; white-space: nowrap; background: var(--chip); color: var(--muted); }
+.s-active { background: #ddf4ff; color: var(--accent); }
+.s-verifying { background: var(--warn-bg); color: var(--warn); }
+.s-done { background: var(--ok-bg); color: var(--ok); }
+.s-invalid { background: var(--bad-bg); color: var(--bad); }
+@media (prefers-color-scheme: dark) { .s-active { background: #0c2d4f; } }
+.progress { display: flex; align-items: center; gap: 8px; margin: 8px 0 4px; font-size: 12px; }
+.bar { flex: 1; height: 6px; background: var(--bar); border-radius: 3px; overflow: hidden; }
+.bar i { display: block; height: 100%; background: var(--accent); }
+.bar.full i { background: var(--ok); }
+.rows { margin: 6px 0 0; padding: 0; list-style: none; font-size: 12px; }
+.rows li { display: flex; gap: 6px; align-items: center; min-width: 0; padding: 1px 0; }
+.rows li > .mono, .rows li > .clip { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; min-width: 0; }
+.label { color: var(--muted); flex: none; width: 52px; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--idle); }
+.dot.busy { background: var(--ok); }
+.dot.waiting { background: var(--warn); }
+.dot.idle { background: var(--accent); }
+.dot.dead { background: transparent; border: 1px solid var(--idle); }
+.tag { font-size: 11px; padding: 0 5px; border-radius: 3px; background: var(--chip); color: var(--muted); flex: none; }
+.tag.bad { background: var(--bad-bg); color: var(--bad); }
+.alerts { margin: 8px 0 0; padding: 0; list-style: none; }
+.alerts li { background: var(--bad-bg); color: var(--bad); border-radius: 4px; padding: 3px 8px; font-size: 12px; margin-top: 4px; overflow-wrap: anywhere; }
+.alerts code { font-weight: 600; margin-right: 6px; }
+.empty { color: var(--muted); padding: 12px; background: var(--panel); border: 1px dashed var(--line); border-radius: 6px; }
+.table-wrap { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+table { width: 100%; border-collapse: collapse; font-size: 13px; }
+th, td { text-align: left; padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { font-size: 12px; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+td.cwd { overflow-wrap: anywhere; min-width: 180px; }
+td.nowrap { white-space: nowrap; }
+</style>
+</head>
+<body>
+<main>
+  <header>
+    <h1>QE Board</h1>
+    <span class="muted" id="at">불러오는 중…</span>
+    <span id="conn"></span>
+  </header>
+  <section class="summary" id="summary"></section>
+  <div id="sessions-notice"></div>
+  <h2>목표</h2>
+  <section class="cards" id="cards"></section>
+  <h2>세션</h2>
+  <div class="table-wrap">
+    <table>
+      <thead><tr><th>이름</th><th>상태</th><th>작업 폴더</th><th>시작</th></tr></thead>
+      <tbody id="sessions"></tbody>
+    </table>
+  </div>
+</main>
+<script>
+'use strict';
+const STATE_LABEL = { active: '진행 중', verifying: '검증 중', done: '완료', stopped: '중단' };
+const SESSION_LABEL = { busy: '작업 중', waiting: '응답 대기', idle: '대기' };
+const $ = (id) => document.getElementById(id);
+
+function esc(v) {
+  return String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+}
+function time(ms) {
+  if (!ms) return '';
+  const d = new Date(ms);
+  const same = d.toDateString() === new Date().toDateString();
+  return same ? d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' })
+    : d.toLocaleString('ko-KR', { month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+}
+function stateOf(t) {
+  if (!t.status) return 'none';
+  return t.status.invalid ? 'invalid' : t.status.state;
+}
+function stateLabel(s) {
+  return STATE_LABEL[s] || (s === 'invalid' ? '형식 오류' : '상태 없음');
+}
+
+function renderSummary(state) {
+  const by = {};
+  for (const t of state.tasks) by[stateOf(t)] = (by[stateOf(t)] || 0) + 1;
+  const alerted = state.tasks.filter((t) => t.alerts.length).length;
+  const ss = state.sessions;
+  const n = (s) => ss.filter((x) => x.status === s).length;
+  const stats = [
+    [state.tasks.length, '목표 전체'],
+    [(by.active || 0) + (by.verifying || 0), `진행 ${by.active || 0} · 검증 ${by.verifying || 0}`],
+    [by.done || 0, `완료${by.stopped ? ` · 중단 ${by.stopped}` : ''}`],
+    [alerted, '경고 있는 목표'],
+    [state.sessionsError ? '–' : ss.length, state.sessionsError ? '세션 정보 없음' : `세션 · 작업 중 ${n('busy')} · 대기 ${n('idle') + n('waiting')}`],
+  ];
+  $('summary').innerHTML = stats.map(([v, l]) => `<div class="stat"><b>${esc(v)}</b><span>${esc(l)}</span></div>`).join('');
+  $('sessions-notice').innerHTML = state.sessionsError
+    ? `<div class="notice">살아 있는 세션 목록을 가져오지 못했다 (${esc(state.sessionsError)}). 세션 표시와 '버려짐' 경고는 빠진다.</div>` : '';
+}
+
+function renderCards(state) {
+  const byId = new Map(state.sessions.map((s) => [s.sessionId, s]));
+  const tasks = [...state.tasks].sort((a, b) => b.alerts.length - a.alerts.length || b.mtimeMs - a.mtimeMs);
+  if (!tasks.length) {
+    $('cards').innerHTML = '<div class="empty">~/.qe/tasks에 목표가 없다.</div>';
+    return;
+  }
+  $('cards').innerHTML = tasks.map((t) => {
+    const st = stateOf(t);
+    const s = t.status && !t.status.invalid ? t.status : null;
+    const done = t.total - t.unchecked;
+    const pct = t.total ? Math.round((done / t.total) * 100) : 0;
+    const progress = t.total
+      ? `<div class="progress"><div class="bar${done === t.total ? ' full' : ''}"><i style="width:${pct}%"></i></div><span class="mono">${done}/${t.total}</span></div>`
+      : `<div class="progress muted">${t.hasImplementPlan ? '체크박스 없음' : '실행 계획 없음'}</div>`;
+    const sessions = (s?.sessions || []).map((x) => {
+      const live = byId.get(x.id);
+      const cls = live ? esc(live.status) : 'dead';
+      const name = live ? live.name || x.id : x.id;
+      const title = live ? (SESSION_LABEL[live.status] || live.status) : '끝난 세션';
+      return `<li title="${esc(title)}"><span class="label">세션</span><span class="dot ${cls}"></span><span class="clip">${esc(name)}</span>${live ? '' : '<span class="tag">종료</span>'}</li>`;
+    }).join('');
+    const facts = new Map((t.facts?.worktrees || []).map((w) => [w.path, w]));
+    const wts = (s?.worktrees || []).map((w) => {
+      const f = facts.get(w.path) || {};
+      const tags = [
+        f.exists === false ? '<span class="tag bad">없음</span>' : '',
+        f.dirty ? '<span class="tag">미커밋</span>' : '',
+        f.aheadOfBase > 0 ? `<span class="tag">+${f.aheadOfBase}</span>` : '',
+      ].join('');
+      return `<li title="${esc(w.path)}"><span class="label">브랜치</span><span class="mono">${esc(w.branch || '?')}</span>${tags}</li>`
+        + `<li title="${esc(w.path)}"><span class="label"></span><span class="mono muted">${esc(w.path)}</span></li>`;
+    }).join('');
+    const doneRow = s?.done ? `<li><span class="label">완료</span><span class="mono">${esc(String(s.done.commit || '').slice(0, 10))}</span><span class="muted clip">${esc(s.done.branch || '')}</span></li>` : '';
+    const verify = t.verifyResult ? `<li><span class="label">검증</span><span class="clip">${esc(t.verifyResult)}</span></li>` : '';
+    const alerts = t.alerts.length
+      ? `<ul class="alerts">${t.alerts.map((a) => `<li><code>${esc(a.code)}</code>${esc(a.message)}</li>`).join('')}</ul>` : '';
+    return `<article class="card${t.alerts.length ? ' has-alert' : ''}">
+      <div class="card-head"><div class="goal">${esc(s?.goal || t.name)}</div><span class="badge s-${esc(st)}">${esc(stateLabel(st))}</span></div>
+      <div class="task mono">${esc(t.name)} · ${esc(time(t.mtimeMs))}</div>
+      ${progress}
+      <ul class="rows">${sessions}${wts}${doneRow}${verify}</ul>
+      ${alerts}
+    </article>`;
+  }).join('');
+}
+
+function renderSessions(state) {
+  const rows = [...state.sessions].sort((a, b) => (b.startedAt || 0) - (a.startedAt || 0));
+  $('sessions').innerHTML = rows.length ? rows.map((s) => `<tr>
+      <td>${esc(s.name || s.sessionId || s.id || '')}${s.kind === 'background' ? ' <span class="tag">백그라운드</span>' : ''}</td>
+      <td class="nowrap"><span class="dot ${esc(s.status)}" style="display:inline-block;margin-right:6px"></span>${esc(SESSION_LABEL[s.status] || s.status || s.state || '')}${s.waitingFor ? ` <span class="muted">(${esc(s.waitingFor)})</span>` : ''}</td>
+      <td class="cwd mono">${esc(s.cwd)}</td>
+      <td class="nowrap muted">${esc(time(s.startedAt))}</td>
+    </tr>`).join('') : `<tr><td colspan="4" class="muted">${state.sessionsError ? '세션 정보를 가져오지 못했다' : '열린 세션이 없다'}</td></tr>`;
+}
+
+async function refresh() {
+  try {
+    const res = await fetch('/api/state', { cache: 'no-store' });
+    if (!res.ok) throw new Error(res.status);
+    const state = await res.json();
+    renderSummary(state);
+    renderCards(state);
+    renderSessions(state);
+    $('at').textContent = `마지막 갱신 ${new Date(state.at).toLocaleTimeString('ko-KR')}`;
+    $('conn').textContent = '';
+    $('conn').className = '';
+  } catch {
+    $('conn').textContent = '연결 끊김';
+    $('conn').className = 'down';
+  }
+}
+refresh();
+setInterval(refresh, 5000);
+</script>
+</body>
+</html>
