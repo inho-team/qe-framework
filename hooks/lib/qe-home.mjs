@@ -62,9 +62,10 @@ export function commitHome(home, message) {
   }
 }
 
-export function normPath(p) {
+// Comparison only: Windows and macOS (APFS) are case-insensitive by default.
+export function normPath(p, platform = process.platform) {
   const r = path.resolve(p);
-  return process.platform === 'win32' ? r.toLowerCase() : r;
+  return platform === 'win32' || platform === 'darwin' ? r.toLowerCase() : r;
 }
 
 export function isUnder(child, parent) {

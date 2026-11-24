@@ -65,3 +65,10 @@ test('isUnder rejects sibling prefixes', () => {
   assert.equal(isUnder('/a/bc', '/a/b'), false);
   assert.equal(isUnder('/a/b/c', '/a/b'), true);
 });
+
+test('normPath lowercases on win32 and darwin, not on linux', async () => {
+  const { normPath } = await import('../hooks/lib/qe-home.mjs');
+  assert.equal(normPath('/Tmp/A', 'linux').endsWith('A'), true);
+  assert.equal(normPath('/Tmp/A', 'darwin').endsWith('a'), true);
+  assert.equal(normPath('/Tmp/A', 'win32').endsWith('a'), true);
+});

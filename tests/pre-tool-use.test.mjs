@@ -174,3 +174,30 @@ test('Edit with curly quotes is normalized like the real tool', () => {
   // unresolvable edit without done -> allow
   assert.equal(decide(edit('no such text', 'x'), t.env), null);
 });
+
+test('curly-quote Edit splices into the original (curly quote inside a value)', () => {
+  const t = setup();
+  fs.writeFileSync(t.file, JSON.stringify({ ...t.status, goal: 'fix \u201cfoo\u201d' }, null, 2));
+  const e = {
+    tool_name: 'Edit',
+    tool_input: {
+      file_path: t.file,
+      old_string: '\u201cstate\u201d: \u201cactive\u201d',
+      new_string: '"state": "done", "done": {"commit": "abc1234"}',
+    },
+  };
+  assert.ok(decide(e, t.env).deny);
+});
+
+test('replace_all with curly quotes splices every match', () => {
+  const t = setup();
+  fs.writeFileSync(t.file, JSON.stringify({ ...t.status, goal: 'active' }, null, 2));
+  const e = { tool_name: 'Edit', tool_input: { file_path: t.file, old_string: '\u201cactive\u201d', new_string: '"done"', replace_all: true } };
+  assert.ok(decide(e, t.env).deny);
+});
+
+test('darwin: TASKS/.QE case variants are recognized as under the tasks dir', { skip: process.platform !== 'darwin' }, () => {
+  const t = setup();
+  const f = path.join(t.home.toUpperCase(), 'TASKS', 'GOAL-A', 'status.json');
+  assert.ok(decide(write(f, doneStatus(SHA)), t.env).deny);
+});

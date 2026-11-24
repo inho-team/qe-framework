@@ -31,16 +31,28 @@ function resultContent(toolName, ti, file) {
   }
   const { old_string: o, new_string: n } = ti;
   if (typeof o !== 'string' || typeof n !== 'string' || o === '') return null;
-  const apply = (c, a, b) => {
-    if (!c.includes(a)) return null;
-    return ti.replace_all === true ? c.split(a).join(b) : c.replace(a, () => b);
-  };
-  const exact = apply(cur, o, n);
-  if (exact !== null) return exact;
-  // The real Edit tool also matches after normalizing curly quotes; mirror that.
+  // Match on a quote-normalized copy (one char maps to one char, so positions line up),
+  // then splice into the ORIGINAL text like the real tool does.
   const q = (x) => x.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
-  const loose = apply(q(cur), q(o), q(n));
-  return loose !== null ? loose : { unknown: true };
+  const hay = q(cur);
+  const needle = q(o);
+  const at = [];
+  for (let i = hay.indexOf(needle); i >= 0; i = hay.indexOf(needle, i + needle.length)) {
+    at.push(i);
+    if (ti.replace_all !== true) break;
+  }
+  if (at.length === 0) return { unknown: true };
+  const splice = (ins) => {
+    let out = '';
+    let last = 0;
+    for (const i of at) {
+      out += cur.slice(last, i) + ins;
+      last = i + o.length;
+    }
+    return out + cur.slice(last);
+  };
+  // The real tool rewrites new_string in the file's quote style; judge both readings.
+  return { candidates: [...new Set([splice(q(n)), splice(n)])] };
 }
 
 // Make a tool-supplied path comparable: ~ expansion, Win32 extended prefixes, Git Bash drive paths.
@@ -86,20 +98,26 @@ export function decide(input, env = process.env) {
 
     const next = resultContent(input.tool_name, ti, filePath);
     if (next === null) return null;
-    if (typeof next === 'object') {
+    if (typeof next === 'object' && next.unknown) {
       // Edit could not be simulated although the file exists; be conservative only when it may write done.
       if (typeof ti.new_string === 'string' && ti.new_string.includes('done')) {
         return { deny: 'status.json 편집 결과를 확인할 수 없고 done이 포함되어 있어 막는다. 부분 편집 대신 Write로 status.json 전체를 쓰라. done으로 바꾸려면 Qverify 검증자의 QE-VERDICT 충족 검수 기록이 먼저 필요하다.' };
       }
       return null;
     }
-    let parsed;
-    try {
-      parsed = JSON.parse(next);
-    } catch {
-      return null;
+    let parsed = null;
+    for (const text of typeof next === 'string' ? [next] : next.candidates) {
+      try {
+        const v = JSON.parse(text);
+        if (v && typeof v === 'object' && v.state === 'done') {
+          parsed = v;
+          break;
+        }
+      } catch {
+        // not JSON: this reading does not gate
+      }
     }
-    if (!parsed || typeof parsed !== 'object' || parsed.state !== 'done') return null;
+    if (!parsed) return null;
 
     const cur = readStatus(taskDir);
     if (cur && !cur.invalid && cur.state === 'done') return null;
