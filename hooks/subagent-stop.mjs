@@ -30,10 +30,20 @@ export function parseVerdictLine(text) {
   return null;
 }
 
-function collectStrings(value, out) {
-  if (typeof value === 'string') out.push(value);
-  else if (Array.isArray(value)) for (const v of value) collectStrings(v, out);
-  else if (value && typeof value === 'object') for (const v of Object.values(value)) collectStrings(v, out);
+// The report text of one assistant transcript entry: its text blocks and any
+// SubagentHandback message. Thinking and other tool calls are drafts or commands,
+// not the report, so they are never read. Empty when the entry has no report part.
+function reportTexts(entry) {
+  const content = entry?.message?.content;
+  if (typeof content === 'string') return [content];
+  if (!Array.isArray(content)) return [];
+  const out = [];
+  for (const b of content) {
+    if (!b || typeof b !== 'object') continue;
+    if (b.type === 'text' && typeof b.text === 'string') out.push(b.text);
+    else if (b.type === 'tool_use' && b.name === 'SubagentHandback' && typeof b.input?.message === 'string') out.push(b.input.message);
+  }
+  return out;
 }
 
 function readTail(file) {
@@ -65,12 +75,14 @@ export function findVerdict(input) {
         continue;
       }
       if (obj?.type !== 'assistant') continue;
-      const strings = [];
-      collectStrings(obj, strings);
-      for (let j = strings.length - 1; j >= 0; j--) {
-        const v = parseVerdictLine(strings[j]);
+      const texts = reportTexts(obj);
+      if (!texts.length) continue;
+      // The last entry with report text is the final report; earlier ones are not consulted.
+      for (let j = texts.length - 1; j >= 0; j--) {
+        const v = parseVerdictLine(texts[j]);
         if (v) return v;
       }
+      return null;
     }
     return null;
   } catch {

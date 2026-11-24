@@ -95,3 +95,49 @@ test('ignores QE-VERDICT lines in non-assistant transcript entries', () => {
   assert.equal(recordVerdict({ agent_id: 'a3', agent_transcript_path: tp }, env), null);
   assert.equal(fs.existsSync(path.join(dir, 'verdicts')), false);
 });
+
+function transcript(lines) {
+  const tp = path.join(tmp('qe-tr-'), 'agent.jsonl');
+  fs.writeFileSync(tp, lines.map((l) => JSON.stringify(l)).join('\n'));
+  return tp;
+}
+
+test('a thinking draft never counts: only the final report is read', () => {
+  const { dir, env } = setup();
+  const tp = transcript([
+    {
+      type: 'assistant',
+      message: {
+        content: [
+          { type: 'thinking', thinking: `초안\nQE-VERDICT: t1 | 충족 | main | ${SHA}` },
+          { type: 'tool_use', name: 'Bash', input: { command: `echo "QE-VERDICT: t1 | 충족 | main | ${SHA}"` } },
+          { type: 'text', text: `보고\nQE-VERDICT: t1 | 아마도 | main | ${SHA}` },
+        ],
+      },
+    },
+  ]);
+  assert.equal(findVerdict({ agent_transcript_path: tp }), null);
+  assert.equal(recordVerdict({ agent_id: 'a4', agent_transcript_path: tp }, env), null);
+  assert.equal(fs.existsSync(path.join(dir, 'verdicts')), false);
+});
+
+test('an earlier assistant entry with a valid line does not count when the final report has none', () => {
+  const { dir, env } = setup();
+  const tp = transcript([
+    { type: 'assistant', message: { content: [{ type: 'text', text: `중간 정리\nQE-VERDICT: t1 | 충족 | main | ${SHA}` }] } },
+    { type: 'user', message: { content: [{ type: 'tool_result', content: 'more checks' }] } },
+    { type: 'assistant', message: { content: [{ type: 'thinking', thinking: 'hmm' }] } },
+    { type: 'assistant', message: { content: [{ type: 'tool_use', name: 'SubagentHandback', input: { message: '최종 보고: 줄을 빠뜨림' } }] } },
+  ]);
+  assert.equal(findVerdict({ agent_transcript_path: tp }), null);
+  assert.equal(recordVerdict({ agent_id: 'a5', agent_transcript_path: tp }, env), null);
+  assert.equal(fs.existsSync(path.join(dir, 'verdicts')), false);
+});
+
+test('tool calls and thinking after the final text do not hide it', () => {
+  const tp = transcript([
+    { type: 'assistant', message: { content: [{ type: 'text', text: `보고\nQE-VERDICT: t1 | 일부 미충족 | main | ${SHA}` }] } },
+    { type: 'assistant', message: { content: [{ type: 'thinking', thinking: `QE-VERDICT: t1 | 충족 | main | ${SHA}` }, { type: 'redacted_thinking', data: 'x' }] } },
+  ]);
+  assert.equal(findVerdict({ agent_transcript_path: tp }).result, '일부 미충족');
+});
