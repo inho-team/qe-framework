@@ -38,9 +38,12 @@ description: Use when the user wants to see everything at once — open Claude C
 | `done-without-verdict` | 완료로 표시됐지만 그 커밋에 대한 충족 검수 기록이 없다 |
 | `changed-after-verdict` | 완료 커밋이 브랜치에서 사라졌거나, 완료 뒤 새 커밋이 쌓였다. 검증한 것과 지금 코드가 다르다(`docs/qe/` 내보내기만 담은 커밋은 세지 않는다) |
 | `worktree-missing` | 진행 중인 목표의 worktree가 지워졌다 |
-| `branch-missing` | 기록된 브랜치가 없다. 완료 커밋이 기준 브랜치에 들어갔으면(정상 정리) 경고하지 않는다 |
-| `unmerged` | 완료됐는데 기준 브랜치에 없는 커밋이 남아 있다. 끝났지만 합쳐지지 않았다 |
+| `branch-missing` | 기록된 브랜치가 없다. 완료 커밋이 기준 브랜치에 들어갔거나(정상 정리) PR·그대로 두기로 마무리했으면(`done.finish`) 경고하지 않는다 |
+| `unmerged` | 완료됐는데 기준 브랜치에 없는 커밋이 남아 있다. 끝났지만 합쳐지지 않았다. PR·그대로 두기로 마무리했으면 경고하지 않는다(squash·rebase merge는 커밋이 달라 git으로 확인할 수 없다) |
 | `orphaned` | 진행 중인데 그 목표의 세션이 하나도 살아 있지 않고 handoff.md도 없다. 이어받을 단서가 없다 |
+
+기준 브랜치는 원격의 기본 브랜치(`origin/HEAD`, 같은 이름의 로컬 브랜치가 있으면 그것), 없으면 로컬 `main`·`master`다.
+원래 checkout이 지금 어느 브랜치에 있든 상관없다.
 
 세션 목록을 못 가져오면(`claude`가 PATH에 없는 등) 화면에 안내가 뜨고 `orphaned`는 판정하지
 않는다. 모르는 것을 "버려졌다"고 말하면 안 되기 때문이다.

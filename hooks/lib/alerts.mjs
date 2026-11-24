@@ -68,6 +68,25 @@ function isWorktreeRoot(p) {
   return top !== null && normPath(real(top)) === normPath(real(p));
 }
 
+function hasRef(cwd, ref) {
+  return run(cwd, ['rev-parse', '--verify', '--quiet', `${ref}^{commit}`]).status === 0;
+}
+
+// The branch work is merged into: the remote's default branch (origin/HEAD), else local main
+// or master, else whatever the main checkout has out. Not simply HEAD: the main checkout may
+// sit on any branch. A local branch of the default's name wins over the remote ref, so a
+// local merge counts as merged before it is pushed.
+function baseRef(cwd) {
+  const sym = git(cwd, ['symbolic-ref', '--quiet', 'refs/remotes/origin/HEAD']);
+  const m = sym ? /^refs\/remotes\/origin\/(.+)$/.exec(sym) : null;
+  if (m) {
+    if (hasRef(cwd, `refs/heads/${m[1]}`)) return `refs/heads/${m[1]}`;
+    if (hasRef(cwd, sym)) return sym;
+  }
+  for (const b of ['main', 'master']) if (hasRef(cwd, `refs/heads/${b}`)) return `refs/heads/${b}`;
+  return 'HEAD';
+}
+
 export function collectGitFacts(status) {
   const projectPath = status && typeof status.project === 'string' ? status.project : '';
   const pExists = exists(projectPath);
@@ -78,6 +97,7 @@ export function collectGitFacts(status) {
     head: pExists ? git(projectPath, ['rev-parse', 'HEAD']) : null,
   };
   const inRepo = pExists && project.head !== null;
+  const base = inRepo ? baseRef(projectPath) : null;
 
   // Branch questions are asked in the project repo: worktrees share its refs.
   const branchInfo = new Map();
@@ -91,7 +111,7 @@ export function collectGitFacts(status) {
       info = {
         branchExists: r.status === 0 ? true : r.status === 1 ? false : null,
         tip,
-        aheadOfBase: tip !== null ? count(git(projectPath, ['rev-list', '--count', `HEAD..refs/heads/${name}`])) : null,
+        aheadOfBase: tip !== null ? count(git(projectPath, ['rev-list', '--count', `${base}..refs/heads/${name}`])) : null,
       };
     }
     branchInfo.set(name, info);
@@ -130,7 +150,7 @@ export function collectGitFacts(status) {
       // exit 1: no such commit (definitely not on any branch); other failures stay unknown
       const missing = r.status === 1;
       const resolved = r.status === 0 ? r.out : null;
-      doneMerged = missing ? false : resolved ? isAncestor(projectPath, resolved, 'HEAD') : null;
+      doneMerged = missing ? false : resolved ? isAncestor(projectPath, resolved, base) : null;
       if (b.tip) {
         doneCommitOnBranch = missing ? false : resolved ? isAncestor(projectPath, resolved, b.tip) : null;
         // Qfinish commits the exported goal docs (docs/qe/) onto the verified branch; those
@@ -145,6 +165,7 @@ export function collectGitFacts(status) {
   const aheads = [...branchInfo.values()].map((i) => i.aheadOfBase).filter((n) => typeof n === 'number');
   return {
     project,
+    base,
     worktrees,
     done,
     doneCommitOnBranch,
@@ -189,15 +210,20 @@ export function computeAlerts(task, facts, liveSessionIds) {
     if (gone.length) add('worktree-missing', `worktree가 없다: ${gone.join(', ')}`);
   }
 
+  // Finished as a PR or a kept branch (Qfinish writes done.finish): the commit need not reach
+  // the base — a squash or rebase merge never makes done.commit an ancestor — so neither a
+  // gone branch nor commits outside the base say anything is wrong.
+  const parked = s.state === 'done' && ['pr', 'keep'].includes(s.done?.finish);
+
   // A finished task whose commit reached the base had its branch cleaned up on purpose;
   // only a done task known NOT to be merged has really lost its branch.
-  if (s.state !== 'stopped' && !(s.state === 'done' && f.doneMerged !== false)) {
+  if (!parked && s.state !== 'stopped' && !(s.state === 'done' && f.doneMerged !== false)) {
     const missing = new Set(wts.filter((w) => w.branchExists === false).map((w) => w.branch));
     if (s.state === 'done' && f.done?.branchExists === false) missing.add(f.done.branch);
     if (missing.size) add('branch-missing', `브랜치가 없다: ${[...missing].join(', ')}`);
   }
 
-  if (s.state === 'done' && f.aheadOfBase > 0) {
+  if (!parked && s.state === 'done' && f.aheadOfBase > 0) {
     add('unmerged', `완료됐지만 기준 브랜치에 없는 커밋 ${f.aheadOfBase}개가 남아 있다`);
   }
 

@@ -26,7 +26,7 @@
 
 흐름: 폴더를 만들 때 `status.json`(`state: active`)부터 쓴다 → 어느 세션이든 같은 폴더를 갱신한다(세션·worktree
 기록은 hook이 한다) → 체크박스가 다 차면 레드팀 검수(`QE-VERDICT` 줄을 hook이 기록) → 충족이면 `state: done`
-→ Qfinish가 검증한 브랜치의 `docs/qe/<목표>/`로 내보낸다. 사용자가 그만두면 `state: stopped`.
+→ Qfinish가 고른 마무리를 `done.finish`에 쓰고 검증한 브랜치의 `docs/qe/<목표>/`로 내보낸다. 사용자가 그만두면 `state: stopped`.
 검수 없이 끝내려 하면 hook이 한 번 막고, 검수 기록 없이 done을 쓰면 거부한다. 우회하지 말고 Qverify로 간다.
 
 아주 작은 일(오타, 한 줄 수정)은 문서 없이 바로 하고 결과만 보고한다. 작은 일이면 문서도 짧게.

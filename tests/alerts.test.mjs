@@ -283,3 +283,65 @@ test('collectGitFacts accepts a worktree recorded through a symlink or junction'
   assert.equal(f.worktrees[0].head, gitIn(project, 'rev-parse', 'HEAD'));
   assert.equal(f.worktrees[0].dirty, false);
 });
+
+test('a done task finished as PR or kept branch raises neither unmerged nor branch-missing', () => {
+  // squash/rebase-merged PR: done.commit is not an ancestor of the base, branch may be gone
+  const gone = doneFacts({
+    worktrees: [{ ...facts().worktrees[0], exists: false, branchExists: false }],
+    done: { branch: 'feat', branchExists: false, aheadOfBase: null },
+    doneCommitOnBranch: null,
+    doneNewCommits: null,
+    doneMerged: false,
+    aheadOfBase: 3,
+  });
+  for (const finish of ['pr', 'keep']) {
+    const st = { ...doneStatus, done: { ...doneStatus.done, finish } };
+    assert.deepEqual(computeAlerts(task(st, { verdicts: [okVerdict] }), gone, live), [], finish);
+  }
+  // a local merge that did not reach the base is still reported
+  const merge = { ...doneStatus, done: { ...doneStatus.done, finish: 'merge' } };
+  assert.deepEqual(codes(computeAlerts(task(merge, { verdicts: [okVerdict] }), gone, live)), ['branch-missing', 'unmerged']);
+});
+
+test('collectGitFacts compares against the default branch, not what the main checkout has checked out', () => {
+  const project = repo();
+  gitIn(project, 'checkout', '-q', '-b', 'feat');
+  fs.writeFileSync(path.join(project, 'b.txt'), 'b\n');
+  gitIn(project, 'add', '-A');
+  gitIn(project, 'commit', '-q', '-m', 'b');
+  const done = gitIn(project, 'rev-parse', 'HEAD');
+  gitIn(project, 'checkout', '-q', 'main');
+  gitIn(project, 'merge', '-q', '--ff-only', 'feat');
+  // the main checkout now sits on an unrelated branch made before the merge
+  gitIn(project, 'checkout', '-q', '-b', 'scratch', 'HEAD~1');
+  const st = status({ project, state: 'done', worktrees: [], done: { commit: done, branch: 'feat' } });
+  const f = collectGitFacts(st);
+  assert.equal(f.base, 'refs/heads/main');
+  assert.equal(f.doneMerged, true);
+  assert.equal(f.aheadOfBase, 0);
+});
+
+test('collectGitFacts prefers origin/HEAD, using the remote ref when no local branch has that name', () => {
+  const project = repo();
+  const first = gitIn(project, 'rev-parse', 'HEAD');
+  gitIn(project, 'checkout', '-q', '-b', 'feat');
+  fs.writeFileSync(path.join(project, 'b.txt'), 'b\n');
+  gitIn(project, 'add', '-A');
+  gitIn(project, 'commit', '-q', '-m', 'b');
+  const done = gitIn(project, 'rev-parse', 'HEAD');
+  // remote default is "trunk", which has the work; local main does not
+  gitIn(project, 'update-ref', 'refs/remotes/origin/trunk', done);
+  gitIn(project, 'symbolic-ref', 'refs/remotes/origin/HEAD', 'refs/remotes/origin/trunk');
+  gitIn(project, 'checkout', '-q', 'main');
+  assert.equal(gitIn(project, 'rev-parse', 'main'), first);
+  const f = collectGitFacts(status({ project, state: 'done', worktrees: [], done: { commit: done, branch: 'feat' } }));
+  assert.equal(f.base, 'refs/remotes/origin/trunk');
+  assert.equal(f.doneMerged, true);
+  assert.equal(f.aheadOfBase, 0);
+  // with a local branch of that name, the local branch is the base (a local merge counts before push)
+  gitIn(project, 'branch', 'trunk', first);
+  const g = collectGitFacts(status({ project, state: 'done', worktrees: [], done: { commit: done, branch: 'feat' } }));
+  assert.equal(g.base, 'refs/heads/trunk');
+  assert.equal(g.doneMerged, false);
+  assert.equal(g.aheadOfBase, 1);
+});

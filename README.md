@@ -91,7 +91,8 @@ Qboard:     이 PC의 목표·세션·어긋남 경고를 한 화면으로
    `QE-VERDICT: <목표> | <충족|일부 미충족|미충족> | <브랜치> | <커밋>`을 SubagentStop hook이 `verdicts/`에 기록한다.
    검수 없이 응답을 끝내려 하면 Stop hook이 한 번 막고 검수를 요청한다.
 4. **done** — 그 커밋에 대한 충족 기록이 있을 때만 `state: done`을 쓸 수 있다. 없으면 PreToolUse hook이 거부한다.
-5. **내보내기** — Qfinish가 `*.md`를 검증한 브랜치의 `docs/qe/<목표>/`로 복사하고, 커밋은 사용자에게 묻는다.
+5. **내보내기** — Qfinish가 고른 마무리를 status.json `done.finish`(`merge` | `pr` | `keep`)에 쓰고, `*.md`를 검증한
+   브랜치의 `docs/qe/<목표>/`로 복사하고, 커밋은 사용자에게 묻는다.
    `~/.qe`의 폴더는 이후 고치지 않는 보관본으로 남는다.
 
 DB나 전용 도구 없이 어떤 편집기로도 읽힌다. 전체 상황은 `Qboard`로 한 화면에서 본다.

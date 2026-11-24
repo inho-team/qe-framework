@@ -54,7 +54,10 @@ QE 작업 폴더(`~/.qe/tasks/<목표>/`)가 있으면 그 status.json을 본다
 
 merge나 PR 뒤에 쓰면 커밋이 하나 더 생기거나 다시 push해야 하고, worktree를 정리한 뒤라면 쓸 곳이 없다.
 
-1. `~/.qe/tasks/<목표>/`의 verify.md에 `- 마무리: <고른 것>` 한 줄을 쓴다.
+1. `~/.qe/tasks/<목표>/`의 verify.md에 `- 마무리: <고른 것>` 한 줄을 쓰고, status.json `done.finish`에
+   `merge`(로컬 merge) | `pr` | `keep`(그대로 두기)을 쓴다. PR이 squash·rebase로 합쳐지면 `done.commit`은
+   기준 브랜치에 들어가지 않으니, 이 표시가 없으면 `Qboard`가 고칠 수 없는 보관본에 "안 합쳐짐"·"브랜치 없음"
+   경고를 계속 낸다.
 2. **내보낸다.** 그 폴더의 `*.md`(plan.md, implement-plan.md, verify.md, handoff.md 등)를 검증한
    브랜치(`done.branch`)의 `docs/qe/<목표>/`로 복사한다. status.json, `verdicts/`, `.stop-blocked-*`
    표시 파일은 복사하지 않는다. 그것들은 이 PC의 관문 기록이라 저장소에서는 뜻이 없다.
