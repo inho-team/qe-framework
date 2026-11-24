@@ -38,6 +38,17 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
   로컬 웹 화면 하나로 보여 준다(읽기 전용, `127.0.0.1`).
 - 행동 eval: 이 버전에서는 아직 다시 돌리지 않았다. `gate-small-change-direct`는 `~/.qe/tasks` 아래 Write가 없는지도 본다.
 
+### Fixed
+
+- 최종 리뷰 반영: Stop hook은 차단 JSON을 먼저 내보낸 뒤 표시 파일을 쓰고 `~/.qe`를 한 번만 커밋한다(느린 git에
+  죽어도 차단이 사라지지 않게), 체크박스가 없는 implement-plan.md는 "다 체크됨"으로 보지 않는다. SubagentStop은
+  transcript에서 마지막 보고(text·SubagentHandback)만 읽는다(thinking·Bash 명령·중간 보고 무시). Qfinish가 고른
+  마무리를 `done.finish`(`merge` | `pr` | `keep`)에 쓰고, Qboard는 `pr`·`keep`이면 `unmerged`·`branch-missing`을
+  내지 않으며 기준 브랜치를 `origin/HEAD`(같은 이름 로컬 브랜치 우선)·`main`·`master` 순으로 정한다. 세션 시작은
+  `~/.qe`를 만들지 않고 `project`가 빈 목표를 건너뛴다. `commitHome`은 30초 넘은 `index.lock`을 지운다.
+  PostToolUse도 `~`·`/c/` 경로를 알아본다. git 시간 제한은 `QE_GIT_TIMEOUT_MS`로 바꿀 수 있다(기본 3000ms,
+  테스트는 늘려 쓰고 항상 임시 `QE_HOME`을 쓴다).
+
 ### 옮기는 방법 (v10 작업 폴더)
 
 진행 중인 `docs/qe/<폴더>/`를 이어가려면 폴더마다:
@@ -45,7 +56,8 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 1. 그 폴더를 `~/.qe/tasks/<같은 이름>/`으로 옮긴다(Windows `%USERPROFILE%\.qe\tasks\`).
 2. 그 안에 `status.json`을 만든다:
    `{"goal": "<한 줄 목표>", "project": "", "state": "active", "worktrees": [], "sessions": []}`
-   (`project`는 다음에 그 폴더에 쓸 때 hook이 채운다).
+   (`project`는 다음에 그 폴더에 쓸 때 hook이 채운다. 그 전까지는 세션 시작 안내에 뜨지 않으니, 바로 보이게
+   하려면 프로젝트 원래 checkout의 절대 경로를 적는다).
 
 이미 끝난 작업은 그대로 두면 된다. 프로젝트 `docs/qe/`는 이제 완료 기록 보관용이다.
 
