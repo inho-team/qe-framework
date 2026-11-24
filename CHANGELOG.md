@@ -4,6 +4,18 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- gate eval 케이스 3개: 틀린 리뷰 지적에 근거로 반박하기(`gate-pushback-wrong-review`), 가끔 실패하는 테스트를
+  재시도로 덮지 않고 원인부터(`gate-flaky-no-retry`), 모호한 요청에서 사용자 대신 정한 것을 드러내기
+  (`gate-states-decisions`).
+- 측정(각 3회): 세션 기본 모델(Opus)에서 새 3개 모두 3 of 3, 플러그인 없이도 3 of 3(Δ 0.00).
+  sonnet에서 gate 7개 모두 플러그인 있을 때 3 of 3, 없을 때는 `gate-bug-root-cause-first`만 2 of 3(Δ +0.17),
+  나머지 Δ 0.00. **한 번 주고받는 상황에서는 QE가 더하는 차이가 거의 드러나지 않는다** — 이 케이스들은 QE가
+  행동을 나쁘게 만들지 않는지 지키는 회귀 검사로 둔다. 비용 약 $3.3.
+
 ## [10.0.0] - 2026-11-23
 
 ### Changed
