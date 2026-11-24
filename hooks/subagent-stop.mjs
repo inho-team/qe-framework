@@ -4,7 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
-import { qeHome, tasksDir, writeJsonAtomic, commitHome } from './lib/qe-home.mjs';
+import { qeHome, tasksDir, ensureHome, writeJsonAtomic, commitHome } from './lib/qe-home.mjs';
 import { planHash } from './lib/tasks.mjs';
 
 const RESULTS = ['충족', '일부 미충족', '미충족'];
@@ -64,6 +64,7 @@ export function findVerdict(input) {
       } catch {
         continue;
       }
+      if (obj?.type !== 'assistant') continue;
       const strings = [];
       collectStrings(obj, strings);
       for (let j = strings.length - 1; j >= 0; j--) {
@@ -100,6 +101,7 @@ export function recordVerdict(input, env = process.env) {
       agentType: typeof input.agent_type === 'string' ? input.agent_type : '',
       at,
     });
+    ensureHome(home);
     commitHome(home, `qe: verdict ${v.task}`);
     return file;
   } catch {
