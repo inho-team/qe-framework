@@ -23,6 +23,17 @@
           }
         ]
       }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=subagent-stop.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
     ]
   }
 }
