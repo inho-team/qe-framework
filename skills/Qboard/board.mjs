@@ -57,9 +57,13 @@ function send(res, code, type, body) {
 }
 
 export function createServer(env = process.env) {
-  return http.createServer((req, res) => {
+  const server = http.createServer((req, res) => {
     const url = (req.url || '/').split('?')[0];
     try {
+      // DNS rebinding: a page on evil.example resolving to 127.0.0.1 would send its own Host.
+      const port = server.address()?.port;
+      const host = String(req.headers.host || '').toLowerCase();
+      if (host !== `127.0.0.1:${port}` && host !== `localhost:${port}`) return send(res, 403, 'text/plain; charset=utf-8', 'forbidden host');
       if (req.method !== 'GET') return send(res, 405, 'text/plain; charset=utf-8', 'method not allowed');
       if (url === '/' || url === '/index.html') {
         return send(res, 200, 'text/html; charset=utf-8', fs.readFileSync(path.join(HERE, 'board.html')));
@@ -70,6 +74,7 @@ export function createServer(env = process.env) {
       return send(res, 500, 'text/plain; charset=utf-8', String(err?.message || err));
     }
   });
+  return server;
 }
 
 function listen(server, port) {

@@ -5,7 +5,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 
-import { collectGitFacts, computeAlerts } from '../hooks/lib/alerts.mjs';
+import { collectGitFacts, computeAlerts, isAncestor } from '../hooks/lib/alerts.mjs';
 
 function tmp() {
   return fs.mkdtempSync(path.join(os.tmpdir(), 'qe-alerts-'));
@@ -125,6 +125,8 @@ test('branch-missing when a recorded branch is gone, unless a done task was merg
   });
   assert.deepEqual(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), merged, live), []);
   assert.deepEqual(codes(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), { ...merged, doneMerged: false }, live)), ['branch-missing']);
+  // unknown merge state (git failed) is not evidence of a lost branch
+  assert.deepEqual(computeAlerts(task(doneStatus, { verdicts: [okVerdict] }), { ...merged, doneMerged: null }, live), []);
 });
 
 test('unmerged when a done task has commits not in the base branch; normal for active tasks', () => {
@@ -186,4 +188,58 @@ test('collectGitFacts counts commits on a branch that the base does not have', (
   gitIn(wt, 'add', '-A');
   gitIn(wt, 'commit', '-q', '-m', 'c');
   assert.equal(collectGitFacts(status({ project, state: 'done', worktrees: [{ path: wt, branch: 'feat' }], done: { commit: done, branch: 'feat' } })).doneNewCommits, 1);
+});
+
+test('collectGitFacts never rewrites the index (polling must not take git locks)', () => {
+  const project = repo();
+  const file = path.join(project, 'a.txt');
+  const index = path.join(project, '.git', 'index');
+  // same content, newer mtime: the index stat is stale, so a plain `git status` would refresh and rewrite it
+  const later = new Date(Date.now() + 60_000);
+  fs.writeFileSync(file, 'a\n');
+  fs.utimesSync(file, later, later);
+  const past = new Date(Date.now() - 3_600_000);
+  fs.utimesSync(index, past, past);
+  const before = fs.statSync(index).mtimeMs;
+  const f = collectGitFacts(status({ project, worktrees: [{ path: project, branch: 'main' }] }));
+  assert.equal(f.worktrees[0].dirty, false);
+  assert.equal(fs.statSync(index).mtimeMs, before);
+});
+
+test('collectGitFacts treats a path that is not a worktree root as missing', () => {
+  const project = repo();
+  const sub = path.join(project, 'sub');
+  fs.mkdirSync(sub);
+  const plain = tmp();
+  const f = collectGitFacts(status({ project, worktrees: [{ path: sub, branch: 'main' }, { path: plain, branch: 'main' }] }));
+  assert.equal(f.worktrees[0].exists, false);
+  assert.equal(f.worktrees[0].head, null);
+  assert.equal(f.worktrees[1].exists, false);
+});
+
+test('collectGitFacts reports unknown (null), not false, when git cannot answer', () => {
+  // project is not a git repo: nothing about the done commit or branch can be known
+  const project = tmp();
+  const f = collectGitFacts(status({ project, state: 'done', worktrees: [], done: { commit: COMMIT, branch: 'feat' } }));
+  assert.equal(f.doneCommitOnBranch, null);
+  assert.equal(f.doneMerged, null);
+  assert.equal(f.done.branchExists, null);
+  // a done commit that does not exist in a real repo is a definite false
+  const real = repo();
+  gitIn(real, 'branch', 'feat');
+  const g = collectGitFacts(status({ project: real, state: 'done', worktrees: [], done: { commit: COMMIT, branch: 'feat' } }));
+  assert.equal(g.doneCommitOnBranch, false);
+  assert.equal(g.doneMerged, false);
+});
+
+test('isAncestor separates "no" (exit 1) from "git could not answer" (null)', () => {
+  const project = repo();
+  const first = gitIn(project, 'rev-parse', 'HEAD');
+  fs.writeFileSync(path.join(project, 'b.txt'), 'b\n');
+  gitIn(project, 'add', '-A');
+  gitIn(project, 'commit', '-q', '-m', 'b');
+  assert.equal(isAncestor(project, first, 'HEAD'), true);
+  assert.equal(isAncestor(project, 'HEAD', first), false);
+  assert.equal(isAncestor(project, first, 'refs/heads/no-such-branch'), null);
+  assert.equal(isAncestor(tmp(), 'HEAD', 'HEAD'), null);
 });

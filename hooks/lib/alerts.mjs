@@ -1,8 +1,39 @@
 // Where what was claimed (status.json, checkboxes) and the evidence (git, verdicts) disagree.
 // collectGitFacts reads git; computeAlerts is pure so the rules can be tested on plain values.
 import fs from 'node:fs';
-import { git } from './qe-home.mjs';
+import { spawnSync } from 'node:child_process';
+import { normPath } from './qe-home.mjs';
 import { sameCommit } from './tasks.mjs';
+
+// The board polls while the user works in other sessions, so every git call here is
+// lock-free (`--no-optional-locks`: `git status` would otherwise take index.lock and
+// rewrite .git/index). Returns { status, out }; status null = could not run or timed out.
+function run(cwd, args) {
+  try {
+    const r = spawnSync('git', ['--no-optional-locks', ...args], {
+      cwd,
+      encoding: 'utf8',
+      timeout: 3000,
+      windowsHide: true,
+      env: { ...process.env, GIT_OPTIONAL_LOCKS: '0' },
+    });
+    if (r.error || typeof r.status !== 'number') return { status: null, out: null };
+    return { status: r.status, out: (r.stdout ?? '').trim() };
+  } catch {
+    return { status: null, out: null };
+  }
+}
+
+function git(cwd, args) {
+  const r = run(cwd, args);
+  return r.status === 0 ? r.out : null;
+}
+
+// Exit 0 → true, exit 1 → false, anything else (error, timeout, bad ref) → null (unknown).
+function yesNo(cwd, args) {
+  const { status } = run(cwd, args);
+  return status === 0 ? true : status === 1 ? false : null;
+}
 
 function exists(p) {
   try {
@@ -17,9 +48,15 @@ function count(out) {
   return Number.isFinite(n) ? n : null;
 }
 
-// git() maps any non-zero exit to null, so a yes/no question needs both answers checked.
-function isAncestor(cwd, a, b) {
-  return git(cwd, ['merge-base', '--is-ancestor', a, b]) !== null;
+export function isAncestor(cwd, a, b) {
+  return yesNo(cwd, ['merge-base', '--is-ancestor', a, b]);
+}
+
+// The recorded path must be the root of a checkout; a plain folder or a subfolder of another
+// repo would otherwise report that repo's HEAD and dirt as this worktree's.
+function isWorktreeRoot(p) {
+  const top = git(p, ['rev-parse', '--show-toplevel']);
+  return top !== null && normPath(top) === normPath(p);
 }
 
 export function collectGitFacts(status) {
@@ -40,9 +77,10 @@ export function collectGitFacts(status) {
     if (branchInfo.has(name)) return branchInfo.get(name);
     let info = { branchExists: null, aheadOfBase: null, tip: null };
     if (inRepo) {
-      const tip = git(projectPath, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}^{commit}`]);
+      const r = run(projectPath, ['rev-parse', '--verify', '--quiet', `refs/heads/${name}^{commit}`]);
+      const tip = r.status === 0 ? r.out : null;
       info = {
-        branchExists: tip !== null,
+        branchExists: r.status === 0 ? true : r.status === 1 ? false : null,
         tip,
         aheadOfBase: tip !== null ? count(git(projectPath, ['rev-list', '--count', `HEAD..refs/heads/${name}`])) : null,
       };
@@ -53,7 +91,7 @@ export function collectGitFacts(status) {
 
   const worktrees = (Array.isArray(status?.worktrees) ? status.worktrees : []).map((w) => {
     const p = w && typeof w.path === 'string' ? w.path : '';
-    const ok = exists(p);
+    const ok = exists(p) && isWorktreeRoot(p);
     const b = branch(w?.branch);
     return {
       path: p,
@@ -78,11 +116,14 @@ export function collectGitFacts(status) {
     const b = branch(d.branch);
     done = { branch: d.branch ?? null, branchExists: b.branchExists, aheadOfBase: b.aheadOfBase };
     const commit = typeof d.commit === 'string' && d.commit.trim() ? d.commit.trim() : null;
-    const resolved = inRepo && commit ? git(projectPath, ['rev-parse', '--verify', '--quiet', `${commit}^{commit}`]) : null;
     if (inRepo && commit) {
-      doneMerged = resolved !== null && isAncestor(projectPath, resolved, 'HEAD');
+      const r = run(projectPath, ['rev-parse', '--verify', '--quiet', `${commit}^{commit}`]);
+      // exit 1: no such commit (definitely not on any branch); other failures stay unknown
+      const missing = r.status === 1;
+      const resolved = r.status === 0 ? r.out : null;
+      doneMerged = missing ? false : resolved ? isAncestor(projectPath, resolved, 'HEAD') : null;
       if (b.tip) {
-        doneCommitOnBranch = resolved !== null && isAncestor(projectPath, resolved, b.tip);
+        doneCommitOnBranch = missing ? false : resolved ? isAncestor(projectPath, resolved, b.tip) : null;
         if (doneCommitOnBranch) doneNewCommits = count(git(projectPath, ['rev-list', '--count', `${resolved}..${b.tip}`]));
       }
     }
@@ -135,8 +176,9 @@ export function computeAlerts(task, facts, liveSessionIds) {
     if (gone.length) add('worktree-missing', `worktree가 없다: ${gone.join(', ')}`);
   }
 
-  // A finished task whose commit reached the base had its branch cleaned up on purpose.
-  if (s.state !== 'stopped' && !(s.state === 'done' && f.doneMerged === true)) {
+  // A finished task whose commit reached the base had its branch cleaned up on purpose;
+  // only a done task known NOT to be merged has really lost its branch.
+  if (s.state !== 'stopped' && !(s.state === 'done' && f.doneMerged !== false)) {
     const missing = new Set(wts.filter((w) => w.branchExists === false).map((w) => w.branch));
     if (s.state === 'done' && f.done?.branchExists === false) missing.add(f.done.branch);
     if (missing.size) add('branch-missing', `브랜치가 없다: ${[...missing].join(', ')}`);

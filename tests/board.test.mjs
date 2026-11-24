@@ -42,3 +42,27 @@ test('server serves /api/state JSON', async () => {
     await new Promise((r) => server.close(r));
   }
 });
+
+test('server rejects requests whose Host is not 127.0.0.1 or localhost on its port (DNS rebinding)', async () => {
+  const { default: http } = await import('node:http');
+  const server = await startServer({ port: 0, env: { QE_HOME: home(), PATH: '', Path: '' } });
+  const get = (host) =>
+    new Promise((resolve, reject) => {
+      const req = http.request({ host: '127.0.0.1', port: server.address().port, path: '/api/state', headers: { host } }, (res) => {
+        res.resume();
+        resolve(res.statusCode);
+      });
+      req.on('error', reject);
+      req.end();
+    });
+  try {
+    const { port } = server.address();
+    assert.equal(await get(`evil.example:${port}`), 403);
+    assert.equal(await get(`127.0.0.1:${port + 1}`), 403);
+    assert.equal(await get('127.0.0.1'), 403);
+    assert.equal(await get(`127.0.0.1:${port}`), 200);
+    assert.equal(await get(`localhost:${port}`), 200);
+  } finally {
+    await new Promise((r) => server.close(r));
+  }
+});
