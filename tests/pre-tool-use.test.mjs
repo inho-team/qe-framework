@@ -79,12 +79,11 @@ test('applies Edit old_string/new_string (and replace_all) before judging', () =
   const t = setup();
   const edit = (o, n, replace_all) => ({ tool_name: 'Edit', tool_input: { file_path: t.file, old_string: o, new_string: n, replace_all } });
   assert.ok(decide(edit('"state": "active"', '"state": "done"'), t.env).deny);
-  // old_string not found -> allow (the Edit tool itself fails)
-  assert.equal(decide(edit('nope', '"state": "done"'), t.env), null);
-  // first occurrence only: "p" appears in several places, replace first -> still not done
+  // old_string not found: allow unless new_string mentions done (conservative; see curly-quote test)
+  assert.equal(decide(edit('nope', '"state": "x"'), t.env), null);
+  // unique old_string touching only the goal -> state stays active -> allow
   fs.writeFileSync(t.file, JSON.stringify({ ...t.status, goal: 'active' }, null, 2));
-  // first "active" is goal's value; state stays active -> allow
-  assert.equal(decide(edit('active', 'done'), t.env), null);
+  assert.equal(decide(edit('"goal": "active"', '"goal": "done"'), t.env), null);
   // replace_all hits state too -> deny
   assert.ok(decide(edit('active', 'done', true), t.env).deny);
 });
@@ -115,4 +114,63 @@ test('script prints deny JSON, or nothing, and exits 0', () => {
   const bad = spawnSync(process.execPath, [script], { input: 'garbage', encoding: 'utf8' });
   assert.equal(bad.status, 0);
   assert.equal(bad.stdout, '');
+});
+
+const win = process.platform === 'win32';
+const mac = process.platform === 'darwin';
+const ci = win || mac;
+
+test('denies case-variant status.json and Verdicts paths on case-insensitive platforms', { skip: !ci }, () => {
+  const t = setup();
+  assert.ok(decide(write(path.join(t.taskDir, 'STATUS.JSON'), doneStatus(SHA)), t.env).deny);
+  assert.ok(decide(write(path.join(t.taskDir, 'Verdicts', 'x.json'), '{}'), t.env).deny);
+});
+
+test('denies case-variant tasks/ task folder (win32)', { skip: !win }, () => {
+  const t = setup();
+  const f = path.join(t.home, 'TASKS', 'GOAL-A', 'Status.json');
+  assert.ok(decide(write(f, doneStatus(SHA)), t.env).deny);
+});
+
+test('denies NTFS stream suffix on status.json (win32)', { skip: !win }, () => {
+  const t = setup();
+  assert.ok(decide(write(t.file + '::$DATA', doneStatus(SHA)), t.env).deny);
+  assert.ok(decide(write(path.join(t.taskDir, 'verdicts', 'x.json::$DATA'), '{}'), t.env).deny);
+});
+
+test('denies \\?\ extended-length prefix (win32)', { skip: !win }, () => {
+  const t = setup();
+  assert.ok(decide(write('\\\\?\\' + t.file, doneStatus(SHA)), t.env).deny);
+});
+
+test('denies Git Bash style /c/... path (win32)', { skip: !win }, () => {
+  const t = setup();
+  const m = /^([A-Za-z]):[\\/](.*)$/.exec(t.file);
+  const gb = '/' + m[1].toLowerCase() + '/' + m[2].split('\\').join('/');
+  assert.ok(decide(write(gb, doneStatus(SHA)), t.env).deny);
+});
+
+test('denies ~/... paths that resolve into QE_HOME', () => {
+  const t = setup();
+  const home = fs.realpathSync(os.homedir());
+  const rel = path.relative(home, t.file);
+  if (rel.startsWith('..') || path.isAbsolute(rel)) return; // QE_HOME not under the user home on this machine
+  assert.ok(decide(write('~/' + rel.split(path.sep).join('/'), doneStatus(SHA)), t.env).deny);
+});
+
+test('ignores a ~ path outside QE_HOME', () => {
+  const t = setup();
+  assert.equal(decide(write('~/elsewhere/status.json', doneStatus(SHA)), t.env), null);
+});
+
+test('Edit with curly quotes is normalized like the real tool', () => {
+  const t = setup();
+  const edit = (o, n) => ({ tool_name: 'Edit', tool_input: { file_path: t.file, old_string: o, new_string: n } });
+  // normalizes to a real match -> judged as done -> deny
+  assert.ok(decide(edit('\u201cstate\u201d: \u201cactive\u201d', '\u201cstate\u201d: \u201cdone\u201d'), t.env).deny);
+  // unresolvable edit that mentions done on status.json -> conservative deny
+  const r = decide(edit('no such text', 'x done y'), t.env);
+  assert.match(r.deny, /Write/);
+  // unresolvable edit without done -> allow
+  assert.equal(decide(edit('no such text', 'x'), t.env), null);
 });

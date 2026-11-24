@@ -2,6 +2,7 @@
 // `done` in ~/.qe/tasks/<task>/status.json unless a hook-recorded 충족 verdict exists
 // for the same commit, and may not write verdict files itself. Fails open on any error.
 import fs from 'node:fs';
+import os from 'node:os';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { qeHome, tasksDir } from './lib/qe-home.mjs';
@@ -29,21 +30,54 @@ function resultContent(toolName, ti, file) {
     return null;
   }
   const { old_string: o, new_string: n } = ti;
-  if (typeof o !== 'string' || typeof n !== 'string' || o === '' || !cur.includes(o)) return null;
-  return ti.replace_all === true ? cur.split(o).join(n) : cur.replace(o, () => n);
+  if (typeof o !== 'string' || typeof n !== 'string' || o === '') return null;
+  const apply = (c, a, b) => {
+    if (!c.includes(a)) return null;
+    return ti.replace_all === true ? c.split(a).join(b) : c.replace(a, () => b);
+  };
+  const exact = apply(cur, o, n);
+  if (exact !== null) return exact;
+  // The real Edit tool also matches after normalizing curly quotes; mirror that.
+  const q = (x) => x.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
+  const loose = apply(q(cur), q(o), q(n));
+  return loose !== null ? loose : { unknown: true };
+}
+
+// Make a tool-supplied path comparable: ~ expansion, Win32 extended prefixes, Git Bash drive paths.
+function cleanPath(p) {
+  let f = p;
+  if (f === '~' || f.startsWith('~/') || f.startsWith('~\\')) f = os.homedir() + f.slice(1);
+  if (process.platform === 'win32') {
+    f = f.replace(/^[\\/]{2}[?.][\\/]/, '');
+    f = f.replace(/^[\\/]([a-zA-Z])(?=[\\/]|$)/, (_, d) => d.toUpperCase() + ':');
+  }
+  return f;
+}
+
+// Segment as the filesystem sees it: case-folded where the FS usually is, NTFS stream and trailing dots/spaces dropped.
+function foldSegment(seg) {
+  let s = seg;
+  if (process.platform === 'win32') {
+    const i = s.indexOf(':');
+    if (i >= 0) s = s.slice(0, i);
+    s = s.replace(/[. ]+$/, '');
+  }
+  if (process.platform === 'win32' || process.platform === 'darwin') s = s.toLowerCase();
+  return s;
 }
 
 export function decide(input, env = process.env) {
   try {
     const ti = input?.tool_input;
-    const filePath = ti?.file_path;
-    if (typeof filePath !== 'string' || !filePath) return null;
+    const rawPath = ti?.file_path;
+    if (typeof rawPath !== 'string' || !rawPath) return null;
+    const filePath = cleanPath(rawPath);
     const home = qeHome(env);
     const task = taskOfPath(home, filePath);
     if (!task) return null;
     const taskDir = path.join(tasksDir(home), task);
     const rel = path.relative(path.resolve(taskDir), path.resolve(filePath));
-    const parts = rel.split(path.sep);
+    const parts = rel.split(path.sep).map(foldSegment);
 
     if (parts[0] === 'verdicts') {
       return { deny: '검수 기록(verdicts/)은 hook만 쓴다. 검증자 서브에이전트가 최종 보고 마지막 줄에 QE-VERDICT 줄을 남기면 SubagentStop hook이 기록한다. 직접 만들거나 고치지 말고 Qverify로 검증자를 실행하라.' };
@@ -52,6 +86,13 @@ export function decide(input, env = process.env) {
 
     const next = resultContent(input.tool_name, ti, filePath);
     if (next === null) return null;
+    if (typeof next === 'object') {
+      // Edit could not be simulated although the file exists; be conservative only when it may write done.
+      if (typeof ti.new_string === 'string' && ti.new_string.includes('done')) {
+        return { deny: 'status.json 편집 결과를 확인할 수 없고 done이 포함되어 있어 막는다. 부분 편집 대신 Write로 status.json 전체를 쓰라. done으로 바꾸려면 Qverify 검증자의 QE-VERDICT 충족 검수 기록이 먼저 필요하다.' };
+      }
+      return null;
+    }
     let parsed;
     try {
       parsed = JSON.parse(next);
