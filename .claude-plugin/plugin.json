@@ -1,7 +1,7 @@
 {
   "name": "qe-framework",
-  "version": "9.1.0",
-  "description": "QE Framework — one path (이해 → 계획 → 실행 → 검증) for coding work, leaving spec and verify docs for every task.",
+  "version": "9.2.0",
+  "description": "QE Framework — removes the understanding bottleneck with one path (이해 → 계획 → 실행 → 검증), specialist agents, spec and verify docs for every task, and flow contracts of the current code.",
   "author": {
     "name": "inho-team"
   },

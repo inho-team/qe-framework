@@ -4,6 +4,27 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [9.2.0] - 2026-11-24
+
+QE의 목적을 코딩 전용에서 "이해의 병목을 없애고 일을 효율적으로 처리하는 AI 프레임워크"로 넓혔다.
+메인 세션 혼자 하던 일을 분야별 전문 에이전트에 맡길 수 있다.
+
+### Added
+
+- **전문 에이전트.** 언어별 구현자(Java, Kotlin, Go, Dart, JavaScript, TypeScript, C#, C++, Python)와
+  범용 `code`, `planner`, `researcher`, `analyst`, `data-analyst`, `redteam`, `qa`, `marketer`,
+  `contractor`. 직접 부르거나 Q 스킬이 단계에 맞게 고른다.
+- **`code-craft` 스킬.** 문서 주석(JavaDoc, JSDoc, KDoc 등)을 계약으로 쓰고 사설 주석을 쓰지 않는다.
+  메인 세션과 코드 에이전트 모두 따른다.
+- **`agent-conduct` 스킬.** 모든 에이전트가 미리 싣는 범위·보고 규칙.
+- **계약 문서 `docs/contracts/`.** 지금 코드의 흐름을 순서도와 특이사항으로 남긴다. Qunderstand가
+  필요할 때 만들고 먼저 읽으며, Qverify가 흐름이 바뀌면 고친다.
+
+### Changed
+
+- Qexecute 단계 리뷰어는 `redteam`, Qverify 검증자는 `qa`로 띄운다(판단이 큰 자리는 상위 모델).
+- 목적 문구(README, guide, 매니페스트 설명)를 넓힌 범위에 맞췄다.
+
 ## [9.1.0] - 2026-11-23
 
 기존 스킬을 실제로 쓰다 보면 부딪히는 운영 지식으로 깊게 했다: 사용자 대신 내린 판단의 기록,
