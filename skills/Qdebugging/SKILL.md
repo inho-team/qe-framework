@@ -29,6 +29,8 @@ description: Use when facing a bug report, failing test, error, crash, or unexpe
    부분을 판다.
 5. **값의 흐름을 거슬러 올라간다.** 잘못된 값이 처음 생긴 곳은? 누가 그 값으로 불렀나?
    출처를 찾을 때까지 올라가서, 증상이 아니라 출처에서 고친다.
+   스택만으로 호출자가 드러나지 않으면 현재 작업 트리의 `trace_path`에서 호출 경로를 찾는다.
+   도구를 쓸 수 없으면 소스에서 호출자를 찾고, 후보 경로는 스택이나 재현으로 확인한다.
 
 추적 방법, 테스트끼리 오염될 때, 가끔만 실패하는 테스트처럼 막히기 쉬운 경우의 기법은
 [techniques.md](techniques.md)에 있다.

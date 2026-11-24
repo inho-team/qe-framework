@@ -8,6 +8,13 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 ### Added
 
+- QE가 codebase-memory-mcp를 자동 등록한다. 설치된 코드 그래프로 관련 심볼, 호출 경로, 변경 영향을 조사할 수 있다.
+  실행 파일을 찾지 못하면 세션 시작 때 설치를 안내하며 파일 검색으로 작업을 이어갈 수 있다.
+- QE 업데이트 점검에 codebase-memory-mcp 업스트림 버전, MCP 도구와 인자, 그래프 연동 eval 확인을 추가했다.
+- 그래프 eval은 사용자 지정 `CBM_CACHE_DIR`과 `CBM_RUNTIME_DIR`을 서버에 전달한다. Windows에서 두 경로가 빠져
+  MCP 연결이 닫히던 문제를 재현해 고쳤다. 실제 서버를 쓴 그래프 eval **1 of 1**, trigger eval **9 of 9**,
+  gate eval **7 of 7**을 통과했다. 그래프 케이스는 3회 모두 실제 호출 경로를 조회했다.
+- MCP 실행 파일을 PATH의 절대 경로에서만 찾도록 해 Windows의 작업 디렉터리 검색을 피한다.
 - gate eval 케이스 3개: 틀린 리뷰 지적에 근거로 반박하기(`gate-pushback-wrong-review`), 가끔 실패하는 테스트를
   재시도로 덮지 않고 원인부터(`gate-flaky-no-retry`), 모호한 요청에서 사용자 대신 정한 것을 드러내기
   (`gate-states-decisions`).

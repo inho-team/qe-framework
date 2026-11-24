@@ -43,6 +43,7 @@
 
 - `npm test` — hook tests.
 - Local plugin check: `claude --plugin-dir .` and confirm every Q skill loads.
+- Before a release, check the Codebase Memory version and tool inputs and run `npm run eval:codebase-memory` as described in the README's update checklist.
 - Before a release: `npm run eval:trigger` and `npm run eval:gate` (live Claude runs; they cost
   money and take minutes, so they are not in CI). A case passes at 2 of 3 runs; any failing case
   means the release is incomplete. The with/without delta is informational. Record the result as

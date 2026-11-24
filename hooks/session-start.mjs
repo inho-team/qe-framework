@@ -4,6 +4,7 @@
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { findCodeGraphExecutable } from '../mcp/find-executable.mjs';
 
 export const MAX_HANDOFF_CHARS = 8000;
 
@@ -126,9 +127,11 @@ function readStdin() {
 
 function main() {
   let projectRoot = process.cwd();
+  let source;
   try {
     const input = JSON.parse(readStdin());
     if (input && typeof input.cwd === 'string' && input.cwd) projectRoot = input.cwd;
+    source = input?.source;
   } catch {
     // Malformed or empty stdin: keep process.cwd().
   }
@@ -143,9 +146,11 @@ function main() {
     context = guideText.trim();
   }
 
-  process.stdout.write(
-    JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } }),
-  );
+  const output = { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
+  if (source === 'startup' && !findCodeGraphExecutable()) {
+    output.systemMessage = 'QE: 코드 그래프를 쓰려면 README에 따라 codebase-memory-mcp 실행 파일을 설치하고 PATH에 추가하세요.';
+  }
+  process.stdout.write(JSON.stringify(output));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

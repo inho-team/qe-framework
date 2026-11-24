@@ -30,6 +30,14 @@ Windows에서는 Git for Windows(Git Bash)가 필요하다. Git Bash가 없으�
 `QE_NODE_PROBES`에 node 실행 파일 경로를 콜론(`:`)으로 구분해 적으면 그 목록만 찾는다.
 Windows에서는 Git Bash 형식으로 적는다(예: `/c/tools/node/node.exe`). `C:…` 형식은 콜론에서 쪼개진다.
 
+### 코드 그래프
+
+QE를 활성화하면 Claude Code에 `codebase-memory-mcp`가 등록된다. [Codebase Memory 릴리스](https://github.com/DeusData/codebase-memory-mcp/releases/latest)에서 플랫폼에 맞는 실행 파일을 받아 PATH에 추가한다. `codebase-memory-mcp --version`으로 설치를 확인하고 Claude Code를 다시 시작한다. Windows에서는 `codebase-memory-mcp.exe`가 들어 있는 폴더를 PATH에 추가하고 `codebase-memory-mcp.exe --version`으로 확인한다. `/mcp`에서 `plugin:qe-framework:codebase-memory-mcp`의 연결 상태를 볼 수 있다.
+
+설치본이 여러 개라면 Claude Code가 쓰는 PATH에서 점검 대상 실행 파일의 폴더를 앞에 둔다.
+
+Qunderstand는 심볼을 찾고, Qplan과 Qdebugging은 호출 경로를 조사하며, Qreview는 변경이 영향을 주는 심볼을 찾는다. 스킬은 현재 작업 트리의 인덱스를 쓰고, 그래프를 읽을 수 없으면 파일 검색으로 이어간다. 인덱스는 Codebase Memory가 관리하는 로컬 캐시다.
+
 ## 길
 
 ```
@@ -86,7 +94,15 @@ verify.md의 `결과:` 줄로 알 수 있다.
 - `npm run eval:trigger` — 상황에 맞는 스킬이 불리는지
 - `npm run eval:gate` — 길을 지키는지(기능 요청에 바로 코드부터 쓰지 않기, 원인 먼저, 근거 없는 완료를 믿지 않기, 작은 일은 바로). 플러그인 없이 돌린 결과와 함께 보여 준다.
 
-릴리스 전에 돌려, 통과 못 한 케이스가 있으면 아직 내보낼 때가 아니다.
+### QE 업데이트 점검 순서
+
+1. 설치한 실행 파일의 버전을 [업스트림 릴리스](https://github.com/DeusData/codebase-memory-mcp/releases)와 비교한다. 새 버전이 있으면 릴리스 노트를 읽고 해당 버전으로 아래 연동을 확인한다. 아래 도구 입력은 `0.12.1`의 MCP 응답에서 확인했다.
+2. `claude --plugin-dir .`로 열고 `/mcp`에서 QE 서버의 연결과 도구 입력을 확인한다. 스킬에서 쓰는 도구는 `list_projects`, `index_repository`(`repo_path`), `search_graph`(`project`, `name_pattern`), `trace_path`(`project`, `function_name`, `direction`), `detect_changes`(`project`, `scope`)다. 이름, 필수 인자, 사용 중인 값이 달라졌으면 해당 호출 안내와 eval을 맞춘다.
+3. `npm test`, `npm run eval:trigger`, `npm run eval:gate`, `npm run eval:codebase-memory`를 실행한다. 마지막 명령은 임시 저장소를 만들고 실제 MCP 서버로 호출 경로를 확인한다. 그래프 eval이 실패하면 연결 상태, 인덱스 경로와 MCP 오류를 확인해 수정한 뒤 다시 실행한다. 통과한 케이스 수를 CHANGELOG에 기록하고 모두 통과한 뒤 릴리스한다.
+
+Windows에서 그래프 eval의 `scaffold failed`에 WSL 오류가 나타나면 Git Bash에서 다시 실행하거나, PowerShell의 PATH 앞에 Git for Windows의 `bin` 폴더를 추가한다. 기본 설치 경로는 `C:\Program Files\Git\bin`이다.
+
+그래프 eval은 실행한 셸의 `CBM_CACHE_DIR`과 `CBM_RUNTIME_DIR` 설정을 MCP 서버에 전달한다. 사용자 지정 경로로 설치한 경우 평소에 Codebase Memory를 실행하는 셸에서 점검한다.
 
 ## v9에서 오는 경우
 
