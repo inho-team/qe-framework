@@ -34,6 +34,10 @@
 - How to create or change a skill (control run first, reasons over rules, trigger checks) is in
   `skills/Qskill/SKILL.md`; the bullets here are the QE-repo-specific rules.
 - The hook must never fail a session start: guard every filesystem read, always exit 0.
+- Keep code comments sparse. Use them to explain a decision, constraint, or invariant that
+  is hard to infer from the code. Keep messages in the code aligned with what it actually
+  does. Track unfinished work in the task plan and record actual verification commands
+  and results in `verify.md`.
 - No DB, no state files beyond the task docs. State is read from `implement-plan.md` checkboxes,
   `verify.md`, and `handoff.md`.
 - When changing the path or the doc layout, update `hooks/guide.md`, `README.md`, and the
@@ -41,7 +45,17 @@
 
 ## Validation
 
-- `npm test` — hook tests.
+- Run `npm ci` to install the development tools. `npm test` runs lint, hook tests, and static checks.
+- `npm run lint` checks `.mjs` hooks using [scripts/lint-hooks.mjs](scripts/lint-hooks.mjs). Read
+  lint diagnostics in full, fix the affected behavior, and rerun the relevant test and lint.
+- When investigating a hook change or lint failure, use `codebase-memory-mcp` to index the
+  current checkout and trace callers of the affected symbol. With the CLI, run
+  `codebase-memory-mcp cli index_repository --repo-path . --mode fast`, then
+  `codebase-memory-mcp cli trace_path --project <project> --function-name <symbol> --direction inbound`.
+  Use `--mode full --doc-candidates false` in the indexing command when tracing code under
+  `scripts/` or `tests/`. Fast mode skips those paths.
+  Use the project name returned by indexing and confirm the reported call path in the source.
+  If the tool is unavailable, follow the call sites in the source.
 - Local plugin check: `claude --plugin-dir .` and confirm every Q skill loads.
 - Before a release: `npm run eval:trigger` and `npm run eval:gate` (live Claude runs; they cost
   money and take minutes, so they are not in CI). A case passes at 2 of 3 runs; any failing case

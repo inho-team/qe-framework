@@ -88,6 +88,12 @@ verify.md의 `결과:` 줄로 알 수 있다.
 
 릴리스 전에 돌려, 통과 못 한 케이스가 있으면 아직 내보낼 때가 아니다.
 
+## 저장소 개발 검사
+
+`npm ci`로 개발 의존성을 설치한 뒤 `npm test`를 실행하면 훅의 린트와 테스트를 함께 확인합니다.
+`npm run lint`는 훅의 `.mjs` 파일에서 `Error("Not implemented")`를 던지는 경로를 찾아 수정 방향을 안내합니다.
+주석 작성 원칙과 호출 경로를 추적하는 방법은 [AGENTS.md](AGENTS.md)에 있습니다.
+
 ## v9에서 오는 경우
 
 v10부터 `spec.md`는 `plan.md`로, 예전 `plan.md`는 `implement-plan.md`로 바뀌었다. 예전 이름의 작업 폴더는
