@@ -29,10 +29,14 @@ description: Use when facing a bug report, failing test, error, crash, or unexpe
    부분을 판다.
 5. **값의 흐름을 거슬러 올라간다.** 잘못된 값이 처음 생긴 곳은? 누가 그 값으로 불렀나?
    출처를 찾을 때까지 올라가서, 증상이 아니라 출처에서 고친다.
+   스택만으로 호출자가 드러나지 않으면 현재 작업 트리의 `trace_path`에서 호출 경로를 찾는다.
+   도구를 쓸 수 없으면 소스에서 호출자를 찾고, 후보 경로는 스택이나 재현으로 확인한다.
 
 추적 방법, 테스트끼리 오염될 때, 가끔만 실패하는 테스트처럼 막히기 쉬운 경우의 기법은
 [techniques.md](techniques.md)에 있다.
 
+원인 분석은 `qe-framework:analyst`, 로그·지표 분석은 `qe-framework:data-analyst`에 맡길 수 있다.
+전문 에이전트가 보이지 않으면 일반 서브에이전트로 분석을 맡긴다.
 서로 독립인 실패가 여럿이면 각각을 서브에이전트에 나눠 맡길 수 있다. 같은 파일을
 건드리면 `isolation: "worktree"`로 격리한다.
 
@@ -59,7 +63,7 @@ description: Use when facing a bug report, failing test, error, crash, or unexpe
 
 **수정이 작으면** 이 자리에서 고치고 `Qverify`로 간다. 작업 폴더가 있으면 원인을
 plan.md "원인"에, 재현 테스트와 결과를 verify.md에 남긴다. 아주 작은 버그면 문서 없이
-결과만 보고한다.
+결과만 보고한다. 사용자가 원인 분석을 HTML·아티팩트로 달라고 하면 `Qreport`의 틀을 쓴다.
 
 **수정이 크면**(여러 파일, 설계 변경, 사용자가 정할 것이 있음) 원인과 근거를 plan.md
 "원인"에 적고 `Qplan`으로 넘어간다.

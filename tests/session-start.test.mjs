@@ -104,6 +104,23 @@ test('CLI falls back to cwd on malformed stdin and exits 0', () => {
   assert.ok(out.hookSpecificOutput.additionalContext.includes(guideFirstLine));
 });
 
+test('CLI warns once at startup when the code graph executable is missing', () => {
+  const root = tmpRoot();
+  for (const source of ['startup', 'clear', 'compact']) {
+    const res = spawnSync(process.execPath, [hookPath], {
+      cwd: root,
+      input: JSON.stringify({ cwd: root, source }),
+      encoding: 'utf8',
+      env: { ...process.env, PATH: root },
+    });
+    assert.equal(res.status, 0, res.stderr);
+    const out = JSON.parse(res.stdout);
+    assert.ok(out.hookSpecificOutput.additionalContext.includes(guideFirstLine));
+    if (source === 'startup') assert.match(out.systemMessage ?? '', /codebase-memory-mcp/);
+    else assert.equal(out.systemMessage, undefined);
+  }
+});
+
 test('CLI uses input.cwd and injects the open task handoff', () => {
   const root = tmpRoot();
   writeTask(root, '2026-11-05-d', { 'implement-plan.md': '- [ ] next\n', 'handoff.md': 'NEXT: run the migration test' });

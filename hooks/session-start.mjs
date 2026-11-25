@@ -8,6 +8,7 @@ import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { countUnchecked, listTasks, projectRootOf } from './lib/tasks.mjs';
 import { normPath, qeHome } from './lib/qe-home.mjs';
+import { findCodeGraphExecutable } from '../mcp/find-executable.mjs';
 
 export { countUnchecked };
 
@@ -169,10 +170,12 @@ function readStdin() {
 function main() {
   let projectRoot = process.cwd();
   let sessionId;
+  let source;
   try {
     const input = JSON.parse(readStdin());
     if (input && typeof input.cwd === 'string' && input.cwd) projectRoot = input.cwd;
     if (input && typeof input.session_id === 'string' && input.session_id) sessionId = input.session_id;
+    source = input?.source;
   } catch {
     // Malformed or empty stdin: keep process.cwd().
   }
@@ -191,9 +194,15 @@ function main() {
     }
   }
 
-  process.stdout.write(
-    JSON.stringify({ hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } }),
-  );
+  const output = { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
+  try {
+    if (source === 'startup' && !findCodeGraphExecutable()) {
+      output.systemMessage = 'QE: 코드 그래프를 쓰려면 README에 따라 codebase-memory-mcp 실행 파일을 설치하고 PATH에 추가하세요.';
+    }
+  } catch {
+    // The install hint is optional; never fail session start over it.
+  }
+  process.stdout.write(JSON.stringify(output));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) {

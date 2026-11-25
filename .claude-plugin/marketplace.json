@@ -8,7 +8,7 @@
   "plugins": [
     {
       "name": "qe-framework",
-      "description": "One path for coding work — understand, plan, execute, verify, finish — with plan and verify docs per task",
+      "description": "One workflow with specialist agents, task plans, and verification records",
       "version": "11.0.0",
       "category": "development",
       "tags": [

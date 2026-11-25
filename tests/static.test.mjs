@@ -92,6 +92,86 @@ test('descriptions carry no skill count', () => {
   }
 });
 
+// Specialist agents ship in agents/; the roster is fixed by the design so a missing file is caught.
+const agentsDir = path.join(root, 'agents');
+const EXPECTED_AGENTS = [
+  'code-java', 'code-kotlin', 'code-go', 'code-dart', 'code-javascript', 'code-typescript',
+  'code-csharp', 'code-cpp', 'code-python', 'code', 'planner', 'researcher', 'analyst',
+  'data-analyst', 'redteam', 'qa', 'marketer', 'contractor',
+];
+const agentFiles = () =>
+  fs.existsSync(agentsDir) ? fs.readdirSync(agentsDir).filter((f) => f.endsWith('.md')) : [];
+
+test('Q skill routing uses the registered plugin agent names', () => {
+  const routes = {
+    Qunderstand: ['contractor', 'researcher', 'analyst'],
+    Qplan: ['code-<언어>', 'code', 'planner'],
+    Qexecute: ['code-<언어>', 'code', 'planner', 'marketer', 'redteam'],
+    Qverify: ['qa', 'redteam', 'contractor'],
+    Qdebugging: ['analyst', 'data-analyst'],
+  };
+  for (const [skill, agents] of Object.entries(routes)) {
+    const content = read(`skills/${skill}/SKILL.md`);
+    for (const name of agents) {
+      assert.ok(content.includes(`\`qe-framework:${name}\``), `${skill} -> ${name}`);
+    }
+  }
+});
+
+test('the contractor and its calling skills link to the same bundled contract template', () => {
+  const template = path.join(root, 'skills', 'Qunderstand', 'contract-template.md');
+  for (const file of ['agents/contractor.md', 'skills/Qunderstand/SKILL.md', 'skills/Qverify/SKILL.md']) {
+    const link = read(file).match(/\]\(([^)\s]*contract-template\.md)\)/)?.[1];
+    assert.ok(link, file);
+    assert.equal(path.resolve(root, path.dirname(file), link.replace('${CLAUDE_PLUGIN_ROOT}', root)), template);
+  }
+  assert.ok(fs.existsSync(template));
+});
+
+test('agents/ holds exactly the planned roster', () => {
+  assert.deepEqual(agentFiles().map((f) => f.replace(/\.md$/, '')).sort(), [...EXPECTED_AGENTS].sort());
+});
+
+test('every agent file name equals its frontmatter name and description starts "Use when"', () => {
+  for (const f of agentFiles()) {
+    const fm = frontmatter(read(`agents/${f}`));
+    assert.match(fm, new RegExp(`^name: ${f.replace(/\.md$/, '')}$`, 'm'), f);
+    assert.match(fm, /^description: "?Use when/m, f);
+    assert.match(fm, /^tools: .+/m, f);
+    assert.match(fm, /^model: (opus|sonnet)$/m, f);
+  }
+});
+
+// A skills: entry naming a missing skill silently drops the shared rules.
+function agentSkills(f) {
+  const block = frontmatter(read(`agents/${f}`)).match(/^skills:\r?\n((?:[ \t]+- .+(?:\r?\n|$))+)/m);
+  return block ? [...block[1].matchAll(/-\s+(\S+)/g)].map((m) => m[1].replace(/^qe-framework:/, '')) : [];
+}
+
+test('every skills: entry in an agent names a skill in skills/', () => {
+  for (const f of agentFiles()) {
+    const skills = agentSkills(f);
+    assert.ok(skills.length > 0, `${f}: no skills list`);
+    for (const s of skills) assert.ok(skillNames.includes(s), `${f} -> ${s}`);
+  }
+});
+
+test('agents load agent-conduct; code agents also load code-craft', () => {
+  for (const f of agentFiles()) {
+    const skills = agentSkills(f);
+    assert.ok(skills.includes('agent-conduct'), f);
+    if (f === 'code.md' || f.startsWith('code-')) assert.ok(skills.includes('code-craft'), f);
+  }
+});
+
+// The harness may substitute these tokens inside skill and agent text.
+test('skill and agent text carries no substitution tokens', () => {
+  const files = [...walkMarkdown(skillsDir), ...agentFiles().map((f) => path.join(agentsDir, f))];
+  for (const file of files) {
+    assert.doesNotMatch(fs.readFileSync(file, 'utf8'), /\$ARGUMENTS|\$\d\b/, path.relative(root, file));
+  }
+});
+
 // Eval cases are how a release is judged complete; a case without a grader silently scores nothing.
 const GRADER_TYPES = new Set(['regex', 'tool_used', 'tool_order', 'file_exists', 'llm', 'baseline']);
 test('every eval case has a prompt, a suite tag, and valid graders', () => {
@@ -106,7 +186,7 @@ test('every eval case has a prompt, a suite tag, and valid graders', () => {
     const promptPath = path.join(dir, 'prompt.md');
     assert.ok(fs.existsSync(promptPath), `${c.name}: prompt.md missing`);
     const fm = frontmatter(fs.readFileSync(promptPath, 'utf8'));
-    assert.match(fm, /^tags: \[.*\b(trigger|gate)\b.*\]$/m, `${c.name}: needs tag trigger or gate`);
+    assert.match(fm, /^tags: \[.*\b(trigger|gate|codebase-memory)\b.*\]$/m, `${c.name}: needs a suite tag`);
     const gradersDir = path.join(dir, 'graders');
     const graders = fs.existsSync(gradersDir) ? fs.readdirSync(gradersDir).filter((f) => f.endsWith('.md')) : [];
     assert.ok(graders.length > 0, `${c.name}: no graders`);

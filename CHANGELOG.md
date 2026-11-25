@@ -9,6 +9,10 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 **호환성 깨짐: 작업 문서 위치가 바뀌었다.** 기존 프로젝트 `docs/qe/`의 미완료 작업은 세션 시작 안내에
 "이전 위치"로 계속 보인다(아래 "옮기는 방법").
 
+이 버전에는 origin/main의 미출시 변경(#39–#43: 회귀 gate eval, hook 린트, codebase-memory-mcp 연동,
+전문 에이전트와 흐름 계약, Qreport)을 합친 것도 들어 있다. 그 내용은 아래 "11.0.0에 합쳐진 변경"에 그대로 두었고,
+합치면서 새 위치·관문에 맞춘 것은 "### 합치며 맞춘 것"에 적었다.
+
 근거: 이번 변경은 문구 조정이 아니라 위치·흐름 변경이며, 실패는 사용자 경험으로 확인됐다 — 여러 세션·worktree에
 문서가 흩어져 한곳에서 안 보였고, AI가 "완료"라고 했는데 실제로는 안 된 일이 있었다.
 
@@ -49,6 +53,17 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
   PostToolUse도 `~`·`/c/` 경로를 알아본다. git 시간 제한은 `QE_GIT_TIMEOUT_MS`로 바꿀 수 있다(기본 3000ms,
   테스트는 늘려 쓰고 항상 임시 `QE_HOME`을 쓴다).
 
+### 합치며 맞춘 것 (origin/main #39–#43)
+
+- Qverify: 완료 판정(`QE-VERDICT` 줄)은 `qe-framework:qa` 검증자가 쓰고, 브랜치 전체 코드 리뷰는 작은 변경도
+  `qe-framework:redteam`이 따로 한다(리뷰어에게는 QE-VERDICT 줄을 넘기지 않는다). 메인이 diff를 직접 읽는 선택지는 두지 않았다.
+- Qreport: 보고서 저장 위치를 `~/.qe/tasks/<작업>/report.html`로 옮겼다. 보고서만 담는 폴더에는 `status.json`을
+  만들지 않는다. Qfinish는 `*.md`와 함께 `report*.html`도 프로젝트 `docs/qe/<목표>/`로 내보낸다.
+- 흐름 계약은 그대로 프로젝트의 `docs/contracts/`에 둔다(작업 문서가 아니라 코드와 함께 유지되는 문서다).
+- 세션 시작 hook: codebase-memory-mcp 설치 안내를 이 세션 id·`~/.qe` 목표 안내와 함께 내보내고, 실행 파일 찾기가
+  실패해도 세션 시작을 막지 않는다.
+- 버전은 11.0.0으로 맞췄다(`package.json`, `plugin.json`, `marketplace.json`).
+
 ### 옮기는 방법 (v10 작업 폴더)
 
 진행 중인 `docs/qe/<폴더>/`를 이어가려면 폴더마다:
@@ -60,6 +75,50 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
    하려면 프로젝트 원래 checkout의 절대 경로를 적는다).
 
 이미 끝난 작업은 그대로 두면 된다. 프로젝트 `docs/qe/`는 이제 완료 기록 보관용이다.
+
+## 11.0.0에 합쳐진 변경 (origin/main #39–#43, 따로 출시되지 않음)
+
+위치 표기(`docs/qe/<작업>/report.html` 등)는 합치기 전 기록 그대로다. 11.0.0에서는 `~/.qe/tasks/`에 있다.
+
+### Added
+
+- **Qreport — 분석 보고를 늘 같은 HTML 틀로.** 분석을 HTML이나 아티팩트로 달라고 할 때마다 레이아웃, 색,
+  섹션 순서가 새로 디자인되어 지난 보고서와 비교하기 어려웠다. 이제 고정 틀 `skills/Qreport/report-frame.html`을
+  복사해 일곱 섹션(한 줄 결론, 요청 이해, 발견한 것, 선택지 비교, 정해 주셔야 할 것, 다음 단계 + 헤더)에 내용만 채운다.
+  내용 없는 섹션은 `없음`으로 남긴다. 저장은 `docs/qe/<작업>/report.html`.
+  - Qunderstand, Qdebugging, Qverify에서 HTML·아티팩트 요청이 오면 Qreport로 간다.
+  - trigger eval 세 케이스 추가: `trigger-report`, `trigger-report-boundary`(불려야 함), `trigger-report-chat`.
+    `trigger-report-chat`은 "채팅으로 요약해줘"에 불리지 않고 HTML도 만들지 않아야 한다(`tool_used` `max: 0` + `regex` `not_contains`).
+  - 측정(각 3회): **trigger 12 of 12, gate 7 of 7**(Δ 0.00). 비용 약 $10.4.
+    - 처음에 Qreport 케이스가 실패했지만 원인은 케이스였다. 빈 sandbox에 "방금 분석한 것"이 없어서 모델이 먼저 되물었다.
+      그래서 분석 내용을 프롬프트 안에 넣었다.
+    - 스킬 없이 같은 분석을 HTML로 3번 만들면 CSS·색·폭이 매번 달랐다. 스킬을 켜면 5번 모두 `<style>`과 섹션 순서가 틀과 같았다.
+- 언어별 구현자를 포함한 전문 에이전트를 추가했다. 직접 부르거나 Q 스킬이 구현, 기획, 조사, 분석,
+  단계 리뷰, 검증, 문서 작성에 맞게 고른다.
+- `code-craft`는 메인과 코드 에이전트의 문서 주석 작성 기준을, `agent-conduct`는 전문 에이전트의
+  작업 범위와 보고 기준을 담는다.
+- `docs/contracts/`에 현재 코드의 흐름을 순서도와 특이사항으로 기록한다. Qunderstand는 필요한
+  계약을 작성하고, Qverify는 변경된 흐름의 기존 계약을 갱신한다.
+- QE가 codebase-memory-mcp를 자동 등록한다. 설치된 코드 그래프로 관련 심볼, 호출 경로, 변경 영향을 조사할 수 있다.
+  실행 파일을 찾지 못하면 세션 시작 때 설치를 안내하며 파일 검색으로 작업을 이어갈 수 있다.
+- QE 업데이트 점검에 codebase-memory-mcp 업스트림 버전, MCP 도구와 인자, 그래프 연동 eval 확인을 추가했다.
+- 그래프 eval은 사용자 지정 `CBM_CACHE_DIR`과 `CBM_RUNTIME_DIR`을 서버에 전달한다. Windows에서 두 경로가 빠져
+  MCP 연결이 닫히던 문제를 재현해 고쳤다. 실제 서버를 쓴 그래프 eval **1 of 1**, trigger eval **9 of 9**,
+  gate eval **7 of 7**을 통과했다. 그래프 케이스는 3회 모두 실제 호출 경로를 조회했다.
+- MCP 실행 파일을 PATH의 절대 경로에서만 찾도록 해 Windows의 작업 디렉터리 검색을 피한다.
+- gate eval 케이스 3개: 틀린 리뷰 지적에 근거로 반박하기(`gate-pushback-wrong-review`), 가끔 실패하는 테스트를
+  재시도로 덮지 않고 원인부터(`gate-flaky-no-retry`), 모호한 요청에서 사용자 대신 정한 것을 드러내기
+  (`gate-states-decisions`).
+- 측정(각 3회): 세션 기본 모델(Opus)에서 새 3개 모두 3 of 3, 플러그인 없이도 3 of 3(Δ 0.00).
+  sonnet에서 gate 7개 모두 플러그인 있을 때 3 of 3, 없을 때는 `gate-bug-root-cause-first`만 2 of 3(Δ +0.17),
+  나머지 Δ 0.00. **한 번 주고받는 상황에서는 QE가 더하는 차이가 거의 드러나지 않는다** — 이 케이스들은 QE가
+  행동을 나쁘게 만들지 않는지 지키는 회귀 검사로 둔다. 비용 약 $3.3.
+
+### Changed
+
+- Qexecute는 단계 리뷰를 `redteam`에 맡긴다. Qverify는 `qa`의 목표·테스트 검증과 `redteam`의
+  최종 코드 리뷰에 각각 작업을 준다.
+- QE의 목적을 이해의 병목을 줄이고 구현·조사·기획 등 여러 작업을 효율적으로 처리하는 프레임워크로 설명한다.
 
 ## [10.0.0] - 2026-11-23
 
