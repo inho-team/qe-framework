@@ -1,5 +1,13 @@
 # AGENTS.md
 
+## 작업 시작
+
+새 코딩 요청에 작업 이유(Why) 또는 관찰 가능한 완료 기준 중 하나라도 빠졌으면, 계획·수정·디버깅 전에 반드시 `Qunderstand`를 먼저 호출한다. Claude Code에서는 `qe-framework:Qunderstand`를 Skill 도구로 호출한다. 스킬 호출 도구가 없으면 아래의 스킬 원문을 열고 따른다. 앞선 대화나 저장소에 답이 있으면 다시 묻지 않는다.
+
+스킬 원문: [Qunderstand](skills/Qunderstand/SKILL.md)
+
+인터뷰를 진행한 창에서는 구현하지 않는다. 사용자가 의도를 확정하면 작업 폴더에 `intent.md`를 저장한다. 새 세션 또는 사용자가 선택한 서브에이전트가 이 파일을 읽고 계획을 세운 뒤 승인을 받아 실행한다.
+
 ## Project
 
 - Name: `@inho-team/qe-framework` (Claude Code plugin `qe-framework`; not published to npm)
@@ -66,7 +74,7 @@
   implementation plan and record actual verification commands and results in `verify.md`.
 - No DB. Allowed state is the `~/.qe` git repo of goal folders: the task docs, each goal's `status.json`,
   hook-written `verdicts/`, and `.stop-blocked-*` markers. Progress is still read from
-  `implement-plan.md` checkboxes, `verify.md`, and `handoff.md`. Add no other state store.
+  a confirmed `intent.md`, `implement-plan.md` checkboxes, `verify.md`, and `handoff.md`. Add no other state store.
   The enduring flow contracts in the project's `docs/contracts/` describe the current code, which is
   their source of truth.
 - When changing the path, the doc layout, or the agent roster, update `hooks/guide.md`,

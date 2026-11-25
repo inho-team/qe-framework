@@ -14,7 +14,7 @@ export { countUnchecked };
 
 export const MAX_HANDOFF_CHARS = 8000;
 
-const TASK_MARKERS = ['plan.md', 'implement-plan.md', 'handoff.md'];
+const TASK_MARKERS = ['intent.md', 'plan.md', 'implement-plan.md', 'handoff.md'];
 
 // verify.md's header line, e.g. "- 결과: 일부 미충족" (see skills/Qverify/verify-template.md).
 const VERIFY_FAILED = /결과:\s*(일부\s*)?미충족/;
@@ -37,7 +37,7 @@ function safeRead(p) {
 
 function inspectTask(dir, name) {
   const stats = {};
-  for (const file of ['plan.md', 'implement-plan.md', 'verify.md', 'handoff.md']) {
+  for (const file of [...TASK_MARKERS, 'verify.md']) {
     const st = safeStat(path.join(dir, file));
     if (st && st.isFile()) stats[file] = st;
   }
@@ -53,6 +53,8 @@ function inspectTask(dir, name) {
     name,
     dir,
     unchecked,
+    hasIntent: Boolean(stats['intent.md']),
+    hasIntentText: Boolean(stats['intent.md'] && safeRead(path.join(dir, 'intent.md'))?.trim()),
     hasPlan: Boolean(stats['plan.md']),
     hasImplementPlan: Boolean(stats['implement-plan.md']),
     hasVerify,
@@ -87,7 +89,9 @@ function describe(task) {
     ? `남은 단계 ${task.unchecked}`
     : task.hasPlan
       ? 'implement-plan.md 없음 (계획 중)'
-      : '이해 중 (handoff만 있음)';
+      : task.hasIntent
+        ? `docs/qe/${task.name}/intent.md (${task.hasIntentText ? '본문 확인' : '의도 미확정'})`
+        : '이해 중 (handoff만 있음)';
   const verify = task.verifyFailed ? 'verify 미충족' : task.hasVerify ? 'verify 있음' : 'verify 없음';
   const handoff = task.handoffPath ? ', handoff 있음' : '';
   return `- docs/qe/${task.name} — ${steps}, ${verify}${handoff}`;
@@ -114,7 +118,13 @@ function findOpenHomeTasks(cwd, home) {
 }
 
 function describeHome(t) {
-  const steps = t.hasImplementPlan ? `남은 단계 ${t.unchecked}/${t.total}` : 'implement-plan.md 없음';
+  const steps = t.hasImplementPlan
+    ? `남은 단계 ${t.unchecked}/${t.total}`
+    : !t.hasPlan && t.hasIntent
+      ? t.hasIntentText
+        ? 'intent.md 확정 — 새 세션에서 Qplan'
+        : 'intent.md 미확정'
+      : 'implement-plan.md 없음';
   return `- ~/.qe/tasks/${t.name} — ${t.status.state}, ${steps}${t.hasHandoff ? ', handoff 있음' : ''}`;
 }
 

@@ -8,6 +8,12 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 ### Added
 
+- **인터뷰 의도 확정과 인계.** 작업 이유나 완료 기준이 빠진 요청은 `Qunderstand`부터 시작한다. 의도를 약 95% 이해하면
+  틀리면 결과가 달라질 가정 하나로 역질문하고, 사용자가 확정하면 `~/.qe/tasks/<주제>/intent.md`에 이유·완료 기준·하지 않을 일을
+  남긴다. 인터뷰를 진행한 창은 구현하지 않고, 새 세션이나 서브에이전트가 intent.md를 읽고 `Qplan`부터 이어간다.
+  세션 시작 안내는 intent만 있는 목표를 "intent.md 확정 — 새 세션에서 Qplan"(빈 파일은 "미확정")으로 보여 준다.
+  eval: trigger 2개(이유 없음, 완료 기준 없음), gate 3개(역질문, 반례, 인계). `npm run eval:gate`는 인터뷰 케이스가 통과해야 성공한다.
+  측정(각 3회): trigger 15 of 15, gate 10 of 10 — 인계 케이스는 플러그인 없이 0.72(Δ +0.28).
 - **언어별 디자인 패턴 참고 자료** `references/design-patterns/`: Java, Kotlin, Go, Dart, JavaScript, TypeScript,
   C#, C++, Python. 패턴마다 목적, 사용처, 장단점, 구현 방식과 코드 예시 세 가지. 코드 에이전트(`code-<언어>`)와
   `code`, `code-craft`, Qunderstand(접근 비교), Qexecute(구현), 구현자 프롬프트가 설계 선택이 필요할 때 이 목차를 연다.

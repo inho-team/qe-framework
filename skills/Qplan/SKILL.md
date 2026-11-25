@@ -1,6 +1,6 @@
 ---
 name: Qplan
-description: Use when the user has agreed on what to build and which approach (after Qunderstand), or hands you a clear request or spec, and the work needs more than a trivial edit — before touching code.
+description: Use when the reason for the work and observable completion criteria are established, the user has chosen an approach or provided a clear spec, and the change needs planning before code. If either reason or completion criteria are missing from a new request, invoke Qunderstand first.
 ---
 
 # Qplan — 계획
@@ -11,6 +11,10 @@ description: Use when the user has agreed on what to build and which approach (a
    "무엇을 만들기로 했지?"를 이 문서에서 찾는다. 대화는 사라지지만 문서는 남는다.
 2. **실행 가능한 단계로 나눈다.** 각 단계는 결과를 확인할 수 있는 크기여야 한다.
    그래야 실행하다 멈춰도, 세션이 끊겨도 어디까지 왔는지 알 수 있다.
+
+인계받은 작업이면 지정된 intent.md를 먼저 읽는다. 같은 작업 폴더에서 확정된 Why·완료 기준·하지 않을 일을 계획에 연결하고, 결정이 바뀔 때만 사용자에게 확인한다. 인터뷰를 진행한 세션은 계획이나 구현을 직접 맡지 않는다.
+
+새 요청에 작업 이유나 완료 기준이 빠졌고 아직 `Qunderstand`를 거치지 않았다면 먼저 호출한다.
 
 ## 문서 위치
 
@@ -46,6 +50,8 @@ Qunderstand에서 나온 것을 적는다: 의도와 이유, 목표·비목표, 
 체크박스는 넣지 않는다. 그것들이 섞이면 사용자가 승인할 때 큰 흐름을 놓치고, 진행 상태가
 두 곳으로 갈린다.
 
+사용자가 결과를 확인할 대표 상황을 plan.md의 목표와 연결한다. 기존 기능을 바꾸면 현재 동작과 기대 동작을 함께 적는다. 외부 API 동작에 의존하는 결정은 프로젝트의 실제 버전을 확인하고 그 버전의 공식 문서나 소스에서 근거를 찾아 해당 결정 옆에 남긴다.
+
 ## implement-plan.md 쓰기
 
 공용 심볼을 바꿀 때 현재 작업 트리의 `trace_path`로 호출자를 찾아 변경 범위와 확인 단계에 반영한다.
@@ -66,6 +72,8 @@ Qunderstand에서 나온 것을 적는다: 의도와 이유, 목표·비목표, 
    대신 써 버린 것이다.
 5. **결정하지 않는 줄은 쓰지 않는다.** "TBD", "예외 처리 추가", "적절히 검증" 같은 줄은
    구멍이다.
+
+선행 작업이 필요한 순서대로 두되, 가능한 단계는 사용자가 실제로 쓸 수 있는 작은 기능 하나와 그 확인까지 이어지게 나눈다.
 
 ## 스스로 검토
 

@@ -11,7 +11,7 @@
     "lint": "node scripts/lint-hooks.mjs",
     "test": "npm run lint && node --test",
     "eval:trigger": "claude plugin eval . --tag trigger --ablation none --threshold 0.66 --no-publish --trust-plugin -j 3",
-    "eval:gate": "claude plugin eval . --tag gate --threshold 0.66 --allow-tools Write Edit --no-publish --trust-plugin -j 3",
+    "eval:gate": "node tools/eval-gate.mjs",
     "eval:codebase-memory": "node evals/run-codebase-memory.mjs"
   },
   "repository": {
