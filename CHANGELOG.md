@@ -4,6 +4,14 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Added
+
+- **언어별 디자인 패턴 참고 자료** `references/design-patterns/`: Java, Kotlin, Go, Dart, JavaScript, TypeScript,
+  C#, C++, Python. 패턴마다 목적, 사용처, 장단점, 구현 방식과 코드 예시 세 가지. 코드 에이전트(`code-<언어>`)와
+  `code`, `code-craft`, Qunderstand(접근 비교), Qexecute(구현), 구현자 프롬프트가 설계 선택이 필요할 때 이 목차를 연다.
+
 ## [11.0.0] - 2026-11-24
 
 **호환성 깨짐: 작업 문서 위치가 바뀌었다.** 기존 프로젝트 `docs/qe/`의 미완료 작업은 세션 시작 안내에

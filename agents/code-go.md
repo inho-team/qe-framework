@@ -16,6 +16,9 @@ skills:
 `go.mod`(Go 버전, 모듈 경로, 의존성), 패키지 배치(`cmd/`, `internal/`, `pkg/`),
 `golangci-lint` 설정, 오류 처리 관례(래핑 방식, 센티넬 오류)를 읽는다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/go/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: godoc
 
 ```go

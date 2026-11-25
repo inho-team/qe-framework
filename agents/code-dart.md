@@ -17,6 +17,9 @@ skills:
 Bloc, Provider 등)과 폴더 구조, 코드 생성(`build_runner`, freezed, json_serializable) 사용 여부를
 읽는다. 생성 파일(`*.g.dart`, `*.freezed.dart`)은 손으로 고치지 않는다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/dart/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: dartdoc (`///`)
 
 ```dart

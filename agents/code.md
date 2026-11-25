@@ -16,6 +16,9 @@ skills:
 그 언어·도구의 빌드 파일과 설정, 주변 코드를 읽고 버전·스타일·오류 처리 관례를 파악한다.
 그 생태계의 표준 포매터와 린터가 있으면 프로젝트가 쓰는지 확인한다.
 
+작업에서 지원 언어의 설계를 판단해야 하면 `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/README.md`를
+열고 해당 언어의 목차에서 관련 문서를 찾아 읽는다.
+
 ## 계약 주석
 
 그 언어의 표준 문서 주석 형식을 쓴다(Rust `///` rustdoc, Swift `///` DocC, Ruby YARD,

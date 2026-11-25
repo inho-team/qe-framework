@@ -22,6 +22,8 @@
 - `agents/`: specialist subagents (`code-<language>`, `code`, `planner`, `researcher`,
   `analyst`, `data-analyst`, `redteam`, `qa`, `marketer`, `contractor`). Each preloads the shared
   skills through frontmatter `skills:`; Q skills call them as `qe-framework:<name>`.
+- `references/design-patterns/`: a root index and one directory per language. The main
+  session and code agents consult the language `README.md` to find relevant pattern guides.
 - `hooks/`: `hooks.json` registers every hook through `run.sh` (finds node, runs the script named by `QE_HOOK`);
   `guide.md` is the path guide injected at session start.
   - `session-start.mjs` — injects `guide.md`, this project's open `~/.qe` goals, the latest handoff,

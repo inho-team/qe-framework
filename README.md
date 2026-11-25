@@ -108,6 +108,20 @@ Qboard:     이 PC의 목표·세션·어긋남 경고를 한 화면으로
 쓰는 에이전트는 같은 작업 트리에 한 번에 하나만 돈다. 판단하는 에이전트(redteam, qa, analyst)는
 고치지 않는다 — 판단하는 쪽이 고치기 시작하면 독립성이 사라진다.
 
+### 디자인 패턴
+
+서브에이전트 방식의 `Qexecute`는 단계의 주 언어에 맞춰 `qe-framework:code-<언어>`에 구현을
+맡긴다. 전용 에이전트가 없는 언어는 `qe-framework:code`가 맡는다. 코드 에이전트는
+`code-craft`와 `agent-conduct`를 공통으로 읽는다.
+
+Java, Kotlin, Go, Dart, JavaScript, TypeScript, C#, C++, Python 에이전트는 설계 선택지가
+생겼을 때 자기 언어의 `README.md`에서 관련 디자인 패턴 문서를 찾는다.
+메인 세션은 `Qunderstand`에서 접근을 비교하거나 `Qexecute`에서 직접 구현할 때 같은 목차를
+참고한다. 코드를 작성할 때 `code-craft`에서도 목차를 열 수 있다. 일반 구현자에게 지원
+언어의 설계 판단을 맡길 때는 해당 언어 목차의 절대 경로를 함께 전달한다.
+패턴마다 목적, 사용처, 장단점, 구현 방식과 서로 다른 코드 예시 세 가지를 담았다.
+[언어별 디자인 패턴 목차](references/design-patterns/README.md)
+
 ## 작업 문서
 
 작업(목표) 하나마다 홈 디렉터리의 `~/.qe/tasks/`에 폴더 하나가 생긴다(Windows `%USERPROFILE%\.qe\tasks\`).
