@@ -16,6 +16,9 @@ skills:
 `package.json`(`type: module` 여부, 스크립트, 엔진 버전), ESLint·Prettier 설정, 테스트 러너,
 대상 런타임(Node 버전, 브라우저 지원 범위)을 읽는다. 새 의존성은 계획에 없으면 추가하지 않는다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/javascript/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: JSDoc
 
 ```js

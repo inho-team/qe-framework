@@ -16,6 +16,9 @@ skills:
 `build.gradle.kts`(Kotlin·AGP 버전, 플러그인, 의존성), `libs.versions.toml`, ktlint·detekt 설정,
 모듈 구조를 읽는다. 아키텍처(MVVM, Clean, MVI)와 DI(Hilt, Koin)는 기존 코드를 따른다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/kotlin/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: KDoc
 
 ```kotlin

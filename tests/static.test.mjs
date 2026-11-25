@@ -67,6 +67,42 @@ test('relative markdown links in skills resolve', () => {
   }
 });
 
+test('language code agents point to bundled design pattern references', () => {
+  const dir = 'references/design-patterns';
+  const languages = fs.readdirSync(path.join(root, 'agents'))
+    .filter((name) => /^code-[a-z-]+\.md$/.test(name))
+    .map((name) => name.slice('code-'.length, -'.md'.length))
+    .sort();
+  const languageDirs = fs.readdirSync(path.join(root, dir), { withFileTypes: true })
+    .filter((entry) => entry.isDirectory())
+    .map((entry) => entry.name)
+    .sort();
+  const index = read(`${dir}/README.md`);
+  const indexedLanguages = [...index.matchAll(/\]\((?:\.\/)?([a-z-]+)\/README\.md\)/g)]
+    .map(([, language]) => language)
+    .sort();
+
+  assert.ok(languages.length > 0, 'no language code agents');
+  assert.deepEqual(languageDirs, languages, 'one reference folder per language code agent');
+  assert.deepEqual(indexedLanguages, languages, 'one root index link per language');
+  for (const language of languages) {
+    const languageDir = `${dir}/${language}`;
+    const bundledPath = '${CLAUDE_PLUGIN_ROOT}/' + `${languageDir}/README.md`;
+    assert.ok(read(`agents/code-${language}.md`).includes(bundledPath), language);
+
+    const languageIndex = read(`${languageDir}/README.md`);
+    const indexedPatterns = [...languageIndex.matchAll(/\]\((?:\.\/)?([a-z-]+\.md)\)/g)]
+      .map(([, pattern]) => pattern)
+      .sort();
+    const patternFiles = fs.readdirSync(path.join(root, languageDir), { withFileTypes: true })
+      .filter((entry) => entry.isFile() && entry.name.endsWith('.md') && entry.name !== 'README.md')
+      .map((entry) => entry.name)
+      .sort();
+    assert.ok(patternFiles.length > 0, `${language}: no pattern documents`);
+    assert.deepEqual(indexedPatterns, patternFiles, `${language}: one index link per pattern document`);
+  }
+});
+
 // Plugin updates are keyed by version; the three manifests must agree.
 test('manifest versions match', () => {
   const pkg = readJson('package.json').version;

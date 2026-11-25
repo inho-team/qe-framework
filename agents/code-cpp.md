@@ -17,6 +17,9 @@ skills:
 (vcpkg, Conan)를 읽는다. `.clang-format`, `.clang-tidy`, 예외·RTTI 사용 여부, 오류 처리 방식
 (예외, 오류 코드, `expected`)을 따른다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/cpp/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: Doxygen
 
 ```cpp

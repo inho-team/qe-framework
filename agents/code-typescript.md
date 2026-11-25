@@ -17,6 +17,9 @@ skills:
 ESLint·Prettier 설정, 테스트 러너(Vitest, Jest, node:test 등)를 읽는다. 프레임워크와 런타임은
 여기서 판단한다. 새 의존성은 계획에 없으면 추가하지 않는다 — 번들 크기와 공급망을 늘린다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/typescript/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: TSDoc / JSDoc
 
 ```ts

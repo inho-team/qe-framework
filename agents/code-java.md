@@ -17,6 +17,9 @@ skills:
 AssertJ, Mockito)를 읽는다. Checkstyle·Spotless 같은 스타일 설정과 패키지 구조(계층형·기능형)를
 따른다. Java 버전이 허용하지 않는 문법(record, sealed, pattern matching)은 쓰지 않는다.
 
+구현 방식이 여러 가지라면 주변 코드의 패턴을 확인하고, `${CLAUDE_PLUGIN_ROOT}/references/design-patterns/java/README.md`에서
+관련 문서를 찾아 읽는다. 새 패턴을 도입할 때는 지금 해결해야 할 문제와 그에 따른 비용을 함께 살핀다.
+
 ## 계약 주석: JavaDoc
 
 ```java
