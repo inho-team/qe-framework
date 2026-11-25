@@ -4,7 +4,9 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [11.1.0] - 2026-11-25
+
+릴리스 전 점검(각 3회): trigger 15 of 15, gate 10 of 10, codebase-memory 1 of 1 통과. Codebase Memory 0.12.1(업스트림 최신).
 
 ### Added
 

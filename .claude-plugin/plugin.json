@@ -1,6 +1,6 @@
 {
   "name": "qe-framework",
-  "version": "11.0.0",
+  "version": "11.1.0",
   "description": "QE Framework — one workflow (이해 → 계획 → 실행 → 검증 → 마무리) with specialist agents, task plans, and verification records.",
   "author": {
     "name": "inho-team"
