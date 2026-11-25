@@ -1,8 +1,14 @@
 # Third-Party Notices
 
-This project adapts content from the following third-party source.
+This project adapts content from the following third-party sources.
 
 ## MIT License
+
+### addyosmani/agent-skills
+
+Copyright (c) 2025 Addy Osmani. Distributed under the MIT permission grant and disclaimer reproduced below.
+
+Adapted workflows from [revision 8c99fa3](https://github.com/addyosmani/agent-skills/tree/8c99fa36d90068c82d547f7c12a9d67a3e95f4ee/skills): `interview-me` and `idea-refine` in Qunderstand, `spec-driven-development` and `planning-and-task-breakdown` in Qplan, `doubt-driven-development` in its independent plan review, and `source-driven-development` in Qplan and Qexecute.
 
 ### obra/superpowers
 - **Repository:** https://github.com/obra/superpowers

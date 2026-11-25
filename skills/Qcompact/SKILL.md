@@ -9,6 +9,8 @@ description: Use when a session must be handed over — the context is filling u
 처음부터 다시 묻거나, 끝낸 일을 다시 하지 않게, 지금 머릿속에 있는 것을 문서로 옮기는 것**이다.
 이어받는 쪽은 `Qresume`이 맡는다.
 
+인터뷰 중간에 넘길 때는 현재 역할, 합의한 부분과 아직 열린 질문을 handoff.md에 적는다. 사용자가 최종 요약을 확인한 뒤에는 intent.md 자체로 새 작업자가 계획을 시작할 수 있다.
+
 ## 언제
 
 - 컨텍스트가 차올라 앞 내용을 잃을 것 같을 때

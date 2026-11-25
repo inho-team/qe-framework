@@ -177,6 +177,25 @@ test('buildContext picks the handoff by handoff.md time, newest folder name brea
   assert.ok(!ctx.includes('OLDER HANDOFF'));
 });
 
+test('a new session can discover an intent without a plan or handoff', () => {
+  const root = tmpRoot();
+  writeTask(root, '2026-11-24-export', { 'intent.md': '운영자가 주문 내역을 내려받으면 완료.\n' });
+  const ctx = buildContext(root, guideText);
+  assert.ok(ctx.includes('docs/qe/2026-11-24-export/intent.md'));
+  assert.ok(ctx.includes('본문 확인'));
+});
+
+test('empty intents stay unconfirmed, including alongside a stale handoff', () => {
+  const root = tmpRoot();
+  writeTask(root, 'empty', { 'intent.md': '' });
+  writeTask(root, 'blank', { 'intent.md': '\uFEFF  \n', 'handoff.md': 'start implementation' });
+  writeTask(root, 'planned', { 'intent.md': '', 'plan.md': '# Plan' });
+  const ctx = buildContext(root, guideText);
+  assert.match(ctx, /docs\/qe\/empty .*의도 미확정/);
+  assert.match(ctx, /docs\/qe\/blank .*의도 미확정/);
+  assert.match(ctx, /docs\/qe\/planned .*계획 중/);
+});
+
 test('a folder with only plan.md is listed as still planning', () => {
   const root = tmpRoot();
   writeTask(root, '2026-11-08-h', { 'plan.md': '# h — Plan\n' });
@@ -212,6 +231,16 @@ test('lists open ~/.qe tasks of this project only', () => {
   assert.ok(!ctx.includes('tasks/other'));
   assert.ok(!ctx.includes('tasks/finished'));
   assert.ok(ctx.includes('HOME HANDOFF'));
+});
+
+test('a ~/.qe goal with only a confirmed intent points the next session at Qplan', () => {
+  const root = tmpRoot();
+  const home = tmpRoot();
+  writeHomeTask(home, 'export', root, {}, { 'intent.md': '운영자가 주문 내역을 내려받으면 완료.\n' });
+  writeHomeTask(home, 'draft', root, {}, { 'intent.md': '﻿  \n' });
+  const ctx = buildContext(root, guideText, { home });
+  assert.match(ctx, /~\/\.qe\/tasks\/export — active, intent\.md 확정 — 새 세션에서 Qplan/);
+  assert.match(ctx, /~\/\.qe\/tasks\/draft — active, intent\.md 미확정/);
 });
 
 test('a goal with an empty project is not listed, even when the hook runs in this project', () => {

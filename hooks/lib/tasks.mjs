@@ -77,7 +77,7 @@ export function listVerdicts(taskDir) {
 
 function inspect(dir, name) {
   const stats = {};
-  for (const f of ['plan.md', 'implement-plan.md', 'verify.md', 'handoff.md', 'status.json']) {
+  for (const f of ['intent.md', 'plan.md', 'implement-plan.md', 'verify.md', 'handoff.md', 'status.json']) {
     try {
       const st = fs.statSync(path.join(dir, f));
       if (st.isFile()) stats[f] = st;
@@ -95,6 +95,9 @@ function inspect(dir, name) {
     status: readStatus(dir),
     unchecked,
     total: unchecked + countChecked(impl),
+    hasIntent: Boolean(stats['intent.md']),
+    // A blank or BOM-only intent is an unfinished interview, not a confirmed handoff.
+    hasIntentText: Boolean(stats['intent.md'] && safeRead(path.join(dir, 'intent.md'))?.replace(/^﻿/, '').trim()),
     hasPlan: Boolean(stats['plan.md']),
     hasImplementPlan: Boolean(stats['implement-plan.md']),
     hasVerify: Boolean(stats['verify.md']),
