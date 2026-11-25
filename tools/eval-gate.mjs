@@ -4,10 +4,30 @@ import { parseArgs } from 'node:util';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
-export function failedInterviews(report, runsOverride) {
+/**
+ * Gate cases outside the interview family whose graders must all pass in the same run.
+ * Each has a "must not act" grader (no edits, no plan written, no unrelated goal mentioned)
+ * that a per-grader average would hide behind its other graders.
+ */
+export const STRICT_CASES = new Set([
+  'gate-other-project-silent',
+  'gate-handoff-subagent-plan',
+  'gate-handoff-subagent-execute',
+  'gate-plan-asks-execution-mode',
+  'gate-review-fix-needs-consent',
+  'gate-approach-alternatives',
+]);
+
+/**
+ * Lists strict cases (every `gate-interview-*` case and STRICT_CASES) with fewer than
+ * two thirds of their runs passing every grader, as "name (passed/expected)".
+ * A run that errored, skipped paid graders, or left a grader unscored does not count as passed.
+ * `runsOverride` replaces each case's `runsPerCase` when the run count was changed on the command line.
+ */
+export function failedStrictCases(report, runsOverride) {
   const failures = [];
   for (const entry of report.cases) {
-    if (!entry.name.startsWith('gate-interview-')) continue;
+    if (!entry.name.startsWith('gate-interview-') && !STRICT_CASES.has(entry.name)) continue;
     const complete = (entry.arms.with ?? []).filter((run) =>
       !run.error && !run.skippedPaidGraders && entry.graders.length > 0 &&
       entry.graders.every(({ name }) =>
@@ -36,9 +56,9 @@ function main() {
   if (child.error) throw child.error;
   if (child.status !== 0 || args.includes('--help') || args.includes('-h')) return child.status ?? 1;
   const report = JSON.parse(readFileSync(path.join(directory, 'aggregate-result.json'), 'utf8'));
-  const failures = failedInterviews(report, values.runs && Number(values.runs));
+  const failures = failedStrictCases(report, values.runs && Number(values.runs));
   if (failures.length === 0) return 0;
-  console.error('Interview runs meeting every criterion:', failures.join(', '));
+  console.error('Strict gate runs meeting every criterion:', failures.join(', '));
   return 1;
 }
 
