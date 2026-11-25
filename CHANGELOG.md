@@ -4,7 +4,81 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
-## [Unreleased]
+## [11.0.0] - 2026-11-24
+
+**호환성 깨짐: 작업 문서 위치가 바뀌었다.** 기존 프로젝트 `docs/qe/`의 미완료 작업은 세션 시작 안내에
+"이전 위치"로 계속 보인다(아래 "옮기는 방법").
+
+이 버전에는 origin/main의 미출시 변경(#39–#43: 회귀 gate eval, hook 린트, codebase-memory-mcp 연동,
+전문 에이전트와 흐름 계약, Qreport)을 합친 것도 들어 있다. 그 내용은 아래 "11.0.0에 합쳐진 변경"에 그대로 두었고,
+합치면서 새 위치·관문에 맞춘 것은 "### 합치며 맞춘 것"에 적었다.
+
+근거: 이번 변경은 문구 조정이 아니라 위치·흐름 변경이며, 실패는 사용자 경험으로 확인됐다 — 여러 세션·worktree에
+문서가 흩어져 한곳에서 안 보였고, AI가 "완료"라고 했는데 실제로는 안 된 일이 있었다.
+
+### Changed
+
+- **작업 폴더가 `docs/qe/YYYY-MM-DD-<주제>/`에서 `~/.qe/tasks/YYYY-MM-DD-<주제>/`로 옮겨졌다.** `~/.qe`는
+  git 저장소이고(hook이 상태가 바뀔 때 커밋), 이 PC의 모든 세션·worktree가 같은 폴더를 본다. worktree를 지워도 남는다.
+- 목표마다 `status.json`(`goal`, `project`, `state: active | verifying | done | stopped`, `worktrees`, `sessions`,
+  완료 시 `done: {commit, branch, verdict}`)을 둔다. 폴더를 만들 때 Qplan(또는 Qcompact)이 `active`로 쓴다.
+- **Qverify: 검증자 서브에이전트(레드팀)가 필수다.** 메인 검증 선택지를 없앴다. 검증자는 최종 보고 마지막 줄에
+  `QE-VERDICT: <task 폴더 이름> | <충족|일부 미충족|미충족> | <branch> | <commit sha>`를 쓴다. 충족이고 치명·중요
+  지적이 없을 때만 status를 `done`으로 쓴다. 여러 브랜치에 걸친 목표는 하나로 합친 뒤 그 브랜치를 검증한다.
+- **Qfinish: 0단계 기준이 status `done`이다.** 4단계 기록에서 `~/.qe/tasks/<목표>/`의 `*.md`를 검증한 브랜치의
+  `docs/qe/<목표>/`로 내보낸다(status.json·`verdicts/`·`.stop-blocked-*` 제외, 커밋은 사용자에게 묻는다).
+  완료된 `~/.qe` 폴더는 이후 고치지 않는 보관본으로 남는다.
+- Qcompact/Qresume: 새 위치, 다른 세션이 하던 목표 이어받기(같은 폴더를 갱신하면 hook이 세션을 기록),
+  그만두면 폴더를 지우는 대신 `state: stopped`.
+- 세션 시작 안내: 이 프로젝트의 `~/.qe` 미완료 목표와 이 세션 id를 보여 준다.
+- AGENTS.md: 관문 hook과 `~/.qe` 상태(status.json, 검수 기록)를 허용하는 이유를 적었다. 새 DB나 그 밖의 상태 저장은 여전히 금지.
+
+### Added
+
+- **hook**: PostToolUse(목표 폴더에 쓴 세션·worktree 기록), SubagentStop(`QE-VERDICT` 줄을 `verdicts/`에 기록),
+  PreToolUse(그 커밋의 충족 검수 기록 없이 status를 done으로 쓰거나 `verdicts/`를 직접 쓰면 거부),
+  Stop(plan이 다 체크됐는데 검수 기록이 없으면 plan 상태마다 한 번만 막고 검수를 요청). 모든 hook은 자기 오류에서 통과한다.
+- **`Qboard` — 대시보드.** 이 PC의 목표·살아 있는 세션(`claude agents --json`)·주장과 증거가 어긋난 경고를
+  로컬 웹 화면 하나로 보여 준다(읽기 전용, `127.0.0.1`).
+- 행동 eval: 이 버전에서는 아직 다시 돌리지 않았다. `gate-small-change-direct`는 `~/.qe/tasks` 아래 Write가 없는지도 본다.
+
+### Fixed
+
+- 최종 리뷰 반영: Stop hook은 차단 JSON을 먼저 내보낸 뒤 표시 파일을 쓰고 `~/.qe`를 한 번만 커밋한다(느린 git에
+  죽어도 차단이 사라지지 않게), 체크박스가 없는 implement-plan.md는 "다 체크됨"으로 보지 않는다. SubagentStop은
+  transcript에서 마지막 보고(text·SubagentHandback)만 읽는다(thinking·Bash 명령·중간 보고 무시). Qfinish가 고른
+  마무리를 `done.finish`(`merge` | `pr` | `keep`)에 쓰고, Qboard는 `pr`·`keep`이면 `unmerged`·`branch-missing`을
+  내지 않으며 기준 브랜치를 `origin/HEAD`(같은 이름 로컬 브랜치 우선)·`main`·`master` 순으로 정한다. 세션 시작은
+  `~/.qe`를 만들지 않고 `project`가 빈 목표를 건너뛴다. `commitHome`은 30초 넘은 `index.lock`을 지운다.
+  PostToolUse도 `~`·`/c/` 경로를 알아본다. git 시간 제한은 `QE_GIT_TIMEOUT_MS`로 바꿀 수 있다(기본 3000ms,
+  테스트는 늘려 쓰고 항상 임시 `QE_HOME`을 쓴다).
+
+### 합치며 맞춘 것 (origin/main #39–#43)
+
+- Qverify: 완료 판정(`QE-VERDICT` 줄)은 `qe-framework:qa` 검증자가 쓰고, 브랜치 전체 코드 리뷰는 작은 변경도
+  `qe-framework:redteam`이 따로 한다(리뷰어에게는 QE-VERDICT 줄을 넘기지 않는다). 메인이 diff를 직접 읽는 선택지는 두지 않았다.
+- Qreport: 보고서 저장 위치를 `~/.qe/tasks/<작업>/report.html`로 옮겼다. 보고서만 담는 폴더에는 `status.json`을
+  만들지 않는다. Qfinish는 `*.md`와 함께 `report*.html`도 프로젝트 `docs/qe/<목표>/`로 내보낸다.
+- 흐름 계약은 그대로 프로젝트의 `docs/contracts/`에 둔다(작업 문서가 아니라 코드와 함께 유지되는 문서다).
+- 세션 시작 hook: codebase-memory-mcp 설치 안내를 이 세션 id·`~/.qe` 목표 안내와 함께 내보내고, 실행 파일 찾기가
+  실패해도 세션 시작을 막지 않는다.
+- 버전은 11.0.0으로 맞췄다(`package.json`, `plugin.json`, `marketplace.json`).
+
+### 옮기는 방법 (v10 작업 폴더)
+
+진행 중인 `docs/qe/<폴더>/`를 이어가려면 폴더마다:
+
+1. 그 폴더를 `~/.qe/tasks/<같은 이름>/`으로 옮긴다(Windows `%USERPROFILE%\.qe\tasks\`).
+2. 그 안에 `status.json`을 만든다:
+   `{"goal": "<한 줄 목표>", "project": "", "state": "active", "worktrees": [], "sessions": []}`
+   (`project`는 다음에 그 폴더에 쓸 때 hook이 채운다. 그 전까지는 세션 시작 안내에 뜨지 않으니, 바로 보이게
+   하려면 프로젝트 원래 checkout의 절대 경로를 적는다).
+
+이미 끝난 작업은 그대로 두면 된다. 프로젝트 `docs/qe/`는 이제 완료 기록 보관용이다.
+
+## 11.0.0에 합쳐진 변경 (origin/main #39–#43, 따로 출시되지 않음)
+
+위치 표기(`docs/qe/<작업>/report.html` 등)는 합치기 전 기록 그대로다. 11.0.0에서는 `~/.qe/tasks/`에 있다.
 
 ### Added
 

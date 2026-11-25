@@ -1,10 +1,16 @@
-// QE SessionStart hook: injects the path guide plus any unfinished docs/qe task
-// and its latest handoff.md. It must never fail a session start, so every
-// filesystem read is guarded and the process always exits 0.
+// QE SessionStart hook: injects the path guide, this session's id, this project's open
+// ~/.qe goals, legacy docs/qe tasks (under an "이전 위치" heading), and the latest
+// handoff.md. It only reads: ~/.qe is created by the write hooks, and the one git call
+// finds the project root. It must never fail a session start, so every read is guarded
+// and the process always exits 0.
 import fs from 'node:fs';
 import path from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
+import { countUnchecked, listTasks, projectRootOf } from './lib/tasks.mjs';
+import { normPath, qeHome } from './lib/qe-home.mjs';
 import { findCodeGraphExecutable } from '../mcp/find-executable.mjs';
+
+export { countUnchecked };
 
 export const MAX_HANDOFF_CHARS = 8000;
 
@@ -12,11 +18,6 @@ const TASK_MARKERS = ['plan.md', 'implement-plan.md', 'handoff.md'];
 
 // verify.md's header line, e.g. "- 결과: 일부 미충족" (see skills/Qverify/verify-template.md).
 const VERIFY_FAILED = /결과:\s*(일부\s*)?미충족/;
-
-export function countUnchecked(markdown) {
-  // List items only: -, *, + bullets or 1. / 1) numbering, then an unchecked box.
-  return (markdown.match(/^[ \t]*(?:[-*+]|\d+[.)])[ \t]+\[ \]/gm) || []).length;
-}
 
 function safeStat(p) {
   try {
@@ -92,26 +93,67 @@ function describe(task) {
   return `- docs/qe/${task.name} — ${steps}, ${verify}${handoff}`;
 }
 
-export function buildContext(projectRoot, guideText) {
-  const parts = [guideText.trim()];
-  const tasks = findOpenTasks(projectRoot);
-  if (tasks.length === 0) return parts[0];
+// Open ~/.qe tasks of this project. Any failure yields [] so the legacy output still prints.
+function findOpenHomeTasks(cwd, home) {
+  try {
+    const tasks = listTasks(home);
+    if (!tasks.length) return [];
+    const root = projectRootOf(cwd);
+    const want = normPath(root ?? cwd);
+    return tasks.filter((t) => {
+      const s = t.status;
+      if (!s || s.invalid) return false;
+      // An empty project is not yet claimed; path.resolve('') would turn it into the cwd.
+      if (!s.project) return false;
+      if (normPath(s.project) !== want) return false;
+      return s.state === 'active' || s.state === 'verifying';
+    });
+  } catch {
+    return [];
+  }
+}
 
-  parts.push(['## 미완료 작업', ...tasks.map(describe)].join('\n'));
+function describeHome(t) {
+  const steps = t.hasImplementPlan ? `남은 단계 ${t.unchecked}/${t.total}` : 'implement-plan.md 없음';
+  return `- ~/.qe/tasks/${t.name} — ${t.status.state}, ${steps}${t.hasHandoff ? ', handoff 있음' : ''}`;
+}
+
+function handoffMtime(p) {
+  const st = safeStat(p);
+  return st ? st.mtimeMs : 0;
+}
+
+export function buildContext(projectRoot, guideText, { home, sessionId } = {}) {
+  const parts = [guideText.trim()];
+  if (sessionId) parts.push(`이 세션 id: ${sessionId}`);
+
+  const homeTasks = home ? findOpenHomeTasks(projectRoot, home) : [];
+  const tasks = findOpenTasks(projectRoot);
+  if (homeTasks.length > 0) parts.push(['## 미완료 작업 (~/.qe)', ...homeTasks.map(describeHome)].join('\n'));
+  if (tasks.length > 0) {
+    const heading = home ? '## 이전 위치(docs/qe)의 미완료 작업 — ~/.qe/tasks로 옮길 것' : '## 미완료 작업';
+    parts.push([heading, ...tasks.map(describe)].join('\n'));
+  }
 
   // The handoff to inject is the most recently written handoff.md, not the task
   // whose implement-plan.md happened to change last.
-  const latest = tasks
-    .filter((t) => t.handoffPath)
-    .sort((a, b) => b.handoffMtimeMs - a.handoffMtimeMs || b.name.localeCompare(a.name))[0];
+  const candidates = [
+    ...tasks.filter((t) => t.handoffPath).map((t) => ({ file: t.handoffPath, name: t.name, rel: `docs/qe/${t.name}/handoff.md`, mtimeMs: t.handoffMtimeMs })),
+    ...homeTasks
+      .filter((t) => t.hasHandoff)
+      .map((t) => {
+        const file = path.join(t.dir, 'handoff.md');
+        return { file, name: t.name, rel: `~/.qe/tasks/${t.name}/handoff.md`, mtimeMs: handoffMtime(file) };
+      }),
+  ];
+  const latest = candidates.sort((a, b) => b.mtimeMs - a.mtimeMs || b.name.localeCompare(a.name))[0];
   if (latest) {
-    let body = safeRead(latest.handoffPath);
+    let body = safeRead(latest.file);
     if (body !== null) {
-      const rel = `docs/qe/${latest.name}/handoff.md`;
       if (body.length > MAX_HANDOFF_CHARS) {
-        body = `${body.slice(0, MAX_HANDOFF_CHARS)}\n…(잘림 — 전체는 ${rel})`;
+        body = `${body.slice(0, MAX_HANDOFF_CHARS)}\n…(잘림 — 전체는 ${latest.rel})`;
       }
-      parts.push(`## 최근 handoff (${rel})\n\n${body.trim()}`);
+      parts.push(`## 최근 handoff (${latest.rel})\n\n${body.trim()}`);
     }
   }
   return parts.join('\n\n');
@@ -127,10 +169,12 @@ function readStdin() {
 
 function main() {
   let projectRoot = process.cwd();
+  let sessionId;
   let source;
   try {
     const input = JSON.parse(readStdin());
     if (input && typeof input.cwd === 'string' && input.cwd) projectRoot = input.cwd;
+    if (input && typeof input.session_id === 'string' && input.session_id) sessionId = input.session_id;
     source = input?.source;
   } catch {
     // Malformed or empty stdin: keep process.cwd().
@@ -141,14 +185,22 @@ function main() {
 
   let context;
   try {
-    context = buildContext(projectRoot, guideText);
+    context = buildContext(projectRoot, guideText, { home: qeHome(), sessionId });
   } catch {
-    context = guideText.trim();
+    try {
+      context = buildContext(projectRoot, guideText);
+    } catch {
+      context = guideText.trim();
+    }
   }
 
   const output = { hookSpecificOutput: { hookEventName: 'SessionStart', additionalContext: context } };
-  if (source === 'startup' && !findCodeGraphExecutable()) {
-    output.systemMessage = 'QE: 코드 그래프를 쓰려면 README에 따라 codebase-memory-mcp 실행 파일을 설치하고 PATH에 추가하세요.';
+  try {
+    if (source === 'startup' && !findCodeGraphExecutable()) {
+      output.systemMessage = 'QE: 코드 그래프를 쓰려면 README에 따라 codebase-memory-mcp 실행 파일을 설치하고 PATH에 추가하세요.';
+    }
+  } catch {
+    // The install hint is optional; never fail session start over it.
   }
   process.stdout.write(JSON.stringify(output));
 }

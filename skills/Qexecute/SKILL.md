@@ -1,6 +1,6 @@
 ---
 name: Qexecute
-description: Use when an approved implement-plan.md exists under docs/qe/ and it is time to implement it, or when resuming implementation of a partly checked plan.
+description: Use when an approved implement-plan.md exists under ~/.qe/tasks/ and it is time to implement it, or when resuming implementation of a partly checked plan.
 ---
 
 # Qexecute — 실행
@@ -13,8 +13,9 @@ description: Use when an approved implement-plan.md exists under docs/qe/ and it
 
 - **승인된 plan.md와 implement-plan.md가 있는가?** 없으면 시작하지 않고 `Qplan`으로 돌아간다. 승인 없이
   만드는 것이 이 길에서 가장 비싼 실수다.
-- plan.md와 implement-plan.md를 읽는다. plan.md가 기준이고, implement-plan.md는 그 기준을
-  풀어 쓴 것이다. 둘이 어긋나면 plan.md를 따른다.
+- 작업 폴더(`~/.qe/tasks/<목표>/`)의 plan.md와 implement-plan.md를 읽는다. plan.md가 기준이고,
+  implement-plan.md는 그 기준을 풀어 쓴 것이다. 둘이 어긋나면 plan.md를 따른다. 문서는 코드가 아니라
+  이 폴더에 있으니 코드 커밋과 섞이지 않는다. 이 폴더에 쓸 때마다 hook이 이 세션과 worktree를 status.json에 적는다.
 - 체크된 단계(`- [x]`)는 이미 끝난 것이다. 다시 하지 않는다. 세션이 끊긴 뒤라면 내
   기억보다 implement-plan.md 체크박스와 `git log`를 믿는다. 첫 번째 미체크 단계부터 이어간다.
 - 저장소가 git이고 지금 main/master 브랜치라면, 작업 브랜치를 만들지 사용자에게 먼저 묻는다.
@@ -37,7 +38,7 @@ implement-plan.md 머리의 `실행 방식`을 따른다. 적혀 있지 않으�
    - **코드가 틀렸다** → 원인이 바로 보이면 고친다. 예상 밖의 실패이거나 원인이 분명하지
      않으면 `Qdebugging`으로 근본 원인부터 찾는다. 증상만 덮지 않는다.
    - **계획이 틀렸다** → 아래 "계획과 현실이 어긋날 때"로.
-4. `- [ ]`를 `- [x]`로 바꾼다. git이면 커밋한다(implement-plan.md 변경도 같이).
+4. `- [ ]`를 `- [x]`로 바꾼다. git이면 코드를 커밋한다(implement-plan.md는 `~/.qe`에 있어 hook이 따로 이력을 남긴다).
 
 ### 서브에이전트 방식
 
@@ -78,8 +79,8 @@ plan.md와 implement-plan.md, 리뷰 기준을 준다.
 같은 파일·트리를 건드리면 `Agent`의 `isolation: "worktree"`로 각자 격리한다. 단계 리뷰를
 통과하면 내가 그 worktree 브랜치를 작업 브랜치로 merge한다. 충돌이 나면 멈추고
 사용자에게 알린다. implement-plan.md 체크박스와 `판단:` 줄은 나만 작업 브랜치에서 고친다.
-작업 전체가 이미 worktree 안이면 작업용 worktree를 새로 만들지 않는다. worktree에서 만든
-`docs/qe/` 문서는 원래 checkout의 세션 시작 안내에 보이지 않는다는 점도 기억한다.
+작업 전체가 이미 worktree 안이면 작업용 worktree를 새로 만들지 않는다. 목표 문서는 `~/.qe`에
+있어 어느 worktree에서 연 세션이든 같은 폴더를 본다. 브랜치가 여럿으로 갈렸다면 검증 전에 하나로 합친다.
 
 서로 독립적인 단계가 여럿이면 서브에이전트 방식이 유리하고, 단계끼리 단단히 얽혀
 있으면 직접 방식이 낫다. 사용자가 고른 방식이 맞지 않아 보이면 바꾸자고 제안한다.
@@ -115,4 +116,4 @@ implement-plan.md 체크박스가 최신인지 먼저 확인한다.
 ## 끝
 
 모든 단계가 체크되면 `Qverify`로 넘어간다. 여기서 "다 됐다"고 말하지 않는다.
-완료 주장은 검증 뒤에 한다.
+완료 주장은 검증 뒤에 한다. 검증 없이 응답을 끝내려 하면 Stop hook이 한 번 막고 레드팀 검수를 요청한다.

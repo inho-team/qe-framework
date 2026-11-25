@@ -4,24 +4,38 @@
 
 - Name: `@inho-team/qe-framework` (Claude Code plugin `qe-framework`; not published to npm)
 - Purpose: an AI framework that removes the understanding bottleneck and runs work efficiently.
-  It provides one workflow (이해 → 계획 → 실행 → 검증 → 마무리), specialist agents, task documents
-  under the user's `docs/qe/`, and current code flow contracts under `docs/contracts/`.
+  It provides one workflow (이해 → 계획 → 실행 → 검증 → 마무리), specialist agents, plain-markdown
+  plan and verify docs per goal under `~/.qe/tasks/` (a git repo shared by all sessions on the PC),
+  gated by an independent verifier's verdict before "done", then exported to the project's `docs/qe/`, and current
+  code flow contracts under the project's `docs/contracts/`.
 - Version sync: `package.json`, `.claude-plugin/plugin.json`, and the `qe-framework`
   entry in `.claude-plugin/marketplace.json` must stay identical.
 
 ## Structure
 
 - `skills/`: the skills — path: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`;
-  then `Qfinish`; alongside: `Qdebugging`, `Qtdd`, `Qreview`, `Qfeedback`, `Qreport`, `Qskill`, `Qcompact`, `Qresume`.
+  then `Qfinish`; alongside: `Qdebugging`, `Qtdd`, `Qreview`, `Qfeedback`, `Qreport`, `Qskill`, `Qcompact`, `Qresume`,
+  `Qboard` (read-only local dashboard: `board.mjs` server + `board.html`).
   shared rules: `code-craft` (doc comments as contracts, no editorial comments; main session and
   code agents) and `agent-conduct` (scope and reporting; preloaded by every agent).
-  Each folder has `SKILL.md` plus its templates or subagent prompts.
+  Each folder has `SKILL.md` plus its templates, subagent prompts, or scripts.
 - `agents/`: specialist subagents (`code-<language>`, `code`, `planner`, `researcher`,
   `analyst`, `data-analyst`, `redteam`, `qa`, `marketer`, `contractor`). Each preloads the shared
   skills through frontmatter `skills:`; Q skills call them as `qe-framework:<name>`.
-- `hooks/`: `hooks.json` (SessionStart only), `session-start.mjs`, `guide.md`
-  (the path guide injected at session start).
-- `tests/`: `node:test` tests for the hook and static checks on skills, agents, manifests, and evals.
+- `hooks/`: `hooks.json` registers every hook through `run.sh` (finds node, runs the script named by `QE_HOOK`);
+  `guide.md` is the path guide injected at session start.
+  - `session-start.mjs` — injects `guide.md`, this project's open `~/.qe` goals, the latest handoff,
+    the session id, and legacy `docs/qe` tasks under an "이전 위치" heading; at startup it warns once
+    when the `codebase-memory-mcp` executable is missing.
+  - `post-tool-use.mjs` (Write|Edit) — records the session and worktree that touched a goal in its `status.json`.
+  - `subagent-stop.mjs` — writes a verifier's `QE-VERDICT:` line to the goal's `verdicts/`.
+  - `pre-tool-use.mjs` (Write|Edit) — denies marking `status.json` done without a 충족 verdict for that
+    commit, and denies writes to `verdicts/`.
+  - `stop.mjs` — blocks a stop once per plan state when the plan is fully checked but has no verdict.
+  - `lib/` — shared helpers: `qe-home.mjs` (`~/.qe` paths, atomic writes, git commits),
+    `tasks.mjs` (goal folders, status, verdicts), `alerts.mjs` (dashboard warnings).
+- `mcp/`: `codebase-memory.mjs` launches the `codebase-memory-mcp` server registered in `plugin.json`.
+- `tests/`: `node:test` tests for the hooks, the dashboard, and static checks on skills, agents, manifests, and evals.
 - `evals/`: behavior eval cases for `claude plugin eval` (`trigger-*`: the right skill fires;
   `gate-*`: path behavior, compared against a no-plugin run). `evals/results/` is not tracked.
 - Design specs and plans are kept locally under `research/` and are not tracked by git.
@@ -29,7 +43,11 @@
 ## Working Rules
 
 - Skills may grow, but each is written as reasons; do not add machinery that replaces model
-  judgment (numeric caps, schemas, behavior-policing hooks or scripts, DBs).
+  judgment (numeric caps, schemas, behavior-policing hooks or scripts, DBs). One exception passed the
+  question below: the completion gate (PreToolUse/Stop/SubagentStop) exists because users repeatedly
+  saw "the AI said it was done but it was not". It only records, blocks a stop once, or refuses "done"
+  without an independent verifier's verdict; it never judges the work itself. Do not extend it to other behavior
+  without the same kind of observed failure.
 - Never put substitution tokens such as `$1` or `$ARGUMENTS` in skill text; the harness may
   replace them.
 - Before adding any rule, hook, check, or numeric limit, ask: "이게 없으면 모델이 실제로
@@ -39,19 +57,22 @@
   files linked from SKILL.md.
 - How to create or change a skill (control run first, reasons over rules, trigger checks) is in
   `skills/Qskill/SKILL.md`; the bullets here are the QE-repo-specific rules.
-- The hook must never fail a session start: guard every filesystem read, always exit 0.
+- Hooks must never fail a session start or a tool call: guard every filesystem read and git call,
+  fail open on their own errors, always exit 0.
 - Follow `code-craft` when writing code: document caller-visible contracts and add inline comments
   for decisions, constraints, or invariants that are hard to infer. Track unfinished work in the
   implementation plan and record actual verification commands and results in `verify.md`.
-- No DB, no state files beyond the task docs. State is read from `implement-plan.md` checkboxes,
-  `verify.md`, and `handoff.md`. The enduring flow contracts in `docs/contracts/` describe the
-  current code, which is their source of truth.
+- No DB. Allowed state is the `~/.qe` git repo of goal folders: the task docs, each goal's `status.json`,
+  hook-written `verdicts/`, and `.stop-blocked-*` markers. Progress is still read from
+  `implement-plan.md` checkboxes, `verify.md`, and `handoff.md`. Add no other state store.
+  The enduring flow contracts in the project's `docs/contracts/` describe the current code, which is
+  their source of truth.
 - When changing the path, the doc layout, or the agent roster, update `hooks/guide.md`,
   `README.md`, the affected skills and agents, and the roster in `tests/static.test.mjs` together.
 
 ## Validation
 
-- Run `npm ci` to install the development tools. `npm test` runs lint, hook tests, and static checks.
+- Run `npm ci` to install the development tools. `npm test` runs lint, hook, dashboard, and static tests.
 - `npm run lint` checks `.mjs` hooks using [scripts/lint-hooks.mjs](scripts/lint-hooks.mjs). Read
   lint diagnostics in full, fix the affected behavior, and rerun the relevant test and lint.
 - When investigating a hook change or lint failure, use `codebase-memory-mcp` to index the

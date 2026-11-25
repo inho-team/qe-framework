@@ -13,6 +13,9 @@ import {
   MAX_HANDOFF_CHARS,
 } from '../hooks/session-start.mjs';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hookPath = path.join(repoRoot, 'hooks', 'session-start.mjs');
 const guideText = fs.readFileSync(path.join(repoRoot, 'hooks', 'guide.md'), 'utf8');
@@ -31,8 +34,9 @@ function writeTask(root, name, files) {
   return dir;
 }
 
+// Always a temp QE_HOME: the hook must never touch the real ~/.qe from a test.
 function runHook(stdin, cwd) {
-  return spawnSync(process.execPath, [hookPath], { input: stdin, cwd, encoding: 'utf8' });
+  return spawnSync(process.execPath, [hookPath], { input: stdin, cwd, encoding: 'utf8', env: { ...process.env, QE_HOME: tmpRoot() } });
 }
 
 test('countUnchecked counts open boxes with CRLF and uppercase X as done', () => {
@@ -185,4 +189,75 @@ test('the old layout (spec.md only) is not recognized as a task', () => {
   const root = tmpRoot();
   writeTask(root, '2026-11-08-old', { 'spec.md': '# old — Spec\n' });
   assert.deepEqual(findOpenTasks(root), []);
+});
+
+function writeHomeTask(home, name, project, extra = {}, files = {}) {
+  const dir = path.join(home, 'tasks', name);
+  fs.mkdirSync(dir, { recursive: true });
+  const status = { goal: 'g', project, state: 'active', worktrees: [], sessions: [], ...extra };
+  fs.writeFileSync(path.join(dir, 'status.json'), JSON.stringify(status));
+  for (const [f, b] of Object.entries(files)) fs.writeFileSync(path.join(dir, f), b);
+  return dir;
+}
+
+test('lists open ~/.qe tasks of this project only', () => {
+  const root = tmpRoot();
+  const home = tmpRoot();
+  writeHomeTask(home, 'mine', root, {}, { 'implement-plan.md': '- [x] a\n- [ ] b\n', 'handoff.md': 'HOME HANDOFF' });
+  writeHomeTask(home, 'other', path.join(root, 'elsewhere'));
+  writeHomeTask(home, 'finished', root, { state: 'stopped' });
+  const ctx = buildContext(root, guideText, { home });
+  assert.ok(ctx.includes('## 미완료 작업 (~/.qe)'));
+  assert.ok(ctx.includes('- ~/.qe/tasks/mine — active, 남은 단계 1/2, handoff 있음'));
+  assert.ok(!ctx.includes('tasks/other'));
+  assert.ok(!ctx.includes('tasks/finished'));
+  assert.ok(ctx.includes('HOME HANDOFF'));
+});
+
+test('a goal with an empty project is not listed, even when the hook runs in this project', () => {
+  const root = tmpRoot();
+  const home = tmpRoot();
+  // path.resolve('') is the process cwd, so an empty project used to match the project the hook ran in
+  writeHomeTask(home, 'unclaimed', '');
+  const prev = process.cwd();
+  process.chdir(root);
+  try {
+    assert.ok(!buildContext(root, guideText, { home }).includes('tasks/unclaimed'));
+  } finally {
+    process.chdir(prev);
+  }
+});
+
+test('buildContext does not create or git-init ~/.qe (write hooks do that)', () => {
+  const home = path.join(tmpRoot(), 'absent');
+  buildContext(tmpRoot(), guideText, { home, sessionId: 's1' });
+  assert.equal(fs.existsSync(home), false);
+});
+
+test('includes the session id line when provided', () => {
+  const ctx = buildContext(tmpRoot(), guideText, { home: tmpRoot(), sessionId: 'abc-123' });
+  assert.ok(ctx.includes('이 세션 id: abc-123'));
+  assert.ok(ctx.indexOf('이 세션 id') > ctx.indexOf(guideFirstLine));
+});
+
+test('keeps listing legacy docs/qe tasks under the legacy heading', () => {
+  const root = tmpRoot();
+  writeTask(root, '2026-11-02-b', { 'implement-plan.md': '- [ ] two\n' });
+  const ctx = buildContext(root, guideText, { home: tmpRoot() });
+  assert.ok(ctx.includes('## 이전 위치(docs/qe)의 미완료 작업 — ~/.qe/tasks로 옮길 것'));
+  assert.ok(ctx.includes('docs/qe/2026-11-02-b'));
+});
+
+test('still prints the guide when QE_HOME is unwritable', () => {
+  const blocker = path.join(tmpRoot(), 'file');
+  fs.writeFileSync(blocker, 'x');
+  const res = spawnSync(process.execPath, [hookPath], {
+    input: JSON.stringify({ cwd: tmpRoot(), session_id: 's1' }),
+    encoding: 'utf8',
+    env: { ...process.env, QE_HOME: path.join(blocker, 'home') },
+  });
+  assert.equal(res.status, 0);
+  const ctx = JSON.parse(res.stdout).hookSpecificOutput.additionalContext;
+  assert.ok(ctx.includes(guideFirstLine));
+  assert.ok(ctx.includes('이 세션 id: s1'));
 });

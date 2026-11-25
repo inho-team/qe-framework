@@ -6,8 +6,54 @@
         "hooks": [
           {
             "type": "command",
-            "command": ". \"${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh\"",
+            "command": "QE_HOOK=session-start.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
             "timeout": 5
+          }
+        ]
+      }
+    ],
+    "PreToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=pre-tool-use.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=post-tool-use.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "SubagentStop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=subagent-stop.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "QE_HOOK=stop.mjs . \"${CLAUDE_PLUGIN_ROOT}/hooks/run.sh\"",
+            "timeout": 10
           }
         ]
       }

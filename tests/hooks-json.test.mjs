@@ -6,6 +6,9 @@ import path from 'node:path';
 import { spawnSync } from 'node:child_process';
 import { fileURLToPath } from 'node:url';
 
+// Many git processes run in parallel under node --test; the 3 s product timeout is too tight here.
+process.env.QE_GIT_TIMEOUT_MS ??= '20000';
+
 const repoRoot = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '..');
 const hooks = JSON.parse(fs.readFileSync(path.join(repoRoot, 'hooks', 'hooks.json'), 'utf8'));
 const command = hooks.hooks.SessionStart[0].hooks[0].command;
@@ -25,9 +28,9 @@ function toShellPath(p) {
 
 test('SessionStart runs only on startup, clear, and compact', () => {
   assert.equal(hooks.hooks.SessionStart[0].matcher, 'startup|clear|compact');
-  assert.deepEqual(Object.keys(hooks.hooks), ['SessionStart']);
+  assert.deepEqual(Object.keys(hooks.hooks), ['SessionStart', 'PreToolUse', 'PostToolUse', 'SubagentStop', 'Stop']);
   // Sourcing is a shell builtin, so the launcher starts even when PATH is empty.
-  assert.equal(command, '. "${CLAUDE_PLUGIN_ROOT}/hooks/session-start.sh"');
+  assert.equal(command, 'QE_HOOK=session-start.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"');
 });
 
 test('hook command emits a clear notice instead of failing when node is not found', { skip: !shPath }, () => {
@@ -90,10 +93,41 @@ test('hook command runs the session-start script when node is on PATH', { skip: 
   const res = spawnSync(shPath, ['-c', command], {
     encoding: 'utf8',
     input: JSON.stringify({ cwd: os.tmpdir(), source: 'startup' }),
-    env: { ...process.env, PATH: `${nodeDir}${path.delimiter}${process.env.PATH ?? ''}`, CLAUDE_PLUGIN_ROOT: repoRoot },
+    env: {
+      ...process.env,
+      PATH: `${nodeDir}${path.delimiter}${process.env.PATH ?? ''}`,
+      CLAUDE_PLUGIN_ROOT: repoRoot,
+      QE_HOME: fs.mkdtempSync(path.join(os.tmpdir(), 'qe-home-')),
+    },
   });
   assert.equal(res.status, 0, res.stderr);
   const out = JSON.parse(res.stdout);
   assert.match(out.hookSpecificOutput.additionalContext, /^# QE — 이해 → 계획 → 실행 → 검증 → 마무리/);
   assert.doesNotMatch(out.systemMessage ?? '', /Node\.js/);
+});
+
+test('run.sh with QE_HOOK=other.mjs prints nothing when node is missing', { skip: !shPath }, () => {
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
+  const res = spawnSync(shPath, ['-c', 'QE_HOOK=other.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"'], {
+    encoding: 'utf8',
+    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: repoRoot, QE_NODE_PROBES: '' },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.equal(res.stdout, '');
+});
+
+test('run.sh runs the script named by QE_HOOK', { skip: !shPath }, () => {
+  const emptyBin = fs.mkdtempSync(path.join(os.tmpdir(), 'qe-nonode-'));
+  const probeDir = fs.mkdtempSync(path.join(os.tmpdir(), 'qe probe '));
+  const fakeNode = path.join(probeDir, 'node');
+  fs.writeFileSync(fakeNode, `#!/bin/sh
+printf '%s' "$1"
+`);
+  fs.chmodSync(fakeNode, 0o755);
+  const res = spawnSync(shPath, ['-c', 'QE_HOOK=other.mjs . "${CLAUDE_PLUGIN_ROOT}/hooks/run.sh"'], {
+    encoding: 'utf8',
+    env: { PATH: emptyBin, CLAUDE_PLUGIN_ROOT: toShellPath(repoRoot), QE_NODE_PROBES: toShellPath(fakeNode) },
+  });
+  assert.equal(res.status, 0, res.stderr);
+  assert.ok(res.stdout.endsWith('hooks/other.mjs'), res.stdout);
 });

@@ -36,7 +36,9 @@ description: Use when the user asks to see an analysis, investigation, compariso
 
 ## 저장과 보여 주기
 
-- 진행 중인 작업 폴더가 있으면 `docs/qe/<작업>/report.html`, 없으면 `docs/qe/YYYY-MM-DD-<주제>/report.html`.
+- 진행 중인 작업 폴더가 있으면 `~/.qe/tasks/<작업>/report.html`, 없으면 `~/.qe/tasks/YYYY-MM-DD-<주제>/report.html`.
+  보고서만 담는 폴더에는 `status.json`을 만들지 않는다. 그래야 미완료 작업으로 안내되지 않는다.
+  작업 폴더의 보고서는 `Qfinish`가 다른 문서와 함께 프로젝트 `docs/qe/<작업>/`로 내보낸다.
   사용자가 위치를 말하면 그곳. 나중에 다시 열어 지난 보고서와 비교할 수 있게 남기는 것이다.
 - **새 보고서**인데 같은 이름이 이미 있으면 덮지 않고 `report-2.html`, `report-3.html`로. 지난 보고서가 비교 대상이다.
   방금 만든 보고서를 **고쳐 달라는** 요청이면 그 파일을 고치고, 게시했다면 같은 아티팩트로 다시 게시한다.
