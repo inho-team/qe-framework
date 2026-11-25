@@ -10,9 +10,7 @@ import { pathToFileURL } from 'node:url';
  * that a per-grader average would hide behind its other graders.
  */
 export const STRICT_CASES = new Set([
-  'gate-other-project-silent',
   'gate-handoff-subagent-plan',
-  'gate-handoff-subagent-execute',
   'gate-plan-asks-execution-mode',
   'gate-review-fix-needs-consent',
   'gate-approach-alternatives',

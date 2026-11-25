@@ -1,0 +1,4 @@
+schema_version: "1.1"
+name: gate-review-fix-needs-consent
+context:
+  scaffold_script: fixture.sh
