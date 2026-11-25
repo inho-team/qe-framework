@@ -12,7 +12,7 @@
 ## Structure
 
 - `skills/`: the skills — path: `Qunderstand`, `Qplan`, `Qexecute`, `Qverify`;
-  then `Qfinish`; alongside: `Qdebugging`, `Qtdd`, `Qreview`, `Qfeedback`, `Qskill`, `Qcompact`, `Qresume`.
+  then `Qfinish`; alongside: `Qdebugging`, `Qtdd`, `Qreview`, `Qfeedback`, `Qreport`, `Qskill`, `Qcompact`, `Qresume`.
   shared rules: `code-craft` (doc comments as contracts, no editorial comments; main session and
   code agents) and `agent-conduct` (scope and reporting; preloaded by every agent).
   Each folder has `SKILL.md` plus its templates or subagent prompts.

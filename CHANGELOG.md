@@ -8,6 +8,17 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 ### Added
 
+- **Qreport — 분석 보고를 늘 같은 HTML 틀로.** 분석을 HTML이나 아티팩트로 달라고 할 때마다 레이아웃, 색,
+  섹션 순서가 새로 디자인되어 지난 보고서와 비교하기 어려웠다. 이제 고정 틀 `skills/Qreport/report-frame.html`을
+  복사해 일곱 섹션(한 줄 결론, 요청 이해, 발견한 것, 선택지 비교, 정해 주셔야 할 것, 다음 단계 + 헤더)에 내용만 채운다.
+  내용 없는 섹션은 `없음`으로 남긴다. 저장은 `docs/qe/<작업>/report.html`.
+  - Qunderstand, Qdebugging, Qverify에서 HTML·아티팩트 요청이 오면 Qreport로 간다.
+  - trigger eval 세 케이스 추가: `trigger-report`, `trigger-report-boundary`(불려야 함), `trigger-report-chat`.
+    `trigger-report-chat`은 "채팅으로 요약해줘"에 불리지 않고 HTML도 만들지 않아야 한다(`tool_used` `max: 0` + `regex` `not_contains`).
+  - 측정(각 3회): **trigger 12 of 12, gate 7 of 7**(Δ 0.00). 비용 약 $10.4.
+    - 처음에 Qreport 케이스가 실패했지만 원인은 케이스였다. 빈 sandbox에 "방금 분석한 것"이 없어서 모델이 먼저 되물었다.
+      그래서 분석 내용을 프롬프트 안에 넣었다.
+    - 스킬 없이 같은 분석을 HTML로 3번 만들면 CSS·색·폭이 매번 달랐다. 스킬을 켜면 5번 모두 `<style>`과 섹션 순서가 틀과 같았다.
 - 언어별 구현자를 포함한 전문 에이전트를 추가했다. 직접 부르거나 Q 스킬이 구현, 기획, 조사, 분석,
   단계 리뷰, 검증, 문서 작성에 맞게 고른다.
 - `code-craft`는 메인과 코드 에이전트의 문서 주석 작성 기준을, `agent-conduct`는 전문 에이전트의

@@ -1,0 +1,150 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<!-- 채움: <title>에 작업 이름 (2-4단어) -->
+<title>작업 이름</title>
+<style>
+/* QE report frame. 이 블록은 고치지 않는다 — 보고서마다 같은 모양이어야 지난 보고서와 나란히 볼 수 있다. */
+:root {
+  --bg: #f7f7f5; --surface: #ffffff; --text: #1d1d1b; --muted: #66665f;
+  --line: #e3e2dc; --accent: #2f5d8a; --accent-soft: #e8eff6;
+  --mine: #8a5a00; --mine-soft: #fbf3e2;
+  --radius: 10px;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #161615; --surface: #1f1f1d; --text: #ecebe6; --muted: #a3a29a;
+    --line: #34332f; --accent: #8db4dc; --accent-soft: #1f2b37;
+    --mine: #e0b25c; --mine-soft: #2e2716;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #161615; --surface: #1f1f1d; --text: #ecebe6; --muted: #a3a29a;
+  --line: #34332f; --accent: #8db4dc; --accent-soft: #1f2b37;
+  --mine: #e0b25c; --mine-soft: #2e2716;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body {
+  background: var(--bg); color: var(--text);
+  font: 15px/1.65 system-ui, -apple-system, "Segoe UI", "Apple SD Gothic Neo", "Malgun Gothic", sans-serif;
+  overflow-wrap: anywhere;
+}
+main { max-width: 880px; margin: 0 auto; padding: 24px 16px 64px; }
+header#header { border-bottom: 1px solid var(--line); padding-bottom: 14px; margin-bottom: 20px; }
+.meta { display: flex; flex-wrap: wrap; gap: 6px 14px; color: var(--muted); font-size: 13px; }
+.meta .kind { color: var(--accent); font-weight: 600; }
+h1 { font-size: 22px; line-height: 1.35; margin: 6px 0 0; }
+section { margin: 0 0 22px; }
+h2 {
+  font-size: 13px; letter-spacing: .04em; color: var(--muted); font-weight: 600;
+  margin: 0 0 8px; padding-bottom: 4px; border-bottom: 1px solid var(--line);
+}
+#conclusion .box {
+  background: var(--accent-soft); border-left: 4px solid var(--accent);
+  border-radius: var(--radius); padding: 12px 16px; font-size: 17px; font-weight: 600;
+}
+.two { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+@media (max-width: 640px) { .two { grid-template-columns: 1fr; } }
+.panel { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.panel h3 { font-size: 14px; margin: 0 0 6px; }
+.panel.mine { background: var(--mine-soft); border-color: transparent; }
+.panel.mine h3 { color: var(--mine); }
+.cards { display: grid; gap: 10px; }
+.card { min-width: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); padding: 12px 14px; }
+.card h3 { font-size: 15px; margin: 0 0 4px; }
+.card p { margin: 0 0 6px; }
+.evidence { font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; color: var(--muted); }
+table { width: 100%; border-collapse: separate; border-spacing: 0; background: var(--surface); border: 1px solid var(--line); border-radius: var(--radius); overflow: hidden; }
+th, td { text-align: left; vertical-align: top; padding: 9px 12px; border-bottom: 1px solid var(--line); }
+th { font-size: 13px; color: var(--muted); font-weight: 600; }
+tr:last-child td { border-bottom: 0; }
+tr.recommended td { background: var(--accent-soft); }
+tr.recommended td:first-child::after { content: " · 추천"; color: var(--accent); font-weight: 600; }
+ol, ul { margin: 0; padding-left: 22px; }
+li { margin: 3px 0; }
+pre {
+  margin: 6px 0; padding: 10px 12px; overflow-x: auto; max-width: 100%;
+  background: var(--accent-soft); border-radius: 6px;
+  font: 12.5px/1.5 ui-monospace, "Cascadia Mono", Consolas, monospace; overflow-wrap: normal;
+}
+pre code { background: none; padding: 0; font-size: inherit; }
+code { font: 13px ui-monospace, "Cascadia Mono", Consolas, monospace; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+.empty { color: var(--muted); margin: 0; }
+footer { color: var(--muted); font-size: 12px; border-top: 1px solid var(--line); padding-top: 10px; }
+</style>
+</head>
+<body>
+<main>
+
+<header id="header">
+  <div class="meta">
+    <span>QE</span>
+    <span><!-- 채움: YYYY-MM-DD --></span>
+    <span class="kind"><!-- 채움: 분석 | 디버깅 | 검증 중 하나 --></span>
+  </div>
+  <h1><!-- 채움: 작업 이름 --></h1>
+</header>
+
+<section id="conclusion">
+  <h2>한 줄 결론</h2>
+  <div class="box"><!-- 채움: 그래서 무엇인지 한 문장 --></div>
+</section>
+
+<section id="understanding">
+  <h2>요청 이해</h2>
+  <div class="two">
+    <div class="panel">
+      <h3>사용자가 말한 것</h3>
+      <!-- 채움: 사용자의 말만. 없으면 <p class="empty">없음</p> -->
+    </div>
+    <div class="panel mine">
+      <h3>내가 채운 것</h3>
+      <!-- 채움: 내가 짐작하거나 정한 것과 이유. 없으면 <p class="empty">없음</p> -->
+    </div>
+  </div>
+</section>
+
+<section id="findings">
+  <h2>발견한 것</h2>
+  <div class="cards">
+    <!-- 채움: 발견 하나에 카드 하나. 아래 예시 모양을 그대로 반복한다. 버그면 원인과 재현 방법. -->
+    <div class="card">
+      <h3>발견 제목</h3>
+      <p>무엇을 알게 되었는지.</p>
+      <!-- 로그·명령 출력은 <pre>, 코드 조각의 < 와 & 는 &lt; &amp; 로 -->
+      <div class="evidence">근거: path/to/file.ext:12</div>
+    </div>
+  </div>
+</section>
+
+<section id="options">
+  <h2>선택지 비교</h2>
+  <!-- 채움: 선택지가 없으면 표를 지우고 <p class="empty">없음</p> -->
+  <table>
+    <thead><tr><th>접근</th><th>내용</th><th>대가</th></tr></thead>
+    <tbody>
+      <tr class="recommended"><td>A</td><td>내용</td><td>대가</td></tr>
+    </tbody>
+  </table>
+</section>
+
+<section id="decisions">
+  <h2>정해 주셔야 할 것</h2>
+  <!-- 채움: 사용자만 답할 수 있는 질문을 중요한 순서로 <ol><li>…</li></ol>. 없으면 <p class="empty">없음</p> -->
+</section>
+
+<section id="next">
+  <h2>다음 단계</h2>
+  <!-- 채움: <ol><li>…</li></ol>. 없으면 <p class="empty">없음</p> -->
+</section>
+
+<footer>QE report</footer>
+</main>
+</body>
+</html>

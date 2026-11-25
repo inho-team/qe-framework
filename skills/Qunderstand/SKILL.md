@@ -73,6 +73,7 @@ description: Use when starting any new coding task (feature, bug fix, refactor, 
 - 끝에 무엇이 틀렸거나 빠졌는지 묻는다.
 
 화면, 페이지, 출력물처럼 사용자가 보게 될 것이면 텍스트 스케치를 곁들인다.
+사용자가 분석을 HTML·아티팩트로 달라고 하면 `Qreport`의 틀을 쓴다. 매번 같은 모양이어야 지난 것과 비교할 수 있다.
 
 ## 접근 방식 고르기
 
