@@ -6,8 +6,10 @@ import { pathToFileURL } from 'node:url';
 
 /**
  * Gate cases outside the interview family whose graders must all pass in the same run.
- * Each has a "must not act" grader (no edits, no plan written, no unrelated goal mentioned)
- * that a per-grader average would hide behind its other graders.
+ * Each pairs a behavior grader (asks before fixing, asks the execution method, compares
+ * approaches) with a grader on what must or must not happen in that same run (no code edit,
+ * the coordinating window calls Qplan before delegating, the plan is written after delegation),
+ * so a per-grader average would let one run's miss hide behind another run's pass.
  */
 export const STRICT_CASES = new Set([
   'gate-handoff-subagent-plan',
@@ -20,7 +22,9 @@ export const STRICT_CASES = new Set([
 /**
  * Lists strict cases (every `gate-interview-*` case and STRICT_CASES) with fewer than
  * two thirds of their runs passing every grader, as "name (passed/expected)".
- * A run that errored, skipped paid graders, or left a grader unscored does not count as passed.
+ * A run that errored, skipped paid graders, or left a grader unscored does not count as passed,
+ * except a with-only grader (e.g. `tool_used: Skill`): the default with-without ablation leaves it
+ * unscored as a plugin-fired indicator, yet its result in the with arm is what the case checks.
  * `runsOverride` replaces each case's `runsPerCase` when the run count was changed on the command line.
  */
 export function failedStrictCases(report, runsOverride) {
@@ -30,7 +34,7 @@ export function failedStrictCases(report, runsOverride) {
     const complete = (entry.arms.with ?? []).filter((run) =>
       !run.error && !run.skippedPaidGraders && entry.graders.length > 0 &&
       entry.graders.every(({ name }) =>
-        run.graders.some((result) => result.name === name && result.scored && result.passed)
+        run.graders.some((result) => result.name === name && (result.scored || result.withOnly) && result.passed)
       )
     ).length;
     const expected = runsOverride ?? entry.runsPerCase;

@@ -37,3 +37,11 @@ test('listed path cases are judged per run like interview cases', () => {
 test('other gate cases keep the harness threshold', () => {
   assert.deepEqual(failedStrictCases(report('gate-flaky-no-retry', [partial, partial, partial])), []);
 });
+
+test('a with-only grader left unscored by the with-without ablation still counts by its result', () => {
+  const name = 'gate-handoff-subagent-plan';
+  const fired = { ...pass, graders: [content, { ...scope, withOnly: true, scored: false, passed: true }] };
+  const missed = { ...pass, graders: [content, { ...scope, withOnly: true, scored: false, passed: false }] };
+  assert.deepEqual(failedStrictCases(report(name, [fired, fired, missed])), []);
+  assert.deepEqual(failedStrictCases(report(name, [fired, missed, missed])), [`${name} (1/3)`]);
+});

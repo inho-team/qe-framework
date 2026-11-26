@@ -3,5 +3,5 @@ type: llm
 focus: last_message
 ---
 
-PASS if the reply, before planning or code, presents at least two concrete ways to handle the `--due` argument (for example node:util parseArgs, extending the existing manual argv slicing, or a CLI library) with what each costs or how they differ on inputs like `--due=2026-12-01`, a missing value, or a title-less add, and recommends one; OR states that only one way fits while naming the alternatives it rejected and why.
-FAIL if it goes on without naming any alternative way to parse the argument (for example saying there is essentially one approach), or jumps straight to a plan or code.
+PASS if the reply, before planning or code, lays out at least two concrete, distinct ways to implement the change, each specific enough to build, says what each costs or how their behavior would differ for the user, and recommends one; OR says only one way fits while naming the concrete alternatives it considered and why each was rejected.
+FAIL if it names no alternative way to implement the change (for example saying there is essentially one approach without naming what else was considered), or goes straight to a plan or code.
