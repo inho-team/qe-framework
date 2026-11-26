@@ -12,6 +12,8 @@ description: Use when receiving code review feedback — PR comments, reviewer s
 
 고치는 절차(언제, 누가, 어느 단계로)는 지금 있는 자리의 스킬을 따른다. `Qexecute`의 단계
 리뷰, `Qverify`의 최종 리뷰, `Qreview` 결과, 사용자가 가져온 PR 댓글 모두 이 방법으로 거른다.
+리뷰어 서브에이전트나 검증자의 지적은 사용자에게 먼저 보여 주고, 본 뒤의 동의를 받아 고친다. 작업을 맡길 때 한
+"끝까지 해"는 지적을 보기 전이라 동의가 아니다. "지적은 알아서 고쳐"처럼 지적 수정을 명시적으로 맡겼을 때만 예외다.
 
 ## 순서
 
