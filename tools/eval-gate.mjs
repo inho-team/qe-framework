@@ -5,11 +5,12 @@ import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 
 /**
- * Gate cases outside the interview family whose graders must all pass in the same run.
- * Each pairs a behavior grader (asks before fixing, asks the execution method, compares
- * approaches) with a grader on what must or must not happen in that same run (no code edit,
- * the coordinating window calls Qplan before delegating, the plan is written after delegation),
- * so a per-grader average would let one run's miss hide behind another run's pass.
+ * Gate cases outside the interview family that are judged per run, like interview cases.
+ * The handoff and review-consent cases combine several graders (a behavior judged from the reply
+ * plus what the coordinating window must or must not do in that same run), so an average across
+ * graders would let one run's miss hide behind another run's pass. The single-grader cases
+ * (execution-method question, approach comparison) are listed so a run that errored or hit the
+ * turn cap counts as failed instead of being averaged in by its partial reply.
  */
 export const STRICT_CASES = new Set([
   'gate-handoff-subagent-plan',
