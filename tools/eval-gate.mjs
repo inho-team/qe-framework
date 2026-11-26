@@ -13,6 +13,7 @@ export const STRICT_CASES = new Set([
   'gate-handoff-subagent-plan',
   'gate-plan-asks-execution-mode',
   'gate-review-fix-needs-consent',
+  'gate-review-fix-delegated',
   'gate-approach-alternatives',
 ]);
 
@@ -48,8 +49,10 @@ function main() {
   const directory = values['output-dir'] ?? path.join('evals', 'results', new Date().toISOString().replaceAll(':', '-'));
   if (!values['output-dir']) args.push('--output-dir', directory);
   const child = spawnSync('claude', [
-    'plugin', 'eval', '.', '--tag', 'gate', '--threshold', '0.66',
-    '--allow-tools', 'Write', 'Edit', '--no-publish', '--trust-plugin', '-j', '3', ...args,
+    // Handoff cases need their fixture repo and a worker that can write the goal folder under the sandbox HOME.
+    'plugin', 'eval', '.', '--tag', 'gate', '--threshold', '0.66', '--scaffold',
+    '--allow-tools', 'Write', 'Edit', 'Write(~/.qe/**)', 'Edit(~/.qe/**)',
+    '--no-publish', '--trust-plugin', '-j', '3', ...args,
   ], { stdio: 'inherit' });
   if (child.error) throw child.error;
   if (child.status !== 0 || args.includes('--help') || args.includes('-h')) return child.status ?? 1;

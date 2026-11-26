@@ -26,7 +26,8 @@ test('an interview case needs two fully passing runs out of three', () => {
 test('listed path cases are judged per run like interview cases', () => {
   for (const name of [
     'gate-handoff-subagent-plan',
-    'gate-plan-asks-execution-mode', 'gate-review-fix-needs-consent', 'gate-approach-alternatives',
+    'gate-plan-asks-execution-mode', 'gate-review-fix-needs-consent', 'gate-review-fix-delegated',
+    'gate-approach-alternatives',
   ]) {
     assert.deepEqual(failedStrictCases(report(name, [pass, partial, partial])), [`${name} (1/3)`]);
     assert.deepEqual(failedStrictCases(report(name, [pass, pass, partial])), []);
