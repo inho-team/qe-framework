@@ -33,11 +33,18 @@ function isValidStatus(s) {
   return true;
 }
 
+// Text without a leading UTF-8 byte order mark.
+export function stripBom(text) {
+  return text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
+}
+
+// Parsed status.json of a task folder: null when missing, { invalid: true } when unreadable JSON or not a status.
 export function readStatus(taskDir) {
   const raw = safeRead(path.join(taskDir, 'status.json'));
   if (raw === null) return null;
   try {
-    const s = JSON.parse(raw);
+    // A leading BOM (Windows PowerShell 5.1 writes one) is not part of the JSON; JSON.parse rejects it.
+    const s = JSON.parse(stripBom(raw));
     return isValidStatus(s) ? s : { invalid: true };
   } catch {
     return { invalid: true };

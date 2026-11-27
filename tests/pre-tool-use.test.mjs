@@ -93,6 +93,20 @@ test('allows moving done.commit of an already-done goal to another verified comm
   assert.equal(decide(write(d.file, doneStatus(other)), d.env), null);
 });
 
+test('a done status.json saved with a UTF-8 BOM is still judged as done', () => {
+  // Observed: the goal whose done.commit was moved had a BOM-prefixed status.json (Windows PowerShell 5.1 writes),
+  // which made it read as invalid, so an Edit moving done.commit produced "invalid JSON" and passed.
+  const d = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }] });
+  fs.writeFileSync(d.file, '﻿' + JSON.stringify(d.status, null, 2));
+  const other = 'c'.repeat(40);
+  const edit = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: SHA, new_string: other } };
+  assert.match(decide(edit, d.env).deny, /cccccccc/);
+  const keep = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: '"branch": "b"', new_string: '"branch": "b", "finish": "pr"' } };
+  assert.equal(decide(keep, d.env), null);
+  const t = setup();
+  assert.ok(decide(write(t.file, '﻿' + doneStatus(SHA)), t.env).deny);
+});
+
 test('an unresolvable Edit of an already-done status is left to the tool', () => {
   // The real Edit fails when old_string is not in the file, so there is nothing to judge.
   const d = setup({ state: 'done' });

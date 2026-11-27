@@ -6,7 +6,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
 import { qeHome, tasksDir, cleanPath } from './lib/qe-home.mjs';
-import { readStatus, listVerdicts, relParts, sameCommit } from './lib/tasks.mjs';
+import { readStatus, listVerdicts, relParts, sameCommit, stripBom } from './lib/tasks.mjs';
 
 // The file content after the tool call, or null when it cannot be determined.
 function resultContent(toolName, ti, file) {
@@ -98,7 +98,8 @@ export function decide(input, env = process.env) {
     for (const text of next.candidates) {
       let v;
       try {
-        v = JSON.parse(text);
+        // Judged as the JSON a reader sees: readStatus also drops a leading BOM.
+        v = JSON.parse(stripBom(text));
       } catch {
         if (mentionsDone) return writeAll;
         continue; // a write producing invalid JSON is not ours to block
