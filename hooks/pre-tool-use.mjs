@@ -27,7 +27,6 @@ function resultContent(toolName, ti, file) {
     cur = lf(cur);
     o = lf(o);
     n = lf(n);
-    if (o === '') return null;
   }
   // The real tool uses a literal match when there is one; quote-normalized matching is only the fallback.
   if (cur.includes(o)) {
