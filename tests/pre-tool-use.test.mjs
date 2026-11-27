@@ -76,6 +76,24 @@ test('allows ordinary edits and edits to an already-done status', () => {
   assert.equal(decide(write(d.file, doneStatus(SHA.slice(0, 7))), d.env), null);
 });
 
+test('denies edits that keep an unverified done.commit on a goal that has verdicts', () => {
+  // Observed: a Bash script moved done.commit past the gate; Qfinish's next Write kept that commit and passed.
+  const other = 'c'.repeat(40);
+  const d = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }] });
+  fs.writeFileSync(d.file, doneStatus(other));
+  const moved = JSON.parse(doneStatus(other));
+  const finished = JSON.stringify({ ...moved, done: { ...moved.done, finish: 'pr' } });
+  assert.match(decide(write(d.file, finished), d.env).deny, /cccccccc/);
+  const edit = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: '"branch":"b"', new_string: '"branch":"b","finish":"pr"' } };
+  assert.ok(decide(edit, d.env).deny);
+  // Ways out stay open: back to the verified commit, or leave done.
+  assert.equal(decide(write(d.file, doneStatus(SHA)), d.env), null);
+  assert.equal(decide(write(d.file, JSON.stringify({ ...moved, state: 'active' })), d.env), null);
+  // A verified done goal still records its finish.
+  const ok = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }] });
+  assert.equal(decide(write(ok.file, JSON.stringify({ ...ok.status, done: { ...ok.status.done, finish: 'merge' } })), ok.env), null);
+});
+
 test('denies moving done.commit of an already-done goal to a commit without a 충족 verdict', () => {
   // Observed: a goal verified at one commit was re-pointed to a later, never-verified commit after it was done.
   const d = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }] });

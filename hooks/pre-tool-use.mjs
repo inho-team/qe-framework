@@ -1,7 +1,8 @@
 // PreToolUse (Write|Edit): the completion gate. The main model may not mark a goal
-// `done` in ~/.qe/tasks/<task>/status.json, or move an already-done goal's done.commit,
-// unless a hook-recorded 충족 verdict exists for that commit, and may not write verdict
-// files itself. Fails open on any error.
+// `done` in ~/.qe/tasks/<task>/status.json, move an already-done goal's done.commit, or keep
+// a done.commit that the goal's verdicts do not back, unless a hook-recorded 충족 verdict exists
+// for that commit, and may not write verdict files itself. A done goal with no verdicts at all
+// (done before verdicts existed) keeps its commit freely. Fails open on any error.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -88,7 +89,9 @@ export function decide(input, env = process.env) {
     const cur = readStatus(taskDir);
     // An already-done goal is an archive: edits that keep its recorded commit pass, so Qfinish can add
     // done.finish to goals done before verdicts existed. Moving done.commit is judged like a first done,
-    // because a done goal was observed re-pointed to later commits that no verifier saw.
+    // because a done goal was observed re-pointed to later commits that no verifier saw. Once a goal has
+    // verdicts, keeping a done.commit none of them backs is judged the same way: that commit was moved
+    // outside this gate (observed: a Bash script), and Qfinish's next write would otherwise accept it.
     const wasDone = Boolean(cur && !cur.invalid && cur.state === 'done');
     const doneCommit = wasDone ? cur.done.commit : null;
 
@@ -120,9 +123,13 @@ export function decide(input, env = process.env) {
       if (v.state !== 'done') continue;
       const commit = v.done && typeof v.done === 'object' ? v.done.commit : null;
       if (typeof commit !== 'string' || !commit.trim()) return { deny: `done.commit이 없다. ${need}` };
-      if (wasDone && sameCommit(commit, doneCommit)) continue;
-      const ok = listVerdicts(taskDir).some((x) => x && x.result === '충족' && sameCommit(x.commit, commit));
-      if (!ok) return { deny: `커밋 ${commit}에 대한 충족 검수 기록이 없다. ${need}` };
+      const verdicts = listVerdicts(taskDir);
+      const kept = wasDone && sameCommit(commit, doneCommit);
+      if (kept && verdicts.length === 0) continue;
+      const ok = verdicts.some((x) => x && x.result === '충족' && sameCommit(x.commit, commit));
+      if (ok) continue;
+      if (kept) return { deny: `완료로 기록된 커밋 ${commit}에 대한 충족 검수 기록이 없다. 이 목표의 검수 기록은 다른 커밋에 대한 것이라, done.commit이 관문 밖에서 옮겨진 것으로 보인다. 검수받은 커밋으로 되돌리거나, 이 커밋을 Qverify로 다시 검증하거나(rebase로 해시만 바뀌었어도 같다), done에서 나가라(state: active).` };
+      return { deny: `커밋 ${commit}에 대한 충족 검수 기록이 없다. ${need}` };
     }
     return null;
   } catch {

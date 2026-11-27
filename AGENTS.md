@@ -39,8 +39,8 @@
     when the `codebase-memory-mcp` executable is missing.
   - `post-tool-use.mjs` (Write|Edit) — records the session and worktree that touched a goal in its `status.json`.
   - `subagent-stop.mjs` — writes a verifier's `QE-VERDICT:` line to the goal's `verdicts/`.
-  - `pre-tool-use.mjs` (Write|Edit) — denies marking `status.json` done, or moving a done goal's `done.commit`,
-    without a 충족 verdict for that commit, and denies writes to `verdicts/`.
+  - `pre-tool-use.mjs` (Write|Edit) — denies marking `status.json` done, moving a done goal's `done.commit`, or keeping
+    one its verdicts do not back, without a 충족 verdict for that commit, and denies writes to `verdicts/`.
   - `stop.mjs` — blocks a stop once per plan state when the plan is fully checked but has no verdict.
   - `lib/` — shared helpers: `qe-home.mjs` (`~/.qe` paths, atomic writes, git commits),
     `tasks.mjs` (goal folders, status, verdicts), `alerts.mjs` (dashboard warnings).

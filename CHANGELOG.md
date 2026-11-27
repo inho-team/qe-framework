@@ -11,8 +11,11 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 - **완료 관문이 done 뒤의 커밋 바꿔치기를 막는다.** 이미 done인 목표의 `done.commit`을 Write나 Edit으로 다른 커밋으로 옮기면,
   그 커밋에 대한 충족 검수 기록이 있어야 한다. 검증한 커밋에서 done이 된 목표가 rebase 뒤 검증자가 보지 않은 커밋으로 옮겨진 일이
   실제로 있었다. 기록된 커밋을 그대로 두는 수정(Qfinish의 `done.finish` 등)과 done에서 나가는 수정은 전처럼 통과한다.
-  그 사고의 쓰기는 Bash로 실행한 스크립트였다. 관문은 Write와 Edit만 보므로 그 경로는 막지 못하고, Qboard의
+  그 사고의 쓰기는 Bash로 실행한 스크립트였다. 관문은 Write와 Edit만 보므로 그 쓰기 자체는 막지 못하고, Qboard의
   `done-without-verdict` 경고가 사후에 알린다.
+- **관문 밖에서 옮겨진 `done.commit`은 다음 Write·Edit에서 완료로 인정하지 않는다.** 검수 기록이 있는 목표인데 기록된
+  `done.commit`에 충족 검수가 없으면, 커밋을 그대로 두는 쓰기(Qfinish의 `done.finish` 기록 등)도 거부한다. 검수받은 커밋으로
+  되돌리거나, 그 커밋을 다시 검증하거나, done에서 나가는 쓰기는 통과한다. 검수 기록이 하나도 없는 예전 done 목표는 전처럼 통과한다.
 - **UTF-8 BOM으로 시작하는 `status.json`도 제대로 읽는다.** Windows PowerShell 5.1이 쓴 BOM 때문에 상태가 깨진 것으로 읽혀,
   done 목표의 `done.commit`을 Edit으로 옮기는 쓰기가 관문을 통과했고 세션 안내·Stop·Qboard도 그 목표를 깨진 것으로 다뤘다.
 - **CRLF `status.json`의 여러 줄 Edit도 실제 도구처럼 판단한다.** `~/.qe`는 Windows에서 `core.autocrlf=true`라 상태 파일이 CRLF인
