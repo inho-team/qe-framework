@@ -46,7 +46,8 @@ test('readStatus returns null when missing and {invalid:true} for broken JSON or
   fs.writeFileSync(path.join(dir, 'status.json'), JSON.stringify({ goal: 'g' }));
   assert.deepEqual(readStatus(dir), { invalid: true });
   fs.writeFileSync(path.join(dir, 'status.json'), JSON.stringify(goodStatus));
-  assert.deepEqual(readStatus(dir), goodStatus);  fs.writeFileSync(path.join(dir, 'status.json'), '﻿' + JSON.stringify(goodStatus));
+  assert.deepEqual(readStatus(dir), goodStatus);
+  fs.writeFileSync(path.join(dir, 'status.json'), '﻿' + JSON.stringify(goodStatus));
   assert.deepEqual(readStatus(dir), goodStatus);
 });
 

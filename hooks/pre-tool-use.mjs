@@ -18,8 +18,17 @@ function resultContent(toolName, ti, file) {
   } catch {
     return null;
   }
-  const { old_string: o, new_string: n } = ti;
+  let { old_string: o, new_string: n } = ti;
   if (typeof o !== 'string' || typeof n !== 'string' || o === '') return null;
+  // The real tool edits a CRLF file as LF (file, old_string and new_string) and writes CRLF back,
+  // so an LF multi-line old_string matches there. Line endings do not change the parsed JSON.
+  if (cur.includes('\r\n')) {
+    const lf = (x) => x.replaceAll('\r\n', '\n');
+    cur = lf(cur);
+    o = lf(o);
+    n = lf(n);
+    if (o === '') return null;
+  }
   // The real tool uses a literal match when there is one; quote-normalized matching is only the fallback.
   if (cur.includes(o)) {
     return { candidates: [ti.replace_all === true ? cur.split(o).join(n) : cur.replace(o, () => n)] };
@@ -86,7 +95,8 @@ export function decide(input, env = process.env) {
 
     const next = resultContent(input.tool_name, ti, filePath);
     if (next === null) return null;
-    // An Edit whose old_string is nowhere in the file fails in the real tool; on an archive there is nothing to judge.
+    // An Edit whose old_string is nowhere in the file, even after the tool's line-ending and quote matching,
+    // fails in the real tool; on an archive there is nothing to judge.
     if (wasDone && next.unknown) return null;
     const q = (x) => x.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
     // A partial Edit that mentions done is only trusted when we can fully simulate it.

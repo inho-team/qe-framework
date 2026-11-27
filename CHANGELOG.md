@@ -13,6 +13,8 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
   기록된 커밋을 그대로 두는 수정(Qfinish의 `done.finish` 등)과 done에서 나가는 수정은 전처럼 통과한다.
 - **UTF-8 BOM으로 시작하는 `status.json`도 제대로 읽는다.** Windows PowerShell 5.1이 쓴 BOM 때문에 상태가 깨진 것으로 읽혀,
   done 목표의 `done.commit`을 Edit으로 옮기는 쓰기가 관문을 통과했다. 위 사고의 목표 파일이 이 상태였다.
+- **CRLF `status.json`의 여러 줄 Edit도 실제 도구처럼 판단한다.** `~/.qe`는 Windows에서 `core.autocrlf=true`라 상태 파일이 CRLF인
+  경우가 있다. 실제 Edit은 LF로 맞춰 적용하는데 관문은 그대로 비교해서, 여러 줄 Edit으로 `done.commit`을 옮기거나 done을 쓰는 쓰기가 통과했다.
 
 ## [11.1.1] - 2026-11-27
 

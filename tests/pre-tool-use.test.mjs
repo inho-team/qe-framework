@@ -107,6 +107,21 @@ test('a done status.json saved with a UTF-8 BOM is still judged as done', () => 
   assert.ok(decide(write(t.file, '﻿' + doneStatus(SHA)), t.env).deny);
 });
 
+test('a multi-line LF Edit of a CRLF status.json is judged as the real tool applies it', () => {
+  // ~/.qe has core.autocrlf=true on Windows, so status.json is often CRLF; the Edit tool matches LF old_string there.
+  const d = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }] });
+  fs.writeFileSync(d.file, JSON.stringify(d.status, null, 2).replace(/\n/g, '\r\n'));
+  const other = 'c'.repeat(40);
+  const move = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: `"commit": "${SHA}",\n    "branch": "b"`, new_string: `"commit": "${other}",\n    "branch": "b",\n    "finish": "pr"` } };
+  assert.match(decide(move, d.env).deny, /cccccccc/);
+  const keep = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: `"commit": "${SHA}",\n    "branch": "b"`, new_string: `"commit": "${SHA}",\n    "branch": "b",\n    "finish": "pr"` } };
+  assert.equal(decide(keep, d.env), null);
+  const t = setup();
+  fs.writeFileSync(t.file, JSON.stringify(t.status, null, 2).replace(/\n/g, '\r\n'));
+  const first = { tool_name: 'Edit', tool_input: { file_path: t.file, old_string: '"project": "p",\n  "state": "active"', new_string: '"project": "p",\n  "state": "d\\u006fne"' } };
+  assert.ok(decide(first, t.env).deny);
+});
+
 test('an unresolvable Edit of an already-done status is left to the tool', () => {
   // The real Edit fails when old_string is not in the file, so there is nothing to judge.
   const d = setup({ state: 'done' });
