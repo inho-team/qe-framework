@@ -1,6 +1,7 @@
 // PreToolUse (Write|Edit): the completion gate. The main model may not mark a goal
-// `done` in ~/.qe/tasks/<task>/status.json unless a hook-recorded 충족 verdict exists
-// for the same commit, and may not write verdict files itself. Fails open on any error.
+// `done` in ~/.qe/tasks/<task>/status.json, or move an already-done goal's done.commit,
+// unless a hook-recorded 충족 verdict exists for that commit, and may not write verdict
+// files itself. Fails open on any error.
 import fs from 'node:fs';
 import path from 'node:path';
 import { pathToFileURL } from 'node:url';
@@ -77,10 +78,16 @@ export function decide(input, env = process.env) {
     if (parts.length !== 1 || parts[0] !== 'status.json') return null;
 
     const cur = readStatus(taskDir);
-    if (cur && !cur.invalid && cur.state === 'done') return null;
+    // An already-done goal is an archive: edits that keep its recorded commit pass, so Qfinish can add
+    // done.finish to goals done before verdicts existed. Moving done.commit is judged like a first done,
+    // because a done goal was observed re-pointed to later commits that no verifier saw.
+    const wasDone = Boolean(cur && !cur.invalid && cur.state === 'done');
+    const doneCommit = wasDone ? cur.done.commit : null;
 
     const next = resultContent(input.tool_name, ti, filePath);
     if (next === null) return null;
+    // An Edit whose old_string is nowhere in the file fails in the real tool; on an archive there is nothing to judge.
+    if (wasDone && next.unknown) return null;
     const q = (x) => x.replace(/[“”]/g, '"').replace(/[‘’]/g, "'");
     // A partial Edit that mentions done is only trusted when we can fully simulate it.
     const mentionsDone = input.tool_name === 'Edit' && typeof ti.new_string === 'string' && q(ti.new_string).includes('done');
@@ -103,6 +110,7 @@ export function decide(input, env = process.env) {
       if (v.state !== 'done') continue;
       const commit = v.done && typeof v.done === 'object' ? v.done.commit : null;
       if (typeof commit !== 'string' || !commit.trim()) return { deny: `done.commit이 없다. ${need}` };
+      if (wasDone && sameCommit(commit, doneCommit)) continue;
       const ok = listVerdicts(taskDir).some((x) => x && x.result === '충족' && sameCommit(x.commit, commit));
       if (!ok) return { deny: `커밋 ${commit}에 대한 충족 검수 기록이 없다. ${need}` };
     }

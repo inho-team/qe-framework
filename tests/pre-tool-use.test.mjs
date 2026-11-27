@@ -67,8 +67,37 @@ test('allows ordinary edits and edits to an already-done status', () => {
   const c = JSON.stringify({ ...t.status, goal: 'other' });
   assert.equal(decide(write(t.file, c), t.env), null);
   assert.equal(decide(write(path.join(t.taskDir, 'plan.md'), 'x'), t.env), null);
+  // An archived done goal keeps its recorded commit: further edits (Qfinish's done.finish, leaving done) pass
+  // even when that commit has no verdict on this PC.
   const d = setup({ state: 'done' });
-  assert.equal(decide(write(d.file, doneStatus('c'.repeat(40))), d.env), null);
+  const finished = JSON.stringify({ ...d.status, done: { ...d.status.done, finish: 'pr' } });
+  assert.equal(decide(write(d.file, finished), d.env), null);
+  assert.equal(decide(write(d.file, JSON.stringify({ ...d.status, state: 'stopped' })), d.env), null);
+  assert.equal(decide(write(d.file, doneStatus(SHA.slice(0, 7))), d.env), null);
+});
+
+test('denies moving done.commit of an already-done goal to a commit without a 충족 verdict', () => {
+  // Observed: a goal verified at one commit was re-pointed to a later, never-verified commit after it was done.
+  const d = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }] });
+  const other = 'c'.repeat(40);
+  assert.match(decide(write(d.file, doneStatus(other)), d.env).deny, /cccccccc/);
+  const edit = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: SHA, new_string: other } };
+  assert.ok(decide(edit, d.env).deny);
+  const noCommit = JSON.stringify({ ...d.status, done: { branch: 'b' } });
+  assert.ok(decide(write(d.file, noCommit), d.env).deny);
+});
+
+test('allows moving done.commit of an already-done goal to another verified commit', () => {
+  const other = 'c'.repeat(40);
+  const d = setup({ state: 'done', verdicts: [{ result: '충족', commit: SHA }, { result: '충족', commit: other }] });
+  assert.equal(decide(write(d.file, doneStatus(other)), d.env), null);
+});
+
+test('an unresolvable Edit of an already-done status is left to the tool', () => {
+  // The real Edit fails when old_string is not in the file, so there is nothing to judge.
+  const d = setup({ state: 'done' });
+  const e = { tool_name: 'Edit', tool_input: { file_path: d.file, old_string: 'no such text', new_string: '"state": "done"' } };
+  assert.equal(decide(e, d.env), null);
 });
 
 test('ignores paths outside ~/.qe/tasks without touching the filesystem', () => {

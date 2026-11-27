@@ -4,6 +4,14 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [Unreleased]
+
+### Fixed
+
+- **완료 관문이 done 뒤의 커밋 바꿔치기를 막는다.** 이미 done인 목표의 `done.commit`을 다른 커밋으로 옮기면, 그 커밋에 대한
+  충족 검수 기록이 있어야 한다. 검증한 커밋에서 done이 된 목표가 검증자가 보지 않은 뒤 커밋으로 옮겨진 일이 실제로 있었다.
+  기록된 커밋을 그대로 두는 수정(Qfinish의 `done.finish` 등)과 done에서 나가는 수정은 전처럼 통과한다.
+
 ## [11.1.1] - 2026-11-27
 
 릴리스 전 점검(각 3회): trigger 15 of 15, gate 15 of 15, codebase-memory 1 of 1 통과. Codebase Memory 0.12.1(업스트림 최신).
