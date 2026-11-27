@@ -21,6 +21,11 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 - **CRLF `status.json`의 여러 줄 Edit도 실제 도구처럼 판단한다.** `~/.qe`는 Windows에서 `core.autocrlf=true`라 상태 파일이 CRLF인
   경우가 있다. 실제 Edit은 LF로 맞춰 적용하는데 관문은 그대로 비교해서, 여러 줄 Edit으로 `done.commit`을 옮기는 쓰기가 통과했다.
 
+### Changed
+
+- **Qfinish: rebase로 해시가 바뀌면 `done.commit`을 고쳐 적지 않고 바뀐 커밋을 다시 검수받는다.** 위 사고에서 모델은 rebase 뒤
+  해시만 바뀌었다고 보고 스크립트로 `done.commit`을 옮겨 적었다. README의 관문 설명도 Write·Edit만 본다는 범위에 맞췄다.
+
 ## [11.1.1] - 2026-11-27
 
 릴리스 전 점검(각 3회): trigger 15 of 15, gate 15 of 15, codebase-memory 1 of 1 통과. Codebase Memory 0.12.1(업스트림 최신).
