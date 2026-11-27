@@ -6,11 +6,13 @@ import { pathToFileURL } from 'node:url';
 
 /**
  * Gate cases outside the interview family that are judged per run, like interview cases.
- * The handoff and review-consent cases combine several graders (a behavior judged from the reply
- * plus what the coordinating window must or must not do in that same run), so an average across
- * graders would let one run's miss hide behind another run's pass. The single-grader cases
- * (execution-method question, approach comparison) are listed so a run that errored or hit the
- * turn cap counts as failed instead of being averaged in by its partial reply.
+ * The handoff and review-fix cases combine several graders (a behavior judged from the reply plus
+ * what the top-level session must or must not do in that same run: call Qplan before delegating,
+ * leave the plan documents to the worker, edit no code), so an average across graders would let
+ * one run's miss hide behind another run's pass. The single-grader cases (execution-method
+ * question, approach comparison) are listed so a run the harness reports as errored (for example
+ * a timeout) counts as failed. A run that only exceeded its turn budget without an error is still
+ * judged by its graders.
  */
 export const STRICT_CASES = new Set([
   'gate-handoff-subagent-plan',
