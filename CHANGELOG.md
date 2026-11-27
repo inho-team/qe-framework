@@ -4,6 +4,29 @@ QE Framework의 사용자에게 보이는 변경을 기록한다.
 
 형식: [Keep a Changelog](https://keepachangelog.com/). 버전: [SemVer](https://semver.org/).
 
+## [11.1.1] - 2026-11-27
+
+릴리스 전 점검(각 3회): trigger 15 of 15, gate 15 of 15, codebase-memory 1 of 1 통과. Codebase Memory 0.12.1(업스트림 최신).
+gate는 `-j 1`로 쟀고, SessionStart hook이 5초 안에 끝나지 못해 취소된 실행(`hook_response` `outcome: cancelled`)은 무효로 보고 다시 쟀다.
+
+### Fixed
+
+- **서브에이전트 인계 뒤에도 단계 스킬이 불린다.** 사용자가 서브에이전트 인계를 고르면 인터뷰 창이 조율자로서 `Qplan`·`Qexecute`·`Qverify`를
+  부르고, 계획 문서 작성·수정과 코드 구현은 작업자에게 맡긴다. 작업자는 Q 스킬을 부르지 않고 새 `skills/Qplan/writer-prompt.md`와
+  `skills/Qexecute/implementer-prompt.md`로 규칙을 받는다. 승인 뒤·실행 중 계획 수정도 작성 작업자의 수정 모드로 간다.
+  eval: `gate-handoff-subagent-plan`(조율 창이 위임 전에 Qplan을 부름, Qplan은 한 번, 조율 창은 plan 문서를 쓰지 않음).
+- **계획 승인 때 실행 방식을 묻는다.** 인계 방식(새 세션·서브에이전트)을 고른 것은 실행 방식을 고른 것이 아니다.
+  eval: `gate-plan-asks-execution-mode`.
+- **리뷰 지적은 목록을 본 뒤 받은 동의로만 고친다.** `Qverify`·`Qreview`·`Qfeedback`이 같은 규칙을 쓴다. 미리 한 포괄 지시는 동의가 아니고,
+  지적 수정 자체를 맡긴 경우만 예외다. Qexecute 단계 리뷰는 이 규칙 밖이다.
+  eval: `gate-review-fix-needs-consent`, `gate-review-fix-delegated`.
+- **접근이 "사실상 하나"로 보여도 비교한다.** 이미 있는 것을 쓰는 길과 새로 만드는 길을 나란히 놓고, 하나뿐이면 버린 대안을 이름으로 든다.
+  eval: `gate-approach-alternatives`.
+- **다른 프로젝트 목표를 알리지 않는다.** `~/.qe/tasks`를 직접 볼 때도 `project`가 이 저장소가 아닌 목표는 말하지 않는다. 이어서 하자는데
+  안내된 작업이 없을 때만 후보로 보여 주고 묻는다.
+- `npm run eval:gate`: with-without에서 점수에 들어가지 않는 with-only 채점기(`tool_used: Skill`)를 with 팔 결과로 센다. 새 케이스도
+  실행 단위로 판정하고, 인계 케이스의 작업자가 sandbox HOME의 목표 폴더에 쓸 수 있게 한다.
+
 ## [11.1.0] - 2026-11-25
 
 릴리스 전 점검(각 3회): trigger 15 of 15, gate 10 of 10, codebase-memory 1 of 1 통과. Codebase Memory 0.12.1(업스트림 최신).
